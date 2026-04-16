@@ -116,6 +116,46 @@ export async function updateStudioSlug(formData: FormData): Promise<void> {
   revalidatePath(`/booking/${studio.public_slug}`);
 }
 
+export async function updateStudioPaynowSettings(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
+
+  const enabled = formData.get("paynow_enabled") === "on";
+  const proxyType = String(formData.get("paynow_proxy_type") ?? "uen").trim();
+  const paynowUen = String(formData.get("paynow_uen") ?? "").trim() || null;
+  const paynowMobile = String(formData.get("paynow_mobile") ?? "").trim() || null;
+  const payeeName = String(formData.get("paynow_payee_name") ?? "").trim() || null;
+
+  if (!["uen", "mobile", "uen_mobile"].includes(proxyType)) return;
+  if (enabled) {
+    if (proxyType === "uen" && !paynowUen) return;
+    if (proxyType === "mobile" && !paynowMobile) return;
+    if (proxyType === "uen_mobile" && (!paynowUen || !paynowMobile)) return;
+  }
+
+  const { error } = await supabase
+    .from("studios")
+    .update({
+      paynow_enabled: enabled,
+      paynow_proxy_type: proxyType,
+      paynow_uen: paynowUen,
+      paynow_mobile: paynowMobile,
+      paynow_payee_name: payeeName,
+    })
+    .eq("id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+
+  revalidatePath("/dashboard/settings/payments");
+  revalidatePath("/checkout");
+  revalidatePath("/booking");
+  if (studio.public_slug) revalidatePath(`/booking/${studio.public_slug}`);
+}
+
 export async function createInstructor(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const locationId = String(formData.get("location_id") ?? "").trim() || null;

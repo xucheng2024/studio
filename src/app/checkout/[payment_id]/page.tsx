@@ -8,6 +8,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type Props = { params: Promise<{ payment_id: string }> };
 
+function maskTail(value: string | null | undefined, visible = 4) {
+  if (!value) return "-";
+  const raw = String(value);
+  if (raw.length <= visible) return raw;
+  return `${"*".repeat(Math.max(0, raw.length - visible))}${raw.slice(-visible)}`;
+}
+
 export default async function PaymentCheckoutPage({ params }: Props) {
   const { payment_id } = await params;
   const admin = createAdminClient();
@@ -22,6 +29,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       reference_code,
       expires_at,
       qr_payload,
+      paynow_proxy_type_snapshot,
+      paynow_uen_snapshot,
+      paynow_mobile_snapshot,
+      paynow_payee_name_snapshot,
       customer_confirmed_at,
       booking_id
     `,
@@ -92,6 +103,15 @@ export default async function PaymentCheckoutPage({ params }: Props) {
             </p>
             <p className={ui.muted}>
               Reference: <span className={ui.code}>{payment.reference_code}</span>
+            </p>
+            <p className={ui.muted}>
+              PayNow payee:{" "}
+              {payment.paynow_payee_name_snapshot ?? "Payee"} ·{" "}
+              {payment.paynow_proxy_type_snapshot === "mobile"
+                ? `Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
+                : payment.paynow_proxy_type_snapshot === "uen_mobile"
+                  ? `UEN ${maskTail(payment.paynow_uen_snapshot)} · Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
+                  : `UEN ${maskTail(payment.paynow_uen_snapshot)}`}
             </p>
             {payment.reference_code ? <CopyRefButton reference={payment.reference_code} /> : null}
             <p className={ui.muted}>Please include this reference in your transfer note to speed up verification.</p>

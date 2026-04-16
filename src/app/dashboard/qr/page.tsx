@@ -61,7 +61,7 @@ export default async function QrPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>QR booking</h1>
         <p className={`mt-2 ${ui.lead}`}>
-          Print or share. Clients scan, see classes, then book with name + email only.
+          Print or share. Members scan, see classes, then book with name + email only.
         </p>
         {(studios?.length ?? 0) > 1 ? (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">

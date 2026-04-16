@@ -4,6 +4,7 @@ import { BookButton } from "@/components/BookButton";
 import { PackageBookButton } from "@/components/PackageBookButton";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
+import { getPaynowSummary } from "@/lib/paynow";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,18 @@ export default async function StudioBookingPage({ params }: Props) {
   if (stErr || !studio) {
     notFound();
   }
+  const { data: studioPaynow } = await supabase
+    .from("studios")
+    .select("paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
+    .eq("id", studio.id)
+    .maybeSingle();
+  const paynow = getPaynowSummary({
+    paynow_enabled: Boolean(studioPaynow?.paynow_enabled),
+    paynow_proxy_type: studioPaynow?.paynow_proxy_type ?? null,
+    paynow_uen: studioPaynow?.paynow_uen ?? null,
+    paynow_mobile: studioPaynow?.paynow_mobile ?? null,
+    paynow_payee_name: studioPaynow?.paynow_payee_name ?? null,
+  });
 
   let packCredits = 0;
   let userPacks: { id: string; name: string; credits_left: number; expiry_date: string | null }[] = [];
@@ -105,6 +118,7 @@ export default async function StudioBookingPage({ params }: Props) {
           {rules?.no_show_buffer_min ?? 15} minutes{" "}
           {rules?.no_show_deduct_credit ?? true ? "uses" : "does not use"} a credit.
         </p>
+        <p className={`text-sm ${paynow.configured ? ui.muted : ui.error}`}>{paynow.line}</p>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           {user ? (
             <>
@@ -148,10 +162,10 @@ export default async function StudioBookingPage({ params }: Props) {
                 {user ? (
                   <div className="flex flex-wrap justify-end gap-2">
                     <PackageBookButton sessionId={s.id} packages={userPacks} />
-                    <BookButton sessionId={s.id} />
+                    <BookButton sessionId={s.id} disabled={!paynow.configured} />
                   </div>
                 ) : (
-                  <QuickBookPanel slug={slug} sessionId={s.id} />
+                  <QuickBookPanel slug={slug} sessionId={s.id} disabled={!paynow.configured} />
                 )}
               </div>
             </li>

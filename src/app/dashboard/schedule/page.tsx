@@ -113,7 +113,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Max active bookings / client</span>
+            <span className={ui.label}>Max active bookings / member</span>
             <input
               type="number"
               min={1}

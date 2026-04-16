@@ -245,7 +245,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                 className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 dark:border-amber-900/70 dark:bg-amber-950/30"
               >
                 <span className="font-medium text-stone-900 dark:text-stone-100">
-                  {user?.email ?? row.client_id ?? "unknown client"}
+                  {user?.email ?? row.client_id ?? "unknown member"}
                 </span>{" "}
                 · {pkg?.name ?? "Package"} ·{" "}
                 <span className="tabular-nums text-amber-800 dark:text-amber-300">
@@ -261,7 +261,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           })}
         </ul>
         {!lowCreditRows?.length ? (
-          <p className={`mt-4 text-sm ${ui.muted}`}>No low-credit clients right now.</p>
+          <p className={`mt-4 text-sm ${ui.muted}`}>No low-credit members right now.</p>
         ) : null}
       </div>
 

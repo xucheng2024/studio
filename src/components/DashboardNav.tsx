@@ -8,12 +8,13 @@ const links = [
   { href: "/dashboard/qr", label: "QR code" },
   { href: "/dashboard/classes", label: "Classes" },
   { href: "/dashboard/schedule", label: "Schedule" },
-  { href: "/dashboard/clients", label: "Clients" },
+  { href: "/dashboard/clients", label: "Members" },
   { href: "/dashboard/packages", label: "Packages" },
   { href: "/dashboard/payments", label: "Payments" },
   { href: "/dashboard/frontdesk", label: "Frontdesk" },
   { href: "/dashboard/reports", label: "Reports" },
   { href: "/dashboard/staff", label: "Staff" },
+  { href: "/dashboard/settings/payments", label: "Payment settings" },
 ];
 
 export function DashboardNav() {

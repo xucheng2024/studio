@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BuyPackageButton } from "@/components/BuyButtons";
+import { getPaynowSummary } from "@/lib/paynow";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,7 +20,14 @@ export default async function CheckoutPage() {
       price,
       expiry_days,
       is_drop_in,
-      studios ( name )
+      studios (
+        name,
+        paynow_enabled,
+        paynow_proxy_type,
+        paynow_uen,
+        paynow_mobile,
+        paynow_payee_name
+      )
     `,
     )
     .order("price", { ascending: true });
@@ -40,7 +48,33 @@ export default async function CheckoutPage() {
 
       <ul className="flex flex-col gap-4">
         {(packages ?? []).map((p) => {
-          const studio = (p.studios as { name?: string } | null)?.name ?? "Studio";
+          const studioObj = (p.studios as
+            | {
+                name?: string;
+                paynow_enabled?: boolean;
+                paynow_proxy_type?: string | null;
+                paynow_uen?: string | null;
+                paynow_mobile?: string | null;
+                paynow_payee_name?: string | null;
+              }
+            | {
+                name?: string;
+                paynow_enabled?: boolean;
+                paynow_proxy_type?: string | null;
+                paynow_uen?: string | null;
+                paynow_mobile?: string | null;
+                paynow_payee_name?: string | null;
+              }[]
+            | null);
+          const studioRow = Array.isArray(studioObj) ? studioObj[0] : studioObj;
+          const studio = studioRow?.name ?? "Studio";
+          const paynow = getPaynowSummary({
+            paynow_enabled: Boolean(studioRow?.paynow_enabled),
+            paynow_proxy_type: studioRow?.paynow_proxy_type ?? null,
+            paynow_uen: studioRow?.paynow_uen ?? null,
+            paynow_mobile: studioRow?.paynow_mobile ?? null,
+            paynow_payee_name: studioRow?.paynow_payee_name ?? null,
+          });
           return (
             <li
               key={p.id}
@@ -56,8 +90,11 @@ export default async function CheckoutPage() {
                   Expiry:{" "}
                   {p.expiry_days != null ? `${p.expiry_days} days after purchase` : "none"}
                 </p>
+                <p className={`mt-1 text-xs ${paynow.configured ? ui.muted : ui.error}`}>
+                  {paynow.line}
+                </p>
               </div>
-              {user ? <BuyPackageButton packageId={p.id} /> : null}
+              {user ? <BuyPackageButton packageId={p.id} disabled={!paynow.configured} /> : null}
             </li>
           );
         })}

@@ -21,6 +21,8 @@ export function QuickBookPanel({ slug, sessionId, disabled }: Props) {
   const toFriendly = (code: string) => {
     if (code === "full") return "This class is full now. Please choose another one.";
     if (code === "already_has_booking") return "You already have a booking for this class.";
+    if (code === "PAYNOW_NOT_CONFIGURED")
+      return "This studio has not configured PayNow yet. Please contact frontdesk.";
     return "Could not continue. Please check your details and try again.";
   };
 

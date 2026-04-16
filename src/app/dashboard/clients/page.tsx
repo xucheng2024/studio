@@ -24,7 +24,7 @@ export default async function ClientsPage({ searchParams }: Props) {
     return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
   }
   if (!["owner", "manager", "frontdesk"].includes(bestRole(ctx))) {
-    return <p className={ui.muted}>You do not have clients access.</p>;
+    return <p className={ui.muted}>You do not have members access.</p>;
   }
 
   let classQuery = supabase
@@ -80,7 +80,7 @@ export default async function ClientsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className={ui.h1}>Clients</h1>
+      <h1 className={ui.h1}>Members</h1>
 
       <div>
         <h2 className={ui.h2}>Credits in your studio</h2>

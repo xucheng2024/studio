@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BookButton } from "@/components/BookButton";
 import { PackageBookButton } from "@/components/PackageBookButton";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
+import { getPaynowSummary } from "@/lib/paynow";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,7 +48,7 @@ export default async function BookingPage() {
       classes (
         studio_id,
         title,
-        studios ( name )
+        studios ( name, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name )
       )
     `,
     )
@@ -98,24 +99,46 @@ export default async function BookingPage() {
               </Link>
             </>
           ) : (
-            <>
-              <Link href="/auth?tab=member" className={ui.link}>
-                Sign in to book with credits
-              </Link>
-              <span className="text-stone-400 dark:text-stone-600">·</span>
-              <Link href="/auth?tab=member" className={ui.link}>
-                Join with email
-              </Link>
-            </>
+            <Link href="/auth?tab=member" className={ui.link}>
+              Continue with email
+            </Link>
           )}
         </div>
       </header>
 
       <ul className="flex flex-col gap-4">
         {(sessions ?? []).map((s) => {
-          const cls = s.classes as { title?: string; studio_id?: string; studios?: { name?: string } } | null;
+          const cls = s.classes as {
+            title?: string;
+            studio_id?: string;
+            studios?:
+              | {
+                  name?: string;
+                  paynow_enabled?: boolean;
+                  paynow_proxy_type?: string | null;
+                  paynow_uen?: string | null;
+                  paynow_mobile?: string | null;
+                  paynow_payee_name?: string | null;
+                }
+              | {
+                  name?: string;
+                  paynow_enabled?: boolean;
+                  paynow_proxy_type?: string | null;
+                  paynow_uen?: string | null;
+                  paynow_mobile?: string | null;
+                  paynow_payee_name?: string | null;
+                }[];
+          } | null;
+          const studioRow = Array.isArray(cls?.studios) ? cls?.studios[0] : cls?.studios;
           const title = cls?.title ?? "Class";
-          const studio = cls?.studios?.name ?? "Studio";
+          const studio = studioRow?.name ?? "Studio";
+          const paynow = getPaynowSummary({
+            paynow_enabled: Boolean(studioRow?.paynow_enabled),
+            paynow_proxy_type: studioRow?.paynow_proxy_type ?? null,
+            paynow_uen: studioRow?.paynow_uen ?? null,
+            paynow_mobile: studioRow?.paynow_mobile ?? null,
+            paynow_payee_name: studioRow?.paynow_payee_name ?? null,
+          });
           const start = new Date(s.start_time).toLocaleString();
           const scopedRule =
             (cls?.studio_id
@@ -140,12 +163,13 @@ export default async function BookingPage() {
                     {scopedRule.no_show_deduct_credit ?? true ? "uses" : "does not use"} a credit.
                   </p>
                 ) : null}
+                <p className={`mt-1 text-xs ${paynow.configured ? ui.muted : ui.error}`}>{paynow.line}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {user ? (
                   <>
                     <PackageBookButton sessionId={s.id} packages={userPacks} />
-                    <BookButton sessionId={s.id} />
+                    <BookButton sessionId={s.id} disabled={!paynow.configured} />
                   </>
                 ) : null}
               </div>

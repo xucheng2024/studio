@@ -46,10 +46,10 @@ export default function AuthPage() {
           <p className={ui.badge}>Get started</p>
           <h1 className={`${ui.h1} mt-3 text-2xl`}>{heading}</h1>
           <p className={`mt-2 ${ui.lead}`}>
-            {tab === "owner" ? site.marketing.ownerIntro : site.marketing.clientIntro}
+            {tab === "owner" ? site.marketing.ownerIntro : site.marketing.memberIntro}
           </p>
           <ul className="mt-5 flex flex-col gap-2.5 text-sm">
-            {(tab === "owner" ? site.marketing.ownerHighlights : site.marketing.clientHighlights).map((item) => (
+            {(tab === "owner" ? site.marketing.ownerHighlights : site.marketing.memberHighlights).map((item) => (
               <li
                 key={item}
                 className="flex items-start gap-2.5 rounded-xl border border-stone-100 bg-stone-50/70 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40"
@@ -73,7 +73,7 @@ export default function AuthPage() {
         <section className={`${ui.card} mx-auto w-full max-w-md md:col-span-2`}>
           <div className="grid grid-cols-3 gap-2 rounded-xl border border-stone-200/80 bg-stone-50/80 p-1 dark:border-stone-800 dark:bg-stone-900/50">
             {[
-              { id: "member", label: "Client" },
+              { id: "member", label: "Member" },
               { id: "staff", label: "Staff" },
               { id: "owner", label: "Owner" },
             ].map((t) => (
@@ -244,7 +244,7 @@ export default function AuthPage() {
                   onChange={(e) => setOwnerRole(e.target.value as "owner" | "client")}
                 >
                   <option value="owner">Studio owner</option>
-                  <option value="client">Client</option>
+                  <option value="client">Member</option>
                 </select>
               </label>
               {ownerMsg ? <p className={ui.muted}>{ownerMsg}</p> : null}

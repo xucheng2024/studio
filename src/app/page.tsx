@@ -26,14 +26,14 @@ export default function Home() {
             </span>
             <span className={ui.muted}>Top up credits and continue booking without frontdesk delays</span>
           </Link>
-          <Link href="/auth?tab=member" className={`${ui.cardInteractive} flex flex-col gap-1`}>
+          <div className={`${ui.card} flex flex-col gap-1`}>
             <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">
-              Keep client history synced
+              Keep member history synced
             </span>
             <span className={ui.muted}>
               Guests can continue with the same email and keep bookings, payments, and credits in one timeline
             </span>
-          </Link>
+          </div>
           <Link href="/dashboard" className={`${ui.cardInteractive} flex flex-col gap-1`}>
             <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">
               Owner workspace

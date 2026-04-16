@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { buildPaynowPayload, generatePaynowReference, toQrDataUrl } from "@/lib/paynow";
+import {
+  buildPaynowPayload,
+  generatePaynowReference,
+  toQrDataUrl,
+  validatePaynowConfig,
+} from "@/lib/paynow";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,9 +39,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "package_not_found" }, { status: 404 });
   }
 
+  const { data: studioPaynow } = await admin
+    .from("studios")
+    .select("paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
+    .eq("id", pkg.studio_id)
+    .maybeSingle();
+  const paynow = validatePaynowConfig({
+    paynow_enabled: Boolean(studioPaynow?.paynow_enabled),
+    paynow_proxy_type: studioPaynow?.paynow_proxy_type ?? null,
+    paynow_uen: studioPaynow?.paynow_uen ?? null,
+    paynow_mobile: studioPaynow?.paynow_mobile ?? null,
+    paynow_payee_name: studioPaynow?.paynow_payee_name ?? null,
+  });
+  if (!paynow.ok) {
+    return NextResponse.json({ error: paynow.error, message: paynow.message }, { status: 409 });
+  }
+
   const reference = generatePaynowReference();
   const qrPayload = buildPaynowPayload({
-    studioCode: pkg.studio_id,
+    proxyType: paynow.proxyType,
+    uen: paynow.uen,
+    mobile: paynow.mobile,
+    payeeName: paynow.payeeName,
     amount: Number(pkg.price),
     reference,
   });
@@ -55,6 +79,10 @@ export async function POST(req: Request) {
       payment_method: "paynow",
       reference_code: reference,
       qr_payload: qrPayload,
+      paynow_proxy_type_snapshot: paynow.proxyType,
+      paynow_uen_snapshot: paynow.uen,
+      paynow_mobile_snapshot: paynow.mobile,
+      paynow_payee_name_snapshot: paynow.payeeName,
       expires_at: expiresAt,
       type: "package",
       status: "pending",
