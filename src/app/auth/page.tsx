@@ -9,6 +9,7 @@ import { ui } from "@/lib/ui";
 
 type AuthTab = "member" | "staff" | "owner";
 type MemberStep = "request" | "verify";
+type OtpStep = "request" | "verify";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -26,15 +27,17 @@ export default function AuthPage() {
   const [otpCode, setOtpCode] = useState("");
 
   const [staffEmail, setStaffEmail] = useState("");
-  const [staffPassword, setStaffPassword] = useState("");
   const [staffErr, setStaffErr] = useState<string | null>(null);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [staffStep, setStaffStep] = useState<OtpStep>("request");
+  const [staffOtpCode, setStaffOtpCode] = useState("");
 
   const [ownerEmail, setOwnerEmail] = useState("");
-  const [ownerPassword, setOwnerPassword] = useState("");
   const [ownerRole, setOwnerRole] = useState<"owner" | "client">("owner");
   const [ownerMsg, setOwnerMsg] = useState<string | null>(null);
   const [ownerLoading, setOwnerLoading] = useState(false);
+  const [ownerStep, setOwnerStep] = useState<OtpStep>("request");
+  const [ownerOtpCode, setOwnerOtpCode] = useState("");
 
   const heading = useMemo(() => {
     if (tab === "member") return "Keep your bookings, payments, and credits in one place";
@@ -120,6 +123,11 @@ export default function AuthPage() {
                   setMemberMsg("Verification code sent. Enter the 6-digit code from your email.");
                   return;
                 }
+                if (otpCode.trim().length !== 6) {
+                  setMemberLoading(false);
+                  setMemberMsg("Please enter a valid 6-digit OTP code.");
+                  return;
+                }
                 const { error } = await supabase.auth.verifyOtp({
                   email: email.trim(),
                   token: otpCode.trim(),
@@ -158,7 +166,7 @@ export default function AuthPage() {
               </label>
               {memberStep === "verify" ? (
                 <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Email OTP code</span>
+                  <span className={ui.label}>Email OTP code (6 digits)</span>
                   <input
                     className={ui.input}
                     value={otpCode}
@@ -166,6 +174,7 @@ export default function AuthPage() {
                     placeholder="6-digit code"
                     inputMode="numeric"
                     autoComplete="one-time-code"
+                    maxLength={6}
                     required
                   />
                 </label>
@@ -214,9 +223,29 @@ export default function AuthPage() {
                 setStaffErr(null);
                 setStaffLoading(true);
                 const supabase = createBrowserSupabase();
-                const { error } = await supabase.auth.signInWithPassword({
-                  email: staffEmail,
-                  password: staffPassword,
+                if (staffStep === "request") {
+                  const { error } = await supabase.auth.signInWithOtp({
+                    email: staffEmail.trim(),
+                    options: { shouldCreateUser: false },
+                  });
+                  setStaffLoading(false);
+                  if (error) {
+                    setStaffErr(error.message);
+                    return;
+                  }
+                  setStaffStep("verify");
+                  setStaffErr("OTP sent. Enter the 6-digit code from your email.");
+                  return;
+                }
+                if (staffOtpCode.trim().length !== 6) {
+                  setStaffLoading(false);
+                  setStaffErr("Please enter a valid 6-digit OTP code.");
+                  return;
+                }
+                const { error } = await supabase.auth.verifyOtp({
+                  email: staffEmail.trim(),
+                  token: staffOtpCode.trim(),
+                  type: "email",
                 });
                 setStaffLoading(false);
                 if (error) {
@@ -236,23 +265,51 @@ export default function AuthPage() {
                   onChange={(e) => setStaffEmail(e.target.value)}
                   required
                   autoComplete="email"
+                  disabled={staffStep === "verify"}
                 />
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Password</span>
-                <input
-                  className={ui.input}
-                  type="password"
-                  value={staffPassword}
-                  onChange={(e) => setStaffPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
-              </label>
+              {staffStep === "verify" ? (
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Email OTP code (6 digits)</span>
+                  <input
+                    className={ui.input}
+                    value={staffOtpCode}
+                    onChange={(e) => setStaffOtpCode(e.target.value)}
+                    placeholder="6-digit code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    required
+                  />
+                </label>
+              ) : null}
               {staffErr ? <p className={ui.error}>{staffErr}</p> : null}
               <button type="submit" disabled={staffLoading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
-                {staffLoading ? "Signing in..." : "Sign in"}
+                {staffLoading ? "Please wait..." : staffStep === "request" ? "Send OTP code" : "Verify and sign in"}
               </button>
+              {staffStep === "verify" ? (
+                <button
+                  type="button"
+                  className={ui.btnGhost}
+                  onClick={async () => {
+                    setStaffErr(null);
+                    setStaffLoading(true);
+                    const supabase = createBrowserSupabase();
+                    const { error } = await supabase.auth.signInWithOtp({
+                      email: staffEmail.trim(),
+                      options: { shouldCreateUser: false },
+                    });
+                    setStaffLoading(false);
+                    if (error) {
+                      setStaffErr(error.message);
+                      return;
+                    }
+                    setStaffErr("A new code has been sent.");
+                  }}
+                >
+                  Resend code
+                </button>
+              ) : null}
             </form>
           ) : null}
 
@@ -264,17 +321,40 @@ export default function AuthPage() {
                 setOwnerMsg(null);
                 setOwnerLoading(true);
                 const supabase = createBrowserSupabase();
-                const { error } = await supabase.auth.signUp({
-                  email: ownerEmail,
-                  password: ownerPassword,
-                  options: { data: { role: ownerRole } },
+                if (ownerStep === "request") {
+                  const { error } = await supabase.auth.signInWithOtp({
+                    email: ownerEmail.trim(),
+                    options: {
+                      shouldCreateUser: true,
+                      data: { role: ownerRole },
+                    },
+                  });
+                  setOwnerLoading(false);
+                  if (error) {
+                    setOwnerMsg(error.message);
+                    return;
+                  }
+                  setOwnerStep("verify");
+                  setOwnerMsg("OTP sent. Enter the 6-digit code from your email.");
+                  return;
+                }
+                if (ownerOtpCode.trim().length !== 6) {
+                  setOwnerLoading(false);
+                  setOwnerMsg("Please enter a valid 6-digit OTP code.");
+                  return;
+                }
+                const { error } = await supabase.auth.verifyOtp({
+                  email: ownerEmail.trim(),
+                  token: ownerOtpCode.trim(),
+                  type: "email",
                 });
                 setOwnerLoading(false);
                 if (error) {
                   setOwnerMsg(error.message);
                   return;
                 }
-                setOwnerMsg("Account created. Check your inbox to confirm your email.");
+                router.replace("/dashboard");
+                router.refresh();
               }}
             >
               <label className="flex flex-col gap-1.5">
@@ -286,26 +366,31 @@ export default function AuthPage() {
                   onChange={(e) => setOwnerEmail(e.target.value)}
                   required
                   autoComplete="email"
+                  disabled={ownerStep === "verify"}
                 />
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Password</span>
-                <input
-                  className={ui.input}
-                  type="password"
-                  minLength={6}
-                  value={ownerPassword}
-                  onChange={(e) => setOwnerPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                />
-              </label>
+              {ownerStep === "verify" ? (
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Email OTP code (6 digits)</span>
+                  <input
+                    className={ui.input}
+                    value={ownerOtpCode}
+                    onChange={(e) => setOwnerOtpCode(e.target.value)}
+                    placeholder="6-digit code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    required
+                  />
+                </label>
+              ) : null}
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Role</span>
                 <select
                   className={ui.select}
                   value={ownerRole}
                   onChange={(e) => setOwnerRole(e.target.value as "owner" | "client")}
+                  disabled={ownerStep === "verify"}
                 >
                   <option value="owner">Studio owner</option>
                   <option value="client">Member</option>
@@ -313,8 +398,34 @@ export default function AuthPage() {
               </label>
               {ownerMsg ? <p className={ui.muted}>{ownerMsg}</p> : null}
               <button type="submit" disabled={ownerLoading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
-                {ownerLoading ? "Creating..." : "Create account"}
+                {ownerLoading ? "Please wait..." : ownerStep === "request" ? "Send OTP code" : "Verify and continue"}
               </button>
+              {ownerStep === "verify" ? (
+                <button
+                  type="button"
+                  className={ui.btnGhost}
+                  onClick={async () => {
+                    setOwnerMsg(null);
+                    setOwnerLoading(true);
+                    const supabase = createBrowserSupabase();
+                    const { error } = await supabase.auth.signInWithOtp({
+                      email: ownerEmail.trim(),
+                      options: {
+                        shouldCreateUser: true,
+                        data: { role: ownerRole },
+                      },
+                    });
+                    setOwnerLoading(false);
+                    if (error) {
+                      setOwnerMsg(error.message);
+                      return;
+                    }
+                    setOwnerMsg("A new code has been sent.");
+                  }}
+                >
+                  Resend code
+                </button>
+              ) : null}
             </form>
           ) : null}
         </section>
