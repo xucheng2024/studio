@@ -8,20 +8,20 @@ export const site = {
   badge: "For studios, gyms, and wellness spaces",
   homeHeadline: "Fill classes faster with less admin work",
   homeLead:
-    "One booking link, one payment queue, one attendance flow. Built for busy frontdesks and returning members.",
+    "One booking link, one operations queue, one reconciliation flow. Built for busy frontdesks and returning members.",
   marketing: {
     memberHighlights: [
       "Reserve in seconds from your phone",
-      "Know instantly if your seat is confirmed",
+      "Track payment status from submitted to verified",
       "Clear cancellation and no-show rules upfront",
-      "Past guest bookings auto-link to your account",
+      "Past guest bookings auto-link to your member timeline",
     ],
     memberIntro:
       "Book confidently: clear status, clear rules, and no need to chase staff on WhatsApp.",
     ownerHighlights: [
-      "Reduce frontdesk back-and-forth on booking and payment checks",
-      "Track paid, pending, and exceptions in one queue",
-      "Use attendance rules to cut no-shows and protect revenue",
+      "Run Operations Hub queues for verification, exceptions, and check-ins",
+      "Use reconciliation views with filters, CSV export, and audit timeline",
+      "Send invoice PDFs manually after paid verification",
     ],
     ownerIntro:
       "Run daily operations with fewer manual steps and better visibility across locations.",

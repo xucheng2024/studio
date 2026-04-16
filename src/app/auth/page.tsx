@@ -34,7 +34,7 @@ export default function AuthPage() {
   const [ownerLoading, setOwnerLoading] = useState(false);
 
   const heading = useMemo(() => {
-    if (tab === "member") return "Keep your bookings and payments in one place";
+    if (tab === "member") return "Keep your bookings, payments, and credits in one place";
     if (tab === "staff") return "Staff sign in";
     return "Create owner account";
   }, [tab]);

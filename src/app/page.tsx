@@ -18,15 +18,15 @@ export default function Home() {
             <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">
               Book a class
             </span>
-            <span className={ui.muted}>See real-time seats, clear rules, and fast reservation flow</span>
+            <span className={ui.muted}>See real-time seats, clear rules, and pay with verified reference flow</span>
           </Link>
           <Link href="/checkout" className={`${ui.cardInteractive} flex flex-col gap-1`}>
             <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">
               Buy a class pack
             </span>
-            <span className={ui.muted}>Top up credits and continue booking without frontdesk delays</span>
+            <span className={ui.muted}>Top up credits, book faster, and keep all usage history in one account</span>
           </Link>
-          <div className={`${ui.card} flex flex-col gap-1`}>
+          <div className={`${ui.cardInteractive} flex cursor-default flex-col gap-1`}>
             <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">
               Keep member history synced
             </span>
@@ -36,9 +36,9 @@ export default function Home() {
           </div>
           <Link href="/dashboard" className={`${ui.cardInteractive} flex flex-col gap-1`}>
             <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">
-              Owner workspace
+              Operations workspace
             </span>
-            <span className={ui.muted}>Run classes, payments, and attendance with fewer manual checks</span>
+            <span className={ui.muted}>Run queues, reconciliation, manual invoice sending, and multi-location controls</span>
           </Link>
         </div>
 
