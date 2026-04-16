@@ -99,98 +99,37 @@ export default function AuthPage() {
           </div>
 
           {tab === "member" ? (
-            <form
-              className="mt-6 flex flex-col gap-4"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setMemberMsg(null);
-                setMemberLoading(true);
-                const supabase = createBrowserSupabase();
-                if (memberStep === "request") {
-                  const { error } = await supabase.auth.signInWithOtp({
-                    email: email.trim(),
+            <div className="mt-6 flex flex-col gap-4">
+              <button
+                type="button"
+                className={`${ui.btnSecondary} w-full`}
+                onClick={async () => {
+                  setMemberMsg(null);
+                  setMemberLoading(true);
+                  const supabase = createBrowserSupabase();
+                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                  const { error } = await supabase.auth.signInWithOAuth({
+                    provider: "google",
                     options: {
-                      shouldCreateUser: true,
-                      data: { role: "client", full_name: name.trim() },
+                      redirectTo: `${origin}/booking`,
                     },
                   });
                   setMemberLoading(false);
-                  if (error) {
-                    setMemberMsg(error.message);
-                    return;
-                  }
-                  setMemberStep("verify");
-                  setMemberMsg("Verification code sent. Enter the 6-digit code from your email.");
-                  return;
-                }
-                if (otpCode.trim().length !== 6) {
-                  setMemberLoading(false);
-                  setMemberMsg("Please enter a valid 6-digit OTP code.");
-                  return;
-                }
-                const { error } = await supabase.auth.verifyOtp({
-                  email: email.trim(),
-                  token: otpCode.trim(),
-                  type: "email",
-                });
-                setMemberLoading(false);
-                if (error) {
-                  setMemberMsg(error.message);
-                  return;
-                }
-                router.replace("/booking");
-                router.refresh();
-              }}
-            >
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Name</span>
-                <input
-                  className={ui.input}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  disabled={memberStep === "verify"}
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Email</span>
-                <input
-                  type="email"
-                  className={ui.input}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  disabled={memberStep === "verify"}
-                />
-              </label>
-              {memberStep === "verify" ? (
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Email OTP code (6 digits)</span>
-                  <input
-                    className={ui.input}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="6-digit code"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    required
-                  />
-                </label>
-              ) : null}
-              {memberMsg ? <p className={ui.muted}>{memberMsg}</p> : null}
-              <button type="submit" disabled={memberLoading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
-                {memberLoading ? "Please wait..." : memberStep === "request" ? "Send OTP code" : "Verify and continue"}
+                  if (error) setMemberMsg(error.message);
+                }}
+                disabled={memberLoading}
+              >
+                {memberLoading ? "Redirecting..." : "Continue with Google"}
               </button>
-              {memberStep === "verify" ? (
-                <button
-                  type="button"
-                  className={ui.btnGhost}
-                  onClick={async () => {
-                    setMemberMsg(null);
-                    setMemberLoading(true);
-                    const supabase = createBrowserSupabase();
+              <p className={`text-xs text-center ${ui.muted}`}>or continue with email OTP</p>
+              <form
+                className="flex flex-col gap-4"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setMemberMsg(null);
+                  setMemberLoading(true);
+                  const supabase = createBrowserSupabase();
+                  if (memberStep === "request") {
                     const { error } = await supabase.auth.signInWithOtp({
                       email: email.trim(),
                       options: {
@@ -203,16 +142,105 @@ export default function AuthPage() {
                       setMemberMsg(error.message);
                       return;
                     }
-                    setMemberMsg("A new code has been sent.");
-                  }}
-                >
-                  Resend code
+                    setMemberStep("verify");
+                    setMemberMsg("Verification code sent. Enter the 6-digit code from your email.");
+                    return;
+                  }
+                  if (otpCode.trim().length !== 6) {
+                    setMemberLoading(false);
+                    setMemberMsg("Please enter a valid 6-digit OTP code.");
+                    return;
+                  }
+                  const { error } = await supabase.auth.verifyOtp({
+                    email: email.trim(),
+                    token: otpCode.trim(),
+                    type: "email",
+                  });
+                  setMemberLoading(false);
+                  if (error) {
+                    setMemberMsg(error.message);
+                    return;
+                  }
+                  router.replace("/booking");
+                  router.refresh();
+                }}
+              >
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Name</span>
+                  <input
+                    className={ui.input}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    disabled={memberStep === "verify"}
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Email</span>
+                  <input
+                    type="email"
+                    className={ui.input}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    disabled={memberStep === "verify"}
+                  />
+                </label>
+                {memberStep === "verify" ? (
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Email OTP code (6 digits)</span>
+                    <input
+                      className={ui.input}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder="6-digit code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      required
+                    />
+                  </label>
+                ) : null}
+                {memberMsg ? <p className={ui.muted}>{memberMsg}</p> : null}
+                <button type="submit" disabled={memberLoading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
+                  {memberLoading
+                    ? "Please wait..."
+                    : memberStep === "request"
+                      ? "Send OTP code"
+                      : "Verify and continue"}
                 </button>
-              ) : null}
-              <p className={`text-xs ${ui.muted}`}>
-                Existing members sign in with OTP; new members are created automatically with the same email.
-              </p>
-            </form>
+                {memberStep === "verify" ? (
+                  <button
+                    type="button"
+                    className={ui.btnGhost}
+                    onClick={async () => {
+                      setMemberMsg(null);
+                      setMemberLoading(true);
+                      const supabase = createBrowserSupabase();
+                      const { error } = await supabase.auth.signInWithOtp({
+                        email: email.trim(),
+                        options: {
+                          shouldCreateUser: true,
+                          data: { role: "client", full_name: name.trim() },
+                        },
+                      });
+                      setMemberLoading(false);
+                      if (error) {
+                        setMemberMsg(error.message);
+                        return;
+                      }
+                      setMemberMsg("A new code has been sent.");
+                    }}
+                  >
+                    Resend code
+                  </button>
+                ) : null}
+                <p className={`text-xs ${ui.muted}`}>
+                  Existing members sign in with OTP; new members are created automatically with the same email.
+                </p>
+              </form>
+            </div>
           ) : null}
 
           {tab === "staff" ? (

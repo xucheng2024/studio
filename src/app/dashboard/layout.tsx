@@ -18,15 +18,31 @@ export default async function DashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
   const ctx = await buildAccessContext({ userId: user.id });
   const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk"].includes(role)) redirect("/booking");
+  const resolvedRole: "owner" | "manager" | "frontdesk" =
+    role === "owner" || profile?.role === "owner"
+      ? "owner"
+      : role === "manager"
+        ? "manager"
+        : "frontdesk";
+  if (!["owner", "manager", "frontdesk"].includes(role) && profile?.role !== "owner") {
+    redirect("/booking");
+  }
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
-  const { data: studios } = await supabase
-    .from("studios")
-    .select("id, name")
-    .in("id", studioIds)
-    .order("name");
+  const { data: studios } =
+    studioIds.length > 0
+      ? await supabase
+          .from("studios")
+          .select("id, name")
+          .in("id", studioIds)
+          .order("name")
+      : { data: [] as { id: string; name: string }[] };
 
   return (
     <div className={`${ui.pageWide} flex min-h-[calc(100dvh-3.5rem)] flex-col gap-8 md:flex-row md:gap-10`}>
@@ -41,7 +57,7 @@ export default async function DashboardLayout({
         <LocationSwitcher
           locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
         />
-        <DashboardNav role={role as "owner" | "manager" | "frontdesk"} />
+        <DashboardNav role={resolvedRole} />
         <SignOutButton />
       </aside>
       <section className="min-w-0 flex-1 pb-8">{children}</section>

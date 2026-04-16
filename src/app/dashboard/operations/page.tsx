@@ -40,7 +40,14 @@ export default async function OperationsPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   if (studioIds.length === 0) {
-    return <p className={ui.muted}>Create a studio from the overview first.</p>;
+    return (
+      <div className={`${ui.card} flex max-w-xl flex-col gap-3`}>
+        <p className={ui.muted}>Create a studio from the overview first.</p>
+        <Link href="/dashboard/overview" className={ui.btnSecondarySm}>
+          Create studio now
+        </Link>
+      </div>
+    );
   }
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
