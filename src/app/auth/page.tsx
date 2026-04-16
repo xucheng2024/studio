@@ -8,6 +8,7 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 type AuthTab = "member" | "staff" | "owner";
+type MemberStep = "request" | "verify";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [memberMsg, setMemberMsg] = useState<string | null>(null);
   const [memberLoading, setMemberLoading] = useState(false);
+  const [memberStep, setMemberStep] = useState<MemberStep>("request");
+  const [otpCode, setOtpCode] = useState("");
 
   const [staffEmail, setStaffEmail] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
@@ -100,26 +103,46 @@ export default function AuthPage() {
                 setMemberMsg(null);
                 setMemberLoading(true);
                 const supabase = createBrowserSupabase();
-                const origin = typeof window !== "undefined" ? window.location.origin : "";
-                const { error } = await supabase.auth.signInWithOtp({
+                if (memberStep === "request") {
+                  const { error } = await supabase.auth.signInWithOtp({
+                    email: email.trim(),
+                    options: {
+                      shouldCreateUser: true,
+                      data: { role: "client", full_name: name.trim() },
+                    },
+                  });
+                  setMemberLoading(false);
+                  if (error) {
+                    setMemberMsg(error.message);
+                    return;
+                  }
+                  setMemberStep("verify");
+                  setMemberMsg("Verification code sent. Enter the 6-digit code from your email.");
+                  return;
+                }
+                const { error } = await supabase.auth.verifyOtp({
                   email: email.trim(),
-                  options: {
-                    shouldCreateUser: true,
-                    emailRedirectTo: `${origin}/booking`,
-                    data: { role: "client", full_name: name.trim() },
-                  },
+                  token: otpCode.trim(),
+                  type: "email",
                 });
                 setMemberLoading(false);
                 if (error) {
                   setMemberMsg(error.message);
                   return;
                 }
-                setMemberMsg("Check your email for your login code or link.");
+                router.replace("/booking");
+                router.refresh();
               }}
             >
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Name</span>
-                <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} required />
+                <input
+                  className={ui.input}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  disabled={memberStep === "verify"}
+                />
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Email</span>
@@ -130,14 +153,55 @@ export default function AuthPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
+                  disabled={memberStep === "verify"}
                 />
               </label>
+              {memberStep === "verify" ? (
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Email OTP code</span>
+                  <input
+                    className={ui.input}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="6-digit code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    required
+                  />
+                </label>
+              ) : null}
               {memberMsg ? <p className={ui.muted}>{memberMsg}</p> : null}
               <button type="submit" disabled={memberLoading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
-                {memberLoading ? "Sending..." : "Sign in / Sign up"}
+                {memberLoading ? "Please wait..." : memberStep === "request" ? "Send OTP code" : "Verify and continue"}
               </button>
+              {memberStep === "verify" ? (
+                <button
+                  type="button"
+                  className={ui.btnGhost}
+                  onClick={async () => {
+                    setMemberMsg(null);
+                    setMemberLoading(true);
+                    const supabase = createBrowserSupabase();
+                    const { error } = await supabase.auth.signInWithOtp({
+                      email: email.trim(),
+                      options: {
+                        shouldCreateUser: true,
+                        data: { role: "client", full_name: name.trim() },
+                      },
+                    });
+                    setMemberLoading(false);
+                    if (error) {
+                      setMemberMsg(error.message);
+                      return;
+                    }
+                    setMemberMsg("A new code has been sent.");
+                  }}
+                >
+                  Resend code
+                </button>
+              ) : null}
               <p className={`text-xs ${ui.muted}`}>
-                Use email once and continue smoothly: existing users sign in, new users are created automatically.
+                Existing members sign in with OTP; new members are created automatically with the same email.
               </p>
             </form>
           ) : null}
