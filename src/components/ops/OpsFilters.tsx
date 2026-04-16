@@ -8,14 +8,20 @@ export function OpsFilters({
   locations,
   selectedStudioId,
   selectedLocationId,
-  date,
+  dateFrom,
+  dateTo,
+  status,
+  reconStatus,
   query,
 }: {
   studios: { id: string; name: string }[];
   locations: { id: string; name: string; studio_id: string }[];
   selectedStudioId: string | null;
   selectedLocationId: string | null;
-  date: string;
+  dateFrom: string;
+  dateTo: string;
+  status: string;
+  reconStatus: string;
   query: string;
 }) {
   const pathname = usePathname();
@@ -72,12 +78,47 @@ export function OpsFilters({
         </select>
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Date</span>
+        <span className={ui.label}>Date from</span>
         <input
           type="date"
           className={ui.input}
-          value={date}
-          onChange={(e) => update({ date: e.target.value })}
+          value={dateFrom}
+          onChange={(e) => update({ date_from: e.target.value || null })}
+        />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className={ui.label}>Date to</span>
+        <input
+          type="date"
+          className={ui.input}
+          value={dateTo}
+          onChange={(e) => update({ date_to: e.target.value || null })}
+        />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className={ui.label}>Status</span>
+        <input
+          className={ui.input}
+          placeholder="pending / paid / failed"
+          defaultValue={status}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            const input = e.currentTarget as HTMLInputElement;
+            update({ status: input.value.trim() || null });
+          }}
+        />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className={ui.label}>Recon status</span>
+        <input
+          className={ui.input}
+          placeholder="mismatch / awaiting_verification"
+          defaultValue={reconStatus}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            const input = e.currentTarget as HTMLInputElement;
+            update({ recon_status: input.value.trim() || null });
+          }}
         />
       </label>
       <label className="flex flex-col gap-1.5">

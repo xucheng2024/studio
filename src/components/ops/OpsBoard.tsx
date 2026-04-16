@@ -30,12 +30,18 @@ type QueuePayload = {
 export function OpsBoard({
   studioId,
   locationId,
-  date,
+  dateFrom,
+  dateTo,
+  status,
+  reconStatus,
   q,
 }: {
   studioId: string | null;
   locationId: string | null;
-  date: string;
+  dateFrom: string;
+  dateTo: string;
+  status: string;
+  reconStatus: string;
   q: string;
 }) {
   const [loading, setLoading] = useState(true);
@@ -51,14 +57,16 @@ export function OpsBoard({
     const p = new URLSearchParams();
     if (studioId) p.set("studio_id", studioId);
     if (locationId) p.set("location_id", locationId);
-    if (date) p.set("date", date);
+    if (dateFrom) p.set("date_from", dateFrom);
+    if (dateTo) p.set("date_to", dateTo);
+    if (status) p.set("status", status);
+    if (reconStatus) p.set("recon_status", reconStatus);
     if (q) p.set("q", q);
     return p.toString();
-  }, [studioId, locationId, date, q]);
+  }, [studioId, locationId, dateFrom, dateTo, status, reconStatus, q]);
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
     fetch(`/api/operations/queue?${qs}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((json) => {

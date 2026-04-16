@@ -1,6 +1,7 @@
 import { BulkCheckinPanel } from "@/components/BulkCheckinPanel";
 import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
 import { getDashboardScope } from "@/lib/dashboard";
+import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { ui } from "@/lib/ui";
 import { bestRole } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
@@ -36,6 +37,10 @@ export default async function FrontdeskPage({ searchParams }: Props) {
   ];
   const hasGlobalScope = role === "owner" || ctx.memberships.some((m) => m.location_id == null);
   const q = (sp.q ?? "").trim();
+  const crossPageParams = new URLSearchParams();
+  if (selectedStudioId) crossPageParams.set("studio_id", selectedStudioId);
+  if (selectedLocationId) crossPageParams.set("location_id", selectedLocationId);
+  if (q) crossPageParams.set("q", q);
 
   let sessionsQuery = supabase
     .from("class_sessions")
@@ -73,7 +78,21 @@ export default async function FrontdeskPage({ searchParams }: Props) {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className={ui.h1}>Frontdesk quick flow</h1>
-        <p className={ui.muted}>Walk-in create booking + payment + optional instant check-in.</p>
+        <p className={ui.muted}>Operations subflow for walk-ins, quick member search, and class check-in.</p>
+        <p className={`mt-2 text-xs ${ui.muted}`}>
+          Recommended entry: open this page from Operations so filters and queue context stay aligned.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <a href={`/dashboard/operations?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+            Back to operations
+          </a>
+          <a href={`/dashboard/schedule?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+            Open session view
+          </a>
+          <a href={`/dashboard/clients?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+            Open member view
+          </a>
+        </div>
       </div>
       <FrontdeskWalkinForm
         sessions={(sessions ?? []).map((s) => {
@@ -88,6 +107,8 @@ export default async function FrontdeskPage({ searchParams }: Props) {
       <section className={ui.card}>
         <h2 className={ui.h2}>Quick search</h2>
         <form className="mt-2 flex flex-col gap-2 sm:flex-row" method="get">
+          {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
+          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
           <input name="q" defaultValue={q} className={ui.input} placeholder="name / phone / email" />
           <button className={`${ui.btnSecondary} w-full sm:w-auto`} type="submit">
             Search
@@ -101,7 +122,14 @@ export default async function FrontdeskPage({ searchParams }: Props) {
                 <p className="text-sm text-stone-900 dark:text-stone-100">
                   {userObj?.email ?? `${r.guest_name ?? "Guest"} · ${r.guest_email ?? r.guest_phone ?? "-"}`}
                 </p>
-                <p className={`text-xs ${ui.muted}`}>{r.status}</p>
+                {(() => {
+                  const booking = getUnifiedStatusBadges({ booking_status: r.status }).booking;
+                  return (
+                    <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs ${badgeToneClass(booking.tone)}`}>
+                      {booking.text}
+                    </span>
+                  );
+                })()}
               </li>
             );
           })}

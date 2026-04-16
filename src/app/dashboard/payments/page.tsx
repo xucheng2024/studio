@@ -103,7 +103,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       .some((v) => String(v).toLowerCase().includes(keyword));
   });
 
-  const nowMs = Date.now();
+  const nowMs = new Date().getTime();
   const queueRows = filtered.filter(
     (p) =>
       p.status === "pending" &&
@@ -176,20 +176,34 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   if (sp.amount_max) exportParams.set("amount_max", sp.amount_max);
   if (sp.reference) exportParams.set("reference", sp.reference);
   if (sp.q) exportParams.set("q", sp.q);
+  const tabHref = (targetView: "queue" | "recon" | "review") => {
+    const p = new URLSearchParams(exportParams.toString());
+    p.set("view", targetView);
+    return `/dashboard/payments?${p.toString()}`;
+  };
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className={ui.h1}>Payments</h1>
-        <p className={ui.muted}>Queue, reconciliation, and review.</p>
+        <h1 className={ui.h1}>Reconciliation & review</h1>
+        <p className={ui.muted}>Filter, reconcile, export, and audit payment history.</p>
         <div className="mt-2 flex gap-3 text-sm">
-          <a className={view === "queue" ? ui.link : ui.linkMuted} href="/dashboard/payments?view=queue">
+          <a
+            className={view === "queue" ? ui.link : ui.linkMuted}
+            href={tabHref("queue")}
+          >
             Queue
           </a>
-          <a className={view === "recon" ? ui.link : ui.linkMuted} href="/dashboard/payments?view=recon">
+          <a
+            className={view === "recon" ? ui.link : ui.linkMuted}
+            href={tabHref("recon")}
+          >
             Recon
           </a>
-          <a className={view === "review" ? ui.link : ui.linkMuted} href="/dashboard/payments?view=review">
+          <a
+            className={view === "review" ? ui.link : ui.linkMuted}
+            href={tabHref("review")}
+          >
             Review
           </a>
           <a className={ui.linkMuted} href={`/api/payments/export?${exportParams.toString()}`}>

@@ -8,15 +8,24 @@ const links = [
   { href: "/dashboard/schedule", label: "Schedule" },
   { href: "/dashboard/clients", label: "Members" },
   { href: "/dashboard/reports", label: "Reports" },
-  { href: "/dashboard/settings/payments", label: "Settings" },
-  { href: "/dashboard/overview", label: "Overview" },
-  { href: "/dashboard/classes", label: "Classes" },
-  { href: "/dashboard/packages", label: "Packages" },
-  { href: "/dashboard/payments", label: "Payments" },
-  { href: "/dashboard/frontdesk", label: "Frontdesk" },
-  { href: "/dashboard/staff", label: "Staff" },
-  { href: "/dashboard/qr", label: "QR code" },
+  { href: "/dashboard/settings", label: "Settings" },
 ];
+
+const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk", string[]> = {
+  owner: links.map((l) => l.href),
+  manager: [
+    "/dashboard/operations",
+    "/dashboard/schedule",
+    "/dashboard/clients",
+    "/dashboard/reports",
+    "/dashboard/settings",
+  ],
+  frontdesk: [
+    "/dashboard/operations",
+    "/dashboard/schedule",
+    "/dashboard/clients",
+  ],
+};
 
 export function DashboardNav({
   role,
@@ -25,20 +34,24 @@ export function DashboardNav({
 }) {
   const pathname = usePathname();
   const search = useSearchParams();
-  const locationId = search.get("location_id");
-  const visibleLinks = links;
+  const keep = new URLSearchParams();
+  for (const key of ["studio_id", "location_id", "date_from", "date_to", "status", "recon_status", "q"]) {
+    const v = search.get(key);
+    if (v) keep.set(key, v);
+  }
+  const allowed = new Set(roleLinkAllowList[role]);
+  const visibleLinks = links.filter((l) => allowed.has(l.href));
 
   return (
     <nav className="flex flex-col gap-1">
       {visibleLinks.map((l) => {
         const active =
-          l.href === "/dashboard/overview"
-            ? pathname === "/dashboard" || pathname === "/dashboard/overview"
-            : pathname === l.href || pathname.startsWith(`${l.href}/`);
+          pathname === l.href || pathname.startsWith(`${l.href}/`);
+        const href = keep.toString() ? `${l.href}?${keep.toString()}` : l.href;
         return (
           <Link
             key={l.href}
-            href={locationId ? `${l.href}?location_id=${locationId}` : l.href}
+            href={href}
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               active
                 ? "bg-teal-600 text-white shadow-sm dark:bg-teal-600"

@@ -3,8 +3,8 @@ import { bestRole, buildAccessContext } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-function formatDayRange(inputDate: string | null) {
-  if (!inputDate) {
+function normalizeDateRange(dateFrom: string | null, dateTo: string | null) {
+  if (!dateFrom && !dateTo) {
     const now = new Date();
     const start = new Date(now);
     start.setHours(0, 0, 0, 0);
@@ -12,16 +12,20 @@ function formatDayRange(inputDate: string | null) {
     end.setDate(end.getDate() + 1);
     return { startIso: start.toISOString(), endIso: end.toISOString() };
   }
-  const start = new Date(`${inputDate}T00:00:00`);
-  if (Number.isNaN(start.getTime())) {
-    const now = new Date();
-    const s = new Date(now);
+  const start = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+  const end = dateTo ? new Date(`${dateTo}T00:00:00`) : null;
+  if (!start || Number.isNaN(start.getTime())) {
+    const s = new Date();
     s.setHours(0, 0, 0, 0);
     const e = new Date(s);
     e.setDate(e.getDate() + 1);
     return { startIso: s.toISOString(), endIso: e.toISOString() };
   }
-  const end = new Date(start);
+  if (!end || Number.isNaN(end.getTime())) {
+    const e = new Date(start);
+    e.setDate(e.getDate() + 1);
+    return { startIso: start.toISOString(), endIso: e.toISOString() };
+  }
   end.setDate(end.getDate() + 1);
   return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
@@ -31,7 +35,12 @@ export async function GET(req: Request) {
   const studioIdInput = url.searchParams.get("studio_id");
   const locationIdInput = url.searchParams.get("location_id");
   const keyword = (url.searchParams.get("q") ?? "").trim().toLowerCase();
-  const { startIso, endIso } = formatDayRange(url.searchParams.get("date"));
+  const statusInput = url.searchParams.get("status");
+  const reconStatusInput = url.searchParams.get("recon_status");
+  const { startIso, endIso } = normalizeDateRange(
+    url.searchParams.get("date_from"),
+    url.searchParams.get("date_to"),
+  );
 
   const supabase = await createClient();
   const {
@@ -64,6 +73,17 @@ export async function GET(req: Request) {
     )
       ? locationIdInput
       : null;
+  const inherited = new URLSearchParams();
+  if (selectedStudioId) inherited.set("studio_id", selectedStudioId);
+  if (locationId) inherited.set("location_id", locationId);
+  const dateFromInput = url.searchParams.get("date_from");
+  const dateToInput = url.searchParams.get("date_to");
+  if (dateFromInput) inherited.set("date_from", dateFromInput);
+  if (dateToInput) inherited.set("date_to", dateToInput);
+  if (statusInput) inherited.set("status", statusInput);
+  if (reconStatusInput) inherited.set("recon_status", reconStatusInput);
+  if (keyword) inherited.set("q", keyword);
+  const inheritedQuery = inherited.toString();
 
   const admin = createAdminClient();
   const payments: Array<{
@@ -81,6 +101,7 @@ export async function GET(req: Request) {
     paid_amount: number | null;
     recon_note: string | null;
     customer_confirmed_at: string | null;
+    verified_at: string | null;
   }> = await (async () => {
     let paymentsQuery = admin
       .from("payments")
@@ -91,6 +112,9 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false })
       .limit(300);
     if (locationId) paymentsQuery = paymentsQuery.eq("location_id", locationId);
+    if (statusInput) paymentsQuery = paymentsQuery.eq("status", statusInput);
+    if (reconStatusInput) paymentsQuery = paymentsQuery.eq("recon_status", reconStatusInput);
+    paymentsQuery = paymentsQuery.gte("created_at", startIso).lt("created_at", endIso);
     const { data } = await paymentsQuery;
     return (data ?? []) as typeof payments;
   })();
@@ -106,7 +130,7 @@ export async function GET(req: Request) {
   const bookingMap = new Map((paymentBookings ?? []).map((b) => [b.id, b]));
 
   const verificationSlaMin = 10;
-  const nowMs = Date.now();
+  const nowMs = new Date().getTime();
   const pendingVerifications = (payments ?? [])
     .filter(
       (p) =>
@@ -149,26 +173,36 @@ export async function GET(req: Request) {
         recon_status: p.recon_status,
         exception_code:
           p.customer_confirmed_at &&
-          !("verified_at" in p && p.verified_at) &&
+          !p.verified_at &&
           nowMs - new Date(p.customer_confirmed_at).getTime() > verificationSlaMin * 60 * 1000
             ? "verification_sla_overdue"
             : null,
         actions: [
           { kind: "mark_paid", label: "Mark paid", payment_id: p.id },
           { kind: "mark_failed", label: "Mark failed", payment_id: p.id },
-          { kind: "more_link", label: "Open detail", href: `/dashboard/payments?payment_id=${p.id}` },
+          {
+            kind: "more_link",
+            label: "Open detail",
+            href: `/dashboard/payments?${inheritedQuery}&payment_id=${p.id}`,
+          },
         ],
       };
     });
 
   const now = new Date();
-  const soonEnd = new Date(now.getTime() + 30 * 60 * 1000);
+  const startMs = new Date(startIso).getTime();
+  const endMs = new Date(endIso).getTime();
+  const dayIsToday = now.getTime() >= startMs && now.getTime() < endMs;
+  const windowStart = dayIsToday ? new Date(Math.max(now.getTime(), startMs)) : new Date(startMs);
+  const windowEnd = dayIsToday
+    ? new Date(Math.min(now.getTime() + 30 * 60 * 1000, endMs))
+    : new Date(endMs);
   let soonSessionsQuery = admin
     .from("class_sessions")
     .select("id, location_id, start_time, classes!inner(title, studio_id)")
     .in("classes.studio_id", studioIds)
-    .gte("start_time", now.toISOString())
-    .lte("start_time", soonEnd.toISOString())
+    .gte("start_time", windowStart.toISOString())
+    .lt("start_time", windowEnd.toISOString())
     .order("start_time", { ascending: true })
     .limit(150);
   if (locationId) soonSessionsQuery = soonSessionsQuery.eq("location_id", locationId);
@@ -205,7 +239,7 @@ export async function GET(req: Request) {
         booking_status: b.status,
         actions: [
           { kind: "checkin", label: "Check in", booking_id: b.id },
-          { kind: "more_link", label: "Open session", href: "/dashboard/schedule" },
+          { kind: "more_link", label: "Open session", href: `/dashboard/schedule?${inheritedQuery}` },
         ],
       };
     });
@@ -216,7 +250,7 @@ export async function GET(req: Request) {
       const missingReference = !p.reference_code;
       const verificationSlaOverdue =
         p.customer_confirmed_at &&
-        !("verified_at" in p && p.verified_at) &&
+        !p.verified_at &&
         nowMs - new Date(p.customer_confirmed_at).getTime() > verificationSlaMin * 60 * 1000;
       return amountMismatch || missingReference || verificationSlaOverdue || p.recon_status === "mismatch";
     })
@@ -234,7 +268,7 @@ export async function GET(req: Request) {
       const missingReference = !p.reference_code;
       const verificationSlaOverdue =
         p.customer_confirmed_at &&
-        !("verified_at" in p && p.verified_at) &&
+        !p.verified_at &&
         nowMs - new Date(p.customer_confirmed_at).getTime() > verificationSlaMin * 60 * 1000;
       return {
         id: p.id,
@@ -252,8 +286,8 @@ export async function GET(req: Request) {
         payment_status: p.status,
         recon_status: p.recon_status,
         actions: [
-          { kind: "open_match", label: "Match payment", href: "/dashboard/payments?view=pending-review" },
-          { kind: "more_link", label: "Open payment", href: `/dashboard/payments?payment_id=${p.id}` },
+          { kind: "open_match", label: "Match payment", href: `/dashboard/payments?view=queue&${inheritedQuery}` },
+          { kind: "more_link", label: "Open payment", href: `/dashboard/payments?${inheritedQuery}&payment_id=${p.id}` },
         ],
       };
     });
@@ -275,8 +309,8 @@ export async function GET(req: Request) {
       recon_status: p.recon_status,
       exception_code: "unmatched_payment",
       actions: [
-        { kind: "open_match", label: "Match payment", href: "/dashboard/payments?view=queue" },
-        { kind: "more_link", label: "Open payment", href: `/dashboard/payments?payment_id=${p.id}` },
+        { kind: "open_match", label: "Match payment", href: `/dashboard/payments?view=queue&${inheritedQuery}` },
+        { kind: "more_link", label: "Open payment", href: `/dashboard/payments?${inheritedQuery}&payment_id=${p.id}` },
       ],
     }));
 

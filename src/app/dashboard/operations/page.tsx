@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { OpsBoard } from "@/components/ops/OpsBoard";
 import { OpsFilters } from "@/components/ops/OpsFilters";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -6,7 +7,15 @@ import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
-  searchParams: Promise<{ studio_id?: string; location_id?: string; date?: string; q?: string }>;
+  searchParams: Promise<{
+    studio_id?: string;
+    location_id?: string;
+    date_from?: string;
+    date_to?: string;
+    status?: string;
+    recon_status?: string;
+    q?: string;
+  }>;
 };
 
 function todayISODate() {
@@ -54,25 +63,53 @@ export default async function OperationsPage({ searchParams }: Props) {
     .in("studio_id", studioIds)
     .eq("is_active", true)
     .order("name");
+  const filterParams = new URLSearchParams();
+  filterParams.set("studio_id", activeStudioId);
+  if (selectedLocationId) filterParams.set("location_id", selectedLocationId);
+  if (sp.date_from) filterParams.set("date_from", sp.date_from);
+  if (sp.date_to) filterParams.set("date_to", sp.date_to);
+  if (sp.status) filterParams.set("status", sp.status);
+  if (sp.recon_status) filterParams.set("recon_status", sp.recon_status);
+  if (sp.q) filterParams.set("q", sp.q);
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className={ui.h1}>Operations hub</h1>
         <p className={ui.muted}>One queue for payment verification, check-in, exceptions, and manual actions.</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Link href={`/dashboard/payments?view=recon&${filterParams.toString()}`} className={ui.btnSecondarySm}>
+            Open full reconciliation
+          </Link>
+          <Link href={`/dashboard/schedule?${filterParams.toString()}`} className={ui.btnSecondarySm}>
+            Open session view
+          </Link>
+          <Link href={`/dashboard/clients?${filterParams.toString()}`} className={ui.btnSecondarySm}>
+            Open member view
+          </Link>
+          <Link href={`/dashboard/frontdesk?${filterParams.toString()}`} className={ui.btnSecondarySm}>
+            Frontdesk tools
+          </Link>
+        </div>
       </div>
       <OpsFilters
         studios={(studios ?? []).map((s) => ({ id: s.id, name: s.name }))}
         locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name, studio_id: l.studio_id }))}
         selectedStudioId={activeStudioId}
         selectedLocationId={selectedLocationId}
-        date={sp.date ?? todayISODate()}
+        dateFrom={sp.date_from ?? todayISODate()}
+        dateTo={sp.date_to ?? todayISODate()}
+        status={sp.status ?? ""}
+        reconStatus={sp.recon_status ?? ""}
         query={sp.q ?? ""}
       />
       <OpsBoard
         studioId={activeStudioId}
         locationId={selectedLocationId}
-        date={sp.date ?? todayISODate()}
+        dateFrom={sp.date_from ?? todayISODate()}
+        dateTo={sp.date_to ?? todayISODate()}
+        status={sp.status ?? ""}
+        reconStatus={sp.recon_status ?? ""}
         q={sp.q ?? ""}
       />
     </div>

@@ -1,4 +1,5 @@
 import { getDashboardScope } from "@/lib/dashboard";
+import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -122,7 +123,16 @@ export default async function ClientsPage({ searchParams }: Props) {
                 key={b.id}
                 className="rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800"
               >
-                <span className="text-stone-800 dark:text-stone-200">{label}</span> · {b.status} ·{" "}
+                <span className="text-stone-800 dark:text-stone-200">{label}</span> ·{" "}
+                {(() => {
+                  const badge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
+                  return (
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badge.tone)}`}>
+                      {badge.text}
+                    </span>
+                  );
+                })()}{" "}
+                ·{" "}
                 {cs?.classes?.title ?? "Class"} ·{" "}
                 {cs?.start_time ? new Date(cs.start_time).toLocaleString() : ""}
               </li>

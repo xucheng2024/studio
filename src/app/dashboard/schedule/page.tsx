@@ -2,6 +2,7 @@ import { createRecurringRule, createSession, saveBookingRules } from "@/app/dash
 import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { MarkAttendedButton } from "@/components/MarkAttendedButton";
 import { getDashboardScope } from "@/lib/dashboard";
+import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -48,6 +49,9 @@ export default async function SchedulePage({ searchParams }: Props) {
     ? (locations ?? []).find((l) => l.id === selectedLocationId)
     : null;
   const activeStudioId = selectedLocation?.studio_id ?? (classes?.[0]?.studio_id ?? studioIds[0]);
+  const scopeParams = new URLSearchParams();
+  scopeParams.set("studio_id", activeStudioId);
+  if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
 
   let sessionQuery = supabase
     .from("class_sessions")
@@ -88,6 +92,14 @@ export default async function SchedulePage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Schedule</h1>
         <p className={`mt-1 ${ui.muted}`}>Add sessions from your class templates.</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <a href={`/dashboard/classes?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
+            Manage classes
+          </a>
+          <a href={`/dashboard/packages?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
+            Manage packages
+          </a>
+        </div>
         <h2 className={`${ui.h2} mt-8`}>Booking rules</h2>
         <form action={saveBookingRules} className={`${ui.card} mt-4 grid max-w-xl gap-4 md:grid-cols-2`}>
           <input type="hidden" name="studio_id" value={activeStudioId} />
@@ -266,7 +278,14 @@ export default async function SchedulePage({ searchParams }: Props) {
                           ? (b.users?.email ?? b.client_id)
                           : `${b.guest_name ?? "Guest"} · ${b.guest_email ?? ""}`}
                       </span>
-                      <span className={ui.muted}>({b.status})</span>
+                      {(() => {
+                        const badge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
+                        return (
+                          <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badge.tone)}`}>
+                            {badge.text}
+                          </span>
+                        );
+                      })()}
                       {b.status === "booked" ? (
                         <>
                           <MarkAttendedButton bookingId={b.id} />
