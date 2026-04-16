@@ -18,10 +18,21 @@ npm run dev
 ## Deploy (GitHub → Vercel)
 
 1. Push this repo to GitHub.
-2. Import the repo in Vercel; set the same environment variables as `.env.local`.
-3. Add `SUPABASE_SERVICE_ROLE_KEY` only on the server (Vercel env) — never expose it to the browser.
+2. Import the repo in Vercel.
+3. **Required —** in **Vercel → Project → Settings → Environment Variables**, add (same names as local `.env.local`; see `.env.example`):
+
+   | Name | Notes |
+   |------|--------|
+   | `NEXT_PUBLIC_SUPABASE_URL` | Project URL from Supabase **API** settings |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` **or** `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public anon / publishable key (not the `service_role` key) |
+   | `SUPABASE_SERVICE_ROLE_KEY` | **Secret** — server-only; required for booking, payments, dashboard data |
+
+   Apply to **Production** (and Preview if you test PRs against a real DB). Redeploy after saving env vars.
+
 4. Optional cron: call `GET /api/payment/expire` every minute, `GET /api/no-show/process` every 1-5 minutes, and `GET /api/reminder/send` every 5 minutes with `Authorization: Bearer <CRON_SECRET>`.
 5. Optional cron alerting: set `CRON_ALERT_WEBHOOK_URL` for failure notifications.
+
+If the homepage loads but other routes fail, the public Supabase keys are usually missing or only set for one environment (e.g. Development but not Production).
 
 ## Flow
 

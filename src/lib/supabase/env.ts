@@ -9,3 +9,8 @@ export function getSupabaseAnonKey(): string | undefined {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   );
 }
+
+/** True when public URL + anon (or publishable) key are set — required for SSR auth and data. */
+export function isSupabaseConfigured(): boolean {
+  return Boolean(getSupabaseUrl()?.trim() && getSupabaseAnonKey()?.trim());
+}

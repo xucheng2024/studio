@@ -1,10 +1,40 @@
 import Link from "next/link";
 import { site } from "@/lib/brand";
 import { SignOutButton } from "@/components/SignOutButton";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 
 export async function SiteHeader() {
+  if (!isSupabaseConfigured()) {
+    return (
+      <header className={ui.headerBar}>
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-100"
+          >
+            {site.name}
+          </Link>
+          <nav className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1 sm:gap-x-3">
+            <Link
+              href="/booking"
+              className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+            >
+              Classes
+            </Link>
+            <Link
+              href="/auth?tab=member"
+              className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+            >
+              Sign in / Sign up
+            </Link>
+          </nav>
+        </div>
+      </header>
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
