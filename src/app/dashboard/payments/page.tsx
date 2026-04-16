@@ -1,6 +1,7 @@
 import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { PaymentMatchForm } from "@/components/PaymentMatchForm";
+import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
@@ -63,7 +64,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by",
+      "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false });
@@ -265,6 +266,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <p className={ui.muted}>Client: {clientLabel}</p>
                   <p className={ui.muted}>Ref: <span className={ui.code}>{p.reference_code ?? "-"}</span></p>
                   <p className={ui.muted}>Recon: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
+                  {p.invoice_number ? (
+                    <p className={ui.muted}>
+                      Invoice: <span className={ui.code}>{p.invoice_number}</span>
+                      {p.invoice_sent_at
+                        ? ` · sent ${new Date(p.invoice_sent_at).toLocaleString()}`
+                        : " · not sent yet"}
+                    </p>
+                  ) : null}
                   {p.recon_note ? <p className={ui.muted}>Recon note: {p.recon_note}</p> : null}
                   <p className={ui.muted}>Created: {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</p>
                   <p className={ui.muted}>Customer notice: {p.customer_confirmed_at ? new Date(p.customer_confirmed_at).toLocaleString() : "not submitted"}</p>
@@ -292,6 +301,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                       <PaymentMarkButton paymentId={p.id} status="expired" label="Mark expired" />
                     </>
                   ) : null}
+                  {p.status === "paid" ? <InvoiceSendButton paymentId={p.id} /> : null}
                   {p.status === "paid" ? <PaymentMarkButton paymentId={p.id} status="refunded" label="Mark refunded" /> : null}
                   {!p.booking_id ? <PaymentMatchForm paymentId={p.id} /> : null}
                 </div>

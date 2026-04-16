@@ -1,6 +1,17 @@
 import { Resend } from "resend";
 
-async function sendEmail(params: { to: string | string[]; subject: string; text: string }) {
+async function sendEmail(params: {
+  to: string | string[];
+  subject: string;
+  text: string;
+  html?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string;
+    type: string;
+    encoding: "base64";
+  }>;
+}) {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
   if (!key || !from) return { skipped: true as const };
@@ -10,6 +21,8 @@ async function sendEmail(params: { to: string | string[]; subject: string; text:
     to: params.to,
     subject: params.subject,
     text: params.text,
+    html: params.html,
+    attachments: params.attachments,
   });
   return { skipped: false as const };
 }
@@ -76,5 +89,43 @@ export async function sendBookingOutcomeNotice(params: {
     to: params.to,
     subject: `${statusText} update: ${params.sessionTitle}`,
     text: `${statusText} recorded for ${params.sessionTitle}. ${creditText}`,
+  });
+}
+
+export async function sendInvoiceNotice(params: {
+  to: string;
+  studioName: string;
+  invoiceNumber: string;
+  customerName: string;
+  currency: string;
+  amount: number;
+  issueDate: string;
+  lineItem: string;
+  referenceCode: string | null;
+  pdfBase64: string;
+}) {
+  return sendEmail({
+    to: params.to,
+    subject: `${params.studioName} Invoice ${params.invoiceNumber}`,
+    text: [
+      `Hi ${params.customerName},`,
+      "",
+      `Your invoice ${params.invoiceNumber} is attached as PDF.`,
+      `Issue date: ${params.issueDate}`,
+      `Item: ${params.lineItem}`,
+      `Total: ${params.currency} ${params.amount.toFixed(2)}`,
+      `Reference: ${params.referenceCode ?? "-"}`,
+    ].join("\n"),
+    html: `<p>Hi ${params.customerName},</p>
+<p>Your invoice <strong>${params.invoiceNumber}</strong> is attached as PDF.</p>
+<p>Issue date: ${params.issueDate}<br/>Item: ${params.lineItem}<br/>Total: ${params.currency} ${params.amount.toFixed(2)}<br/>Reference: ${params.referenceCode ?? "-"}</p>`,
+    attachments: [
+      {
+        filename: `Invoice_${params.invoiceNumber}.pdf`,
+        content: params.pdfBase64,
+        type: "application/pdf",
+        encoding: "base64",
+      },
+    ],
   });
 }
