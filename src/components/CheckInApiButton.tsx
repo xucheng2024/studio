@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ui } from "@/lib/ui";
 
-export function CheckInApiButton({ bookingId }: { bookingId: string }) {
+export function CheckInApiButton({ bookingId, onDone }: { bookingId: string; onDone?: () => void }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   return (
@@ -20,7 +20,8 @@ export function CheckInApiButton({ bookingId }: { bookingId: string }) {
           body: JSON.stringify({ booking_id: bookingId }),
         });
         setLoading(false);
-        router.refresh();
+        if (onDone) onDone();
+        else router.refresh();
       }}
     >
       {loading ? "…" : "Check-in"}

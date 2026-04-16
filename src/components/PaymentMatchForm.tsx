@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ui } from "@/lib/ui";
 
-export function PaymentMatchForm({ paymentId }: { paymentId: string }) {
+export function PaymentMatchForm({ paymentId, onDone }: { paymentId: string; onDone?: () => void }) {
   const router = useRouter();
   const [bookingId, setBookingId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,7 +38,8 @@ export function PaymentMatchForm({ paymentId }: { paymentId: string }) {
           }
           setMsg("Matched");
           setBookingId("");
-          router.refresh();
+          if (onDone) onDone();
+          else router.refresh();
         }}
       >
         {busy ? "..." : "Manual match"}

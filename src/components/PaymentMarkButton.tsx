@@ -8,10 +8,12 @@ export function PaymentMarkButton({
   paymentId,
   status,
   label,
+  onDone,
 }: {
   paymentId: string;
   status: "paid" | "failed" | "expired" | "refunded";
   label: string;
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -22,6 +24,10 @@ export function PaymentMarkButton({
       disabled={busy}
       className={`${status === "paid" ? ui.btnPrimarySm : ui.btnSecondarySm} disabled:opacity-50`}
       onClick={async () => {
+        if (status !== "paid") {
+          const ok = window.confirm(`Confirm ${label.toLowerCase()} for this payment?`);
+          if (!ok) return;
+        }
         setBusy(true);
         await fetch("/api/payment/mark", {
           method: "POST",
@@ -29,7 +35,8 @@ export function PaymentMarkButton({
           body: JSON.stringify({ payment_id: paymentId, status }),
         });
         setBusy(false);
-        router.refresh();
+        if (onDone) onDone();
+        else router.refresh();
       }}
     >
       {busy ? "..." : label}

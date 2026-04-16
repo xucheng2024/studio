@@ -32,8 +32,8 @@ export default async function DashboardLayout({
     <div className={`${ui.pageWide} flex min-h-[calc(100dvh-3.5rem)] flex-col gap-8 md:flex-row md:gap-10`}>
       <aside className={`flex w-full shrink-0 flex-col gap-5 md:w-56 ${ui.sidebar}`}>
         <div>
-          <Link href="/dashboard" className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-            Owner dashboard
+          <Link href="/dashboard/operations" className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+            Operations hub
           </Link>
           <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Manage your studio</p>
         </div>
@@ -41,7 +41,7 @@ export default async function DashboardLayout({
         <LocationSwitcher
           locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
         />
-        <DashboardNav />
+        <DashboardNav role={role as "owner" | "manager" | "frontdesk"} />
         <SignOutButton />
       </aside>
       <section className="min-w-0 flex-1 pb-8">{children}</section>

@@ -4,30 +4,36 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const links = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/qr", label: "QR code" },
-  { href: "/dashboard/classes", label: "Classes" },
+  { href: "/dashboard/operations", label: "Operations" },
   { href: "/dashboard/schedule", label: "Schedule" },
   { href: "/dashboard/clients", label: "Members" },
+  { href: "/dashboard/reports", label: "Reports" },
+  { href: "/dashboard/settings/payments", label: "Settings" },
+  { href: "/dashboard/overview", label: "Overview" },
+  { href: "/dashboard/classes", label: "Classes" },
   { href: "/dashboard/packages", label: "Packages" },
   { href: "/dashboard/payments", label: "Payments" },
   { href: "/dashboard/frontdesk", label: "Frontdesk" },
-  { href: "/dashboard/reports", label: "Reports" },
   { href: "/dashboard/staff", label: "Staff" },
-  { href: "/dashboard/settings/payments", label: "Payment settings" },
+  { href: "/dashboard/qr", label: "QR code" },
 ];
 
-export function DashboardNav() {
+export function DashboardNav({
+  role,
+}: {
+  role: "owner" | "manager" | "frontdesk";
+}) {
   const pathname = usePathname();
   const search = useSearchParams();
   const locationId = search.get("location_id");
+  const visibleLinks = links;
 
   return (
     <nav className="flex flex-col gap-1">
-      {links.map((l) => {
+      {visibleLinks.map((l) => {
         const active =
-          l.href === "/dashboard"
-            ? pathname === "/dashboard"
+          l.href === "/dashboard/overview"
+            ? pathname === "/dashboard" || pathname === "/dashboard/overview"
             : pathname === l.href || pathname.startsWith(`${l.href}/`);
         return (
           <Link

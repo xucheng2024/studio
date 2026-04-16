@@ -3,7 +3,35 @@ import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
 
-export default async function StaffPage() {
+type Props = {
+  searchParams?: Promise<{ staff_error?: string; staff_msg?: string }>;
+};
+
+function staffErrorMessage(code?: string) {
+  switch (code) {
+    case "missing_required_fields":
+      return "Please fill in email, role, and studio.";
+    case "forbidden":
+      return "Only the studio owner can assign staff.";
+    case "invalid_location_scope":
+      return "Selected location is not in this studio.";
+    case "user_not_found_by_email":
+      return "This email has no account yet. Ask staff to sign up first.";
+    case "cannot_assign_self_non_owner":
+      return "You cannot assign yourself a non-owner role.";
+    case "invalid_role":
+      return "Invalid role selected.";
+    case "update_membership_failed":
+      return "Could not update staff membership. Please try again.";
+    case "create_membership_failed":
+      return "Could not create staff membership. Please try again.";
+    default:
+      return null;
+  }
+}
+
+export default async function StaffPage({ searchParams }: Props) {
+  const sp = searchParams ? await searchParams : {};
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,7 +57,7 @@ export default async function StaffPage() {
     .order("name");
   const { data: staff } = await supabase
     .from("staff_memberships")
-    .select("id, user_id, studio_id, location_id, role, is_active, created_at")
+    .select("id, user_id, studio_id, location_id, role, is_active, created_at, users(email)")
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false });
 
@@ -38,11 +66,19 @@ export default async function StaffPage() {
       <div>
         <h1 className={ui.h1}>Staff</h1>
         <p className={`mt-1 ${ui.muted}`}>Basic RBAC memberships by studio and location.</p>
+        {sp.staff_error ? (
+          <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+            {staffErrorMessage(sp.staff_error) ?? "Could not save staff membership."}
+          </p>
+        ) : null}
+        {sp.staff_msg === "staff_membership_saved" ? (
+          <p className="mt-2 text-sm text-teal-700 dark:text-teal-300">Staff membership saved.</p>
+        ) : null}
       </div>
       <form action={createStaffMembership} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>User ID</span>
-          <input name="user_id" required className={ui.input} placeholder="UUID from auth user" />
+          <span className={ui.label}>Staff email</span>
+          <input name="email" type="email" required className={ui.input} placeholder="coach@studio.com" />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Role</span>
@@ -94,7 +130,12 @@ export default async function StaffPage() {
             {(staff ?? []).map((s) => (
               <tr key={s.id} className="border-t border-stone-200/70 dark:border-stone-800/70">
                 <td className="px-3 py-2">{s.role}</td>
-                <td className="px-3 py-2 font-mono text-xs">{s.user_id}</td>
+                <td className="px-3 py-2 text-xs">
+                  {(
+                    ((Array.isArray(s.users) ? s.users[0] : s.users) as { email?: string | null } | null)?.email ??
+                    s.user_id
+                  )}
+                </td>
                 <td className="px-3 py-2 font-mono text-xs">{s.studio_id}</td>
                 <td className="px-3 py-2 font-mono text-xs">{s.location_id ?? "all"}</td>
                 <td className="px-3 py-2">

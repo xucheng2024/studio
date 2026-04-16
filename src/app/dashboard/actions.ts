@@ -493,13 +493,14 @@ export async function saveBookingRules(formData: FormData): Promise<void> {
 
 export async function createStaffMembership(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const userId = String(formData.get("user_id") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = String(formData.get("role") ?? "").trim();
   const locationRaw = String(formData.get("location_id") ?? "").trim();
   const locationId = locationRaw || null;
   const { supabase, studio, user } = await requireStudio(studioId || undefined);
-  if (!studio || !userId || !role) return;
-  if (user.id === userId && role !== "owner") return;
+  if (!studio || !email || !role) {
+    redirect("/dashboard/staff?staff_error=missing_required_fields");
+  }
 
   const { data: me } = await supabase
     .from("studios")
@@ -507,18 +508,62 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
     .eq("id", studio.id)
     .eq("owner_id", user.id)
     .maybeSingle();
-  if (!me) return;
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
+  if (!me) {
+    redirect("/dashboard/staff?staff_error=forbidden");
+  }
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) {
+    redirect("/dashboard/staff?staff_error=invalid_location_scope");
+  }
 
-  await supabase.from("staff_memberships").insert({
-    user_id: userId,
-    studio_id: studio.id,
-    location_id: locationId,
-    role,
-    is_active: true,
-  });
+  const { data: targetUser } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("email", email)
+    .maybeSingle();
+  if (!targetUser?.id) {
+    redirect("/dashboard/staff?staff_error=user_not_found_by_email");
+  }
+  if (targetUser.id === user.id && role !== "owner") {
+    redirect("/dashboard/staff?staff_error=cannot_assign_self_non_owner");
+  }
+  if (!["manager", "frontdesk", "instructor", "owner"].includes(role)) {
+    redirect("/dashboard/staff?staff_error=invalid_role");
+  }
+
+  const { data: existing } = await supabase
+    .from("staff_memberships")
+    .select("id")
+    .eq("user_id", targetUser.id)
+    .eq("studio_id", studio.id)
+    .eq("role", role)
+    .maybeSingle();
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from("staff_memberships")
+      .update({
+        location_id: locationId,
+        is_active: true,
+      })
+      .eq("id", existing.id);
+    if (error) {
+      redirect("/dashboard/staff?staff_error=update_membership_failed");
+    }
+  } else {
+    const { error } = await supabase.from("staff_memberships").insert({
+      user_id: targetUser.id,
+      studio_id: studio.id,
+      location_id: locationId,
+      role,
+      is_active: true,
+    });
+    if (error) {
+      redirect("/dashboard/staff?staff_error=create_membership_failed");
+    }
+  }
 
   revalidatePath("/dashboard/staff");
+  redirect("/dashboard/staff?staff_msg=staff_membership_saved");
 }
 
 export async function toggleStaffMembership(formData: FormData): Promise<void> {
