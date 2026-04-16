@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --muted: #78716c;
 }
 
 @theme inline {
@@ -14,13 +16,37 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0c0a09;
+    --foreground: #fafaf9;
+    --card: #1c1917;
+    --muted: #a8a29e;
   }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
+  min-height: 100dvh;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 8% -10%, rgb(14 165 233 / 0.12), transparent 45%),
+    radial-gradient(ellipse 100% 70% at 92% -15%, rgb(45 212 191 / 0.11), transparent 42%),
+    linear-gradient(180deg, #f8fafc 0%, #f8fafc 40%, #f1f5f9 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image:
+      radial-gradient(ellipse 100% 60% at 6% -10%, rgb(8 145 178 / 0.24), transparent 42%),
+      radial-gradient(ellipse 90% 50% at 94% -16%, rgb(20 184 166 / 0.2), transparent 40%),
+      linear-gradient(180deg, #0c0a09 0%, #111827 100%);
+  }
+}
+
+::selection {
+  background-color: rgb(20 184 166 / 0.25);
 }

@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Studio — gym & studio bookings (MVP)
 
-## Getting Started
+Next.js (App Router) + Supabase (Auth, Postgres, RLS) + optional Resend emails. Payments use a PayNow QR + manual confirmation MVP flow.
 
-First, run the development server:
+## Setup
+
+1. Create a Supabase project and run migrations in order: `001_initial.sql`, `002_qr_slug_guest_booking.sql`, `003_book_session_studio_scope.sql`, `004_studios_rls_owner_role.sql`, `005_paynow_flow.sql`, `006_multi_location_rules_rbac.sql`, `007_booking_rule_engine.sql`, `008_booking_rules_no_show_buffer.sql`, `009_payment_confirmation_split.sql`, `010_guest_merge_and_ops_audit.sql`, `011_booking_notification_fields.sql`, `012_scope_checkin_credit_and_walkin.sql`, `013_checkin_package_anti_abuse_recon.sql` (SQL editor or Supabase CLI).
+2. In Supabase **Authentication → Providers**, enable Email (password). Confirm signups in development if email confirmation is on.
+3. Copy `.env.example` to `.env.local`. In **Project Settings → API**, set `NEXT_PUBLIC_SUPABASE_URL`, then either **`anon` `public`** (JWT) as `NEXT_PUBLIC_SUPABASE_ANON_KEY` **or** the **publishable** key as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. You must also set **`service_role`** (server-only) as `SUPABASE_SERVICE_ROLE_KEY` for booking APIs and RPCs — never expose it in the browser.
+
+## Local dev
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy (GitHub → Vercel)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Push this repo to GitHub.
+2. Import the repo in Vercel; set the same environment variables as `.env.local`.
+3. Add `SUPABASE_SERVICE_ROLE_KEY` only on the server (Vercel env) — never expose it to the browser.
+4. Optional cron: call `GET /api/payment/expire` every minute, `GET /api/no-show/process` every 1-5 minutes, and `GET /api/reminder/send` every 5 minutes with `Authorization: Bearer <CRON_SECRET>`.
+5. Optional cron alerting: set `CRON_ALERT_WEBHOOK_URL` for failure notifications.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Flow
 
-## Learn More
+- **Owner**: sign up with role `Studio owner`, create a studio (name + **public URL slug**) on `/dashboard`, add classes, schedule sessions, packages. Open **Dashboard → QR code** for the printable link and QR (`/booking/your-slug`).
+- **Client (QR)**: scan QR → `/booking/<slug>` → pick a class → **Book** → enter name + email → `/checkout/<payment_id>` → scan PayNow QR → click **I have paid**.
+- **Guest merge**: when a user account is created/updated with an email, guest bookings/payments with matching normalized email are auto-linked to that user (`merge_guest_records_for_user`).
+- **Client (signed in)**: buy a pack or drop-in on `/checkout`, then either `Book with package` (`/api/book/package`) or create a paynow booking (`/api/book/create`).
+- **Credit timing**: booking only reserves spot; package/single credit is consumed at check-in (or by late-cancel/no-show rules when configured).
+- **Owner verification**: `/dashboard/payments` lists pending/paid/expired, includes pending-review filter/SLA, and actions to mark paid/failed/expired.
+- **Notifications**: payment submitted notifies owner/frontdesk recipients; payment verdict notifies client/guest; late-cancel and no-show outcomes notify client/guest; reminders run via cron endpoint.
 
-To learn more about Next.js, take a look at the following resources:
+API routes use the service role and Postgres RPCs (`confirm_paynow_payment`, `expire_pending_payments`) for payment state transitions.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Rollback Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- App code can be rolled back independently.
+- DB migrations are additive; for emergency rollback prefer feature flags / route disable over dropping columns/tables.
+- If needed, disable cron endpoints first, then roll back app deploy.

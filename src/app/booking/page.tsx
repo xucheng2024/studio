@@ -1,0 +1,161 @@
+import Link from "next/link";
+import { BookButton } from "@/components/BookButton";
+import { PackageBookButton } from "@/components/PackageBookButton";
+import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
+import { ui } from "@/lib/ui";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function BookingPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let packCredits = 0;
+  let userPacks: { id: string; name: string; credits_left: number; expiry_date: string | null }[] = [];
+  if (user) {
+    await mergeGuestRecordsForUser(user.id, user.email);
+    const { data: packs } = await supabase
+      .from("client_packages")
+      .select("id, credits_left, expiry_date, packages(name)")
+      .eq("client_id", user.id)
+      .gt("credits_left", 0);
+    userPacks = ((packs ?? []) as {
+      id: string;
+      credits_left: number;
+      expiry_date: string | null;
+      packages?: { name?: string } | { name?: string }[] | null;
+    }[]).map((p) => ({
+      id: p.id,
+      name: (Array.isArray(p.packages) ? p.packages[0]?.name : p.packages?.name) ?? "Package",
+      credits_left: p.credits_left,
+      expiry_date: p.expiry_date,
+    }));
+    packCredits = userPacks.reduce((a, p) => a + p.credits_left, 0);
+
+  }
+
+  const { data: sessions } = await supabase
+    .from("class_sessions")
+    .select(
+      `
+      id,
+      location_id,
+      start_time,
+      end_time,
+      spots_left,
+      classes (
+        studio_id,
+        title,
+        studios ( name )
+      )
+    `,
+    )
+    .gte("start_time", new Date().toISOString())
+    .order("start_time", { ascending: true });
+
+  const studioIds = [...new Set((sessions ?? []).map((s) => {
+    const cls = s.classes as { studio_id?: string } | null;
+    return cls?.studio_id;
+  }).filter(Boolean) as string[])];
+  const { data: rules } =
+    studioIds.length > 0
+      ? await supabase
+          .from("booking_rules")
+          .select(
+            "studio_id, location_id, cancel_cutoff_hours, late_cancel_deduct_credit, no_show_deduct_credit, no_show_buffer_min",
+          )
+          .in("studio_id", studioIds)
+      : { data: [] as const };
+  type RuleRow = {
+    studio_id: string;
+    location_id: string | null;
+    cancel_cutoff_hours: number | null;
+    late_cancel_deduct_credit: boolean | null;
+    no_show_deduct_credit: boolean | null;
+    no_show_buffer_min: number | null;
+  };
+  const ruleMap = new Map<string, RuleRow>();
+  for (const r of rules ?? []) {
+    ruleMap.set(`${r.studio_id}:${r.location_id ?? "global"}`, r);
+  }
+
+  return (
+    <main className={ui.page}>
+      <header className="mb-8 flex max-w-2xl flex-col gap-3">
+        <h1 className={ui.h1}>Book a class</h1>
+        <p className={ui.lead}>
+          Pick your class, reserve your seat, and follow the payment steps shown in-app.
+        </p>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          {user ? (
+            <>
+              <span className={ui.badge}>
+                {packCredits} credits available
+              </span>
+              <Link href="/checkout" className={ui.link}>
+                Buy credits
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/auth?tab=member" className={ui.link}>
+                Sign in to book with credits
+              </Link>
+              <span className="text-stone-400 dark:text-stone-600">·</span>
+              <Link href="/auth?tab=member" className={ui.link}>
+                Join with email
+              </Link>
+            </>
+          )}
+        </div>
+      </header>
+
+      <ul className="flex flex-col gap-4">
+        {(sessions ?? []).map((s) => {
+          const cls = s.classes as { title?: string; studio_id?: string; studios?: { name?: string } } | null;
+          const title = cls?.title ?? "Class";
+          const studio = cls?.studios?.name ?? "Studio";
+          const start = new Date(s.start_time).toLocaleString();
+          const scopedRule =
+            (cls?.studio_id
+              ? ruleMap.get(`${cls.studio_id}:${s.location_id ?? "global"}`) ??
+                ruleMap.get(`${cls.studio_id}:global`)
+              : null) ?? null;
+          return (
+            <li key={s.id} className={`${ui.cardInteractive} flex flex-wrap items-center justify-between gap-4`}>
+              <div>
+                <p className="font-medium text-stone-900 dark:text-stone-100">{title}</p>
+                <p className={`mt-0.5 text-sm ${ui.muted}`}>
+                  {studio} · {start}
+                </p>
+                <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
+                  {s.spots_left} spots left
+                </p>
+                {scopedRule ? (
+                  <p className={`mt-1 text-xs ${ui.muted}`}>
+                    Policy: cancel at least {scopedRule.cancel_cutoff_hours ?? 12}h before class for free.
+                    Late cancel {scopedRule.late_cancel_deduct_credit ?? true ? "uses" : "does not use"} a credit.
+                    No-show after {scopedRule.no_show_buffer_min ?? 15} minutes{" "}
+                    {scopedRule.no_show_deduct_credit ?? true ? "uses" : "does not use"} a credit.
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {user ? (
+                  <>
+                    <PackageBookButton sessionId={s.id} packages={userPacks} />
+                    <BookButton sessionId={s.id} />
+                  </>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {!sessions?.length ? (
+        <p className={`mt-6 text-center text-sm ${ui.muted}`}>No upcoming sessions yet.</p>
+      ) : null}
+    </main>
+  );
+}
