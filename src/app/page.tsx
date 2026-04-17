@@ -1,8 +1,32 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { site } from "@/lib/brand";
 import { ui } from "@/lib/ui";
 
-export default function Home() {
+type Props = {
+  searchParams: Promise<{
+    code?: string;
+    next?: string;
+    error?: string;
+    error_description?: string;
+  }>;
+};
+
+export default async function Home({ searchParams }: Props) {
+  const sp = await searchParams;
+  const hasOAuthParams = Boolean(sp.code || sp.error || sp.error_description);
+  if (hasOAuthParams) {
+    const params = new URLSearchParams();
+    if (sp.code) params.set("code", sp.code);
+    if (sp.error) params.set("error", sp.error);
+    if (sp.error_description) params.set("error_description", sp.error_description);
+    if (sp.next && sp.next.startsWith("/")) {
+      params.set("next", sp.next);
+    }
+    const query = params.toString();
+    redirect(query ? `/auth/callback?${query}` : "/auth/callback");
+  }
+
   return (
     <main className={ui.page}>
       <div className="mx-auto max-w-2xl">
