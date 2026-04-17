@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function SignupRedirectPage() {
-  redirect("/auth?tab=owner");
+  redirect("/auth");
 }
 

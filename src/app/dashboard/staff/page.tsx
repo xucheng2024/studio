@@ -1,60 +1,22 @@
-import { createStaffMembership, toggleStaffMembership } from "@/app/dashboard/actions";
+import Link from "next/link";
+import { toggleStaffMembership } from "@/app/dashboard/actions";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
 
-type Props = {
-  searchParams?: Promise<{ staff_error?: string; staff_msg?: string }>;
-};
-
-function staffErrorMessage(code?: string) {
-  switch (code) {
-    case "missing_required_fields":
-      return "Please fill in email, role, and studio.";
-    case "forbidden":
-      return "Only the studio owner can assign staff.";
-    case "invalid_location_scope":
-      return "Selected location is not in this studio.";
-    case "user_not_found_by_email":
-      return "This email has no account yet. Ask staff to sign up first.";
-    case "cannot_assign_self_non_owner":
-      return "You cannot assign yourself a non-owner role.";
-    case "invalid_role":
-      return "Invalid role selected.";
-    case "update_membership_failed":
-      return "Could not update staff membership. Please try again.";
-    case "create_membership_failed":
-      return "Could not create staff membership. Please try again.";
-    default:
-      return null;
-  }
-}
-
-export default async function StaffPage({ searchParams }: Props) {
-  const sp = searchParams ? await searchParams : {};
+export default async function StaffPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const ctx = await buildAccessContext({ userId: user.id });
+  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
   if (bestRole(ctx) !== "owner") {
     return <p className={ui.muted}>Only owners can manage staff.</p>;
   }
 
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
-  const { data: studios } = await supabase
-    .from("studios")
-    .select("id, name")
-    .in("id", studioIds)
-    .order("name");
-  const { data: locations } = await supabase
-    .from("locations")
-    .select("id, name, studio_id")
-    .in("studio_id", studioIds)
-    .eq("is_active", true)
-    .order("name");
   const { data: staff } = await supabase
     .from("staff_memberships")
     .select("id, user_id, studio_id, location_id, role, is_active, created_at, users(email)")
@@ -65,54 +27,16 @@ export default async function StaffPage({ searchParams }: Props) {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className={ui.h1}>Staff</h1>
-        <p className={`mt-1 ${ui.muted}`}>Basic RBAC memberships by studio and location.</p>
-        {sp.staff_error ? (
-          <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-            {staffErrorMessage(sp.staff_error) ?? "Could not save staff membership."}
-          </p>
-        ) : null}
-        {sp.staff_msg === "staff_membership_saved" ? (
-          <p className="mt-2 text-sm text-teal-700 dark:text-teal-300">Staff membership saved.</p>
-        ) : null}
+        <p className={`mt-1 ${ui.muted}`}>Workspace access is managed by invitation.</p>
       </div>
-      <form action={createStaffMembership} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Staff email</span>
-          <input name="email" type="email" required className={ui.input} placeholder="coach@studio.com" />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Role</span>
-          <select name="role" className={ui.select} defaultValue="frontdesk">
-            <option value="manager">manager</option>
-            <option value="frontdesk">frontdesk</option>
-            <option value="instructor">instructor</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Studio</span>
-          <select name="studio_id" className={ui.select}>
-            {(studios ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Location (optional)</span>
-          <select name="location_id" className={ui.select} defaultValue="">
-            <option value="">All locations</option>
-            {(locations ?? []).map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className={`${ui.btnPrimary} w-fit`} type="submit">
-          Add staff membership
-        </button>
-      </form>
+      <div className={ui.card}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className={ui.muted}>Send invites to grant staff access. Accepted invites appear below.</p>
+          <Link href="/dashboard/settings/staff-invites" className={ui.btnPrimary}>
+            Open staff invites
+          </Link>
+        </div>
+      </div>
       <div className={ui.card}>
         <p className={`mb-2 text-xs ${ui.muted}`}>On phone, swipe horizontally to view all columns.</p>
         <div className="overflow-auto">

@@ -99,7 +99,7 @@ export default async function BookingPage() {
               </Link>
             </>
           ) : (
-            <Link href="/auth?tab=member" className={ui.link}>
+            <Link href="/auth" className={ui.link}>
               Continue with email
             </Link>
           )}

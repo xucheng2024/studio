@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseUrl } from "@/lib/supabase/env";
+import { isSuperAdminEmail } from "@/lib/super-admin";
 
 export type StaffRole = "owner" | "manager" | "frontdesk" | "instructor" | "client";
 
@@ -11,6 +12,7 @@ export type LocationScope = {
 
 export type AccessContext = {
   userId: string;
+  isSuperAdmin: boolean;
   roles: Set<StaffRole>;
   memberships: { studio_id: string; location_id: string | null; role: StaffRole }[];
   locations: LocationScope[];
@@ -66,6 +68,7 @@ export function canCheckIn(ctx: AccessContext) {
 
 export async function buildAccessContext(params: {
   userId: string;
+  email?: string | null;
   selectedLocationId?: string | null;
 }) {
   const url = getSupabaseUrl();
@@ -84,6 +87,7 @@ export async function buildAccessContext(params: {
   const studioIds = new Set<string>();
   const roles = new Set<StaffRole>();
   const normalizedMemberships: AccessContext["memberships"] = [];
+  const isSuperAdmin = isSuperAdminEmail(params.email ?? null);
   for (const m of memberships ?? []) {
     const role = (m.role as StaffRole) ?? "client";
     roles.add(role);
@@ -110,6 +114,16 @@ export async function buildAccessContext(params: {
     });
   }
 
+  const { data: ownerGrants } = await admin
+    .from("platform_owner_grants")
+    .select("user_id, is_active")
+    .eq("user_id", params.userId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (ownerGrants?.user_id) {
+    roles.add("owner");
+  }
+
   const studioArray = [...studioIds];
   const { data: locations } =
     studioArray.length > 0
@@ -134,9 +148,32 @@ export async function buildAccessContext(params: {
 
   return {
     userId: params.userId,
+    isSuperAdmin,
     roles,
     memberships: normalizedMemberships,
     locations: locs,
     selectedLocationId: selected,
   } as AccessContext;
+}
+
+export async function resolveAccessContext(params: {
+  userId: string;
+  email?: string | null;
+  selectedLocationId?: string | null;
+}) {
+  const ctx = await buildAccessContext(params);
+  const role = bestRole(ctx);
+  const hasBackofficeAccess =
+    ctx.isSuperAdmin ||
+    role === "owner" ||
+    role === "manager" ||
+    role === "frontdesk" ||
+    role === "instructor";
+  const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
+  return {
+    ctx,
+    bestRole: role,
+    hasBackofficeAccess,
+    studioIds,
+  };
 }

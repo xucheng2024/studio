@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getDashboardScope } from "@/lib/dashboard";
+import { resolveAccessContext } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
@@ -23,17 +24,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (!user) {
     redirect("/login");
   }
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const access = await resolveAccessContext({ userId: user.id, email: user.email });
   const { studioIds } = await getDashboardScope({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
   });
-  const isOwnerProfile = profile?.role === "owner";
 
   const params = new URLSearchParams();
   if (sp.studio_id) params.set("studio_id", sp.studio_id);
@@ -44,7 +40,10 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (sp.recon_status) params.set("recon_status", sp.recon_status);
   if (sp.q) params.set("q", sp.q);
   const q = params.toString();
-  if (studioIds.length === 0 && isOwnerProfile) {
+  if (studioIds.length === 0 && access.ctx.isSuperAdmin) {
+    redirect("/dashboard/settings/owners");
+  }
+  if (studioIds.length === 0 && access.bestRole === "owner") {
     redirect(q ? `/dashboard/overview?${q}` : "/dashboard/overview");
   }
   redirect(q ? `/dashboard/operations?${q}` : "/dashboard/operations");

@@ -132,7 +132,7 @@ export default async function StudioBookingPage({ params }: Props) {
           ) : (
             <span className={ui.lead}>
               Book as guest below, or{" "}
-              <Link href="/auth?tab=member" className={ui.link}>
+              <Link href="/auth" className={ui.link}>
                 sign in with email
               </Link>
               to manage your bookings.

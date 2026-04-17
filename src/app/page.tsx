@@ -46,9 +46,9 @@ export default function Home() {
           Each studio can share one booking URL like{" "}
           <code className={ui.code}>/booking/your-slug</code> — print the QR from the dashboard.
           {` ${site.marketing.paymentFlowNote} ${site.marketing.mergeNote}`}
-          Need an owner account?{" "}
-          <Link href="/auth?tab=owner" className={ui.link}>
-            Sign up
+          Need access?{" "}
+          <Link href="/auth" className={ui.link}>
+            Sign in
           </Link>
           .
         </p>

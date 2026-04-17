@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { buildAccessContext } from "@/lib/rbac";
+import { buildAccessContext, resolveAccessContext } from "@/lib/rbac";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,7 +19,7 @@ async function requireUser() {
 
 async function requireStudio(requestedStudioId?: string) {
   const { supabase, user } = await requireUser();
-  const ctx = await buildAccessContext({ userId: user.id });
+  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
   const studioId = requestedStudioId
     ? studioIds.includes(requestedStudioId)
@@ -65,12 +66,8 @@ async function assertLocationInStudio(
 
 export async function createStudio(formData: FormData): Promise<void> {
   const { supabase, user } = await requireUser();
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "owner") {
+  const access = await resolveAccessContext({ userId: user.id, email: user.email });
+  if (access.bestRole !== "owner" && !access.ctx.isSuperAdmin) {
     console.error("createStudio: only studio owners can create a venue");
     return;
   }
@@ -594,4 +591,102 @@ export async function toggleStaffMembership(formData: FormData): Promise<void> {
     .eq("id", membership.id);
 
   revalidatePath("/dashboard/staff");
+}
+
+export async function grantOwnerAccessByEmail(formData: FormData): Promise<void> {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const { user } = await requireUser();
+  if (!isSuperAdminEmail(user.email)) {
+    redirect("/dashboard/settings?owner_error=forbidden");
+  }
+  if (!email) {
+    redirect("/dashboard/settings/owners?owner_error=invalid_email");
+  }
+
+  const admin = createAdminClient();
+  const { data: target } = await admin.from("users").select("id").eq("email", email).maybeSingle();
+  if (!target?.id) {
+    redirect("/dashboard/settings/owners?owner_error=email_not_registered");
+  }
+
+  const { error } = await admin
+    .from("platform_owner_grants")
+    .upsert({ user_id: target.id, is_active: true, created_by: user.id }, { onConflict: "user_id" });
+  if (error) {
+    redirect("/dashboard/settings/owners?owner_error=save_failed");
+  }
+  revalidatePath("/dashboard/settings/owners");
+  redirect("/dashboard/settings/owners?owner_success=granted");
+}
+
+export async function createStaffInvite(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const locationRaw = String(formData.get("location_id") ?? "").trim();
+  const locationId = locationRaw || null;
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const role = String(formData.get("role") ?? "").trim();
+  const { supabase, studio, user } = await requireStudio(studioId || undefined);
+  if (!studio || !email || !role) {
+    redirect("/dashboard/settings/staff-invites?invite_error=missing_required_fields");
+  }
+  if (!["manager", "frontdesk", "instructor"].includes(role)) {
+    redirect("/dashboard/settings/staff-invites?invite_error=invalid_role");
+  }
+  const { data: me } = await supabase
+    .from("studios")
+    .select("id")
+    .eq("id", studio.id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!me) {
+    redirect("/dashboard/settings/staff-invites?invite_error=forbidden");
+  }
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) {
+    redirect("/dashboard/settings/staff-invites?invite_error=invalid_location_scope");
+  }
+
+  const token = crypto.randomUUID().replaceAll("-", "");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabase.from("staff_invites").insert({
+    studio_id: studio.id,
+    location_id: locationId,
+    email,
+    role,
+    token,
+    status: "pending",
+    expires_at: expiresAt,
+    invited_by: user.id,
+  });
+  if (error) {
+    redirect("/dashboard/settings/staff-invites?invite_error=create_failed");
+  }
+  revalidatePath("/dashboard/settings/staff-invites");
+  redirect("/dashboard/settings/staff-invites?invite_success=sent");
+}
+
+export async function revokeStaffInvite(formData: FormData): Promise<void> {
+  const inviteId = String(formData.get("invite_id") ?? "");
+  const { supabase, user } = await requireUser();
+  if (!inviteId) return;
+
+  const { data: invite } = await supabase
+    .from("staff_invites")
+    .select("id, studio_id, status")
+    .eq("id", inviteId)
+    .maybeSingle();
+  if (!invite || invite.status !== "pending") return;
+  const { data: me } = await supabase
+    .from("studios")
+    .select("id")
+    .eq("id", invite.studio_id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!me) return;
+
+  await supabase.from("staff_invites").update({ status: "revoked" }).eq("id", invite.id);
+  revalidatePath("/dashboard/settings/staff-invites");
 }

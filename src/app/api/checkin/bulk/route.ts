@@ -19,15 +19,53 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const ctx = await buildAccessContext({ userId: user.id });
+  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
   const role = bestRole(ctx);
   if (!["owner", "manager", "frontdesk", "instructor"].includes(role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const admin = createAdminClient();
+  let instructorId: string | null = null;
+  let allowedBookingIds: Set<string> | null = null;
+  if (role === "instructor") {
+    const { data: instructor } = await admin
+      .from("instructors")
+      .select("id")
+      .eq("email", user.email ?? "")
+      .maybeSingle();
+    instructorId = instructor?.id ?? null;
+    if (!instructorId) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    const { data: ownedBookings } = await admin
+      .from("bookings")
+      .select("id, class_sessions!inner(classes!inner(instructor_id))")
+      .in("id", parsed.data.booking_ids);
+    allowedBookingIds = new Set(
+      (ownedBookings ?? [])
+        .filter((booking) => {
+          const session = booking.class_sessions as
+            | { classes?: { instructor_id?: string } | { instructor_id?: string }[] | null }
+            | { classes?: { instructor_id?: string } | { instructor_id?: string }[] | null }[]
+            | null;
+          const s = Array.isArray(session) ? session[0] : session;
+          const classes = s?.classes;
+          const classInstructorId = Array.isArray(classes)
+            ? classes[0]?.instructor_id
+            : classes?.instructor_id;
+          return classInstructorId === instructorId;
+        })
+        .map((booking) => booking.id),
+    );
+  }
+
   const results: { booking_id: string; ok: boolean; error?: string }[] = [];
   for (const bookingId of parsed.data.booking_ids) {
+    if (role === "instructor" && !allowedBookingIds?.has(bookingId)) {
+      results.push({ booking_id: bookingId, ok: false, error: "forbidden" });
+      continue;
+    }
     const { data, error } = await admin.rpc("checkin_booking", {
       p_booking_id: bookingId,
       p_actor_id: user.id,

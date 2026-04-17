@@ -4,7 +4,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { LocationSwitcher } from "@/components/LocationSwitcher";
 import { SignOutButton } from "@/components/SignOutButton";
 import { StudioSwitcher } from "@/components/StudioSwitcher";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { resolveAccessContext } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,20 +18,16 @@ export default async function DashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  const ctx = await buildAccessContext({ userId: user.id });
-  const role = bestRole(ctx);
+  const access = await resolveAccessContext({ userId: user.id, email: user.email });
+  const ctx = access.ctx;
+  const role = access.bestRole;
   const resolvedRole: "owner" | "manager" | "frontdesk" =
-    role === "owner" || profile?.role === "owner"
+    role === "owner" || access.ctx.isSuperAdmin
       ? "owner"
       : role === "manager"
         ? "manager"
         : "frontdesk";
-  if (!["owner", "manager", "frontdesk"].includes(role) && profile?.role !== "owner") {
+  if (!access.hasBackofficeAccess || role === "instructor") {
     redirect("/booking");
   }
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];

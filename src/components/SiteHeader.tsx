@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { site } from "@/lib/brand";
 import { SignOutButton } from "@/components/SignOutButton";
+import { resolveAccessContext } from "@/lib/rbac";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -24,10 +25,10 @@ export async function SiteHeader() {
               Classes
             </Link>
             <Link
-              href="/auth?tab=member"
+              href="/auth"
               className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
             >
-              Sign in / Sign up
+              Sign in / Create account
             </Link>
           </nav>
         </div>
@@ -42,12 +43,8 @@ export async function SiteHeader() {
 
   let showDashboard = false;
   if (user) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    showDashboard = profile?.role === "owner";
+    const access = await resolveAccessContext({ userId: user.id, email: user.email });
+    showDashboard = access.hasBackofficeAccess;
   }
   const userInitial =
     user?.email?.trim().charAt(0).toUpperCase() ||
@@ -76,7 +73,7 @@ export async function SiteHeader() {
                 href="/me/bookings"
                 className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
               >
-                My plan
+                My bookings
               </Link>
               {showDashboard ? (
                 <Link
@@ -98,7 +95,7 @@ export async function SiteHeader() {
                     href="/me/bookings"
                     className="block rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                   >
-                    My plan
+                    My bookings
                   </Link>
                   {showDashboard ? (
                     <Link
@@ -114,10 +111,10 @@ export async function SiteHeader() {
             </>
           ) : (
             <Link
-              href="/auth?tab=member"
+              href="/auth"
               className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
             >
-              Sign in / Sign up
+              Sign in / Create account
             </Link>
           )}
         </nav>

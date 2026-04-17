@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
+import { isSuperAdminEmail } from "@/lib/super-admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,6 +26,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
+  const isSuperAdmin = isSuperAdminEmail(user.email);
 
   const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
     userId: user.id,
@@ -32,10 +34,10 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   const role = bestRole(ctx);
-  if (!["owner", "manager"].includes(role)) {
+  if (!["owner", "manager"].includes(role) && !isSuperAdmin) {
     return <p className={ui.muted}>You do not have settings access.</p>;
   }
-  if (studioIds.length === 0) return <p className={ui.muted}>Create a studio first.</p>;
+  if (studioIds.length === 0 && !isSuperAdmin) return <p className={ui.muted}>Create a studio first.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
   }
@@ -54,13 +56,21 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           Payment settings
         </Link>
         {role === "owner" ? (
-          <Link href={scopedHref("/dashboard/staff", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
+          <Link
+            href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId, selectedLocationId)}
+            className={ui.btnSecondary}
+          >
             Staff & roles
           </Link>
         ) : null}
         <Link href={scopedHref("/dashboard/qr", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
           QR / share link
         </Link>
+        {isSuperAdmin ? (
+          <Link href="/dashboard/settings/owners" className={ui.btnSecondary}>
+            Platform owner access
+          </Link>
+        ) : null}
       </div>
       {role !== "owner" ? (
         <p className={`text-sm ${ui.muted}`}>

@@ -40,7 +40,7 @@ export default async function CheckoutPage() {
           Choose a package, pay with PayNow, then submit your payment notice for verification.
         </p>
         {!user ? (
-          <Link href="/auth?tab=staff" className={`${ui.link} text-sm`}>
+          <Link href="/auth" className={`${ui.link} text-sm`}>
             Sign in to buy packages
           </Link>
         ) : null}
