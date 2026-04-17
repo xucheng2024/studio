@@ -31,9 +31,19 @@ export default function AuthPage() {
 
   useEffect(() => {
     const supabase = createBrowserSupabase();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") {
+        void goPostAuth();
+      }
+    });
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) void goPostAuth();
     });
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [goPostAuth]);
 
   return (
@@ -41,7 +51,7 @@ export default function AuthPage() {
       <div className="grid gap-6 md:grid-cols-5 md:items-stretch">
         <section className={`${ui.card} h-full md:col-span-3`}>
           <p className={ui.badge}>Get started</p>
-          <h1 className={`${ui.h1} mt-3 text-2xl`}>Sign in or create your account</h1>
+          <h1 className={`${ui.h1} mt-3 text-2xl`}>Sign in or sign up</h1>
           <p className={`mt-2 ${ui.lead}`}>{site.marketing.memberIntro}</p>
           <ul className="mt-5 flex flex-col gap-2.5 text-sm">
             {site.marketing.memberHighlights.map((item) => (
@@ -66,10 +76,14 @@ export default function AuthPage() {
         </section>
 
         <section className={`${ui.card} mx-auto w-full max-w-md md:col-span-2`}>
-          <div className="mt-6 flex flex-col gap-4">
+          <div className="mt-2 flex flex-col gap-4">
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Account access</h2>
+              <p className={`text-xs ${ui.muted}`}>Use Google or email OTP to continue.</p>
+            </div>
             <button
               type="button"
-              className={`${ui.btnSecondary} w-full`}
+              className={`${ui.btnSecondary} w-full disabled:opacity-60`}
               onClick={async () => {
                 setMsg(null);
                 setLoading(true);
@@ -86,9 +100,14 @@ export default function AuthPage() {
             >
               {loading ? "Redirecting..." : "Continue with Google"}
             </button>
-            <p className={`text-xs text-center ${ui.muted}`}>or continue with email OTP</p>
+            <div className="relative py-1">
+              <div className="h-px w-full bg-stone-200 dark:bg-stone-800" />
+              <p className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-[11px] ${ui.muted} dark:bg-stone-900`}>
+                or continue with email OTP
+              </p>
+            </div>
             <form
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3"
               onSubmit={async (e) => {
                 e.preventDefault();
                 setMsg(null);
@@ -166,7 +185,11 @@ export default function AuthPage() {
                   />
                 </label>
               ) : null}
-              {msg ? <p className={ui.muted}>{msg}</p> : null}
+              {msg ? (
+                <p className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-300">
+                  {msg}
+                </p>
+              ) : null}
               <button type="submit" disabled={loading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
                 {loading ? "Please wait..." : step === "request" ? "Send OTP code" : "Verify and continue"}
               </button>
