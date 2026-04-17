@@ -23,6 +23,8 @@ export default function AuthPage() {
   });
 
   const postAuthPath = inviteToken ? `/post-auth?invite_token=${encodeURIComponent(inviteToken)}` : "/post-auth";
+  const oauthNext = encodeURIComponent(postAuthPath);
+  const oauthCallbackPath = `/auth/callback?next=${oauthNext}`;
 
   const goPostAuth = useCallback(async () => {
     router.replace(postAuthPath);
@@ -91,7 +93,7 @@ export default function AuthPage() {
                 const origin = typeof window !== "undefined" ? window.location.origin : "";
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "google",
-                  options: { redirectTo: `${origin}${postAuthPath}` },
+                  options: { redirectTo: `${origin}${oauthCallbackPath}` },
                 });
                 setLoading(false);
                 if (error) setMsg(error.message);
