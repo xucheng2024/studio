@@ -50,6 +50,15 @@ export default async function DashboardLayout({
           <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Manage your studio</p>
         </div>
         <StudioSwitcher studios={(studios ?? []).map((s) => ({ id: s.id, name: s.name }))} />
+        {studioIds.length === 0 ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+            <p className="font-medium">No studio yet</p>
+            <p className="mt-1">Create your first studio from overview to unlock operations.</p>
+            <Link href="/dashboard/overview" className="mt-2 inline-block underline underline-offset-2">
+              Create studio
+            </Link>
+          </div>
+        ) : null}
         <LocationSwitcher
           locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
         />
