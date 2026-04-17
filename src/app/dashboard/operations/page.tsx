@@ -40,6 +40,33 @@ export default async function OperationsPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   if (studioIds.length === 0) {
+    if (ctx.isSuperAdmin) {
+      return (
+        <div className="mx-auto w-full max-w-3xl">
+          <div className={`${ui.card} flex flex-col gap-5`}>
+            <div className="space-y-1">
+              <p className={ui.badge}>Platform admin</p>
+              <h1 className={ui.h1}>Grant owner access first</h1>
+              <p className={ui.muted}>
+                You are signed in as super admin. Create owner workspaces by granting owner access. Owners will then
+                create and manage their own studios.
+              </p>
+            </div>
+            <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+              <p className="font-medium text-stone-900 dark:text-stone-100">Recommended flow</p>
+              <p className={ui.muted}>1. Open Platform owner access</p>
+              <p className={ui.muted}>2. Grant owner access by email</p>
+              <p className={ui.muted}>3. Ask owner to sign in and create first studio</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/settings/owners" className={ui.btnPrimary}>
+                Open owner access
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="mx-auto w-full max-w-3xl">
         <div className={`${ui.card} flex flex-col gap-5`}>

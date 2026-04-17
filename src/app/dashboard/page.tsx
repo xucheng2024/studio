@@ -25,6 +25,9 @@ export default async function DashboardPage({ searchParams }: Props) {
     redirect("/login");
   }
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
+  if (access.ctx.isSuperAdmin) {
+    redirect("/dashboard/settings/owners");
+  }
   const { studioIds } = await getDashboardScope({
     userId: user.id,
     studioId: sp.studio_id ?? null,

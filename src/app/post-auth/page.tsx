@@ -73,6 +73,9 @@ export default async function PostAuthPage({ searchParams }: Props) {
 
   await acceptInviteIfNeeded(user.id, user.email, sp.invite_token);
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
+  if (access.ctx.isSuperAdmin) {
+    redirect("/dashboard/settings/owners");
+  }
   if (access.bestRole === "instructor") {
     redirect("/instructor/sessions");
   }

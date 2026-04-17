@@ -25,10 +25,10 @@ export function StudioSwitcher({
   const activeStudioId = selectedStudioId ?? search.get("studio_id") ?? cookieStudio ?? "all";
 
   return (
-    <label className="flex items-center gap-2 text-xs text-stone-500">
-      Studio
+    <label className="flex w-full min-w-0 flex-col gap-1 text-xs text-stone-500">
+      <span>Studio</span>
       <select
-        className={`${ui.select} h-8 min-w-44 py-1 text-xs`}
+        className={`${ui.select} h-8 w-full min-w-0 py-1 text-xs`}
         value={activeStudioId}
         onChange={(e) => {
           const params = new URLSearchParams(search.toString());

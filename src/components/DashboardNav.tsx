@@ -29,8 +29,10 @@ const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk", string[]> = {
 
 export function DashboardNav({
   role,
+  superAdminNoStudioMode = false,
 }: {
   role: "owner" | "manager" | "frontdesk";
+  superAdminNoStudioMode?: boolean;
 }) {
   const pathname = usePathname();
   const search = useSearchParams();
@@ -40,7 +42,9 @@ export function DashboardNav({
     if (v) keep.set(key, v);
   }
   const allowed = new Set(roleLinkAllowList[role]);
-  const visibleLinks = links.filter((l) => allowed.has(l.href));
+  const visibleLinks = superAdminNoStudioMode
+    ? links.filter((l) => l.href === "/dashboard/settings")
+    : links.filter((l) => allowed.has(l.href));
 
   return (
     <nav className="flex flex-col gap-1">

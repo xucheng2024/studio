@@ -25,10 +25,10 @@ export function LocationSwitcher({
   const activeLocationId = selectedLocationId ?? search.get("location_id") ?? cookieLocation ?? "all";
 
   return (
-    <label className="flex items-center gap-2 text-xs text-stone-500">
-      Location
+    <label className="flex w-full min-w-0 flex-col gap-1 text-xs text-stone-500">
+      <span>Location</span>
       <select
-        className={`${ui.select} h-8 min-w-44 py-1 text-xs`}
+        className={`${ui.select} h-8 w-full min-w-0 py-1 text-xs`}
         value={activeLocationId}
         onChange={(e) => {
           const params = new URLSearchParams(search.toString());
