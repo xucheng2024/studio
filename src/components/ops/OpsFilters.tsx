@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { PAYMENT_STATUS_FILTER_OPTIONS, RECON_STATUS_FILTER_OPTIONS } from "@/lib/payment-filter-options";
 import { ui } from "@/lib/ui";
 
 export function OpsFilters({
@@ -96,30 +97,34 @@ export function OpsFilters({
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Status</span>
-        <input
-          className={ui.input}
-          placeholder="Payment status (e.g. pending, paid)"
-          defaultValue={status}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            const input = e.currentTarget as HTMLInputElement;
-            update({ status: input.value.trim() || null });
-          }}
-        />
+        <span className={ui.label}>Payment status</span>
+        <select
+          className={ui.select}
+          value={status}
+          onChange={(e) => update({ status: e.target.value || null })}
+        >
+          <option value="">All</option>
+          {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={ui.label}>Payment review status</span>
-        <input
-          className={ui.input}
-          placeholder="e.g. mismatch, awaiting_verification"
-          defaultValue={reconStatus}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            const input = e.currentTarget as HTMLInputElement;
-            update({ recon_status: input.value.trim() || null });
-          }}
-        />
+        <select
+          className={ui.select}
+          value={reconStatus}
+          onChange={(e) => update({ recon_status: e.target.value || null })}
+        >
+          <option value="">All</option>
+          {RECON_STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={ui.label}>Search member or payment</span>

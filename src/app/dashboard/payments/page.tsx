@@ -6,6 +6,7 @@ import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
+import { PAYMENT_STATUS_FILTER_OPTIONS, RECON_STATUS_FILTER_OPTIONS } from "@/lib/payment-filter-options";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -231,8 +232,28 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
         <input type="hidden" name="view" value={view} />
-        <input name="status" defaultValue={sp.status ?? ""} className={ui.input} placeholder="Payment status (pending, paid, failed...)" />
-        <input name="recon_status" defaultValue={sp.recon_status ?? ""} className={ui.input} placeholder="Review status (mismatch, awaiting_verification...)" />
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Payment status</span>
+          <select name="status" className={ui.select} defaultValue={sp.status ?? ""}>
+            <option value="">All</option>
+            {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Payment review status</span>
+          <select name="recon_status" className={ui.select} defaultValue={sp.recon_status ?? ""}>
+            <option value="">All</option>
+            {RECON_STATUS_FILTER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <input type="date" name="date_from" defaultValue={sp.date_from ?? ""} className={ui.input} />
         <input type="date" name="date_to" defaultValue={sp.date_to ?? ""} className={ui.input} />
         <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} placeholder="Min amount" />
