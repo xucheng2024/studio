@@ -85,6 +85,9 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
             Staff & roles
           </DashboardAppLink>
         ) : null}
+        <DashboardAppLink href={scopedHref("/dashboard/settings/locations", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
+          Locations
+        </DashboardAppLink>
         <DashboardAppLink href={scopedHref("/dashboard/qr", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
           QR / share link
         </DashboardAppLink>

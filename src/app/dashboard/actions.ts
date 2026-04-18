@@ -78,15 +78,33 @@ export async function createStudio(formData: FormData): Promise<void> {
   const public_slug = normalizeStudioSlug(slugRaw);
   if (!name || !public_slug) return;
 
-  const { error } = await supabase.from("studios").insert({
-    name,
-    owner_id: user.id,
-    public_slug,
-  });
-  if (error) {
-    console.error(error.message);
+  const { data: createdStudio, error } = await supabase
+    .from("studios")
+    .insert({
+      name,
+      owner_id: user.id,
+      public_slug,
+    })
+    .select("id")
+    .single();
+  if (error || !createdStudio?.id) {
+    console.error(error?.message ?? "create_studio_failed");
     return;
   }
+
+  // Seed a default branch so Location-scoped pages are usable immediately.
+  if (createdStudio?.id) {
+    const { error: locErr } = await supabase.from("locations").insert({
+      studio_id: createdStudio.id,
+      name: "Main",
+      is_active: true,
+    });
+    if (locErr) {
+      // Do not fail studio creation if default location insert fails.
+      console.error(`createStudio default location: ${locErr.message}`);
+    }
+  }
+
   revalidatePath("/dashboard");
   revalidatePath(`/booking/${public_slug}`);
 }
@@ -181,6 +199,121 @@ export async function updateStudioContractSettings(formData: FormData): Promise<
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/overview");
   revalidatePath("/dashboard/operations");
+}
+
+export async function createLocation(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio || !name) {
+    redirect("/dashboard/settings/locations?loc_error=missing_required_fields");
+  }
+  if (isStudioContractSuspended(studio)) {
+    redirect("/dashboard/settings/locations?loc_error=studio_suspended");
+  }
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) {
+    redirect("/dashboard/settings/locations?loc_error=forbidden");
+  }
+
+  const { error } = await supabase.from("locations").insert({
+    studio_id: studio.id,
+    name,
+    address,
+    phone,
+    is_active: true,
+  });
+  if (error) {
+    redirect("/dashboard/settings/locations?loc_error=create_failed");
+  }
+  revalidatePath("/dashboard/settings/locations");
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/schedule");
+  revalidatePath("/dashboard/frontdesk");
+  revalidatePath("/dashboard/operations");
+  redirect("/dashboard/settings/locations?loc_success=created");
+}
+
+export async function updateLocation(formData: FormData): Promise<void> {
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  const { supabase, user } = await requireUser();
+  if (!locationId || !name) {
+    redirect("/dashboard/settings/locations?loc_error=missing_required_fields");
+  }
+  const { data: location } = await supabase
+    .from("locations")
+    .select("id, studio_id")
+    .eq("id", locationId)
+    .maybeSingle();
+  if (!location) {
+    redirect("/dashboard/settings/locations?loc_error=not_found");
+  }
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, owner_id, contract_status")
+    .eq("id", location.studio_id)
+    .maybeSingle();
+  if (!studio || studio.owner_id !== user.id) {
+    redirect("/dashboard/settings/locations?loc_error=forbidden");
+  }
+  if (isStudioContractSuspended(studio)) {
+    redirect("/dashboard/settings/locations?loc_error=studio_suspended");
+  }
+
+  const { error } = await supabase
+    .from("locations")
+    .update({ name, address, phone })
+    .eq("id", location.id);
+  if (error) {
+    redirect("/dashboard/settings/locations?loc_error=save_failed");
+  }
+  revalidatePath("/dashboard/settings/locations");
+  revalidatePath("/dashboard/schedule");
+  revalidatePath("/dashboard/frontdesk");
+  revalidatePath("/dashboard/operations");
+  redirect("/dashboard/settings/locations?loc_success=updated");
+}
+
+export async function toggleLocationActive(formData: FormData): Promise<void> {
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  const nextActive = formData.get("next_active") === "true";
+  const { supabase, user } = await requireUser();
+  if (!locationId) return;
+
+  const { data: location } = await supabase
+    .from("locations")
+    .select("id, studio_id")
+    .eq("id", locationId)
+    .maybeSingle();
+  if (!location) {
+    redirect("/dashboard/settings/locations?loc_error=not_found");
+  }
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, owner_id, contract_status")
+    .eq("id", location.studio_id)
+    .maybeSingle();
+  if (!studio || studio.owner_id !== user.id) {
+    redirect("/dashboard/settings/locations?loc_error=forbidden");
+  }
+  if (isStudioContractSuspended(studio)) {
+    redirect("/dashboard/settings/locations?loc_error=studio_suspended");
+  }
+
+  await supabase
+    .from("locations")
+    .update({ is_active: nextActive })
+    .eq("id", location.id);
+
+  revalidatePath("/dashboard/settings/locations");
+  revalidatePath("/dashboard/schedule");
+  revalidatePath("/dashboard/frontdesk");
+  revalidatePath("/dashboard/operations");
+  redirect("/dashboard/settings/locations?loc_success=status_updated");
 }
 
 export async function createInstructor(formData: FormData): Promise<void> {
