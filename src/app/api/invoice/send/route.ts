@@ -24,11 +24,14 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: payment, error } = await admin
     .from("payments")
-    .select("id, studio_id, location_id, status")
+    .select("id, studio_id, location_id, status, invoice_status")
     .eq("id", parsed.data.payment_id)
     .single();
   if (error || !payment) return NextResponse.json({ error: "payment_not_found" }, { status: 404 });
   if (payment.status !== "paid") return NextResponse.json({ error: "invoice_requires_paid_status" }, { status: 409 });
+  if (payment.invoice_status === "void") {
+    return NextResponse.json({ error: "invoice_voided" }, { status: 409 });
+  }
   if (!payment.studio_id) return NextResponse.json({ error: "invalid_payment_scope" }, { status: 409 });
 
   const scoped = await requireStaffScope({
@@ -55,7 +58,7 @@ export async function POST(req: Request) {
     if (code === "payment_not_found") {
       return NextResponse.json({ error: code }, { status: 404 });
     }
-    if (code === "invoice_requires_paid_status" || code === "invoice_missing_studio") {
+    if (code === "invoice_requires_paid_status" || code === "invoice_missing_studio" || code === "invoice_voided") {
       return NextResponse.json({ error: code }, { status: 409 });
     }
     if (code === "invoice_recipient_not_found") {

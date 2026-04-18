@@ -7,6 +7,12 @@ export const PAYMENT_STATUS_FILTER_OPTIONS: { value: string; label: string }[] =
   { value: "refunded", label: "Refunded" },
 ];
 
+/** Matches `payments_invoice_status_check` (migration 024). */
+export const INVOICE_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "issued", label: "Issued" },
+  { value: "void", label: "Void" },
+];
+
 /** Matches `payments_recon_status_check` (migration 015). */
 export const RECON_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "awaiting_verification", label: "Awaiting verification" },

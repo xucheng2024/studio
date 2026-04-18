@@ -28,6 +28,7 @@ export async function sendPaymentInvoice(paymentId: string) {
       created_at,
       verified_at,
       invoice_number,
+      invoice_status,
       studios ( name )
     `,
     )
@@ -35,6 +36,9 @@ export async function sendPaymentInvoice(paymentId: string) {
     .single();
   if (error || !payment) throw new Error("payment_not_found");
   if (payment.status !== "paid") throw new Error("invoice_requires_paid_status");
+  if (payment.invoice_status === "void") {
+    throw new Error("invoice_voided");
+  }
   if (!payment.studio_id) throw new Error("invoice_missing_studio");
 
   /** Primary assignment happens in /api/payment/mark; this is fallback for legacy rows or edge cases. */

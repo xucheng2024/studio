@@ -6,7 +6,11 @@ import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
-import { PAYMENT_STATUS_FILTER_OPTIONS, RECON_STATUS_FILTER_OPTIONS } from "@/lib/payment-filter-options";
+import {
+  INVOICE_STATUS_FILTER_OPTIONS,
+  PAYMENT_STATUS_FILTER_OPTIONS,
+  RECON_STATUS_FILTER_OPTIONS,
+} from "@/lib/payment-filter-options";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -17,6 +21,7 @@ type Props = {
     studio_id?: string;
     view?: "queue" | "recon" | "review";
     status?: string;
+    invoice_status?: string;
     recon_status?: string;
     date_from?: string;
     date_to?: string;
@@ -67,13 +72,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at",
+      "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
     .limit(300);
   if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
   if (sp.status) q = q.eq("status", sp.status);
+  if (sp.invoice_status) q = q.eq("invoice_status", sp.invoice_status);
   if (sp.recon_status) q = q.eq("recon_status", sp.recon_status);
   if (sp.reference) q = q.ilike("reference_code", `%${sp.reference}%`);
   if (sp.amount_min) q = q.gte("amount", Number(sp.amount_min));
@@ -174,6 +180,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
   exportParams.set("view", view);
   if (sp.status) exportParams.set("status", sp.status);
+  if (sp.invoice_status) exportParams.set("invoice_status", sp.invoice_status);
   if (sp.recon_status) exportParams.set("recon_status", sp.recon_status);
   if (sp.date_from) exportParams.set("date_from", sp.date_from);
   if (sp.date_to) exportParams.set("date_to", sp.date_to);
@@ -228,7 +235,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Confirmation overdue</p><p className="mt-1 text-xl font-semibold">{slaOverdueCount}</p></div>
       </div>
 
-      <form method="get" className={`${ui.card} grid gap-3 md:grid-cols-4`}>
+      <form method="get" className={`${ui.card} grid gap-3 md:grid-cols-5`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
         <input type="hidden" name="view" value={view} />
@@ -237,6 +244,17 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <select name="status" className={ui.select} defaultValue={sp.status ?? ""}>
             <option value="">All</option>
             {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Invoice status</span>
+          <select name="invoice_status" className={ui.select} defaultValue={sp.invoice_status ?? ""}>
+            <option value="">All</option>
+            {INVOICE_STATUS_FILTER_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -260,7 +278,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} placeholder="Max amount" />
         <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
         <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member/email/notes keyword" />
-        <div className="md:col-span-4 flex gap-2">
+        <div className="md:col-span-5 flex gap-2">
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters
           </SubmitButton>
@@ -293,11 +311,16 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <div className="flex flex-wrap gap-1.5">
                     <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.payment.tone)}`}>{badges.payment.text}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.recon.tone)}`}>{badges.recon.text}</span>
+                    {p.invoice_status === "void" ? (
+                      <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-stone-700 dark:text-stone-200">
+                        Invoice voided
+                      </span>
+                    ) : null}
                   </div>
                   <p className={ui.muted}>Client: {clientLabel}</p>
                   <p className={ui.muted}>Ref: <span className={ui.code}>{p.reference_code ?? "-"}</span></p>
                   <p className={ui.muted}>Review status: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
-                  {p.status === "paid" ? (
+                  {p.status === "paid" && p.invoice_status !== "void" ? (
                     <div className="space-y-0.5">
                       {p.invoice_number ? (
                         <p className={ui.muted}>
@@ -315,6 +338,18 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                         Invoice number is assigned when staff confirms payment (Mark paid).
                       </p>
                     </div>
+                  ) : null}
+                  {p.status === "refunded" && p.invoice_status === "void" && p.invoice_number ? (
+                    <p className={ui.muted}>
+                      Invoice voided: <span className={ui.code}>{p.invoice_number}</span>
+                      {p.invoice_voided_at
+                        ? ` · ${new Date(p.invoice_voided_at).toLocaleString()}`
+                        : ""}
+                      {p.invoice_void_reason ? ` · ${p.invoice_void_reason}` : ""}
+                    </p>
+                  ) : null}
+                  {p.status === "refunded" && !p.invoice_number ? (
+                    <p className={`text-sm ${ui.muted}`}>No invoice was issued; refund recorded without void step.</p>
                   ) : null}
                   {p.recon_note ? <p className={ui.muted}>Review note: {p.recon_note}</p> : null}
                   <p className={ui.muted}>Created: {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</p>
@@ -343,7 +378,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                       <PaymentMarkButton paymentId={p.id} status="expired" label="Mark expired" />
                     </>
                   ) : null}
-                  {p.status === "paid" ? <InvoiceSendButton paymentId={p.id} /> : null}
+                  {p.status === "paid" && p.invoice_status !== "void" ? <InvoiceSendButton paymentId={p.id} /> : null}
                   {p.status === "paid" ? <PaymentMarkButton paymentId={p.id} status="refunded" label="Mark refunded" /> : null}
                   {!p.booking_id ? <PaymentMatchForm paymentId={p.id} /> : null}
                 </div>

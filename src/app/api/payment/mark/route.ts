@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 const bodySchema = z.object({
   payment_id: z.string().uuid(),
   status: z.enum(["paid", "failed", "expired", "refunded"]),
+  refund_reason: z.string().max(500).optional(),
 });
 
 export async function POST(req: Request) {
@@ -99,6 +100,61 @@ export async function POST(req: Request) {
       }
     }
     return NextResponse.json({ ok: true });
+  }
+
+  if (parsed.data.status === "refunded") {
+    const { data: refundResult, error: refundErr } = await admin.rpc("refund_payment_with_invoice_void", {
+      p_payment_id: parsed.data.payment_id,
+      p_operator_id: user.id,
+      p_reason: parsed.data.refund_reason?.trim() || null,
+    });
+    if (refundErr) return NextResponse.json({ error: refundErr.message }, { status: 500 });
+    const rr = refundResult as {
+      ok?: boolean;
+      error?: string;
+      already_refunded?: boolean;
+      status?: string;
+      invoice_status?: string;
+      invoice_voided_at?: string | null;
+      invoice_void_reason?: string | null;
+    };
+    if (!rr?.ok) {
+      if (rr?.error === "not_paid") {
+        return NextResponse.json(
+          { error: "not_paid", message: "Only payments in paid status can be refunded." },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json({ error: rr?.error ?? "refund_failed" }, { status: 409 });
+    }
+    const alreadyRefunded = rr.already_refunded === true;
+    if (payment.booking_id && !alreadyRefunded) {
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("client_id, guest_email")
+        .eq("id", payment.booking_id)
+        .maybeSingle();
+      let to: string | null = booking?.guest_email ?? null;
+      if (booking?.client_id) {
+        const { data: u } = await admin.from("users").select("email").eq("id", booking.client_id).maybeSingle();
+        to = u?.email ?? to;
+      }
+      if (to) {
+        await sendPaymentResultNotice({
+          to,
+          status: "refunded",
+          reference: null,
+        });
+      }
+    }
+    return NextResponse.json({
+      ok: true,
+      already_refunded: alreadyRefunded,
+      status: rr.status ?? "refunded",
+      invoice_status: rr.invoice_status ?? null,
+      invoice_voided_at: rr.invoice_voided_at ?? null,
+      invoice_void_reason: rr.invoice_void_reason ?? null,
+    });
   }
 
   const { error: updErr } = await admin

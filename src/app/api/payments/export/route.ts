@@ -30,6 +30,7 @@ export async function GET(req: Request) {
   const studioId = url.searchParams.get("studio_id");
   const locationId = url.searchParams.get("location_id");
   const status = url.searchParams.get("status");
+  const invoiceStatus = url.searchParams.get("invoice_status");
   const reconStatus = url.searchParams.get("recon_status");
   const amountMin = url.searchParams.get("amount_min");
   const amountMax = url.searchParams.get("amount_max");
@@ -64,11 +65,14 @@ export async function GET(req: Request) {
 
   let q = supabase
     .from("payments")
-    .select("id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note")
+    .select(
+      "id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
+    )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false });
   if (locationId) q = q.eq("location_id", locationId);
   if (status) q = q.eq("status", status);
+  if (invoiceStatus) q = q.eq("invoice_status", invoiceStatus);
   if (reconStatus) q = q.eq("recon_status", reconStatus);
   if (amountMin) q = q.gte("amount", Number(amountMin));
   if (amountMax) q = q.lte("amount", Number(amountMax));
@@ -80,7 +84,11 @@ export async function GET(req: Request) {
   const headers = [
     "payment_id",
     "booking_id",
-    "status",
+    "payment_status",
+    "invoice_status",
+    "invoice_number",
+    "invoice_voided_at",
+    "invoice_void_reason",
     "recon_status",
     "amount",
     "paid_amount",
@@ -95,10 +103,20 @@ export async function GET(req: Request) {
   const rows = (payments ?? []).map((p) => {
     const expected = Number(p.amount ?? 0);
     const paid = Number(p.paid_amount ?? expected);
+    const row = p as typeof p & {
+      invoice_number?: string | null;
+      invoice_status?: string | null;
+      invoice_voided_at?: string | null;
+      invoice_void_reason?: string | null;
+    };
     return [
       p.id,
       p.booking_id ?? "",
       p.status ?? "",
+      row.invoice_status ?? "",
+      row.invoice_number ?? "",
+      row.invoice_voided_at ?? "",
+      row.invoice_void_reason ?? "",
       p.recon_status ?? "",
       expected.toFixed(2),
       paid.toFixed(2),

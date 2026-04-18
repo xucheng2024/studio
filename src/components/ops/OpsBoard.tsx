@@ -236,32 +236,7 @@ export function OpsBoard({
         ) : null}
       </OpsSection>
 
-      <OpsSection
-        title="Payments Without Booking"
-        description="Payments received but not yet linked to a booking."
-        emptyText="No unmatched payments."
-      >
-        {data.unmatched_payments.length ? (
-          <div className="grid gap-2">
-            {data.unmatched_payments.map((item) => (
-              <OpsItemRow
-                key={item.id}
-                primary={item.primary_label}
-                secondary={toBusinessCopy(item.secondary_label)}
-                paymentStatus={item.payment_status ?? null}
-                reconStatus={item.recon_status ?? null}
-                exceptionCode={item.exception_code ?? null}
-                actions={item.actions}
-                sectionKey="unmatched_payments"
-                onActionDone={refreshSection}
-              />
-            ))}
-          </div>
-        ) : null}
-        {refreshingSection === "unmatched_payments" ? (
-          <p className={`mt-2 text-xs ${ui.muted}`}>Refreshing section...</p>
-        ) : null}
-      </OpsSection>
+      {/* Hidden for current flow: package payments naturally have no booking_id and create noise here. */}
     </div>
   );
 }
