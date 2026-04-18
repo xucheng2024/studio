@@ -99,7 +99,7 @@ export function OpsFilters({
         <span className={ui.label}>Status</span>
         <input
           className={ui.input}
-          placeholder="pending / paid / failed"
+          placeholder="Payment status (e.g. pending, paid)"
           defaultValue={status}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
@@ -109,10 +109,10 @@ export function OpsFilters({
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Recon status</span>
+        <span className={ui.label}>Payment review status</span>
         <input
           className={ui.input}
-          placeholder="mismatch / awaiting_verification"
+          placeholder="e.g. mismatch, awaiting_verification"
           defaultValue={reconStatus}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
@@ -122,7 +122,7 @@ export function OpsFilters({
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Search</span>
+        <span className={ui.label}>Search member or payment</span>
         <input
           className={ui.input}
           placeholder="name / phone / email / reference"

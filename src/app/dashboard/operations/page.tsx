@@ -155,20 +155,20 @@ export default async function OperationsPage({ searchParams }: Props) {
         </div>
       ) : null}
       <div>
-        <h1 className={ui.h1}>Operations hub</h1>
-        <p className={ui.muted}>One queue for payment verification, check-in, exceptions, and manual actions.</p>
+        <h1 className={ui.h1}>Today&apos;s front desk</h1>
+        <p className={ui.muted}>Your daily front desk view for payment checks, arrivals, and urgent follow-ups.</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/payments?view=recon&${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            Open full reconciliation
+            Payment records
           </DashboardAppLink>
           <DashboardAppLink href={`/dashboard/schedule?${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            Open session view
+            Class schedule
           </DashboardAppLink>
           <DashboardAppLink href={`/dashboard/clients?${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            Open member view
+            Members
           </DashboardAppLink>
           <DashboardAppLink href={`/dashboard/frontdesk?${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            Frontdesk tools
+            Walk-in & check-in
           </DashboardAppLink>
         </div>
       </div>

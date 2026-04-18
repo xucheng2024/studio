@@ -189,56 +189,56 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className={ui.h1}>Reconciliation & review</h1>
-        <p className={ui.muted}>Filter, reconcile, export, and audit payment history.</p>
+        <h1 className={ui.h1}>Payment records</h1>
+        <p className={ui.muted}>Track incoming payments, review issues, export reports, and check action history.</p>
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
           <DashboardAppLink
             className={view === "queue" ? ui.link : ui.linkMuted}
             href={tabHref("queue")}
           >
-            Queue
+            To confirm
           </DashboardAppLink>
           <DashboardAppLink
             className={view === "recon" ? ui.link : ui.linkMuted}
             href={tabHref("recon")}
           >
-            Recon
+            Needs review
           </DashboardAppLink>
           <DashboardAppLink
             className={view === "review" ? ui.link : ui.linkMuted}
             href={tabHref("review")}
           >
-            Review
+            Completed
           </DashboardAppLink>
           <a
             className={`${ui.linkMuted} transition-opacity duration-100 active:opacity-60`}
             href={`/api/payments/export?${exportParams.toString()}`}
           >
-            Export CSV
+            Export payments CSV
           </a>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-5">
         <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Today received</p><p className="mt-1 text-xl font-semibold">${todayReceived.toFixed(2)}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Today verified</p><p className="mt-1 text-xl font-semibold">${todayVerified.toFixed(2)}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Mismatch count</p><p className="mt-1 text-xl font-semibold">{mismatchCount}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Unmatched count</p><p className="mt-1 text-xl font-semibold">{unmatchedCount}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>SLA overdue</p><p className="mt-1 text-xl font-semibold">{slaOverdueCount}</p></div>
+        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Today confirmed by staff</p><p className="mt-1 text-xl font-semibold">${todayVerified.toFixed(2)}</p></div>
+        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Amount mismatch</p><p className="mt-1 text-xl font-semibold">{mismatchCount}</p></div>
+        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Without booking link</p><p className="mt-1 text-xl font-semibold">{unmatchedCount}</p></div>
+        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Confirmation overdue</p><p className="mt-1 text-xl font-semibold">{slaOverdueCount}</p></div>
       </div>
 
       <form method="get" className={`${ui.card} grid gap-3 md:grid-cols-4`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
         <input type="hidden" name="view" value={view} />
-        <input name="status" defaultValue={sp.status ?? ""} className={ui.input} placeholder="status" />
-        <input name="recon_status" defaultValue={sp.recon_status ?? ""} className={ui.input} placeholder="recon_status" />
+        <input name="status" defaultValue={sp.status ?? ""} className={ui.input} placeholder="Payment status (pending, paid, failed...)" />
+        <input name="recon_status" defaultValue={sp.recon_status ?? ""} className={ui.input} placeholder="Review status (mismatch, awaiting_verification...)" />
         <input type="date" name="date_from" defaultValue={sp.date_from ?? ""} className={ui.input} />
         <input type="date" name="date_to" defaultValue={sp.date_to ?? ""} className={ui.input} />
-        <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} placeholder="amount min" />
-        <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} placeholder="amount max" />
-        <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="reference" />
-        <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="client keyword" />
+        <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} placeholder="Min amount" />
+        <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} placeholder="Max amount" />
+        <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
+        <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member/email/notes keyword" />
         <div className="md:col-span-4 flex gap-2">
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters
@@ -275,7 +275,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   </div>
                   <p className={ui.muted}>Client: {clientLabel}</p>
                   <p className={ui.muted}>Ref: <span className={ui.code}>{p.reference_code ?? "-"}</span></p>
-                  <p className={ui.muted}>Recon: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
+                  <p className={ui.muted}>Review status: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
                   {p.invoice_number ? (
                     <p className={ui.muted}>
                       Invoice: <span className={ui.code}>{p.invoice_number}</span>
@@ -284,11 +284,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                         : " · not sent yet"}
                     </p>
                   ) : null}
-                  {p.recon_note ? <p className={ui.muted}>Recon note: {p.recon_note}</p> : null}
+                  {p.recon_note ? <p className={ui.muted}>Review note: {p.recon_note}</p> : null}
                   <p className={ui.muted}>Created: {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</p>
-                  <p className={ui.muted}>Customer notice: {p.customer_confirmed_at ? new Date(p.customer_confirmed_at).toLocaleString() : "not submitted"}</p>
+                  <p className={ui.muted}>Customer payment notice: {p.customer_confirmed_at ? new Date(p.customer_confirmed_at).toLocaleString() : "not submitted"}</p>
                   {p.verified_at ? <p className={ui.muted}>Verified: {new Date(p.verified_at).toLocaleString()} · By {p.verified_by ?? "-"}</p> : null}
-                  {slaOverdue ? <p className="text-xs font-medium text-red-600 dark:text-red-400">SLA overdue (&gt;10m)</p> : null}
+                  {slaOverdue ? <p className="text-xs font-medium text-red-600 dark:text-red-400">Confirmation overdue (&gt;10m)</p> : null}
                   {timeline.length ? (
                     <div className="mt-2 rounded-lg border border-stone-200 p-2 text-xs dark:border-stone-700">
                       <p className={`mb-1 font-medium ${ui.muted}`}>Audit timeline</p>
@@ -320,7 +320,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           );
         })}
       </ul>
-      {!visible.length ? <p className={ui.muted}>No payments for this filter.</p> : null}
+      {!visible.length ? <p className={ui.muted}>No payments match this filter.</p> : null}
     </div>
   );
 }

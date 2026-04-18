@@ -8,7 +8,7 @@ export const site = {
   badge: "For studios, gyms, and wellness spaces",
   homeHeadline: "Fill classes faster with less admin work",
   homeLead:
-    "One booking link, one operations queue, one reconciliation flow. Built for busy frontdesks and returning members.",
+    "One booking link for clients, one daily desk view for staff, and one clean payment record for owners.",
   marketing: {
     memberHighlights: [
       "Reserve in seconds from your phone",
@@ -19,9 +19,9 @@ export const site = {
     memberIntro:
       "Book confidently: clear status, clear rules, and no need to chase staff on WhatsApp.",
     ownerHighlights: [
-      "Run Operations Hub queues for verification, exceptions, and check-ins",
-      "Use reconciliation views with filters, CSV export, and audit timeline",
-      "Send invoice PDFs manually after paid verification",
+      "Handle today's desk tasks: payment checks, arrivals, and quick fixes",
+      "Track payment records with filters, CSV export, and audit timeline",
+      "Send invoice PDFs after payment is confirmed",
     ],
     ownerIntro:
       "Run daily operations with fewer manual steps and better visibility across locations.",

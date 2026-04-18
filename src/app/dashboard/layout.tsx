@@ -53,7 +53,7 @@ export default async function DashboardLayout({
             href={superAdminNoStudioMode ? "/dashboard/settings/owners" : ownerNoStudioMode ? "/dashboard/overview" : "/dashboard/operations"}
             className="text-sm font-semibold text-stone-900 dark:text-stone-100"
           >
-            {superAdminNoStudioMode ? "Platform admin" : ownerNoStudioMode ? "Get started" : "Operations hub"}
+            {superAdminNoStudioMode ? "Platform admin" : ownerNoStudioMode ? "Get started" : "Today's front desk"}
           </DashboardAppLink>
           <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
             {superAdminNoStudioMode ? "Manage owner access" : ownerNoStudioMode ? "Create your first studio" : "Manage your studio"}

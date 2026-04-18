@@ -62,7 +62,7 @@ export default async function Home({ searchParams }: Props) {
             <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">
               Operations workspace
             </span>
-            <span className={ui.muted}>Run queues, reconciliation, manual invoice sending, and multi-location controls</span>
+            <span className={ui.muted}>Manage daily desk tasks, payment records, invoices, and multi-location operations</span>
           </Link>
         </div>
 

@@ -27,6 +27,16 @@ type QueuePayload = {
   unmatched_payments: QueueItem[];
 };
 
+function toBusinessCopy(text: string) {
+  return text
+    .replace("Recon ", "Review ")
+    .replace("amount_mismatch", "amount mismatch")
+    .replace("missing_reference", "missing transfer reference")
+    .replace("verification_sla_overdue", "confirmation overdue")
+    .replace("needs_review", "needs manual review")
+    .replace("No booking attached", "No booking linked yet");
+}
+
 export function OpsBoard({
   studioId,
   locationId,
@@ -116,9 +126,9 @@ export function OpsBoard({
   return (
     <div className="grid gap-4">
       <OpsSection
-        title="Pending Verification"
-        description="Pending transfers waiting for staff verification."
-        emptyText="No pending payment verification items."
+        title="Pending Transfers"
+        description="Customer-submitted transfers waiting for staff confirmation."
+        emptyText="No pending transfers."
       >
         {data.pending_verifications.length ? (
           <div className="grid gap-2">
@@ -126,7 +136,7 @@ export function OpsBoard({
               <OpsItemRow
                 key={item.id}
                 primary={item.primary_label}
-                secondary={item.secondary_label}
+                secondary={toBusinessCopy(item.secondary_label)}
                 paymentStatus={item.payment_status ?? "pending"}
                 reconStatus={item.recon_status ?? null}
                 actions={item.actions}
@@ -142,9 +152,9 @@ export function OpsBoard({
       </OpsSection>
 
       <OpsSection
-        title="Starting Soon Unchecked-in"
-        description="Classes starting in the next 30 minutes with booked attendees."
-        emptyText="No soon-starting check-in tasks."
+        title="Classes Starting Soon"
+        description="Upcoming classes in the next 30 minutes that still need check-in."
+        emptyText="No upcoming check-in tasks."
       >
         {data.starting_soon.length ? (
           <div className="grid gap-2">
@@ -152,7 +162,7 @@ export function OpsBoard({
               <OpsItemRow
                 key={item.id}
                 primary={item.primary_label}
-                secondary={item.secondary_label}
+                secondary={toBusinessCopy(item.secondary_label)}
                 bookingStatus={item.booking_status ?? "booked"}
                 actions={item.actions}
                 sectionKey="starting_soon"
@@ -167,9 +177,9 @@ export function OpsBoard({
       </OpsSection>
 
       <OpsSection
-        title="Payment Exceptions"
-        description="Mismatch/no-reference/manual-review payments."
-        emptyText="No payment exceptions."
+        title="Payments To Review"
+        description="Transfers with mismatch, missing reference, or manual review flags."
+        emptyText="No payments to review."
       >
         {data.payment_exceptions.length ? (
           <div className="grid gap-2">
@@ -177,7 +187,7 @@ export function OpsBoard({
               <OpsItemRow
                 key={item.id}
                 primary={item.primary_label}
-                secondary={item.secondary_label}
+                secondary={toBusinessCopy(item.secondary_label)}
                 reconStatus={item.recon_status ?? "manual_review"}
                 actions={item.actions}
                 sectionKey="payment_exceptions"
@@ -192,8 +202,8 @@ export function OpsBoard({
       </OpsSection>
 
       <OpsSection
-        title="Unmatched Payments"
-        description="Payments without linked booking records."
+        title="Payments Without Booking"
+        description="Payments received but not yet linked to a booking."
         emptyText="No unmatched payments."
       >
         {data.unmatched_payments.length ? (
@@ -202,7 +212,7 @@ export function OpsBoard({
               <OpsItemRow
                 key={item.id}
                 primary={item.primary_label}
-                secondary={item.secondary_label}
+                secondary={toBusinessCopy(item.secondary_label)}
                 paymentStatus={item.payment_status ?? null}
                 reconStatus={item.recon_status ?? null}
                 actions={item.actions}
