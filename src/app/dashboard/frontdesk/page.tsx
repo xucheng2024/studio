@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { BulkCheckinPanel } from "@/components/BulkCheckinPanel";
 import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { ui } from "@/lib/ui";
@@ -83,15 +85,15 @@ export default async function FrontdeskPage({ searchParams }: Props) {
           Recommended entry: open this page from Operations so filters and queue context stay aligned.
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <a href={`/dashboard/operations?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+          <Link href={`/dashboard/operations?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
             Back to operations
-          </a>
-          <a href={`/dashboard/schedule?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+          </Link>
+          <Link href={`/dashboard/schedule?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
             Open session view
-          </a>
-          <a href={`/dashboard/clients?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+          </Link>
+          <Link href={`/dashboard/clients?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
             Open member view
-          </a>
+          </Link>
         </div>
       </div>
       <FrontdeskWalkinForm
@@ -110,9 +112,9 @@ export default async function FrontdeskPage({ searchParams }: Props) {
           {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
           {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
           <input name="q" defaultValue={q} className={ui.input} placeholder="name / phone / email" />
-          <button className={`${ui.btnSecondary} w-full sm:w-auto`} type="submit">
+          <SubmitButton className={`${ui.btnSecondary} w-full sm:w-auto`} pendingText="Searching...">
             Search
-          </button>
+          </SubmitButton>
         </form>
         <ul className="mt-3 space-y-2">
           {(rows ?? []).map((r) => {

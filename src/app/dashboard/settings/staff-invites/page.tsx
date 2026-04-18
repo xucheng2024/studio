@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createStaffInvite, revokeStaffInvite } from "@/app/dashboard/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -89,9 +90,9 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
           </select>
         </label>
         <div className="md:col-span-2">
-          <button type="submit" className={ui.btnPrimary}>
+          <SubmitButton className={ui.btnPrimary} pendingText="Sending...">
             Send invite
-          </button>
+          </SubmitButton>
         </div>
         {sp.invite_success === "sent" ? <p className={`${ui.success} md:col-span-2`}>Invite created.</p> : null}
         {errorMsg ? <p className={`${ui.error} md:col-span-2`}>{errorMsg}</p> : null}
@@ -125,9 +126,9 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
                     {invite.status === "pending" ? (
                       <form action={revokeStaffInvite}>
                         <input type="hidden" name="invite_id" value={invite.id} />
-                        <button type="submit" className={ui.btnGhost}>
+                        <SubmitButton className={ui.btnGhost} pendingText="Revoking...">
                           Revoke
-                        </button>
+                        </SubmitButton>
                       </form>
                     ) : (
                       <span className={ui.muted}>-</span>

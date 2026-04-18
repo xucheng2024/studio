@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { updateStudioSlug } from "@/app/dashboard/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -125,9 +126,9 @@ export default async function QrPage({ searchParams }: Props) {
               className={`${ui.input} font-mono text-sm`}
             />
           </label>
-          <button type="submit" className={ui.btnPrimary}>
+          <SubmitButton className={ui.btnPrimary} pendingText="Saving...">
             Save
-          </button>
+          </SubmitButton>
         </form>
         <p className={`mt-3 text-xs ${ui.muted}`}>
           Normalized:{" "}

@@ -1,4 +1,5 @@
 import { createClassTemplate, createInstructor } from "@/app/dashboard/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -72,9 +73,9 @@ export default async function ClassesPage({ searchParams }: Props) {
             <span className={ui.label}>Name</span>
             <input name="name" required className={ui.input} placeholder="Alex Kim" />
           </label>
-          <button type="submit" className={ui.btnPrimary}>
+          <SubmitButton className={ui.btnPrimary} pendingText="Adding...">
             Add
-          </button>
+          </SubmitButton>
         </form>
         <ul className={`mt-4 flex flex-wrap gap-2 text-sm ${ui.muted}`}>
           {(instructors ?? []).map((i) => (
@@ -134,9 +135,9 @@ export default async function ClassesPage({ searchParams }: Props) {
               ))}
             </select>
           </label>
-          <button type="submit" className={`${ui.btnPrimary} md:col-span-2`}>
+          <SubmitButton className={`${ui.btnPrimary} md:col-span-2`} pendingText="Saving...">
             Save class template
-          </button>
+          </SubmitButton>
         </form>
 
         <ul className="mt-6 flex flex-col gap-3">

@@ -33,7 +33,8 @@ export default async function ReportsPage({ searchParams }: Props) {
     .select("amount, type, created_at, location_id")
     .in("studio_id", studioIds)
     .eq("status", "paid")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1000);
   if (selectedLocationId) paymentsQuery = paymentsQuery.eq("location_id", selectedLocationId);
   const { data: payments } = await paymentsQuery;
 
@@ -51,7 +52,8 @@ export default async function ReportsPage({ searchParams }: Props) {
       instructors ( name )
     `,
     )
-    .in("studio_id", studioIds);
+    .in("studio_id", studioIds)
+    .limit(400);
   if (selectedLocationId) classQuery = classQuery.eq("location_id", selectedLocationId);
   const { data: classRows } = await classQuery;
   const classIds = (classRows ?? []).map((c) => c.id);
@@ -74,7 +76,8 @@ export default async function ReportsPage({ searchParams }: Props) {
     const { data: sess } = await supabase
       .from("class_sessions")
       .select("id, class_id")
-      .in("class_id", classIds);
+      .in("class_id", classIds)
+      .limit(1000);
     sessionIds = (sess ?? []).map((s) => s.id);
   }
 
@@ -90,6 +93,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         `,
           )
           .in("session_id", sessionIds)
+          .limit(2000)
       : { data: [] as const };
 
   const byClass: Record<string, { title: string; booked: number; attended: number }> = {};

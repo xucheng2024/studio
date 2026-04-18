@@ -41,7 +41,8 @@ export default async function ClientsPage({ searchParams }: Props) {
     const { data: sess } = await supabase
       .from("class_sessions")
       .select("id")
-      .in("class_id", classIds);
+      .in("class_id", classIds)
+      .limit(400);
     sessionIds = (sess ?? []).map((s) => s.id);
   }
 
@@ -63,6 +64,7 @@ export default async function ClientsPage({ searchParams }: Props) {
           )
           .in("session_id", sessionIds)
           .order("created_at", { ascending: false })
+          .limit(500)
       : { data: [] as const };
 
   const packsQuery = supabase
@@ -77,7 +79,8 @@ export default async function ClientsPage({ searchParams }: Props) {
     `,
     )
     .in("packages.studio_id", studioIds);
-  const { data: packs } = await packsQuery;
+  const limitedPacksQuery = packsQuery.limit(300);
+  const { data: packs } = await limitedPacksQuery;
 
   return (
     <div className="flex flex-col gap-8">

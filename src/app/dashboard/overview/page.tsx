@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createStudio } from "@/app/dashboard/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -57,9 +58,9 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
           <p className={`text-xs ${ui.muted}`}>
             Live at <code className={ui.code}>/booking/your-slug</code> — stored lowercase.
           </p>
-          <button type="submit" className={`${ui.btnPrimary} w-full sm:w-auto`}>
+          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Saving...">
             Save studio
-          </button>
+          </SubmitButton>
         </form>
       </div>
     );

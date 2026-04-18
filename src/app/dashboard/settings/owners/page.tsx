@@ -1,4 +1,5 @@
 import { grantOwnerAccessByEmail } from "@/app/dashboard/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -38,9 +39,9 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           <span className={ui.label}>Owner email</span>
           <input name="email" type="email" required className={ui.input} placeholder="owner@studio.com" />
         </label>
-        <button type="submit" className={`${ui.btnPrimary} w-fit`}>
+        <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Granting...">
           Grant owner workspace access
-        </button>
+        </SubmitButton>
         {sp.owner_success === "granted" ? <p className={ui.success}>Owner access granted.</p> : null}
         {errorMsg ? <p className={ui.error}>{errorMsg}</p> : null}
       </form>

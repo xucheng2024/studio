@@ -1,4 +1,5 @@
 import { updateStudioPaynowSettings } from "@/app/dashboard/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { getPaynowSummary, validatePaynowConfig } from "@/lib/paynow";
 import { bestRole } from "@/lib/rbac";
@@ -110,9 +111,9 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
           />
         </label>
 
-        <button type="submit" className={`${ui.btnPrimary} w-fit`}>
+        <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Saving...">
           Save settings
-        </button>
+        </SubmitButton>
       </form>
 
       <section className={ui.card}>

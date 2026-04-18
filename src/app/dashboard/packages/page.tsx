@@ -1,4 +1,5 @@
 import { createPackage } from "@/app/dashboard/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -86,9 +87,9 @@ export default async function PackagesPage({ searchParams }: Props) {
             />
             Drop-in template
           </label>
-          <button type="submit" className={`${ui.btnPrimary} w-fit`}>
+          <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Saving...">
             Save package
-          </button>
+          </SubmitButton>
         </form>
       </div>
 

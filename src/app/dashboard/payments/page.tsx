@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { PaymentMatchForm } from "@/components/PaymentMatchForm";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
@@ -67,7 +69,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at",
     )
     .in("studio_id", studioIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(300);
   if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
   if (sp.status) q = q.eq("status", sp.status);
   if (sp.recon_status) q = q.eq("recon_status", sp.recon_status);
@@ -189,24 +192,24 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Reconciliation & review</h1>
         <p className={ui.muted}>Filter, reconcile, export, and audit payment history.</p>
         <div className="mt-2 flex gap-3 text-sm">
-          <a
+          <Link
             className={view === "queue" ? ui.link : ui.linkMuted}
             href={tabHref("queue")}
           >
             Queue
-          </a>
-          <a
+          </Link>
+          <Link
             className={view === "recon" ? ui.link : ui.linkMuted}
             href={tabHref("recon")}
           >
             Recon
-          </a>
-          <a
+          </Link>
+          <Link
             className={view === "review" ? ui.link : ui.linkMuted}
             href={tabHref("review")}
           >
             Review
-          </a>
+          </Link>
           <a className={ui.linkMuted} href={`/api/payments/export?${exportParams.toString()}`}>
             Export CSV
           </a>
@@ -234,8 +237,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="reference" />
         <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="client keyword" />
         <div className="md:col-span-4 flex gap-2">
-          <button type="submit" className={ui.btnPrimarySm}>Apply filters</button>
-          <a href={`/dashboard/payments?view=${view}`} className={ui.btnGhost}>Reset</a>
+          <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
+            Apply filters
+          </SubmitButton>
+          <Link href={`/dashboard/payments?view=${view}`} className={ui.btnGhost}>Reset</Link>
         </div>
       </form>
 

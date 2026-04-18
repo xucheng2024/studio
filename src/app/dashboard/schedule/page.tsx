@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { createRecurringRule, createSession, saveBookingRules } from "@/app/dashboard/actions";
 import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { MarkAttendedButton } from "@/components/MarkAttendedButton";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
@@ -93,12 +95,12 @@ export default async function SchedulePage({ searchParams }: Props) {
         <h1 className={ui.h1}>Schedule</h1>
         <p className={`mt-1 ${ui.muted}`}>Add sessions from your class templates.</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <a href={`/dashboard/classes?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
+          <Link href={`/dashboard/classes?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
             Manage classes
-          </a>
-          <a href={`/dashboard/packages?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
+          </Link>
+          <Link href={`/dashboard/packages?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
             Manage packages
-          </a>
+          </Link>
         </div>
         <h2 className={`${ui.h2} mt-8`}>Booking rules</h2>
         <form action={saveBookingRules} className={`${ui.card} mt-4 grid max-w-xl gap-4 md:grid-cols-2`}>
@@ -168,9 +170,9 @@ export default async function SchedulePage({ searchParams }: Props) {
             />
             Allow waitlist
           </label>
-          <button type="submit" className={`${ui.btnSecondary} md:col-span-2 w-fit`}>
+          <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Saving...">
             Save booking rules
-          </button>
+          </SubmitButton>
         </form>
 
         <form action={createSession} className={`${ui.card} mt-6 flex max-w-md flex-col gap-4`}>
@@ -191,9 +193,9 @@ export default async function SchedulePage({ searchParams }: Props) {
             <span className={ui.label}>Start</span>
             <input name="start_time" type="datetime-local" required className={ui.input} />
           </label>
-          <button type="submit" className={`${ui.btnPrimary} w-full sm:w-auto`}>
+          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
             Create session
-          </button>
+          </SubmitButton>
         </form>
 
         <h2 className={`${ui.h2} mt-8`}>Recurring weekly schedule</h2>
@@ -235,9 +237,9 @@ export default async function SchedulePage({ searchParams }: Props) {
             <span className={ui.label}>Capacity</span>
             <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
           </label>
-          <button type="submit" className={`${ui.btnSecondary} md:col-span-2 w-fit`}>
+          <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Creating...">
             Create recurring rule (8 weeks)
-          </button>
+          </SubmitButton>
         </form>
       </div>
 
