@@ -23,7 +23,7 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
   });
   if (studioIds.length === 0) return <p className={ui.muted}>Create a studio first.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   if (bestRole(ctx) !== "owner") {
     return <p className={ui.muted}>Only owners can update payment settings.</p>;

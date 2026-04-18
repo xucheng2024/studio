@@ -93,7 +93,7 @@ export function OpsItemRow({
         ) : null}
         {reconStatus ? (
           <span className={`rounded-full px-2 py-0.5 text-[11px] ${badgeToneClass(badges.recon.tone)}`}>
-            {badges.recon.text}
+            Review: {badges.recon.text}
           </span>
         ) : null}
         {reasonText ? (

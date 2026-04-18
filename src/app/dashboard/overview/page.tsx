@@ -73,7 +73,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
     );
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
 
   const start = new Date();

@@ -20,13 +20,13 @@ export default async function ClassesPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   if (studioIds.length === 0) {
-    return <p className={ui.muted}>Create a studio from the overview first.</p>;
+    return <p className={ui.muted}>Create your first studio in Overview.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   if (!["owner", "manager"].includes(bestRole(ctx))) {
-    return <p className={ui.muted}>You do not have classes access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
   let instructorsQuery = supabase

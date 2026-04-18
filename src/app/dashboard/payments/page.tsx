@@ -47,6 +47,41 @@ function dayRangeEnd(d?: string) {
   return dt.toISOString();
 }
 
+function buildPaymentStats(
+  rows: Array<{
+    status: string;
+    recon_status: string | null;
+    booking_id: string | null;
+    amount: number | null;
+    paid_amount: number | null;
+    customer_confirmed_at: string | null;
+    verified_at: string | null;
+  }>,
+) {
+  const nowMs = new Date().getTime();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayMs = todayStart.getTime();
+
+  const todayReceived = rows
+    .filter((p) => p.customer_confirmed_at && new Date(p.customer_confirmed_at).getTime() >= todayMs)
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
+  const todayVerified = rows
+    .filter((p) => p.verified_at && new Date(p.verified_at).getTime() >= todayMs)
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
+  const mismatchCount = rows.filter((p) => p.recon_status === "mismatch").length;
+  const unmatchedCount = rows.filter((p) => !p.booking_id).length;
+  const slaOverdueCount = rows.filter(
+    (p) =>
+      p.status === "pending" &&
+      p.customer_confirmed_at &&
+      !p.verified_at &&
+      nowMs - new Date(p.customer_confirmed_at).getTime() > 10 * 60 * 1000,
+  ).length;
+
+  return { todayReceived, todayVerified, mismatchCount, unmatchedCount, slaOverdueCount };
+}
+
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -61,13 +96,21 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   const view = sp.view ?? "queue";
-  if (studioIds.length === 0) return <p className={ui.muted}>Create a studio from the overview first.</p>;
+  if (studioIds.length === 0) return <p className={ui.muted}>Create your first studio in Overview.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   if (!["owner", "manager", "frontdesk"].includes(bestRole(ctx))) {
-    return <p className={ui.muted}>You do not have payment access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
+  const activeStudioId = selectedStudioId ?? studioIds[0];
+  const { data: locations } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .in("studio_id", [activeStudioId])
+    .eq("is_active", true)
+    .order("name");
+  const locationMap = new Map((locations ?? []).map((l) => [l.id, l.name ?? "Unnamed location"]));
 
   let q = supabase
     .from("payments")
@@ -113,6 +156,49 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(keyword));
   });
+  let allLocationFiltered = filtered;
+  if (selectedLocationId) {
+    let allQ = supabase
+      .from("payments")
+      .select(
+        "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+      )
+      .in("studio_id", [activeStudioId])
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (sp.status) allQ = allQ.eq("status", sp.status);
+    if (sp.invoice_status) allQ = allQ.eq("invoice_status", sp.invoice_status);
+    if (sp.recon_status) allQ = allQ.eq("recon_status", sp.recon_status);
+    if (sp.reference) allQ = allQ.ilike("reference_code", `%${sp.reference}%`);
+    if (sp.amount_min) allQ = allQ.gte("amount", Number(sp.amount_min));
+    if (sp.amount_max) allQ = allQ.lte("amount", Number(sp.amount_max));
+    const allFrom = dayRangeStart(sp.date_from);
+    if (allFrom) allQ = allQ.gte("created_at", allFrom);
+    const allTo = dayRangeEnd(sp.date_to);
+    if (allTo) allQ = allQ.lt("created_at", allTo);
+    const { data: rawAllPayments } = await allQ;
+    const allPayments = rawAllPayments ?? [];
+    const allBookingIds = [...new Set(allPayments.map((p) => p.booking_id).filter(Boolean))];
+    const allClientIds = [...new Set(allPayments.map((p) => p.client_id).filter(Boolean))];
+    const { data: allBookings } =
+      allBookingIds.length > 0
+        ? await supabase.from("bookings").select("id, guest_name, guest_email").in("id", allBookingIds)
+        : { data: [] as const };
+    const { data: allClients } =
+      allClientIds.length > 0
+        ? await supabase.from("users").select("id, email").in("id", allClientIds)
+        : { data: [] as const };
+    const allBookingMap = new Map((allBookings ?? []).map((b) => [b.id, b]));
+    const allClientMap = new Map((allClients ?? []).map((u) => [u.id, u.email]));
+    allLocationFiltered = allPayments.filter((p) => {
+      if (!keyword) return true;
+      const booking = p.booking_id ? allBookingMap.get(p.booking_id) : null;
+      const c = p.client_id ? allClientMap.get(p.client_id) : null;
+      return [p.reference_code, p.recon_note, booking?.guest_email, booking?.guest_name, c]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(keyword));
+    });
+  }
 
   const nowMs = new Date().getTime();
   const queueRows = filtered.filter(
@@ -130,24 +216,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const reviewRows = filtered.filter((p) => p.status !== "pending" || p.verified_at != null);
   const visible = view === "recon" ? reconRows : view === "review" ? reviewRows : queueRows;
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayMs = todayStart.getTime();
-  const todayReceived = filtered
-    .filter((p) => p.customer_confirmed_at && new Date(p.customer_confirmed_at).getTime() >= todayMs)
-    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
-  const todayVerified = filtered
-    .filter((p) => p.verified_at && new Date(p.verified_at).getTime() >= todayMs)
-    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
-  const mismatchCount = filtered.filter((p) => p.recon_status === "mismatch").length;
-  const unmatchedCount = filtered.filter((p) => !p.booking_id).length;
-  const slaOverdueCount = filtered.filter(
-    (p) =>
-      p.status === "pending" &&
-      p.customer_confirmed_at &&
-      !p.verified_at &&
-      nowMs - new Date(p.customer_confirmed_at).getTime() > 10 * 60 * 1000,
-  ).length;
+  const scopedStats = buildPaymentStats(filtered);
+  const allLocationStats = selectedLocationId ? buildPaymentStats(allLocationFiltered) : scopedStats;
 
   const ids = visible.map((p) => p.id);
   const { data: audits } =
@@ -176,7 +246,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   }
 
   const exportParams = new URLSearchParams();
-  exportParams.set("studio_id", selectedStudioId ?? studioIds[0]);
+  exportParams.set("studio_id", activeStudioId);
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
   exportParams.set("view", view);
   if (sp.status) exportParams.set("status", sp.status);
@@ -198,49 +268,92 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className={ui.h1}>Payment records</h1>
-        <p className={ui.muted}>Track incoming payments, review issues, export reports, and check action history.</p>
+        <p className={ui.muted}>Check incoming payments, handle exceptions, export records, and view action history.</p>
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+          <DashboardAppLink href={`/dashboard/operations?${exportParams.toString()}`} className={ui.btnSecondarySm}>
+            Back to operations
+          </DashboardAppLink>
           <DashboardAppLink
             className={view === "queue" ? ui.link : ui.linkMuted}
             href={tabHref("queue")}
           >
-            To confirm
+            Pending
           </DashboardAppLink>
           <DashboardAppLink
             className={view === "recon" ? ui.link : ui.linkMuted}
             href={tabHref("recon")}
           >
-            Needs review
+            Exceptions
           </DashboardAppLink>
           <DashboardAppLink
             className={view === "review" ? ui.link : ui.linkMuted}
             href={tabHref("review")}
           >
-            Completed
+            Processed
           </DashboardAppLink>
           <a
             className={`${ui.linkMuted} transition-opacity duration-100 active:opacity-60`}
             href={`/api/payments/export?${exportParams.toString()}`}
           >
-            Export payments CSV
+            Export CSV
           </a>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-5">
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Today received</p><p className="mt-1 text-xl font-semibold">${todayReceived.toFixed(2)}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Today confirmed by staff</p><p className="mt-1 text-xl font-semibold">${todayVerified.toFixed(2)}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Amount mismatch</p><p className="mt-1 text-xl font-semibold">{mismatchCount}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Without booking link</p><p className="mt-1 text-xl font-semibold">{unmatchedCount}</p></div>
-        <div className={ui.statCard}><p className={`text-xs ${ui.muted}`}>Confirmation overdue</p><p className="mt-1 text-xl font-semibold">{slaOverdueCount}</p></div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Today received</p>
+          <p className="mt-1 text-xl font-semibold">${scopedStats.todayReceived.toFixed(2)}</p>
+          {selectedLocationId ? (
+            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: ${allLocationStats.todayReceived.toFixed(2)}</p>
+          ) : null}
+        </div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Confirmed today</p>
+          <p className="mt-1 text-xl font-semibold">${scopedStats.todayVerified.toFixed(2)}</p>
+          {selectedLocationId ? (
+            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: ${allLocationStats.todayVerified.toFixed(2)}</p>
+          ) : null}
+        </div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Amount mismatch</p>
+          <p className="mt-1 text-xl font-semibold">{scopedStats.mismatchCount}</p>
+          {selectedLocationId ? (
+            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: {allLocationStats.mismatchCount}</p>
+          ) : null}
+        </div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Unlinked payments</p>
+          <p className="mt-1 text-xl font-semibold">{scopedStats.unmatchedCount}</p>
+          {selectedLocationId ? (
+            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: {allLocationStats.unmatchedCount}</p>
+          ) : null}
+        </div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Confirmation overdue</p>
+          <p className="mt-1 text-xl font-semibold">{scopedStats.slaOverdueCount}</p>
+          {selectedLocationId ? (
+            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: {allLocationStats.slaOverdueCount}</p>
+          ) : null}
+        </div>
       </div>
 
-      <form method="get" className={`${ui.card} grid gap-3 md:grid-cols-5`}>
+      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-2 xl:grid-cols-5`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
-        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Location</span>
+          <select name="location_id" className={ui.select} defaultValue={selectedLocationId ?? ""}>
+            <option value="">All locations</option>
+            {(locations ?? []).map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name ?? "Unnamed location"}
+              </option>
+            ))}
+          </select>
+        </label>
         <input type="hidden" name="view" value={view} />
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Payment status</span>
+          <span className={`${ui.label} whitespace-nowrap`}>Payment status</span>
           <select name="status" className={ui.select} defaultValue={sp.status ?? ""}>
             <option value="">All</option>
             {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
@@ -251,7 +364,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Invoice status</span>
+          <span className={`${ui.label} whitespace-nowrap`}>Invoice status</span>
           <select name="invoice_status" className={ui.select} defaultValue={sp.invoice_status ?? ""}>
             <option value="">All</option>
             {INVOICE_STATUS_FILTER_OPTIONS.map((o) => (
@@ -262,7 +375,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Payment review status</span>
+          <span className={`${ui.label} whitespace-nowrap`}>Review status</span>
           <select name="recon_status" className={ui.select} defaultValue={sp.recon_status ?? ""}>
             <option value="">All</option>
             {RECON_STATUS_FILTER_OPTIONS.map((o) => (
@@ -277,12 +390,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} placeholder="Min amount" />
         <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} placeholder="Max amount" />
         <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
-        <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member/email/notes keyword" />
+        <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member / email / note" />
         <div className="md:col-span-5 flex gap-2">
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters
           </SubmitButton>
-          <DashboardAppLink href={`/dashboard/payments?view=${view}`} className={ui.btnGhost}>
+          <DashboardAppLink href={`/dashboard/payments?view=${view}&studio_id=${activeStudioId}`} className={ui.btnGhost}>
             Reset
           </DashboardAppLink>
         </div>
@@ -317,9 +430,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                       </span>
                     ) : null}
                   </div>
-                  <p className={ui.muted}>Client: {clientLabel}</p>
+                  <p className={ui.muted}>Member: {clientLabel}</p>
+                  <p className={ui.muted}>
+                    Location: {p.location_id ? (locationMap.get(p.location_id) ?? "Unknown location") : "Unassigned"}
+                  </p>
                   <p className={ui.muted}>Ref: <span className={ui.code}>{p.reference_code ?? "-"}</span></p>
-                  <p className={ui.muted}>Review status: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
+                  <p className={ui.muted}>Review: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
                   {p.status === "paid" && p.invoice_status !== "void" ? (
                     <div className="space-y-0.5">
                       {p.invoice_number ? (

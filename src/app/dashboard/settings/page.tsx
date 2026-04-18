@@ -39,11 +39,11 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
   });
   const role = bestRole(ctx);
   if (!["owner", "manager"].includes(role) && !isSuperAdmin) {
-    return <p className={ui.muted}>You do not have settings access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   if (studioIds.length === 0 && !isSuperAdmin) return <p className={ui.muted}>Create a studio first.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
 
   const contractStudioId = isSuperAdmin ? (sp.studio_id ?? selectedStudioId) : null;

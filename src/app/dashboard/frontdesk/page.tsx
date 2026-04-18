@@ -24,10 +24,10 @@ export default async function FrontdeskPage({ searchParams }: Props) {
   });
   const role = bestRole(ctx);
   if (!["owner", "manager", "frontdesk"].includes(role)) {
-    return <p className={ui.muted}>You do not have frontdesk access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   const scopedLocationIds = [
     ...new Set(
@@ -79,20 +79,14 @@ export default async function FrontdeskPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className={ui.h1}>Frontdesk quick flow</h1>
-        <p className={ui.muted}>Operations subflow for walk-ins, quick member search, and class check-in.</p>
+        <h1 className={ui.h1}>Front desk</h1>
+        <p className={ui.muted}>Handle walk-ins, quick member search, and class check-in.</p>
         <p className={`mt-2 text-xs ${ui.muted}`}>
-          Recommended entry: open this page from Operations so filters and queue context stay aligned.
+          Open from Operations to keep filters and queue context aligned.
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/operations?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
             Back to operations
-          </DashboardAppLink>
-          <DashboardAppLink href={`/dashboard/schedule?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
-            Open session view
-          </DashboardAppLink>
-          <DashboardAppLink href={`/dashboard/clients?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
-            Open member view
           </DashboardAppLink>
         </div>
       </div>
@@ -140,7 +134,7 @@ export default async function FrontdeskPage({ searchParams }: Props) {
 
       <section className={ui.card}>
         <h2 className={ui.h2}>Bulk check-in</h2>
-        <p className={`mt-1 text-xs ${ui.muted}`}>Open one class card and tap attendees quickly before start.</p>
+        <p className={`mt-1 text-xs ${ui.muted}`}>Open a class card and check in attendees quickly before start.</p>
         <div className="mt-3 space-y-3">
           {(sessions ?? []).map((s) => {
             const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;

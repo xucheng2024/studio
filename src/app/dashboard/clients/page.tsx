@@ -19,13 +19,13 @@ export default async function ClientsPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   if (studioIds.length === 0) {
-    return <p className={ui.muted}>Create a studio from the overview first.</p>;
+    return <p className={ui.muted}>Create your first studio in Overview.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   if (!["owner", "manager", "frontdesk"].includes(bestRole(ctx))) {
-    return <p className={ui.muted}>You do not have members access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
   let classQuery = supabase
@@ -84,10 +84,10 @@ export default async function ClientsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className={ui.h1}>Members</h1>
+      <h1 className={ui.h1}>Member records</h1>
 
       <div>
-        <h2 className={ui.h2}>Credits in your studio</h2>
+        <h2 className={ui.h2}>Active credits</h2>
         <ul className="mt-3 flex flex-col gap-2 text-sm">
           {(packs ?? []).map((p) => {
             const pkg = p.packages as { name?: string } | null;
@@ -104,12 +104,12 @@ export default async function ClientsPage({ searchParams }: Props) {
           })}
         </ul>
         {!packs?.length ? (
-          <p className={`text-sm ${ui.muted}`}>No package balances yet.</p>
+          <p className={`text-sm ${ui.muted}`}>No active package credits yet.</p>
         ) : null}
       </div>
 
       <div>
-        <h2 className={ui.h2}>Attendance history</h2>
+        <h2 className={ui.h2}>Booking and attendance history</h2>
         <ul className="mt-3 flex flex-col gap-2 text-sm">
           {(bookings ?? []).map((b) => {
             const u = b.users as { email?: string | null } | null;

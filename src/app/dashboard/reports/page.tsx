@@ -83,13 +83,13 @@ export default async function ReportsPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   if (studioIds.length === 0) {
-    return <p className={ui.muted}>Create a studio from the overview first.</p>;
+    return <p className={ui.muted}>Create your first studio in Overview.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   if (!["owner", "manager"].includes(bestRole(ctx))) {
-    return <p className={ui.muted}>You do not have reports access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
   const bounds = monthBounds();
@@ -404,7 +404,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           </table>
         </div>
         {!Object.keys(byClassAttendance).length ? (
-          <p className={`mt-4 text-sm ${ui.muted}`}>No booking data yet.</p>
+          <p className={`mt-4 text-sm ${ui.muted}`}>No booking data in this range.</p>
         ) : null}
       </div>
 
@@ -425,7 +425,7 @@ export default async function ReportsPage({ searchParams }: Props) {
             ))}
           </ul>
           {!compareByLocation.length ? (
-            <p className={`mt-4 text-sm ${ui.muted}`}>No location attendance data yet.</p>
+            <p className={`mt-4 text-sm ${ui.muted}`}>No location attendance data in this range.</p>
           ) : null}
         </div>
 
@@ -445,7 +445,7 @@ export default async function ReportsPage({ searchParams }: Props) {
             ))}
           </ul>
           {!compareByInstructor.length ? (
-            <p className={`mt-4 text-sm ${ui.muted}`}>No instructor attendance data yet.</p>
+            <p className={`mt-4 text-sm ${ui.muted}`}>No instructor attendance data in this range.</p>
           ) : null}
         </div>
       </div>
@@ -480,7 +480,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           })}
         </ul>
         {!lowCreditRows?.length ? (
-          <p className={`mt-4 text-sm ${ui.muted}`}>No low-credit members right now.</p>
+          <p className={`mt-4 text-sm ${ui.muted}`}>No low-credit members in this range.</p>
         ) : null}
       </div>
 

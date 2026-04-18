@@ -167,7 +167,7 @@ export function OpsBoard({
 
       <OpsSection
         title="Classes Starting Soon"
-        description="Upcoming classes in the next 30 minutes that still need check-in."
+        description="Classes in the next 30 minutes that still need check-in."
         emptyText="No upcoming check-in tasks."
       >
         {data.starting_soon_grouped.length ? (
@@ -188,8 +188,8 @@ export function OpsBoard({
       </OpsSection>
 
       <OpsSection
-        title="Payments To Review"
-        description="Transfers with mismatch, missing reference, or manual review flags."
+        title="Payment Exceptions"
+        description="Payments with amount mismatch, missing reference, or manual check flags."
         emptyText="No payments to review."
       >
         <div className="mb-2 flex flex-wrap gap-2">

@@ -8,7 +8,7 @@ export const site = {
   badge: "For studios, gyms, and wellness spaces",
   homeHeadline: "Fill classes faster with less admin work",
   homeLead:
-    "One booking link for clients, one daily desk view for staff, and one clean payment record for owners.",
+    "One booking link for members, one daily desk view for staff, and one clean payment record for owners.",
   marketing: {
     memberHighlights: [
       "Reserve in seconds from your phone",

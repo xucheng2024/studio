@@ -109,7 +109,7 @@ export default async function OperationsPage({ searchParams }: Props) {
   }
   const role = bestRole(ctx);
   if (!["owner", "manager", "frontdesk"].includes(role)) {
-    return <p className={ui.muted}>You do not have operations access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
   const { data: studios } = await supabase
@@ -156,16 +156,10 @@ export default async function OperationsPage({ searchParams }: Props) {
       ) : null}
       <div>
         <h1 className={ui.h1}>Today&apos;s front desk</h1>
-        <p className={ui.muted}>Your daily front desk view for payment checks, arrivals, and urgent follow-ups.</p>
+        <p className={ui.muted}>One queue for payment checks, arrivals, and urgent follow-ups.</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/payments?view=recon&${filterParams.toString()}`} className={ui.btnSecondarySm}>
             Payment records
-          </DashboardAppLink>
-          <DashboardAppLink href={`/dashboard/schedule?${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            Class schedule
-          </DashboardAppLink>
-          <DashboardAppLink href={`/dashboard/clients?${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            Members
           </DashboardAppLink>
           <DashboardAppLink href={`/dashboard/frontdesk?${filterParams.toString()}`} className={ui.btnSecondarySm}>
             Walk-in & check-in

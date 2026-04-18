@@ -112,7 +112,7 @@ export function OpsFilters({
         </select>
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Payment review status</span>
+        <span className={ui.label}>Review status</span>
         <select
           className={ui.select}
           value={reconStatus}
@@ -127,7 +127,7 @@ export function OpsFilters({
         </select>
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Search member or payment</span>
+        <span className={ui.label}>Search member, email, or payment ref</span>
         <input
           className={ui.input}
           placeholder="name / phone / email / reference"

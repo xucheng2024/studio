@@ -43,11 +43,11 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
   });
   const role = bestRole(ctx);
   if (!["owner", "manager"].includes(role)) {
-    return <p className={ui.muted}>You do not have settings access.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   if (studioIds.length === 0) return <p className={ui.muted}>Create a studio first.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
@@ -131,7 +131,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
       <div className={ui.card}>
         <p className={`mb-3 text-xs ${ui.muted}`}>Locations are used for schedule/frontdesk/operations filters and scoped staff access.</p>
         {(locations ?? []).length === 0 ? (
-          <p className={ui.muted}>No locations yet.</p>
+          <p className={ui.muted}>No locations added yet.</p>
         ) : (
           <div className="space-y-3">
             {(locations ?? []).map((loc) => (
