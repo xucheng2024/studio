@@ -261,14 +261,16 @@ export default async function ReportsPage({ searchParams }: Props) {
       <form method="get" className={`${ui.card} flex flex-wrap items-end gap-3`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>From</span>
-          <input type="date" name="date_from" defaultValue={dateFrom} className={ui.input} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>To</span>
-          <input type="date" name="date_to" defaultValue={dateTo} className={ui.input} />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className={`${ui.label} whitespace-nowrap`}>Date from</span>
+            <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={`${ui.label} whitespace-nowrap`}>Date to</span>
+            <input type="date" name="date_to" defaultValue={dateTo} className={`${ui.input} whitespace-nowrap`} />
+          </label>
+        </div>
         <button type="submit" className={ui.btnPrimarySm}>
           Apply range
         </button>

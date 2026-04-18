@@ -330,7 +330,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           ) : null}
         </div>
         <div className={ui.statCard}>
-          <p className={`text-xs ${ui.muted}`}>Confirmation overdue</p>
+          <p className={`text-xs ${ui.muted}`}>Overdue</p>
           <p className="mt-1 text-xl font-semibold">{scopedStats.slaOverdueCount}</p>
           {selectedLocationId ? (
             <p className={`mt-1 text-xs ${ui.muted}`}>All locations: {allLocationStats.slaOverdueCount}</p>
@@ -338,7 +338,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-2 xl:grid-cols-5`}>
+      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         <label className="flex flex-col gap-1.5">
           <span className={`${ui.label} whitespace-nowrap`}>Location</span>
@@ -385,8 +385,26 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             ))}
           </select>
         </label>
-        <input type="date" name="date_from" defaultValue={sp.date_from ?? ""} className={ui.input} />
-        <input type="date" name="date_to" defaultValue={sp.date_to ?? ""} className={ui.input} />
+        <div className="sm:col-span-2 xl:col-span-4 2xl:col-span-2 grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className={`${ui.label} whitespace-nowrap`}>Date from</span>
+            <input
+              type="date"
+              name="date_from"
+              defaultValue={sp.date_from ?? ""}
+              className={`${ui.input} whitespace-nowrap`}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={`${ui.label} whitespace-nowrap`}>Date to</span>
+            <input
+              type="date"
+              name="date_to"
+              defaultValue={sp.date_to ?? ""}
+              className={`${ui.input} whitespace-nowrap`}
+            />
+          </label>
+        </div>
         <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} placeholder="Min amount" />
         <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} placeholder="Max amount" />
         <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
@@ -471,7 +489,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <p className={ui.muted}>Created: {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</p>
                   <p className={ui.muted}>Customer payment notice: {p.customer_confirmed_at ? new Date(p.customer_confirmed_at).toLocaleString() : "not submitted"}</p>
                   {p.verified_at ? <p className={ui.muted}>Verified: {new Date(p.verified_at).toLocaleString()} · By {p.verified_by ?? "-"}</p> : null}
-                  {slaOverdue ? <p className="text-xs font-medium text-red-600 dark:text-red-400">Confirmation overdue (&gt;10m)</p> : null}
+                  {slaOverdue ? <p className="text-xs font-medium text-red-600 dark:text-red-400">Overdue (&gt;10m)</p> : null}
                   {timeline.length ? (
                     <div className="mt-2 rounded-lg border border-stone-200 p-2 text-xs dark:border-stone-700">
                       <p className={`mb-1 font-medium ${ui.muted}`}>Audit timeline</p>

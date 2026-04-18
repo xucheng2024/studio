@@ -44,7 +44,7 @@ export function OpsFilters({
     : locations;
 
   return (
-    <div className={`${ui.card} grid gap-3 md:grid-cols-4`}>
+    <div className={`${ui.card} grid gap-3 md:grid-cols-2 lg:grid-cols-4`}>
       <label className="flex flex-col gap-1.5">
         <span className={ui.label}>Studio</span>
         <select
@@ -78,24 +78,26 @@ export function OpsFilters({
           ))}
         </select>
       </label>
-      <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Date from</span>
-        <input
-          type="date"
-          className={ui.input}
-          value={dateFrom}
-          onChange={(e) => update({ date_from: e.target.value || null })}
-        />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Date to</span>
-        <input
-          type="date"
-          className={ui.input}
-          value={dateTo}
-          onChange={(e) => update({ date_to: e.target.value || null })}
-        />
-      </label>
+      <div className="md:col-span-2 lg:col-span-2 grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Date from</span>
+          <input
+            type="date"
+            className={`${ui.input} whitespace-nowrap`}
+            value={dateFrom}
+            onChange={(e) => update({ date_from: e.target.value || null })}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Date to</span>
+          <input
+            type="date"
+            className={`${ui.input} whitespace-nowrap`}
+            value={dateTo}
+            onChange={(e) => update({ date_to: e.target.value || null })}
+          />
+        </label>
+      </div>
       <label className="flex flex-col gap-1.5">
         <span className={ui.label}>Payment status</span>
         <select
@@ -127,7 +129,7 @@ export function OpsFilters({
         </select>
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Search member, email, or payment ref</span>
+        <span className={ui.label}>Search</span>
         <input
           className={ui.input}
           placeholder="name / phone / email / reference"

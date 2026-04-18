@@ -68,10 +68,10 @@ export function OpsItemRow({
       ? "Amount mismatch"
       : exceptionCode === "missing_reference"
         ? "Missing reference"
-        : exceptionCode === "manual_review"
+          : exceptionCode === "manual_review"
           ? "Manual review"
           : exceptionCode === "verification_sla_overdue"
-            ? "Confirmation overdue"
+            ? "Overdue"
             : exceptionCode === "unmatched_payment"
               ? "No booking linked"
               : null;
