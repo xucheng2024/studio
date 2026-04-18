@@ -1,6 +1,7 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { createRecurringRule, createSession, saveBookingRules } from "@/app/dashboard/actions";
 import { CancelBookingButton } from "@/components/CancelBookingButton";
+import { CancelSessionButton } from "@/components/CancelSessionButton";
 import { MarkAttendedButton } from "@/components/MarkAttendedButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -63,7 +64,10 @@ export default async function SchedulePage({ searchParams }: Props) {
       start_time,
       end_time,
       spots_left,
+      status,
+      location_id,
       classes!inner ( title, studio_id ),
+      locations ( id, name ),
       bookings (
         id,
         client_id,
@@ -102,87 +106,85 @@ export default async function SchedulePage({ searchParams }: Props) {
             Manage packages
           </DashboardAppLink>
         </div>
-        <h2 className={`${ui.h2} mt-8`}>Booking rules</h2>
-        <form action={saveBookingRules} className={`${ui.card} mt-4 grid max-w-xl gap-4 md:grid-cols-2`}>
-          <input type="hidden" name="studio_id" value={activeStudioId} />
-          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Free cancellation window (hours before class)</span>
-            <input
-              type="number"
-              min={0}
-              name="cancel_cutoff_hours"
-              defaultValue={activeRules?.cancel_cutoff_hours ?? 12}
-              className={ui.input}
-            />
-            <span className={`text-xs ${ui.muted}`}>If cancelled inside this window, it counts as late cancel.</span>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>No-show grace period (minutes after class starts)</span>
-            <input
-              type="number"
-              min={0}
-              name="no_show_buffer_min"
-              defaultValue={activeRules?.no_show_buffer_min ?? 15}
-              className={ui.input}
-            />
-            <span className={`text-xs ${ui.muted}`}>After this, un-checked-in bookings can be marked as no-show.</span>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Max active bookings per member</span>
-            <input
-              type="number"
-              min={1}
-              name="max_active_bookings_per_client"
-              defaultValue={activeRules?.max_active_bookings_per_client ?? 3}
-              className={ui.input}
-            />
-            <span className={`text-xs ${ui.muted}`}>Blocks over-booking by the same member.</span>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Max weekly late cancel / no-show before block</span>
-            <input
-              type="number"
-              min={0}
-              name="max_weekly_late_cancel"
-              defaultValue={activeRules?.max_weekly_late_cancel ?? 2}
-              className={ui.input}
-            />
-            <span className={`text-xs ${ui.muted}`}>Member can be blocked from new bookings after reaching this limit.</span>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-            <input
-              type="checkbox"
-              name="late_cancel_deduct_credit"
-              defaultChecked={activeRules?.late_cancel_deduct_credit ?? true}
-            />
-            Deduct 1 credit for late cancel
-          </label>
-          <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-            <input
-              type="checkbox"
-              name="no_show_deduct_credit"
-              defaultChecked={activeRules?.no_show_deduct_credit ?? true}
-            />
-            Deduct 1 credit for no-show
-          </label>
-          <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300 md:col-span-2">
-            <input
-              type="checkbox"
-              name="allow_waitlist"
-              defaultChecked={activeRules?.allow_waitlist ?? false}
-            />
-            Allow waitlist
-          </label>
-          <div className="md:col-span-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-300">
-            Example: Class starts at 7:00 PM. With 12h cancellation window, cancelling at 10:00 AM is free; cancelling at
-            6:00 PM is late cancel.
-          </div>
-          <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Saving...">
-            Save booking rules
-          </SubmitButton>
-        </form>
+        <details className={`${ui.card} mt-8 max-w-xl`} id="booking-rules">
+          <summary className="cursor-pointer list-none text-base font-semibold text-stone-900 dark:text-stone-100">
+            Booking rules
+          </summary>
+          <p className={`mt-1 text-xs ${ui.muted}`}>Low-frequency settings. Open only when updating policy.</p>
+          <form action={saveBookingRules} className="mt-4 grid gap-4 md:grid-cols-2">
+            <input type="hidden" name="studio_id" value={activeStudioId} />
+            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Free cancellation window (hours before class)</span>
+              <input
+                type="number"
+                min={0}
+                name="cancel_cutoff_hours"
+                defaultValue={activeRules?.cancel_cutoff_hours ?? 12}
+                className={ui.input}
+              />
+              <span className={`text-xs ${ui.muted}`}>If cancelled inside this window, it counts as late cancel.</span>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>No-show grace period (minutes after class starts)</span>
+              <input
+                type="number"
+                min={0}
+                name="no_show_buffer_min"
+                defaultValue={activeRules?.no_show_buffer_min ?? 15}
+                className={ui.input}
+              />
+              <span className={`text-xs ${ui.muted}`}>After this, un-checked-in bookings can be marked as no-show.</span>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Max active bookings per member</span>
+              <input
+                type="number"
+                min={1}
+                name="max_active_bookings_per_client"
+                defaultValue={activeRules?.max_active_bookings_per_client ?? 3}
+                className={ui.input}
+              />
+              <span className={`text-xs ${ui.muted}`}>Blocks over-booking by the same member.</span>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Max weekly late cancel / no-show before block</span>
+              <input
+                type="number"
+                min={0}
+                name="max_weekly_late_cancel"
+                defaultValue={activeRules?.max_weekly_late_cancel ?? 2}
+                className={ui.input}
+              />
+              <span className={`text-xs ${ui.muted}`}>Member can be blocked from new bookings after reaching this limit.</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+              <input
+                type="checkbox"
+                name="late_cancel_deduct_credit"
+                defaultChecked={activeRules?.late_cancel_deduct_credit ?? true}
+              />
+              Deduct 1 credit for late cancel
+            </label>
+            <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+              <input
+                type="checkbox"
+                name="no_show_deduct_credit"
+                defaultChecked={activeRules?.no_show_deduct_credit ?? true}
+              />
+              Deduct 1 credit for no-show
+            </label>
+            <div className="md:col-span-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-300">
+              Example: Class starts at 7:00 PM. With 12h cancellation window, cancelling at 10:00 AM is free; cancelling at
+              6:00 PM is late cancel.
+            </div>
+            <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Saving...">
+              Save booking rules
+            </SubmitButton>
+          </form>
+        </details>
 
+        <h2 className={`${ui.h2} mt-8`}>Create session</h2>
         <form action={createSession} className={`${ui.card} mt-6 flex max-w-md flex-col gap-4`}>
           <input type="hidden" name="studio_id" value={activeStudioId} />
           <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
@@ -206,49 +208,54 @@ export default async function SchedulePage({ searchParams }: Props) {
           </SubmitButton>
         </form>
 
-        <h2 className={`${ui.h2} mt-8`}>Recurring weekly schedule</h2>
-        <form action={createRecurringRule} className={`${ui.card} mt-4 grid max-w-xl gap-4 md:grid-cols-2`}>
-          <input type="hidden" name="studio_id" value={activeStudioId} />
-          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-          <label className="flex flex-col gap-1.5 md:col-span-2">
-            <span className={ui.label}>Class</span>
-            <select name="class_id" required className={ui.select}>
-              <option value="">Select…</option>
-              {(classes ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Weekdays (comma)</span>
-            <input name="by_weekday" defaultValue="mon,wed" className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Start date</span>
-            <input type="date" name="start_date" required className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>End date (optional)</span>
-            <input type="date" name="end_date" className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Start time</span>
-            <input type="time" name="start_time" required className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Duration</span>
-            <input type="number" name="duration_min" defaultValue={60} min={15} className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Capacity</span>
-            <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
-          </label>
-          <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Creating...">
-            Create recurring rule (8 weeks)
-          </SubmitButton>
-        </form>
+        <details className={`${ui.card} mt-8 max-w-xl`} id="recurring-schedule">
+          <summary className="cursor-pointer list-none text-base font-semibold text-stone-900 dark:text-stone-100">
+            Recurring weekly schedule
+          </summary>
+          <p className={`mt-1 text-xs ${ui.muted}`}>Advanced setup. Use when you need auto-generated sessions.</p>
+          <form action={createRecurringRule} className="mt-4 grid gap-4 md:grid-cols-2">
+            <input type="hidden" name="studio_id" value={activeStudioId} />
+            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+            <label className="flex flex-col gap-1.5 md:col-span-2">
+              <span className={ui.label}>Class</span>
+              <select name="class_id" required className={ui.select}>
+                <option value="">Select…</option>
+                {(classes ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Weekdays (comma)</span>
+              <input name="by_weekday" defaultValue="mon,wed" className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Start date</span>
+              <input type="date" name="start_date" required className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>End date (optional)</span>
+              <input type="date" name="end_date" className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Start time</span>
+              <input type="time" name="start_time" required className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Duration</span>
+              <input type="number" name="duration_min" defaultValue={60} min={15} className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Capacity</span>
+              <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
+            </label>
+            <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Creating...">
+              Create recurring rule (8 weeks)
+            </SubmitButton>
+          </form>
+        </details>
       </div>
 
       <div>
@@ -256,6 +263,9 @@ export default async function SchedulePage({ searchParams }: Props) {
         <ul className="mt-4 flex flex-col gap-4">
           {(sessions ?? []).map((s) => {
             const cls = s.classes as { title?: string } | null;
+            const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
+            const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
+            const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
             const bookings = (s.bookings ?? []) as {
               id: string;
               client_id: string | null;
@@ -266,11 +276,21 @@ export default async function SchedulePage({ searchParams }: Props) {
             }[];
             return (
               <li key={s.id} className={ui.card}>
-                <div className="flex flex-wrap justify-between gap-2">
+                <div className="flex flex-wrap justify-between gap-4">
                   <div>
-                    <p className="font-medium text-stone-900 dark:text-stone-100">
-                      {cls?.title ?? "Class"}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-stone-900 dark:text-stone-100">
+                        {cls?.title ?? "Class"}
+                      </p>
+                      {sessionStatus === "cancelled" ? (
+                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-stone-700 dark:text-stone-200">
+                          Cancelled
+                        </span>
+                      ) : null}
+                    </div>
+                    {locationName ? (
+                      <p className={`mt-0.5 text-sm ${ui.muted}`}>{locationName}</p>
+                    ) : null}
                     <p className={`${ui.muted} mt-0.5 text-sm`}>
                       {new Date(s.start_time).toLocaleString()} –{" "}
                       {new Date(s.end_time).toLocaleString()}
@@ -279,6 +299,13 @@ export default async function SchedulePage({ searchParams }: Props) {
                       {s.spots_left} spots left
                     </p>
                   </div>
+                  <CancelSessionButton
+                    sessionId={s.id}
+                    classTitle={cls?.title ?? "Class"}
+                    startTimeIso={String(s.start_time)}
+                    locationName={locationName}
+                    sessionStatus={sessionStatus}
+                  />
                 </div>
                 <ul className="mt-4 flex flex-col gap-2 border-t border-stone-100 pt-3 text-sm dark:border-stone-800">
                   {bookings.map((b) => (

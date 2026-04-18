@@ -405,10 +405,22 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             />
           </label>
         </div>
-        <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} placeholder="Min amount" />
-        <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} placeholder="Max amount" />
-        <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
-        <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member / email / note" />
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Min amount</span>
+          <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Max amount</span>
+          <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Reference</span>
+          <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Search</span>
+          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member / email / note" />
+        </label>
         <div className="md:col-span-5 flex gap-2">
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters

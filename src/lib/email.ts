@@ -77,6 +77,28 @@ export async function sendClassReminder(params: {
   });
 }
 
+export async function sendSessionCancelledNotice(params: {
+  to: string;
+  sessionTitle: string;
+  startTime: string;
+  locationName: string | null;
+}) {
+  const lines = [
+    "Your class has been cancelled by the studio.",
+    "",
+    `Class: ${params.sessionTitle}`,
+    `Time: ${params.startTime}`,
+    params.locationName ? `Location: ${params.locationName}` : null,
+    "",
+    "Where this applies to your booking, we have automatically processed refunds for paid fees and returned package credits if you had already checked in with a package.",
+  ].filter(Boolean);
+  return sendEmail({
+    to: params.to,
+    subject: `Class cancelled: ${params.sessionTitle}`,
+    text: lines.join("\n"),
+  });
+}
+
 export async function sendBookingOutcomeNotice(params: {
   to: string;
   sessionTitle: string;

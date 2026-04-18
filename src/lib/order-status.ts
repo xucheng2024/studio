@@ -32,6 +32,8 @@ function bookingStatusBadge(status: string | null | undefined): OrderBadge {
       return { text: "Pending", tone: "amber" };
     case "cancelled":
       return { text: "Cancelled", tone: "stone" };
+    case "cancelled_by_studio":
+      return { text: "Cancelled by studio", tone: "stone" };
     case "late_cancel":
       return { text: "Late cancel", tone: "amber" };
     case "no_show":
