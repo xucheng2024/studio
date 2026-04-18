@@ -61,19 +61,15 @@ export async function POST(req: Request) {
     if (!payment.customer_confirmed_at) {
       return NextResponse.json({ error: "customer_not_confirmed" }, { status: 409 });
     }
-    const { data: result, error } = await admin.rpc("confirm_paynow_payment", {
+    const { data: result, error } = await admin.rpc("confirm_paynow_payment_with_invoice", {
       p_payment_id: parsed.data.payment_id,
+      p_verified_by: user.id,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    const r = result as { ok?: boolean; error?: string };
+    const r = result as { ok?: boolean; error?: string; invoice_number?: string };
     if (!r?.ok) return NextResponse.json({ error: r?.error ?? "confirm_failed" }, { status: 409 });
-    await admin
-      .from("payments")
-      .update({
-        verified_at: new Date().toISOString(),
-        verified_by: user.id,
-      })
-      .eq("id", parsed.data.payment_id);
+    const invoiceNumber = r.invoice_number ?? null;
+
     await writeOperationAudit({
       actorId: user.id,
       actorRole: "staff",
@@ -81,7 +77,7 @@ export async function POST(req: Request) {
       targetType: "payment",
       targetId: parsed.data.payment_id,
       beforeState: { status: "pending" },
-      afterState: { status: "paid" },
+      afterState: { status: "paid", invoice_number: invoiceNumber },
     });
     if (payment.booking_id) {
       const { data: booking } = await admin

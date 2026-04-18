@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { OpsItemRow } from "@/components/ops/OpsItemRow";
 import { OpsSection } from "@/components/ops/OpsSection";
+import { OpsSessionGroup, type StartingSoonSessionGroup } from "@/components/ops/OpsSessionGroup";
 import { ui } from "@/lib/ui";
 
 type QueueItem = {
@@ -13,6 +14,9 @@ type QueueItem = {
   booking_status?: string | null;
   payment_status?: string | null;
   recon_status?: string | null;
+  exception_code?: string | null;
+  wait_minutes?: number;
+  sla_overdue?: boolean;
   actions: Array<
     | { kind: "mark_paid" | "mark_failed" | "mark_expired"; label: string; payment_id: string }
     | { kind: "checkin"; label: string; booking_id: string }
@@ -24,6 +28,7 @@ type QueuePayload = {
   pending_verifications: QueueItem[];
   payment_exceptions: QueueItem[];
   starting_soon: QueueItem[];
+  starting_soon_grouped: StartingSoonSessionGroup[];
   unmatched_payments: QueueItem[];
 };
 
@@ -60,8 +65,10 @@ export function OpsBoard({
     pending_verifications: [],
     payment_exceptions: [],
     starting_soon: [],
+    starting_soon_grouped: [],
     unmatched_payments: [],
   });
+  const [reviewFilter, setReviewFilter] = useState<"all" | "amount_mismatch" | "missing_reference" | "manual_review">("all");
 
   const qs = useMemo(() => {
     const p = new URLSearchParams();
@@ -85,6 +92,7 @@ export function OpsBoard({
           pending_verifications: json.pending_verifications ?? [],
           payment_exceptions: json.payment_exceptions ?? [],
           starting_soon: json.starting_soon ?? [],
+          starting_soon_grouped: json.starting_soon_grouped ?? [],
           unmatched_payments: json.unmatched_payments ?? [],
         });
       })
@@ -105,6 +113,9 @@ export function OpsBoard({
     setData((prev) => ({
       ...prev,
       [section]: json?.[section] ?? [],
+      ...(section === "starting_soon"
+        ? { starting_soon_grouped: json?.starting_soon_grouped ?? [] }
+        : {}),
     }));
     setRefreshingSection(null);
   };
@@ -139,6 +150,9 @@ export function OpsBoard({
                 secondary={toBusinessCopy(item.secondary_label)}
                 paymentStatus={item.payment_status ?? "pending"}
                 reconStatus={item.recon_status ?? null}
+                exceptionCode={item.exception_code ?? null}
+                waitMinutes={item.wait_minutes}
+                overdue={item.sla_overdue}
                 actions={item.actions}
                 sectionKey="pending_verifications"
                 onActionDone={refreshSection}
@@ -156,17 +170,14 @@ export function OpsBoard({
         description="Upcoming classes in the next 30 minutes that still need check-in."
         emptyText="No upcoming check-in tasks."
       >
-        {data.starting_soon.length ? (
-          <div className="grid gap-2">
-            {data.starting_soon.map((item) => (
-              <OpsItemRow
-                key={item.id}
-                primary={item.primary_label}
-                secondary={toBusinessCopy(item.secondary_label)}
-                bookingStatus={item.booking_status ?? "booked"}
-                actions={item.actions}
-                sectionKey="starting_soon"
-                onActionDone={refreshSection}
+        {data.starting_soon_grouped.length ? (
+          <div className="grid gap-4">
+            {data.starting_soon_grouped.map((group) => (
+              <OpsSessionGroup
+                key={group.session_id}
+                group={group}
+                scheduleHref={`/dashboard/schedule?${qs}`}
+                onCheckInDone={() => void refreshSection("starting_soon")}
               />
             ))}
           </div>
@@ -181,13 +192,37 @@ export function OpsBoard({
         description="Transfers with mismatch, missing reference, or manual review flags."
         emptyText="No payments to review."
       >
+        <div className="mb-2 flex flex-wrap gap-2">
+          {[
+            { key: "all", label: "All" },
+            { key: "amount_mismatch", label: "Amount mismatch" },
+            { key: "missing_reference", label: "Missing reference" },
+            { key: "manual_review", label: "Manual review" },
+          ].map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              className={
+                reviewFilter === opt.key
+                  ? ui.btnPrimarySm
+                  : ui.btnSecondarySm
+              }
+              onClick={() => setReviewFilter(opt.key as typeof reviewFilter)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         {data.payment_exceptions.length ? (
           <div className="grid gap-2">
-            {data.payment_exceptions.map((item) => (
+            {data.payment_exceptions
+              .filter((item) => reviewFilter === "all" || item.exception_code === reviewFilter)
+              .map((item) => (
               <OpsItemRow
                 key={item.id}
                 primary={item.primary_label}
                 secondary={toBusinessCopy(item.secondary_label)}
+                exceptionCode={item.exception_code ?? null}
                 reconStatus={item.recon_status ?? "manual_review"}
                 actions={item.actions}
                 sectionKey="payment_exceptions"
@@ -215,6 +250,7 @@ export function OpsBoard({
                 secondary={toBusinessCopy(item.secondary_label)}
                 paymentStatus={item.payment_status ?? null}
                 reconStatus={item.recon_status ?? null}
+                exceptionCode={item.exception_code ?? null}
                 actions={item.actions}
                 sectionKey="unmatched_payments"
                 onActionDone={refreshSection}

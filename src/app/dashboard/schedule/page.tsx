@@ -107,7 +107,7 @@ export default async function SchedulePage({ searchParams }: Props) {
           <input type="hidden" name="studio_id" value={activeStudioId} />
           <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Cancel cutoff (hours)</span>
+            <span className={ui.label}>Free cancellation window (hours before class)</span>
             <input
               type="number"
               min={0}
@@ -115,9 +115,10 @@ export default async function SchedulePage({ searchParams }: Props) {
               defaultValue={activeRules?.cancel_cutoff_hours ?? 12}
               className={ui.input}
             />
+            <span className={`text-xs ${ui.muted}`}>If cancelled inside this window, it counts as late cancel.</span>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>No-show buffer (minutes)</span>
+            <span className={ui.label}>No-show grace period (minutes after class starts)</span>
             <input
               type="number"
               min={0}
@@ -125,9 +126,10 @@ export default async function SchedulePage({ searchParams }: Props) {
               defaultValue={activeRules?.no_show_buffer_min ?? 15}
               className={ui.input}
             />
+            <span className={`text-xs ${ui.muted}`}>After this, un-checked-in bookings can be marked as no-show.</span>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Max active bookings / member</span>
+            <span className={ui.label}>Max active bookings per member</span>
             <input
               type="number"
               min={1}
@@ -135,9 +137,10 @@ export default async function SchedulePage({ searchParams }: Props) {
               defaultValue={activeRules?.max_active_bookings_per_client ?? 3}
               className={ui.input}
             />
+            <span className={`text-xs ${ui.muted}`}>Blocks over-booking by the same member.</span>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Max weekly late-cancel/no-show</span>
+            <span className={ui.label}>Max weekly late cancel / no-show before block</span>
             <input
               type="number"
               min={0}
@@ -145,6 +148,7 @@ export default async function SchedulePage({ searchParams }: Props) {
               defaultValue={activeRules?.max_weekly_late_cancel ?? 2}
               className={ui.input}
             />
+            <span className={`text-xs ${ui.muted}`}>Member can be blocked from new bookings after reaching this limit.</span>
           </label>
           <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
             <input
@@ -152,7 +156,7 @@ export default async function SchedulePage({ searchParams }: Props) {
               name="late_cancel_deduct_credit"
               defaultChecked={activeRules?.late_cancel_deduct_credit ?? true}
             />
-            Late cancel deducts credit
+            Deduct 1 credit for late cancel
           </label>
           <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
             <input
@@ -160,7 +164,7 @@ export default async function SchedulePage({ searchParams }: Props) {
               name="no_show_deduct_credit"
               defaultChecked={activeRules?.no_show_deduct_credit ?? true}
             />
-            No-show deducts credit
+            Deduct 1 credit for no-show
           </label>
           <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300 md:col-span-2">
             <input
@@ -170,6 +174,10 @@ export default async function SchedulePage({ searchParams }: Props) {
             />
             Allow waitlist
           </label>
+          <div className="md:col-span-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-300">
+            Example: Class starts at 7:00 PM. With 12h cancellation window, cancelling at 10:00 AM is free; cancelling at
+            6:00 PM is late cancel.
+          </div>
           <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Saving...">
             Save booking rules
           </SubmitButton>

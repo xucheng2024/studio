@@ -37,12 +37,15 @@ export async function sendPaymentInvoice(paymentId: string) {
   if (payment.status !== "paid") throw new Error("invoice_requires_paid_status");
   if (!payment.studio_id) throw new Error("invoice_missing_studio");
 
+  /** Primary assignment happens in /api/payment/mark; this is fallback for legacy rows or edge cases. */
   let invoiceNumber = payment.invoice_number;
   if (!invoiceNumber) {
     const { data: assigned, error: assignError } = await admin.rpc("assign_payment_invoice_number", {
       p_payment_id: paymentId,
     });
-    if (assignError || !assigned) throw new Error(assignError?.message ?? "invoice_assign_failed");
+    if (assignError || assigned == null || String(assigned).trim() === "") {
+      throw new Error(assignError?.message ?? "invoice_assign_failed");
+    }
     invoiceNumber = String(assigned);
   }
 
@@ -98,10 +101,7 @@ export async function sendPaymentInvoice(paymentId: string) {
     pdfBase64: Buffer.from(pdfBuffer).toString("base64"),
   });
 
-  await admin
-    .from("payments")
-    .update({ invoice_number: invoiceNumber, invoice_sent_at: new Date().toISOString() })
-    .eq("id", paymentId);
+  await admin.from("payments").update({ invoice_sent_at: new Date().toISOString() }).eq("id", paymentId);
 
   return { invoiceNumber, toEmail };
 }

@@ -36,6 +36,9 @@ export function OpsItemRow({
   bookingStatus,
   paymentStatus,
   reconStatus,
+  exceptionCode,
+  waitMinutes,
+  overdue,
   actions,
   sectionKey,
   onActionDone,
@@ -45,6 +48,9 @@ export function OpsItemRow({
   bookingStatus?: string | null;
   paymentStatus?: string | null;
   reconStatus?: string | null;
+  exceptionCode?: string | null;
+  waitMinutes?: number;
+  overdue?: boolean;
   actions: Action[];
   sectionKey: "pending_verifications" | "starting_soon" | "payment_exceptions" | "unmatched_payments";
   onActionDone?: (section: "pending_verifications" | "starting_soon" | "payment_exceptions" | "unmatched_payments") => void;
@@ -56,6 +62,19 @@ export function OpsItemRow({
   });
   const primaryActions = actions.slice(0, 2);
   const moreActions = actions.slice(2);
+
+  const reasonText =
+    exceptionCode === "amount_mismatch"
+      ? "Amount mismatch"
+      : exceptionCode === "missing_reference"
+        ? "Missing reference"
+        : exceptionCode === "manual_review"
+          ? "Manual review"
+          : exceptionCode === "verification_sla_overdue"
+            ? "Confirmation overdue"
+            : exceptionCode === "unmatched_payment"
+              ? "No booking linked"
+              : null;
 
   return (
     <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
@@ -75,6 +94,22 @@ export function OpsItemRow({
         {reconStatus ? (
           <span className={`rounded-full px-2 py-0.5 text-[11px] ${badgeToneClass(badges.recon.tone)}`}>
             {badges.recon.text}
+          </span>
+        ) : null}
+        {reasonText ? (
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+            {reasonText}
+          </span>
+        ) : null}
+        {typeof waitMinutes === "number" ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] ${
+              overdue
+                ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200"
+            }`}
+          >
+            Waiting {waitMinutes}m
           </span>
         ) : null}
       </div>

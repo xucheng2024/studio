@@ -297,13 +297,24 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <p className={ui.muted}>Client: {clientLabel}</p>
                   <p className={ui.muted}>Ref: <span className={ui.code}>{p.reference_code ?? "-"}</span></p>
                   <p className={ui.muted}>Review status: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
-                  {p.invoice_number ? (
-                    <p className={ui.muted}>
-                      Invoice: <span className={ui.code}>{p.invoice_number}</span>
-                      {p.invoice_sent_at
-                        ? ` · sent ${new Date(p.invoice_sent_at).toLocaleString()}`
-                        : " · not sent yet"}
-                    </p>
+                  {p.status === "paid" ? (
+                    <div className="space-y-0.5">
+                      {p.invoice_number ? (
+                        <p className={ui.muted}>
+                          Invoice: <span className={ui.code}>{p.invoice_number}</span>
+                          {p.invoice_sent_at
+                            ? ` · sent ${new Date(p.invoice_sent_at).toLocaleString()}`
+                            : " · not sent yet"}
+                        </p>
+                      ) : (
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                          Invoice number missing — run migration 022 backfill or contact support.
+                        </p>
+                      )}
+                      <p className={`text-[11px] ${ui.muted}`}>
+                        Invoice number is assigned when staff confirms payment (Mark paid).
+                      </p>
+                    </div>
                   ) : null}
                   {p.recon_note ? <p className={ui.muted}>Review note: {p.recon_note}</p> : null}
                   <p className={ui.muted}>Created: {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</p>
