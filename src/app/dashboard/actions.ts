@@ -73,6 +73,18 @@ export async function createStudio(formData: FormData): Promise<void> {
     return;
   }
 
+  if (!access.ctx.isSuperAdmin) {
+    const admin = createAdminClient();
+    const { data: grant } = await admin
+      .from("platform_owner_grants")
+      .select("is_active")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!grant?.is_active) {
+      redirect("/dashboard/overview?create_error=owner_grant_required");
+    }
+  }
+
   const name = String(formData.get("name") ?? "").trim();
   const slugRaw = String(formData.get("public_slug") ?? "");
   const public_slug = normalizeStudioSlug(slugRaw);
@@ -775,59 +787,6 @@ export async function toggleStaffMembership(formData: FormData): Promise<void> {
     .eq("id", membership.id);
 
   revalidatePath("/dashboard/staff");
-}
-
-export async function grantOwnerAccessByEmail(formData: FormData): Promise<void> {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const { user } = await requireUser();
-  if (!isSuperAdminEmail(user.email)) {
-    redirect("/dashboard/settings?owner_error=forbidden");
-  }
-  if (!email) {
-    redirect("/dashboard/settings/owners?owner_error=invalid_email");
-  }
-
-  const admin = createAdminClient();
-  const { data: target } = await admin.from("users").select("id").eq("email", email).maybeSingle();
-  if (!target?.id) {
-    redirect("/dashboard/settings/owners?owner_error=email_not_registered");
-  }
-
-  const { error } = await admin
-    .from("platform_owner_grants")
-    .upsert({ user_id: target.id, is_active: true, created_by: user.id }, { onConflict: "user_id" });
-  if (error) {
-    redirect("/dashboard/settings/owners?owner_error=save_failed");
-  }
-  revalidatePath("/dashboard/settings/owners");
-  redirect("/dashboard/settings/owners?owner_success=granted");
-}
-
-export async function setPlatformOwnerGrantActive(formData: FormData): Promise<void> {
-  const userId = String(formData.get("user_id") ?? "").trim();
-  const nextActive = String(formData.get("is_active") ?? "").trim() === "true";
-  const { user } = await requireUser();
-  if (!isSuperAdminEmail(user.email)) {
-    redirect("/dashboard/settings/owners?owner_error=forbidden");
-  }
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!userId || !uuidRe.test(userId)) {
-    redirect("/dashboard/settings/owners?owner_error=invalid_user");
-  }
-
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("platform_owner_grants")
-    .update({ is_active: nextActive })
-    .eq("user_id", userId)
-    .select("user_id");
-  if (error || !data?.length) {
-    redirect("/dashboard/settings/owners?owner_error=save_failed");
-  }
-  revalidatePath("/dashboard/settings/owners");
-  redirect("/dashboard/settings/owners?owner_grant_updated=1");
 }
 
 export async function createStaffInvite(formData: FormData): Promise<void> {
