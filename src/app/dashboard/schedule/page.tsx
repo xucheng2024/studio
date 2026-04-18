@@ -10,7 +10,14 @@ import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
+type Props = {
+  searchParams: Promise<{
+    location_id?: string;
+    studio_id?: string;
+    session_status?: "all" | "scheduled" | "cancelled";
+    q?: string;
+  }>;
+};
 
 export default async function SchedulePage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -92,6 +99,38 @@ export default async function SchedulePage({ searchParams }: Props) {
   const { data: activeRules } = selectedLocationId
     ? await rulesQuery.eq("location_id", selectedLocationId).maybeSingle()
     : await rulesQuery.is("location_id", null).maybeSingle();
+  const sessionStatusFilter = sp.session_status ?? "all";
+  const keyword = (sp.q ?? "").trim().toLowerCase();
+  const sessionRows = sessions ?? [];
+  const filteredSessions = sessionRows.filter((s) => {
+    const status = (s as { status?: string | null }).status ?? "scheduled";
+    if (sessionStatusFilter !== "all" && status !== sessionStatusFilter) return false;
+    if (!keyword) return true;
+    const cls = s.classes as { title?: string } | null;
+    const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
+    const locationName = Array.isArray(loc) ? loc[0]?.name ?? "" : loc?.name ?? "";
+    const bookings = (s.bookings ?? []) as Array<{
+      guest_name?: string | null;
+      guest_email?: string | null;
+      users?: { email?: string | null } | null;
+    }>;
+    const bookingFields = bookings.flatMap((b) => [b.guest_name, b.guest_email, b.users?.email]);
+    return [cls?.title, locationName, ...bookingFields]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(keyword));
+  });
+  const scheduledCount = sessionRows.filter((s) => ((s as { status?: string }).status ?? "scheduled") === "scheduled").length;
+  const cancelledCount = sessionRows.filter((s) => ((s as { status?: string }).status ?? "scheduled") === "cancelled").length;
+  const bookingCount = sessionRows.reduce((acc, s) => {
+    const bookings = (s.bookings ?? []) as Array<{ status?: string | null }>;
+    return (
+      acc +
+      bookings.filter((b) => {
+        const st = b.status ?? "";
+        return st === "booked" || st === "pending";
+      }).length
+    );
+  }, 0);
 
   return (
     <div className="flex flex-col gap-10">
@@ -106,9 +145,26 @@ export default async function SchedulePage({ searchParams }: Props) {
             Manage packages
           </DashboardAppLink>
         </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Visible sessions</p>
+            <p className="mt-1 text-xl font-semibold">{sessionRows.length}</p>
+          </div>
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Scheduled / cancelled</p>
+            <p className="mt-1 text-xl font-semibold">
+              {scheduledCount} / {cancelledCount}
+            </p>
+          </div>
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Active bookings</p>
+            <p className="mt-1 text-xl font-semibold">{bookingCount}</p>
+          </div>
+        </div>
         <details className={`${ui.card} mt-8 max-w-xl`} id="booking-rules">
-          <summary className="cursor-pointer list-none text-base font-semibold text-stone-900 dark:text-stone-100">
-            Booking rules
+          <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
+            <span>Booking rules</span>
+            <span className={`text-xs font-normal ${ui.muted}`}>Expand settings</span>
           </summary>
           <p className={`mt-1 text-xs ${ui.muted}`}>Low-frequency settings. Open only when updating policy.</p>
           <form action={saveBookingRules} className="mt-4 grid gap-4 md:grid-cols-2">
@@ -209,8 +265,9 @@ export default async function SchedulePage({ searchParams }: Props) {
         </form>
 
         <details className={`${ui.card} mt-8 max-w-xl`} id="recurring-schedule">
-          <summary className="cursor-pointer list-none text-base font-semibold text-stone-900 dark:text-stone-100">
-            Recurring weekly schedule
+          <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
+            <span>Recurring weekly schedule</span>
+            <span className={`text-xs font-normal ${ui.muted}`}>Expand advanced</span>
           </summary>
           <p className={`mt-1 text-xs ${ui.muted}`}>Advanced setup. Use when you need auto-generated sessions.</p>
           <form action={createRecurringRule} className="mt-4 grid gap-4 md:grid-cols-2">
@@ -260,8 +317,32 @@ export default async function SchedulePage({ searchParams }: Props) {
 
       <div>
         <h2 className={ui.h2}>Upcoming sessions</h2>
+        <form method="get" className={`${ui.card} mt-4 grid gap-3 sm:grid-cols-3`}>
+          {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
+          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Session status</span>
+            <select name="session_status" className={ui.select} defaultValue={sessionStatusFilter}>
+              <option value="all">All</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Search class / member / location</span>
+            <input name="q" className={ui.input} defaultValue={sp.q ?? ""} placeholder="Yoga Flow, alice@mail..." />
+          </label>
+          <div className="flex items-end gap-2">
+            <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
+              Apply
+            </SubmitButton>
+            <DashboardAppLink href={`/dashboard/schedule?${scopeParams.toString()}`} className={ui.btnGhost}>
+              Reset
+            </DashboardAppLink>
+          </div>
+        </form>
         <ul className="mt-4 flex flex-col gap-4">
-          {(sessions ?? []).map((s) => {
+          {filteredSessions.map((s) => {
             const cls = s.classes as { title?: string } | null;
             const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
             const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
@@ -274,6 +355,7 @@ export default async function SchedulePage({ searchParams }: Props) {
               guest_email?: string | null;
               users?: { email?: string | null } | null;
             }[];
+            const activeBookingCount = bookings.filter((b) => b.status === "booked" || b.status === "pending").length;
             return (
               <li key={s.id} className={ui.card}>
                 <div className="flex flex-wrap justify-between gap-4">
@@ -296,7 +378,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                       {new Date(s.end_time).toLocaleString()}
                     </p>
                     <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
-                      {s.spots_left} spots left
+                      {s.spots_left} spots left · {activeBookingCount} active bookings
                     </p>
                   </div>
                   <CancelSessionButton
@@ -331,13 +413,14 @@ export default async function SchedulePage({ searchParams }: Props) {
                       ) : null}
                     </li>
                   ))}
+                  {!bookings.length ? <li className={ui.muted}>No bookings yet.</li> : null}
                 </ul>
               </li>
             );
           })}
         </ul>
-        {!sessions?.length ? (
-          <p className={`mt-4 text-sm ${ui.muted}`}>No sessions scheduled.</p>
+        {!filteredSessions.length ? (
+          <p className={`mt-4 text-sm ${ui.muted}`}>No upcoming sessions match this filter.</p>
         ) : null}
       </div>
     </div>
