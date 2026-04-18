@@ -19,7 +19,6 @@ export default async function CheckoutPage() {
       credits,
       price,
       expiry_days,
-      is_drop_in,
       studios (
         name,
         paynow_enabled,
@@ -30,6 +29,7 @@ export default async function CheckoutPage() {
       )
     `,
     )
+    .eq("is_active", true)
     .order("price", { ascending: true });
 
   return (
@@ -84,7 +84,6 @@ export default async function CheckoutPage() {
                 <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
                 <p className={`mt-0.5 text-sm ${ui.muted}`}>
                   {studio} · {p.credits} credits · ${p.price}
-                  {p.is_drop_in ? " · drop-in template" : ""}
                 </p>
                 <p className={`mt-1 text-xs ${ui.muted}`}>
                   Expiry:{" "}

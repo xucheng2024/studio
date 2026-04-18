@@ -72,6 +72,8 @@ export default async function SchedulePage({ searchParams }: Props) {
       end_time,
       spots_left,
       status,
+      guest_price,
+      credits_required,
       location_id,
       classes!inner ( title, studio_id ),
       locations ( id, name ),
@@ -259,6 +261,14 @@ export default async function SchedulePage({ searchParams }: Props) {
             <span className={ui.label}>Start</span>
             <input name="start_time" type="datetime-local" required className={ui.input} />
           </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Guest price (single visit)</span>
+            <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} required className={ui.input} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Credits required</span>
+            <input name="credits_required" type="number" min={1} step="1" defaultValue={1} required className={ui.input} />
+          </label>
           <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
             Create session
           </SubmitButton>
@@ -307,6 +317,14 @@ export default async function SchedulePage({ searchParams }: Props) {
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Capacity</span>
               <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Guest price (single visit)</span>
+              <input type="number" name="guest_price" defaultValue={25} min={0} step="0.01" className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Credits required</span>
+              <input type="number" name="credits_required" defaultValue={1} min={1} step="1" className={ui.input} />
             </label>
             <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Creating...">
               Create recurring rule (8 weeks)
@@ -379,6 +397,9 @@ export default async function SchedulePage({ searchParams }: Props) {
                     </p>
                     <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
                       {s.spots_left} spots left · {activeBookingCount} active bookings
+                    </p>
+                    <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                      Single visit: ${Number(s.guest_price ?? 0).toFixed(2)} · Credits required: {Number(s.credits_required ?? 1)}
                     </p>
                   </div>
                   <CancelSessionButton

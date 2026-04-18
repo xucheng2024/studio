@@ -79,10 +79,10 @@ export function BuySingleButton({ sessionId }: { sessionId: string }) {
             return;
           }
           router.refresh();
-          setMsg("Drop-in added");
+          setMsg("Single visit added");
         }}
       >
-        {loading ? "…" : "Buy drop-in"}
+        {loading ? "…" : "Buy single visit"}
       </button>
       {msg ? <span className={`text-xs ${ui.muted}`}>{msg}</span> : null}
     </div>

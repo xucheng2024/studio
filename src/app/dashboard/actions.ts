@@ -415,7 +415,11 @@ export async function createSession(formData: FormData): Promise<void> {
 
   const class_id = String(formData.get("class_id") ?? "");
   const start = String(formData.get("start_time") ?? "");
+  const guest_price = Number(formData.get("guest_price") ?? 0);
+  const credits_required = Number(formData.get("credits_required") ?? 1);
   if (!class_id || !start) return;
+  if (!Number.isFinite(guest_price) || guest_price < 0) return;
+  if (!Number.isFinite(credits_required) || credits_required <= 0) return;
 
   const { data: cls, error: cErr } = await supabase
     .from("classes")
@@ -438,6 +442,8 @@ export async function createSession(formData: FormData): Promise<void> {
     start_time: startDate.toISOString(),
     end_time: endDate.toISOString(),
     capacity: cls.capacity,
+    guest_price,
+    credits_required: Math.floor(credits_required),
     status: "scheduled",
     spots_left: cls.capacity,
   });
@@ -469,7 +475,6 @@ export async function createPackage(formData: FormData): Promise<void> {
     expiry_days_raw === "" || expiry_days_raw === null
       ? null
       : Number(expiry_days_raw);
-  const is_drop_in = formData.get("is_drop_in") === "on";
 
   if (!name) return;
   if (!Number.isFinite(credits) || credits <= 0) return;
@@ -482,8 +487,7 @@ export async function createPackage(formData: FormData): Promise<void> {
     credits,
     price,
     expiry_days: expiry_days != null && Number.isFinite(expiry_days) ? expiry_days : null,
-    is_drop_in,
-    type: is_drop_in ? "single" : "class_pack",
+    type: "class_pack",
   });
   if (error) {
     console.error(error.message);
@@ -544,9 +548,13 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
   const startTime = String(formData.get("start_time") ?? "");
   const duration = Number(formData.get("duration_min") ?? 60);
   const capacity = Number(formData.get("capacity") ?? 10);
+  const guestPrice = Number(formData.get("guest_price") ?? 0);
+  const creditsRequired = Number(formData.get("credits_required") ?? 1);
 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !locationId || !classId || !startDate || !startTime) return;
+  if (!Number.isFinite(guestPrice) || guestPrice < 0) return;
+  if (!Number.isFinite(creditsRequired) || creditsRequired <= 0) return;
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
@@ -617,6 +625,8 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
           start_time: st.toISOString(),
           end_time: en.toISOString(),
           capacity,
+        guest_price: guestPrice,
+        credits_required: Math.floor(creditsRequired),
           spots_left: capacity,
           status: "scheduled",
           recurring_rule_id: rule.id,

@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     .select(
       `
       id,
+      guest_price,
       classes ( studio_id )
     `,
     )
@@ -49,15 +50,7 @@ export async function POST(req: Request) {
   const blockedCheckout = await respondIfStudioContractSuspended(admin, studioId);
   if (blockedCheckout) return blockedCheckout;
 
-  const { data: dropIn } = await admin
-    .from("packages")
-    .select("price")
-    .eq("studio_id", studioId)
-    .eq("is_drop_in", true)
-    .limit(1)
-    .maybeSingle();
-
-  const amount = dropIn?.price ?? 25;
+  const amount = Number(session.guest_price ?? 0);
 
   const { data: payment, error: pErr } = await admin
     .from("payments")

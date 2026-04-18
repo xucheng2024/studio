@@ -9,12 +9,16 @@ type Pack = { id: string; name: string; credits_left: number; expiry_date: strin
 export function PackageBookButton({
   sessionId,
   packages,
+  creditsRequired = 1,
 }: {
   sessionId: string;
   packages: Pack[];
+  creditsRequired?: number;
 }) {
   const router = useRouter();
-  const [selected, setSelected] = useState(packages[0]?.id ?? "");
+  const [selected, setSelected] = useState(
+    packages.find((p) => p.credits_left >= creditsRequired)?.id ?? packages[0]?.id ?? "",
+  );
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const toFriendly = (code: string) => {
@@ -25,6 +29,7 @@ export function PackageBookButton({
     }
     if (code === "active_booking_limit_exceeded") return "You already have several active bookings.";
     if (code === "late_cancel_limit_exceeded") return "Please contact frontdesk before booking again.";
+    if (code === "insufficient_credits") return `Not enough credits for this class (${creditsRequired} required).`;
     return "Could not book with this package.";
   };
 
@@ -38,14 +43,16 @@ export function PackageBookButton({
         className={`${ui.select} w-full sm:w-64`}
       >
         {packages.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name} · {p.credits_left} left · {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString() : "no expiry"}
+          <option key={p.id} value={p.id} disabled={p.credits_left < creditsRequired}>
+            {p.name} · {p.credits_left} left · need {creditsRequired}
+            {" · "}
+            {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString() : "no expiry"}
           </option>
         ))}
       </select>
       <button
         type="button"
-        disabled={busy || !selected}
+        disabled={busy || !selected || !packages.some((p) => p.id === selected && p.credits_left >= creditsRequired)}
         className={`${ui.btnSecondarySm} w-full disabled:opacity-50 sm:w-auto`}
         onClick={async () => {
           setBusy(true);

@@ -87,6 +87,8 @@ export default async function StudioBookingPage({ params }: Props) {
           start_time,
           end_time,
           spots_left,
+          guest_price,
+          credits_required,
           classes!inner ( title, studio_id )
         `,
           )
@@ -146,6 +148,8 @@ export default async function StudioBookingPage({ params }: Props) {
           const cls = s.classes as { title?: string } | null;
           const title = cls?.title ?? "Class";
           const start = new Date(s.start_time).toLocaleString();
+          const creditsRequired = Number(s.credits_required ?? 1);
+          const hasEligiblePack = userPacks.some((p) => p.credits_left >= creditsRequired);
           return (
             <li
               key={s.id}
@@ -157,12 +161,18 @@ export default async function StudioBookingPage({ params }: Props) {
                 <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
                   {s.spots_left} spots left
                 </p>
+                <p className={`mt-1 text-xs ${ui.muted}`}>
+                  Guest: ${Number(s.guest_price ?? 0).toFixed(2)} · Member: {creditsRequired} credits
+                </p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 {user ? (
                   <div className="flex flex-wrap justify-end gap-2">
-                    <PackageBookButton sessionId={s.id} packages={userPacks} />
+                    <PackageBookButton sessionId={s.id} packages={userPacks} creditsRequired={creditsRequired} />
                     <BookButton sessionId={s.id} disabled={!paynow.configured} />
+                    {!hasEligiblePack ? (
+                      <span className="w-full text-right text-xs text-amber-700 dark:text-amber-300">Not enough credits.</span>
+                    ) : null}
                   </div>
                 ) : (
                   <QuickBookPanel slug={slug} sessionId={s.id} disabled={!paynow.configured} />

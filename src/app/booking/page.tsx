@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { BookButton } from "@/components/BookButton";
 import { PackageBookButton } from "@/components/PackageBookButton";
+import { QuickBookPanel } from "@/components/QuickBookPanel";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import { getPaynowSummary } from "@/lib/paynow";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -44,12 +46,14 @@ export default async function BookingPage() {
       location_id,
       start_time,
       end_time,
-      spots_left,
-      classes (
-        studio_id,
-        title,
-        studios ( name, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name )
-      )
+          spots_left,
+          guest_price,
+          credits_required,
+          classes (
+            studio_id,
+            title,
+            studios ( name, public_slug, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name )
+          )
     `,
     )
     .gte("start_time", new Date().toISOString())
@@ -115,6 +119,7 @@ export default async function BookingPage() {
               | {
                   name?: string;
                   paynow_enabled?: boolean;
+                  public_slug?: string | null;
                   paynow_proxy_type?: string | null;
                   paynow_uen?: string | null;
                   paynow_mobile?: string | null;
@@ -122,6 +127,7 @@ export default async function BookingPage() {
                 }
               | {
                   name?: string;
+                  public_slug?: string | null;
                   paynow_enabled?: boolean;
                   paynow_proxy_type?: string | null;
                   paynow_uen?: string | null;
@@ -140,6 +146,9 @@ export default async function BookingPage() {
             paynow_payee_name: studioRow?.paynow_payee_name ?? null,
           });
           const start = new Date(s.start_time).toLocaleString();
+          const creditsRequired = Number(s.credits_required ?? 1);
+          const hasEligiblePack = userPacks.some((p) => p.credits_left >= creditsRequired);
+          const studioSlug = normalizeStudioSlug(studioRow?.public_slug ?? "");
           const scopedRule =
             (cls?.studio_id
               ? ruleMap.get(`${cls.studio_id}:${s.location_id ?? "global"}`) ??
@@ -155,6 +164,9 @@ export default async function BookingPage() {
                 <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
                   {s.spots_left} spots left
                 </p>
+                <p className={`mt-1 text-xs ${ui.muted}`}>
+                  Guest: ${Number(s.guest_price ?? 0).toFixed(2)} · Member: {creditsRequired} credits
+                </p>
                 {scopedRule ? (
                   <p className={`mt-1 text-xs ${ui.muted}`}>
                     Policy: cancel at least {scopedRule.cancel_cutoff_hours ?? 12}h before class for free.
@@ -168,10 +180,17 @@ export default async function BookingPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {user ? (
                   <>
-                    <PackageBookButton sessionId={s.id} packages={userPacks} />
+                    <PackageBookButton sessionId={s.id} packages={userPacks} creditsRequired={creditsRequired} />
+                    {!hasEligiblePack ? (
+                      <span className="text-xs text-amber-700 dark:text-amber-300">Not enough credits for this session.</span>
+                    ) : null}
                     <BookButton sessionId={s.id} disabled={!paynow.configured} />
                   </>
-                ) : null}
+                ) : studioSlug ? (
+                  <QuickBookPanel slug={studioSlug} sessionId={s.id} disabled={!paynow.configured} />
+                ) : (
+                  <span className={`text-xs ${ui.error}`}>Studio booking link unavailable.</span>
+                )}
               </div>
             </li>
           );

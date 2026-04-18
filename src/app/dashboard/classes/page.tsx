@@ -1,4 +1,5 @@
 import { createClassTemplate, createInstructor } from "@/app/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
@@ -55,12 +56,21 @@ export default async function ClassesPage({ searchParams }: Props) {
   const { data: classes } = await classesQuery;
 
   const studioId = instructors?.[0]?.studio_id ?? classes?.[0]?.studio_id ?? studioIds[0];
+  const backParams = new URLSearchParams();
+  if (selectedStudioId) backParams.set("studio_id", selectedStudioId);
+  if (selectedLocationId) backParams.set("location_id", selectedLocationId);
+  const backHref = `/dashboard/schedule${backParams.toString() ? `?${backParams.toString()}` : ""}`;
 
   return (
     <div className="flex flex-col gap-12">
       <div>
         <h1 className={ui.h1}>Classes</h1>
         <p className={`mt-1 ${ui.muted}`}>Instructors and reusable class templates.</p>
+        <div className="mt-3">
+          <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
+            Back to schedule
+          </DashboardAppLink>
+        </div>
 
         <h2 className={`${ui.h2} mt-8`}>Instructors</h2>
         <form

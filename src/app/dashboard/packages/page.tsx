@@ -1,4 +1,5 @@
 import { createPackage } from "@/app/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
@@ -31,22 +32,30 @@ export default async function PackagesPage({ searchParams }: Props) {
 
   let packagesQuery = supabase
     .from("packages")
-    .select("id, name, credits, price, expiry_days, is_drop_in, studio_id, location_id")
+    .select("id, name, credits, price, expiry_days, studio_id, location_id")
     .in("studio_id", studioIds)
     .order("price");
   if (selectedLocationId) packagesQuery = packagesQuery.eq("location_id", selectedLocationId);
   const { data: packages } = await packagesQuery;
 
   const studioId = packages?.[0]?.studio_id ?? studioIds[0];
+  const backParams = new URLSearchParams();
+  if (selectedStudioId) backParams.set("studio_id", selectedStudioId);
+  if (selectedLocationId) backParams.set("location_id", selectedLocationId);
+  const backHref = `/dashboard/schedule${backParams.toString() ? `?${backParams.toString()}` : ""}`;
 
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h1 className={ui.h1}>Packages</h1>
         <p className={`mt-2 ${ui.lead}`}>
-          Add a drop-in template: name it &quot;Drop-in&quot;, mark drop-in, set price — used for
-          single-visit checkout.
+          Create credit packs for members. Single-visit pricing is now configured per session in Schedule.
         </p>
+        <div className="mt-3">
+          <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
+            Back to schedule
+          </DashboardAppLink>
+        </div>
         <form action={createPackage} className={`${ui.card} mt-6 grid max-w-lg gap-4`}>
           <input type="hidden" name="studio_id" value={studioId} />
           <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
@@ -79,14 +88,6 @@ export default async function PackagesPage({ searchParams }: Props) {
             <span className={ui.label}>Expiry days (empty = none)</span>
             <input name="expiry_days" type="number" min={1} className={ui.input} />
           </label>
-          <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-            <input
-              name="is_drop_in"
-              type="checkbox"
-              className="size-4 rounded border-stone-300 text-teal-600 focus:ring-teal-500"
-            />
-            Drop-in template
-          </label>
           <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Saving...">
             Save package
           </SubmitButton>
@@ -97,10 +98,7 @@ export default async function PackagesPage({ searchParams }: Props) {
         {(packages ?? []).map((p) => (
           <li key={p.id} className={ui.card}>
             <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
-            <p className={`mt-1 text-sm ${ui.muted}`}>
-              {p.credits} credits · ${p.price}
-              {p.is_drop_in ? " · drop-in" : ""}
-            </p>
+            <p className={`mt-1 text-sm ${ui.muted}`}>{p.credits} credits · ${p.price}</p>
           </li>
         ))}
       </ul>

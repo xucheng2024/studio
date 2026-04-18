@@ -46,6 +46,8 @@ export async function POST(req: Request) {
       id,
       spots_left,
       location_id,
+      guest_price,
+      credits_required,
       classes (
         studio_id,
         studios ( public_slug )
@@ -87,14 +89,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
   }
 
-  const { data: dropIn } = await admin
-    .from("packages")
-    .select("price")
-    .eq("studio_id", studioId)
-    .eq("is_drop_in", true)
-    .limit(1)
-    .maybeSingle();
-  const amount = Number(dropIn?.price ?? 25);
+  const amount = Number(session.guest_price ?? 0);
   const { data: studioPaynow } = await admin
     .from("studios")
     .select(
@@ -137,7 +132,13 @@ export async function POST(req: Request) {
   if (bErr) {
     return NextResponse.json({ error: bErr.message }, { status: 500 });
   }
-  const bookingResult = bookingRpc as { ok?: boolean; error?: string; booking_id?: string };
+  const bookingResult = bookingRpc as {
+    ok?: boolean;
+    error?: string;
+    booking_id?: string;
+    credits_required?: number;
+    guest_price?: number;
+  };
   if (!bookingResult?.ok || !bookingResult.booking_id) {
     return NextResponse.json(
       { error: bookingResult?.error ?? "booking_create_failed" },
@@ -185,5 +186,6 @@ export async function POST(req: Request) {
     reference_code: reference,
     expires_at: expiresAt,
     checkout_url: `/checkout/${payment.id}`,
+    credits_required: Number(bookingResult.credits_required ?? session.credits_required ?? 1),
   });
 }
