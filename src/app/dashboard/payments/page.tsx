@@ -115,7 +115,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -152,7 +152,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     if (!keyword) return true;
     const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
     const c = p.client_id ? clientMap.get(p.client_id) : null;
-    return [p.reference_code, p.recon_note, booking?.guest_email, booking?.guest_name, c]
+    return [p.reference_code, p.recon_note, p.guest_email, p.guest_name, booking?.guest_email, booking?.guest_name, c]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(keyword));
   });
@@ -161,7 +161,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     let allQ = supabase
       .from("payments")
       .select(
-        "id, studio_id, location_id, client_id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
       )
       .in("studio_id", [activeStudioId])
       .order("created_at", { ascending: false })
@@ -194,7 +194,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       if (!keyword) return true;
       const booking = p.booking_id ? allBookingMap.get(p.booking_id) : null;
       const c = p.client_id ? allClientMap.get(p.client_id) : null;
-      return [p.reference_code, p.recon_note, booking?.guest_email, booking?.guest_name, c]
+      return [p.reference_code, p.recon_note, p.guest_email, p.guest_name, booking?.guest_email, booking?.guest_name, c]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(keyword));
     });
@@ -439,7 +439,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             needsReview && nowMs - new Date(p.customer_confirmed_at ?? 0).getTime() > 10 * 60 * 1000;
           const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
-          const clientLabel = clientEmail ?? booking?.guest_email ?? booking?.guest_name ?? p.client_id ?? "-";
+          const clientLabel =
+            clientEmail ??
+            p.guest_email ??
+            p.guest_name ??
+            booking?.guest_email ??
+            booking?.guest_name ??
+            p.client_id ??
+            "-";
           const timeline = (auditMap.get(p.id) ?? []).slice(0, 5);
           return (
             <li

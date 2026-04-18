@@ -423,13 +423,14 @@ export async function createSession(formData: FormData): Promise<void> {
 
   const { data: cls, error: cErr } = await supabase
     .from("classes")
-    .select("id, duration_min, capacity, studio_id, location_id")
+    .select("id, duration_min, capacity, studio_id, location_id, is_active")
     .eq("id", class_id)
     .single();
 
   if (cErr || !cls || cls.studio_id !== studio.id) {
     return;
   }
+  if (cls.is_active === false) return;
   if (locationId && cls.location_id && cls.location_id !== locationId) return;
 
   const startDate = new Date(start);
@@ -560,10 +561,11 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, studio_id, location_id")
+    .select("id, studio_id, location_id, is_active")
     .eq("id", classId)
     .maybeSingle();
   if (!cls || cls.studio_id !== studio.id) return;
+  if (cls.is_active === false) return;
   if (cls.location_id && cls.location_id !== locationId) return;
 
   const { data: rule, error } = await supabase

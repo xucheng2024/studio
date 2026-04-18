@@ -12,6 +12,9 @@ import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
   package_id: z.string().uuid(),
+  guest_name: z.string().max(120).optional(),
+  guest_email: z.string().email().max(320).optional(),
+  guest_phone: z.string().max(40).optional().nullable(),
 });
 
 export async function POST(req: Request) {
@@ -25,19 +28,25 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guestName = parsed.data.guest_name?.trim();
+  const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
+  const guestPhone = parsed.data.guest_phone?.trim() || null;
+  if (!user && (!guestName || !guestEmail)) {
+    return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
   const { data: pkg, error: pkgErr } = await admin
     .from("packages")
-    .select("id, studio_id, name, credits, price, expiry_days")
+    .select("id, studio_id, name, credits, price, expiry_days, is_active")
     .eq("id", parsed.data.package_id)
     .single();
 
   if (pkgErr || !pkg) {
     return NextResponse.json({ error: "package_not_found" }, { status: 404 });
+  }
+  if (pkg.is_active === false) {
+    return NextResponse.json({ error: "package_not_available" }, { status: 409 });
   }
 
   const blockedPkg = await respondIfStudioContractSuspended(admin, pkg.studio_id);
@@ -77,7 +86,10 @@ export async function POST(req: Request) {
       booking_id: null,
       package_id: pkg.id,
       studio_id: pkg.studio_id,
-      client_id: user.id,
+      client_id: user?.id ?? null,
+      guest_name: user ? null : guestName ?? null,
+      guest_email: user ? null : guestEmail ?? null,
+      guest_phone: user ? null : guestPhone,
       amount: pkg.price,
       currency: "SGD",
       payment_method: "paynow",

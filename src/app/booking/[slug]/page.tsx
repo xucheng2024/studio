@@ -4,6 +4,7 @@ import { BookButton } from "@/components/BookButton";
 import { PackageBookButton } from "@/components/PackageBookButton";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
+import { hasEligiblePackageForSession, sumCreditsInStudio, type MemberPackageForCredits } from "@/lib/memberCredits";
 import { getPaynowSummary } from "@/lib/paynow";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -46,28 +47,33 @@ export default async function StudioBookingPage({ params }: Props) {
   });
 
   let packCredits = 0;
-  let userPacks: { id: string; name: string; credits_left: number; expiry_date: string | null }[] = [];
+  let userPacks: MemberPackageForCredits[] = [];
   if (user) {
     await mergeGuestRecordsForUser(user.id, user.email);
     const { data: packs } = await supabase
       .from("client_packages")
-      .select("id, credits_left, expiry_date, packages!inner(name, studio_id)")
+      .select("id, credits_left, expiry_date, packages!inner(name, studio_id, location_id)")
       .eq("client_id", user.id)
       .eq("packages.studio_id", studio.id)
-      .gt("credits_left", 0);
+      .gt("credits_left", 0)
+      .or(`expiry_date.is.null,expiry_date.gt.${new Date().toISOString()}`);
     userPacks = ((packs ?? []) as {
       id: string;
       credits_left: number;
       expiry_date: string | null;
-      packages?: { name?: string } | { name?: string }[] | null;
-    }[]).map((p) => ({
-      id: p.id,
-      name: (Array.isArray(p.packages) ? p.packages[0]?.name : p.packages?.name) ?? "Package",
-      credits_left: p.credits_left,
-      expiry_date: p.expiry_date,
-    }));
-    packCredits = userPacks.reduce((a, p) => a + p.credits_left, 0);
-
+      packages?: { name?: string; studio_id?: string; location_id?: string | null } | null;
+    }[]).map((p) => {
+      const pkg = Array.isArray(p.packages) ? p.packages[0] : p.packages;
+      return {
+        id: p.id,
+        name: pkg?.name ?? "Package",
+        credits_left: p.credits_left,
+        expiry_date: p.expiry_date,
+        studio_id: pkg?.studio_id ?? studio.id,
+        location_id: pkg?.location_id ?? null,
+      };
+    });
+    packCredits = sumCreditsInStudio(userPacks, studio.id);
   }
 
   const { data: classes } = await supabase
@@ -127,6 +133,10 @@ export default async function StudioBookingPage({ params }: Props) {
               <span className={ui.badge}>
                 {packCredits} credits available
               </span>
+              <p className={`w-full text-xs ${ui.muted}`}>
+                Auto-apply credits (earliest expiry first). Manual package selection is under Advanced on each
+                class.
+              </p>
               <Link href="/checkout" className={ui.link}>
                 Buy credits
               </Link>
@@ -149,7 +159,12 @@ export default async function StudioBookingPage({ params }: Props) {
           const title = cls?.title ?? "Class";
           const start = new Date(s.start_time).toLocaleString();
           const creditsRequired = Number(s.credits_required ?? 1);
-          const hasEligiblePack = userPacks.some((p) => p.credits_left >= creditsRequired);
+          const sessionCreditCtx = {
+            studio_id: studio.id,
+            location_id: s.location_id ?? null,
+            credits_required: creditsRequired,
+          };
+          const hasEligiblePack = hasEligiblePackageForSession(userPacks, sessionCreditCtx);
           return (
             <li
               key={s.id}
@@ -168,10 +183,12 @@ export default async function StudioBookingPage({ params }: Props) {
               <div className="flex flex-col items-end gap-2">
                 {user ? (
                   <div className="flex flex-wrap justify-end gap-2">
-                    <PackageBookButton sessionId={s.id} packages={userPacks} creditsRequired={creditsRequired} />
+                    <PackageBookButton sessionId={s.id} packages={userPacks} session={sessionCreditCtx} />
                     <BookButton sessionId={s.id} disabled={!paynow.configured} />
                     {!hasEligiblePack ? (
-                      <span className="w-full text-right text-xs text-amber-700 dark:text-amber-300">Not enough credits.</span>
+                      <span className="w-full text-right text-xs text-amber-700 dark:text-amber-300">
+                        Not enough credits for this class.
+                      </span>
                     ) : null}
                   </div>
                 ) : (

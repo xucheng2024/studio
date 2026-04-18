@@ -45,6 +45,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     .from("classes")
     .select("id, title, studio_id, location_id")
     .in("studio_id", studioIds)
+    .eq("is_active", true)
     .order("title");
   if (selectedLocationId) classesQuery = classesQuery.eq("location_id", selectedLocationId);
   const { data: classes } = await classesQuery;

@@ -3,12 +3,17 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-/** @deprecated Prefer POST /api/book/member (auto FEFO). This route remains for manual package override. */
-
 const bodySchema = z.object({
   session_id: z.string().uuid(),
-  client_package_id: z.string().uuid(),
 });
+
+type RpcOk = {
+  ok?: boolean;
+  error?: string;
+  booking_id?: string;
+  selected_package_id?: string;
+  credits_required?: number;
+};
 
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
@@ -28,29 +33,30 @@ export async function POST(req: Request) {
     .eq("id", parsed.data.session_id)
     .maybeSingle();
   const cls = sessionRow?.classes as { studio_id?: string } | { studio_id?: string }[] | null;
-  const pkgStudioId = Array.isArray(cls) ? cls[0]?.studio_id : cls?.studio_id;
-  if (pkgStudioId) {
-    const { data: st } = await admin.from("studios").select("contract_status").eq("id", pkgStudioId).maybeSingle();
+  const studioId = Array.isArray(cls) ? cls[0]?.studio_id : cls?.studio_id;
+  if (studioId) {
+    const { data: st } = await admin.from("studios").select("contract_status").eq("id", studioId).maybeSingle();
     if (st?.contract_status === "suspended") {
       return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
     }
   }
 
-  const { data, error } = await admin.rpc("create_package_booking", {
+  const { data, error } = await admin.rpc("create_member_booking_auto", {
     p_session_id: parsed.data.session_id,
     p_client_id: user.id,
-    p_client_package_id: parsed.data.client_package_id,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const r = data as { ok?: boolean; error?: string; booking_id?: string; credits_required?: number };
-  if (!r?.ok) return NextResponse.json({ error: r?.error ?? "package_booking_failed" }, { status: 409 });
-  return NextResponse.json(
-    { ok: true, booking_id: r.booking_id, credits_required: r.credits_required },
-    {
-      headers: {
-        Deprecation: "true",
-        Link: '</api/book/member>; rel="successor-version"',
-      },
-    },
-  );
+
+  const r = data as RpcOk;
+  if (!r?.ok) {
+    const code = r?.error ?? "member_booking_failed";
+    return NextResponse.json({ error: code }, { status: 409 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    booking_id: r.booking_id,
+    selected_package_id: r.selected_package_id,
+    credits_required: r.credits_required,
+  });
 }

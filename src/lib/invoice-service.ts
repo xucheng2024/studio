@@ -25,6 +25,8 @@ export async function sendPaymentInvoice(paymentId: string) {
       status,
       type,
       reference_code,
+      guest_name,
+      guest_email,
       created_at,
       verified_at,
       invoice_number,
@@ -56,6 +58,8 @@ export async function sendPaymentInvoice(paymentId: string) {
   let customerName = "Member";
   let toEmail: string | null = null;
   let lineItem = payment.type === "package" ? "Package purchase" : "Class booking";
+  if (payment.guest_name) customerName = payment.guest_name;
+  if (payment.guest_email) toEmail = payment.guest_email;
   if (payment.client_id) {
     const { data: u } = await admin.from("users").select("email").eq("id", payment.client_id).maybeSingle();
     if (u?.email) {

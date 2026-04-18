@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = requestUrl.searchParams.get("next") ?? "/post-auth";
-  const safeNext = next.startsWith("/") ? next : "/post-auth";
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/post-auth";
 
   const redirectUrl = new URL(safeNext, request.url);
   const response = NextResponse.redirect(redirectUrl);
