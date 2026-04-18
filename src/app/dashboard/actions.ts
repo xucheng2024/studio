@@ -174,9 +174,11 @@ export async function updateStudioPaynowSettings(formData: FormData): Promise<vo
 
 export async function updateStudioContractSettings(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
+  const { user } = await requireUser();
+  if (!isSuperAdminEmail(user.email)) {
+    redirect("/dashboard/settings?owner_error=forbidden");
+  }
+  if (!studioId) return;
 
   const statusRaw = String(formData.get("contract_status") ?? "").trim().toLowerCase();
   const contract_status = statusRaw === "suspended" ? "suspended" : "active";
@@ -188,7 +190,15 @@ export async function updateStudioContractSettings(formData: FormData): Promise<
     contract_ends_at = d.toISOString();
   }
 
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { data: studio } = await admin
+    .from("studios")
+    .select("id")
+    .eq("id", studioId)
+    .maybeSingle();
+  if (!studio) return;
+
+  const { error } = await admin
     .from("studios")
     .update({ contract_status, contract_ends_at })
     .eq("id", studio.id);

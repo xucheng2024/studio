@@ -4,6 +4,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { isSuperAdminEmail } from "@/lib/super-admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,16 +46,18 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
     return <p className={ui.muted}>Select a studio from the sidebar to continue.</p>;
   }
 
+  const contractStudioId = isSuperAdmin ? (sp.studio_id ?? selectedStudioId) : null;
   let contractStudio: {
     id: string;
     contract_status: string | null;
     contract_ends_at: string | null;
   } | null = null;
-  if (selectedStudioId && role === "owner") {
-    const { data } = await supabase
+  if (contractStudioId) {
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("studios")
       .select("id, contract_status, contract_ends_at")
-      .eq("id", selectedStudioId)
+      .eq("id", contractStudioId)
       .maybeSingle();
     contractStudio = data;
   }
@@ -97,7 +100,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           </DashboardAppLink>
         ) : null}
       </div>
-      {contractStudio ? (
+      {isSuperAdmin && contractStudio ? (
         <form action={updateStudioContractSettings} className={`${ui.card} flex max-w-lg flex-col gap-3`}>
           <input type="hidden" name="studio_id" value={contractStudio.id} />
           <div>
