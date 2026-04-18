@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { PaymentMatchForm } from "@/components/PaymentMatchForm";
@@ -191,26 +191,29 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Reconciliation & review</h1>
         <p className={ui.muted}>Filter, reconcile, export, and audit payment history.</p>
-        <div className="mt-2 flex gap-3 text-sm">
-          <Link
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+          <DashboardAppLink
             className={view === "queue" ? ui.link : ui.linkMuted}
             href={tabHref("queue")}
           >
             Queue
-          </Link>
-          <Link
+          </DashboardAppLink>
+          <DashboardAppLink
             className={view === "recon" ? ui.link : ui.linkMuted}
             href={tabHref("recon")}
           >
             Recon
-          </Link>
-          <Link
+          </DashboardAppLink>
+          <DashboardAppLink
             className={view === "review" ? ui.link : ui.linkMuted}
             href={tabHref("review")}
           >
             Review
-          </Link>
-          <a className={ui.linkMuted} href={`/api/payments/export?${exportParams.toString()}`}>
+          </DashboardAppLink>
+          <a
+            className={`${ui.linkMuted} transition-opacity duration-100 active:opacity-60`}
+            href={`/api/payments/export?${exportParams.toString()}`}
+          >
             Export CSV
           </a>
         </div>
@@ -240,7 +243,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters
           </SubmitButton>
-          <Link href={`/dashboard/payments?view=${view}`} className={ui.btnGhost}>Reset</Link>
+          <DashboardAppLink href={`/dashboard/payments?view=${view}`} className={ui.btnGhost}>
+            Reset
+          </DashboardAppLink>
         </div>
       </form>
 

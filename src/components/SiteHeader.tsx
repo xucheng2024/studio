@@ -11,23 +11,14 @@ export async function SiteHeader() {
     return (
       <header className={ui.headerBar}>
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-100"
-          >
+          <Link href="/" className={ui.linkHeaderBrand}>
             {site.name}
           </Link>
           <nav className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1 sm:gap-x-3">
-            <Link
-              href="/booking"
-              className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-            >
+            <Link href="/booking" className={ui.linkHeaderNav}>
               Classes
             </Link>
-            <Link
-              href="/auth"
-              className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-            >
+            <Link href="/auth" className={ui.linkHeaderNav}>
               Sign in / Sign up
             </Link>
           </nav>
@@ -54,32 +45,20 @@ export async function SiteHeader() {
   return (
     <header className={ui.headerBar}>
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-100"
-        >
+        <Link href="/" className={ui.linkHeaderBrand}>
           {site.name}
         </Link>
         <nav className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1 sm:gap-x-3">
-          <Link
-            href="/booking"
-            className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-          >
+          <Link href="/booking" className={ui.linkHeaderNav}>
             Classes
           </Link>
           {user ? (
             <>
-              <Link
-                href="/me/bookings"
-                className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-              >
+              <Link href="/me/bookings" className={ui.linkHeaderNav}>
                 My bookings
               </Link>
               {showDashboard ? (
-                <Link
-                  href="/dashboard"
-                  className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-                >
+                <Link href="/dashboard" className={ui.linkHeaderNav}>
                   Dashboard
                 </Link>
               ) : null}
@@ -91,17 +70,11 @@ export async function SiteHeader() {
                   <span className="hidden sm:inline">Account</span>
                 </summary>
                 <div className="absolute right-0 top-10 z-50 w-48 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 max-sm:fixed max-sm:left-3 max-sm:right-3 max-sm:top-16 max-sm:w-auto dark:border-stone-800 dark:bg-stone-900">
-                  <Link
-                    href="/me/bookings"
-                    className="block rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-                  >
+                  <Link href="/me/bookings" className={ui.linkHeaderMenu}>
                     My bookings
                   </Link>
                   {showDashboard ? (
-                    <Link
-                      href="/dashboard"
-                      className="block rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-                    >
+                    <Link href="/dashboard" className={ui.linkHeaderMenu}>
                       Dashboard
                     </Link>
                   ) : null}
@@ -110,10 +83,7 @@ export async function SiteHeader() {
               </details>
             </>
           ) : (
-            <Link
-              href="/auth"
-              className="rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-            >
+            <Link href="/auth" className={ui.linkHeaderNav}>
               Sign in / Sign up
             </Link>
           )}

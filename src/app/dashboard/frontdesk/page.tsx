@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { BulkCheckinPanel } from "@/components/BulkCheckinPanel";
 import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -85,15 +85,15 @@ export default async function FrontdeskPage({ searchParams }: Props) {
           Recommended entry: open this page from Operations so filters and queue context stay aligned.
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <Link href={`/dashboard/operations?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+          <DashboardAppLink href={`/dashboard/operations?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
             Back to operations
-          </Link>
-          <Link href={`/dashboard/schedule?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/schedule?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
             Open session view
-          </Link>
-          <Link href={`/dashboard/clients?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/clients?${crossPageParams.toString()}`} className={ui.btnSecondarySm}>
             Open member view
-          </Link>
+          </DashboardAppLink>
         </div>
       </div>
       <FrontdeskWalkinForm

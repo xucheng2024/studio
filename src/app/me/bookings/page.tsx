@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import { ui } from "@/lib/ui";
@@ -50,9 +50,9 @@ export default async function MyBookingsPage() {
               <h1 className={ui.h1}>My plan</h1>
               <p className={ui.muted}>Bookings, payments, and credits — guest history links by email.</p>
             </div>
-            <Link href="/checkout" className={`${ui.btnSecondary} shrink-0 self-start`}>
+            <DashboardAppLink href="/checkout" className={`${ui.btnSecondary} shrink-0 self-start`}>
               Buy packs
-            </Link>
+            </DashboardAppLink>
           </div>
           <ul className="mt-4 flex flex-col gap-3">
             {(bookings ?? []).map((b) => {

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { updateStudioContractSettings } from "@/app/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
@@ -71,27 +71,27 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         <p className={ui.muted}>Studio-level configuration and admin tools.</p>
       </div>
       <div className={`${ui.card} grid gap-3 md:grid-cols-2`}>
-        <Link href={scopedHref("/dashboard/overview", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
+        <DashboardAppLink href={scopedHref("/dashboard/overview", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
           Studio profile
-        </Link>
-        <Link href={scopedHref("/dashboard/settings/payments", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
+        </DashboardAppLink>
+        <DashboardAppLink href={scopedHref("/dashboard/settings/payments", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
           Payment settings
-        </Link>
+        </DashboardAppLink>
         {role === "owner" ? (
-          <Link
+          <DashboardAppLink
             href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId, selectedLocationId)}
             className={ui.btnSecondary}
           >
             Staff & roles
-          </Link>
+          </DashboardAppLink>
         ) : null}
-        <Link href={scopedHref("/dashboard/qr", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
+        <DashboardAppLink href={scopedHref("/dashboard/qr", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
           QR / share link
-        </Link>
+        </DashboardAppLink>
         {isSuperAdmin ? (
-          <Link href="/dashboard/settings/owners" className={ui.btnSecondary}>
+          <DashboardAppLink href="/dashboard/settings/owners" className={ui.btnSecondary}>
             Platform owner access
-          </Link>
+          </DashboardAppLink>
         ) : null}
       </div>
       {contractStudio ? (

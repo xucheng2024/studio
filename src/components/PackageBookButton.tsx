@@ -35,7 +35,7 @@ export function PackageBookButton({
       <select
         value={selected}
         onChange={(e) => setSelected(e.target.value)}
-        className={`${ui.select} h-8 w-full py-1 text-xs sm:w-64`}
+        className={`${ui.select} w-full sm:w-64`}
       >
         {packages.map((p) => (
           <option key={p.id} value={p.id}>

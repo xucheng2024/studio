@@ -28,7 +28,7 @@ export function LocationSwitcher({
     <label className="flex w-full min-w-0 flex-col gap-1 text-xs text-stone-500">
       <span>Location</span>
       <select
-        className={`${ui.select} h-8 w-full min-w-0 py-1 text-xs`}
+        className={`${ui.select} min-w-0`}
         value={activeLocationId}
         onChange={(e) => {
           const params = new URLSearchParams(search.toString());

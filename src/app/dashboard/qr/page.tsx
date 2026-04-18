@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { updateStudioSlug } from "@/app/dashboard/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -67,13 +67,13 @@ export default async function QrPage({ searchParams }: Props) {
         {(studios?.length ?? 0) > 1 ? (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {(studios ?? []).map((s) => (
-              <Link
+              <DashboardAppLink
                 key={s.id}
                 href={`/dashboard/qr?studio_id=${s.id}`}
                 className={s.id === studio.id ? ui.btnSecondarySm : ui.linkMuted}
               >
                 {s.name}
-              </Link>
+              </DashboardAppLink>
             ))}
           </div>
         ) : null}
@@ -138,9 +138,9 @@ export default async function QrPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <Link href={path} className={`${ui.btnSecondary} inline-flex w-fit`}>
+      <DashboardAppLink href={path} className={`${ui.btnSecondary} inline-flex w-fit`}>
         Open public booking page
-      </Link>
+      </DashboardAppLink>
     </div>
   );
 }

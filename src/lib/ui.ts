@@ -12,12 +12,12 @@ export const ui = {
 
   card: "rounded-3xl border border-stone-200/90 bg-white/95 p-5 shadow-[0_14px_30px_-22px_rgba(28,25,23,0.55)] backdrop-blur-sm dark:border-stone-800/90 dark:bg-stone-900/70",
   cardInteractive:
-    "rounded-3xl border border-stone-200/90 bg-white/95 p-5 shadow-[0_14px_30px_-22px_rgba(28,25,23,0.55)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-20px_rgba(20,184,166,0.35)] dark:border-stone-800/90 dark:bg-stone-900/70",
+    "cursor-pointer rounded-3xl border border-stone-200/90 bg-white/95 p-5 shadow-[0_14px_30px_-22px_rgba(28,25,23,0.55)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-20px_rgba(20,184,166,0.35)] active:translate-y-0 active:scale-[0.99] active:opacity-95 dark:border-stone-800/90 dark:bg-stone-900/70",
 
   input:
     "w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 shadow-inner shadow-stone-900/[0.03] placeholder:text-stone-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 dark:placeholder:text-stone-500",
   select:
-    "w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100",
+    "min-h-9 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm leading-normal text-stone-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100",
   label: "text-sm font-medium text-stone-700 dark:text-stone-300",
 
   btnPrimary:
@@ -31,8 +31,9 @@ export const ui = {
   btnGhost:
     "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 active:scale-[0.98] active:opacity-90 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100",
 
-  link: "font-medium text-teal-700 underline-offset-4 transition-colors hover:text-teal-800 hover:underline dark:text-teal-400 dark:hover:text-teal-300",
-  linkMuted: "text-sm text-stone-500 underline-offset-4 transition-colors hover:text-stone-800 hover:underline dark:text-stone-400 dark:hover:text-stone-200",
+  link: "inline-flex font-medium text-teal-700 underline-offset-4 transition-colors transition-transform duration-100 hover:text-teal-800 hover:underline active:scale-[0.99] active:opacity-90 dark:text-teal-400 dark:hover:text-teal-300",
+  linkMuted:
+    "inline-flex text-sm text-stone-500 underline-offset-4 transition-colors transition-transform duration-100 hover:text-stone-800 hover:underline active:scale-[0.99] active:opacity-90 dark:text-stone-400 dark:hover:text-stone-200",
 
   badge:
     "inline-flex items-center rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-medium text-teal-900 dark:border-teal-800/60 dark:bg-teal-950/60 dark:text-teal-100",
@@ -40,6 +41,13 @@ export const ui = {
 
   headerBar:
     "sticky top-0 z-40 border-b border-stone-200/80 bg-white/90 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-950/90",
+  /** SiteHeader: top row text links */
+  linkHeaderNav:
+    "rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors transition-transform duration-100 hover:bg-stone-100 hover:text-stone-900 active:scale-[0.98] active:opacity-90 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100",
+  linkHeaderMenu:
+    "block rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition-colors transition-transform duration-100 hover:bg-stone-100 hover:text-stone-900 active:scale-[0.99] active:opacity-90 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100",
+  linkHeaderBrand:
+    "text-sm font-semibold tracking-tight text-stone-900 transition-transform duration-100 active:scale-[0.99] active:opacity-90 dark:text-stone-100",
   muted: "text-sm text-stone-500 dark:text-stone-400",
   error: "text-sm text-red-600 dark:text-red-400",
   success: "text-sm text-teal-700 dark:text-teal-300",

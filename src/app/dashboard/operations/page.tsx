@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { OpsBoard } from "@/components/ops/OpsBoard";
 import { OpsFilters } from "@/components/ops/OpsFilters";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -59,9 +59,9 @@ export default async function OperationsPage({ searchParams }: Props) {
               <p className={ui.muted}>3. Ask owner to sign in and create first studio</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href="/dashboard/settings/owners" className={ui.btnPrimary}>
+              <DashboardAppLink href="/dashboard/settings/owners" className={ui.btnPrimary}>
                 Open owner access
-              </Link>
+              </DashboardAppLink>
             </div>
           </div>
         </div>
@@ -85,12 +85,12 @@ export default async function OperationsPage({ searchParams }: Props) {
             <p className={ui.muted}>3. Return to Operations to process daily tasks</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/dashboard/overview" className={ui.btnPrimary}>
+            <DashboardAppLink href="/dashboard/overview" className={ui.btnPrimary}>
               Create studio now
-            </Link>
-            <Link href="/booking" className={ui.btnSecondarySm}>
+            </DashboardAppLink>
+            <DashboardAppLink href="/booking" className={ui.btnSecondarySm}>
               Open public booking page
-            </Link>
+            </DashboardAppLink>
           </div>
         </div>
       </div>
@@ -158,18 +158,18 @@ export default async function OperationsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Operations hub</h1>
         <p className={ui.muted}>One queue for payment verification, check-in, exceptions, and manual actions.</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <Link href={`/dashboard/payments?view=recon&${filterParams.toString()}`} className={ui.btnSecondarySm}>
+          <DashboardAppLink href={`/dashboard/payments?view=recon&${filterParams.toString()}`} className={ui.btnSecondarySm}>
             Open full reconciliation
-          </Link>
-          <Link href={`/dashboard/schedule?${filterParams.toString()}`} className={ui.btnSecondarySm}>
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/schedule?${filterParams.toString()}`} className={ui.btnSecondarySm}>
             Open session view
-          </Link>
-          <Link href={`/dashboard/clients?${filterParams.toString()}`} className={ui.btnSecondarySm}>
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/clients?${filterParams.toString()}`} className={ui.btnSecondarySm}>
             Open member view
-          </Link>
-          <Link href={`/dashboard/frontdesk?${filterParams.toString()}`} className={ui.btnSecondarySm}>
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/frontdesk?${filterParams.toString()}`} className={ui.btnSecondarySm}>
             Frontdesk tools
-          </Link>
+          </DashboardAppLink>
         </div>
       </div>
       <OpsFilters

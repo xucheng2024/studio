@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardNav } from "@/components/DashboardNav";
 import { LocationSwitcher } from "@/components/LocationSwitcher";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -35,6 +35,7 @@ export default async function DashboardLayout({
   }
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
   const superAdminNoStudioMode = access.ctx.isSuperAdmin;
+  const ownerNoStudioMode = !superAdminNoStudioMode && studioIds.length === 0;
   const { data: studios } =
     studioIds.length > 0
           ? await supabase
@@ -48,17 +49,17 @@ export default async function DashboardLayout({
     <div className={`${ui.pageWide} flex min-h-[calc(100dvh-3.5rem)] flex-col gap-8 md:flex-row md:gap-10`}>
       <aside className={`flex w-full shrink-0 flex-col gap-5 md:w-56 ${ui.sidebar}`}>
         <div>
-          <Link
-            href={superAdminNoStudioMode ? "/dashboard/settings/owners" : "/dashboard/operations"}
+          <DashboardAppLink
+            href={superAdminNoStudioMode ? "/dashboard/settings/owners" : ownerNoStudioMode ? "/dashboard/overview" : "/dashboard/operations"}
             className="text-sm font-semibold text-stone-900 dark:text-stone-100"
           >
-            {superAdminNoStudioMode ? "Platform admin" : "Operations hub"}
-          </Link>
+            {superAdminNoStudioMode ? "Platform admin" : ownerNoStudioMode ? "Get started" : "Operations hub"}
+          </DashboardAppLink>
           <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
-            {superAdminNoStudioMode ? "Manage owner access" : "Manage your studio"}
+            {superAdminNoStudioMode ? "Manage owner access" : ownerNoStudioMode ? "Create your first studio" : "Manage your studio"}
           </p>
         </div>
-        {!superAdminNoStudioMode ? (
+        {!superAdminNoStudioMode && !ownerNoStudioMode ? (
           <StudioSwitcher
             studios={(studios ?? []).map((s) => ({
               id: s.id,
@@ -75,20 +76,20 @@ export default async function DashboardLayout({
                 ? "Grant owner access first, then owners can create and manage their studios."
                 : "Create your first studio from overview to unlock operations."}
             </p>
-            <Link
+            <DashboardAppLink
               href={superAdminNoStudioMode ? "/dashboard/settings/owners" : "/dashboard/overview"}
               className="mt-2 inline-block underline underline-offset-2"
             >
               {superAdminNoStudioMode ? "Manage owner access" : "Create studio"}
-            </Link>
+            </DashboardAppLink>
           </div>
         ) : null}
-        {!superAdminNoStudioMode ? (
+        {!superAdminNoStudioMode && !ownerNoStudioMode ? (
           <LocationSwitcher
             locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
           />
         ) : null}
-        <DashboardNav role={resolvedRole} superAdminNoStudioMode={superAdminNoStudioMode} />
+        {!ownerNoStudioMode ? <DashboardNav role={resolvedRole} superAdminNoStudioMode={superAdminNoStudioMode} /> : null}
         <SignOutButton />
       </aside>
       <section className="min-w-0 flex-1 pb-8">{children}</section>

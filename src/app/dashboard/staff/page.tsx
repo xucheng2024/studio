@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { toggleStaffMembership } from "@/app/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
@@ -41,9 +41,9 @@ export default async function StaffPage({ searchParams }: Props) {
       <div className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={ui.muted}>Send invites to grant staff access. Accepted invites appear below.</p>
-          <Link href="/dashboard/settings/staff-invites" className={ui.btnPrimary}>
+          <DashboardAppLink href="/dashboard/settings/staff-invites" className={ui.btnPrimary}>
             Open staff invites
-          </Link>
+          </DashboardAppLink>
         </div>
       </div>
       <div className={ui.card}>

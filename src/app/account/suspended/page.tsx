@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ui } from "@/lib/ui";
 
 export default function SuspendedAccountPage() {
@@ -15,12 +15,12 @@ export default function SuspendedAccountPage() {
             Contact your platform admin to reactivate the studio contract, then sign in again.
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/booking" className={ui.btnSecondarySm}>
+            <DashboardAppLink href="/booking" className={ui.btnSecondarySm}>
               Open booking page
-            </Link>
-            <Link href="/auth" className={ui.btnPrimary}>
+            </DashboardAppLink>
+            <DashboardAppLink href="/auth" className={ui.btnPrimary}>
               Sign in with another account
-            </Link>
+            </DashboardAppLink>
           </div>
         </div>
       </div>

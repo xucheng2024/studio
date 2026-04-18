@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { createRecurringRule, createSession, saveBookingRules } from "@/app/dashboard/actions";
 import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { MarkAttendedButton } from "@/components/MarkAttendedButton";
@@ -95,12 +95,12 @@ export default async function SchedulePage({ searchParams }: Props) {
         <h1 className={ui.h1}>Schedule</h1>
         <p className={`mt-1 ${ui.muted}`}>Add sessions from your class templates.</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <Link href={`/dashboard/classes?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
+          <DashboardAppLink href={`/dashboard/classes?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
             Manage classes
-          </Link>
-          <Link href={`/dashboard/packages?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/packages?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
             Manage packages
-          </Link>
+          </DashboardAppLink>
         </div>
         <h2 className={`${ui.h2} mt-8`}>Booking rules</h2>
         <form action={saveBookingRules} className={`${ui.card} mt-4 grid max-w-xl gap-4 md:grid-cols-2`}>

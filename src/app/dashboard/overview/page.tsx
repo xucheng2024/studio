@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { createStudio } from "@/app/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
@@ -118,9 +118,9 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
           <h1 className={ui.h1}>{studio.name}</h1>
           <p className={`mt-1 ${ui.muted}`}>Today at a glance</p>
         </div>
-        <Link href="/dashboard/qr" className={`${ui.btnSecondarySm} shrink-0`}>
+        <DashboardAppLink href="/dashboard/qr" className={`${ui.btnSecondarySm} shrink-0`}>
           QR & link
-        </Link>
+        </DashboardAppLink>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <div className={ui.statCard}>
