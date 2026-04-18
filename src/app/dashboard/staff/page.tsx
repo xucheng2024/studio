@@ -4,7 +4,10 @@ import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
 
-export default async function StaffPage() {
+type Props = { searchParams: Promise<{ staff_error?: string }> };
+
+export default async function StaffPage({ searchParams }: Props) {
+  const sp = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -23,12 +26,18 @@ export default async function StaffPage() {
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false });
 
+  const staffErrorMsg =
+    sp.staff_error === "studio_suspended"
+      ? "This studio is suspended. Set contract back to active in Settings before adding staff."
+      : null;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className={ui.h1}>Staff</h1>
         <p className={`mt-1 ${ui.muted}`}>Workspace access is managed by invitation.</p>
       </div>
+      {staffErrorMsg ? <p className={ui.error}>{staffErrorMsg}</p> : null}
       <div className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={ui.muted}>Send invites to grant staff access. Accepted invites appear below.</p>

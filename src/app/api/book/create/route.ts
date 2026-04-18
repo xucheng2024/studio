@@ -97,9 +97,14 @@ export async function POST(req: Request) {
   const amount = Number(dropIn?.price ?? 25);
   const { data: studioPaynow } = await admin
     .from("studios")
-    .select("paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
+    .select(
+      "paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name, contract_status",
+    )
     .eq("id", studioId)
     .maybeSingle();
+  if (studioPaynow?.contract_status === "suspended") {
+    return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
+  }
   const paynow = validatePaynowConfig({
     paynow_enabled: Boolean(studioPaynow?.paynow_enabled),
     paynow_proxy_type: studioPaynow?.paynow_proxy_type ?? null,

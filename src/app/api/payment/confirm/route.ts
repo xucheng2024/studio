@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPaymentSubmittedNotice } from "@/lib/email";
 import { createClient } from "@/lib/supabase/server";
@@ -30,6 +31,11 @@ export async function POST(req: Request) {
     .eq("id", parsed.data.payment_id)
     .single();
   if (pErr || !payment) return NextResponse.json({ error: "payment_not_found" }, { status: 404 });
+
+  if (payment.studio_id) {
+    const blocked = await respondIfStudioContractSuspended(admin, payment.studio_id);
+    if (blocked) return blocked;
+  }
 
   const isClientOwner = payment.client_id != null && payment.client_id === user.id;
   const inputRef = parsed.data.reference_code?.trim() ?? "";

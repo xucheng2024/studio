@@ -12,6 +12,9 @@ export default async function InstructorSessionsPage() {
   if (!user) redirect("/login");
 
   const ctx = await buildAccessContext({ userId: user.id, email: user.email });
+  if (bestRole(ctx) !== "instructor" && ctx.hasSuspendedBackofficeAccess) {
+    redirect("/account/suspended");
+  }
   if (bestRole(ctx) !== "instructor") {
     return <p className={ui.muted}>Instructor access only.</p>;
   }

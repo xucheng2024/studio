@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -86,6 +87,17 @@ export async function GET(req: Request) {
   const inheritedQuery = inherited.toString();
 
   const admin = createAdminClient();
+  const effectiveStudioId =
+    studioIdInput && allStudioIds.includes(studioIdInput)
+      ? studioIdInput
+      : studioIds.length === 1
+        ? studioIds[0]
+        : null;
+  if (effectiveStudioId) {
+    const blocked = await respondIfStudioContractSuspended(admin, effectiveStudioId);
+    if (blocked) return blocked;
+  }
+
   const payments: Array<{
     id: string;
     studio_id: string;

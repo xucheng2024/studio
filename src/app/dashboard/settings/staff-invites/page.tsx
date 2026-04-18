@@ -42,7 +42,9 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
             ? "Location does not belong to selected studio."
             : sp.invite_error === "create_failed"
               ? "Could not create invite. An active invite may already exist."
-              : null;
+              : sp.invite_error === "studio_suspended"
+                ? "This studio is suspended. Set contract to active in Settings before sending invites."
+                : null;
 
   return (
     <div className="flex flex-col gap-6">

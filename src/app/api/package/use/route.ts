@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("client_packages")
-    .select("id, client_id, credits_left")
+    .select("id, client_id, credits_left, packages!inner(studio_id)")
     .eq("id", parsed.data.client_package_id)
     .single();
 
@@ -37,6 +38,13 @@ export async function POST(req: Request) {
 
   if (row.client_id !== user.id) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const pkg = row.packages as { studio_id?: string } | { studio_id?: string }[] | null;
+  const useStudioId = Array.isArray(pkg) ? pkg[0]?.studio_id : pkg?.studio_id;
+  if (useStudioId) {
+    const blockedUse = await respondIfStudioContractSuspended(admin, useStudioId);
+    if (blockedUse) return blockedUse;
   }
 
   const nextCredits = row.credits_left - parsed.data.credits;

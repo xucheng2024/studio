@@ -23,6 +23,25 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
+  const { data: bookingScope } = await admin
+    .from("bookings")
+    .select("id, class_sessions!inner(classes!inner(studio_id))")
+    .eq("id", parsed.data.booking_id)
+    .maybeSingle();
+  const session = bookingScope?.class_sessions as
+    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }
+    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }[]
+    | null;
+  const s0 = Array.isArray(session) ? session[0] : session;
+  const classes = s0?.classes;
+  const cancelStudioId = Array.isArray(classes) ? classes[0]?.studio_id : classes?.studio_id;
+  if (cancelStudioId) {
+    const { data: st } = await admin.from("studios").select("contract_status").eq("id", cancelStudioId).maybeSingle();
+    if (st?.contract_status === "suspended") {
+      return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
+    }
+  }
+
   const { data, error } = await admin.rpc("cancel_booking_with_rules", {
     p_booking_id: parsed.data.booking_id,
     p_actor_id: user.id,

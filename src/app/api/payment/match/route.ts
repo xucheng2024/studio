@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
-import { requireStaffScope } from "@/lib/scope";
+import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     locationId: payment.location_id ?? (booking.location_id ?? null),
     roles: ["owner", "manager", "frontdesk"],
   });
-  if (!scoped.ok) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!scoped.ok) return staffScopeFailureResponse(scoped);
 
   await admin
     .from("payments")

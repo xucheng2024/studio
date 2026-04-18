@@ -8,7 +8,7 @@ export function StudioSwitcher({
   studios,
   selectedStudioId = null,
 }: {
-  studios: { id: string; name: string }[];
+  studios: { id: string; name: string; contract_status?: string | null }[];
   selectedStudioId?: string | null;
 }) {
   const pathname = usePathname();
@@ -51,6 +51,7 @@ export function StudioSwitcher({
         {studios.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name}
+            {s.contract_status === "suspended" ? " (suspended)" : ""}
           </option>
         ))}
       </select>

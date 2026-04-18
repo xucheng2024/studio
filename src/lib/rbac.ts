@@ -17,7 +17,12 @@ export type AccessContext = {
   memberships: { studio_id: string; location_id: string | null; role: StaffRole }[];
   locations: LocationScope[];
   selectedLocationId: string | null;
+  hasSuspendedBackofficeAccess: boolean;
 };
+
+function isBackofficeRole(role: StaffRole) {
+  return role === "owner" || role === "manager" || role === "frontdesk" || role === "instructor";
+}
 
 function rankRole(role: StaffRole) {
   switch (role) {
@@ -84,12 +89,42 @@ export async function buildAccessContext(params: {
     .eq("user_id", params.userId)
     .eq("is_active", true);
 
+  let resolvedEmail = params.email ?? null;
+  if (!resolvedEmail) {
+    const { data: profile } = await admin.from("users").select("email").eq("id", params.userId).maybeSingle();
+    resolvedEmail = profile?.email ?? null;
+  }
+
   const studioIds = new Set<string>();
   const roles = new Set<StaffRole>();
   const normalizedMemberships: AccessContext["memberships"] = [];
-  const isSuperAdmin = isSuperAdminEmail(params.email ?? null);
+  const isSuperAdmin = isSuperAdminEmail(resolvedEmail);
+  let hasSuspendedBackofficeAccess = false;
+
+  const { data: ownedStudios } = await admin
+    .from("studios")
+    .select("id, contract_status")
+    .eq("owner_id", params.userId);
+
+  const allStudioIds = new Set<string>();
+  for (const m of memberships ?? []) allStudioIds.add(m.studio_id);
+  for (const s of ownedStudios ?? []) allStudioIds.add(s.id);
+
+  const studioArrayForStatus = [...allStudioIds];
+  const { data: studioStates } =
+    studioArrayForStatus.length > 0
+      ? await admin.from("studios").select("id, contract_status").in("id", studioArrayForStatus)
+      : { data: [] as { id: string; contract_status: string | null }[] };
+  const activeStudioIdSet = new Set(
+    (studioStates ?? []).filter((s) => s.contract_status !== "suspended").map((s) => s.id),
+  );
+
   for (const m of memberships ?? []) {
     const role = (m.role as StaffRole) ?? "client";
+    if (!activeStudioIdSet.has(m.studio_id)) {
+      if (isBackofficeRole(role)) hasSuspendedBackofficeAccess = true;
+      continue;
+    }
     roles.add(role);
     studioIds.add(m.studio_id);
     normalizedMemberships.push({
@@ -99,12 +134,11 @@ export async function buildAccessContext(params: {
     });
   }
 
-  const { data: ownedStudios } = await admin
-    .from("studios")
-    .select("id")
-    .eq("owner_id", params.userId);
-
   for (const s of ownedStudios ?? []) {
+    if (!activeStudioIdSet.has(s.id)) {
+      hasSuspendedBackofficeAccess = true;
+      continue;
+    }
     roles.add("owner");
     studioIds.add(s.id);
     normalizedMemberships.push({
@@ -120,7 +154,8 @@ export async function buildAccessContext(params: {
     .eq("user_id", params.userId)
     .eq("is_active", true)
     .maybeSingle();
-  if (ownerGrants?.user_id) {
+  const hasAnyStudioAssociation = (memberships?.length ?? 0) > 0 || (ownedStudios?.length ?? 0) > 0;
+  if (ownerGrants?.user_id && !hasAnyStudioAssociation) {
     roles.add("owner");
   }
 
@@ -153,6 +188,7 @@ export async function buildAccessContext(params: {
     memberships: normalizedMemberships,
     locations: locs,
     selectedLocationId: selected,
+    hasSuspendedBackofficeAccess,
   } as AccessContext;
 }
 
@@ -175,5 +211,6 @@ export async function resolveAccessContext(params: {
     bestRole: role,
     hasBackofficeAccess,
     studioIds,
+    hasSuspendedBackofficeAccess: ctx.hasSuspendedBackofficeAccess ?? false,
   };
 }

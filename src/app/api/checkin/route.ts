@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,6 +28,23 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  const { data: bookingForStudio } = await admin
+    .from("bookings")
+    .select("id, class_sessions!inner(classes!inner(studio_id))")
+    .eq("id", parsed.data.booking_id)
+    .maybeSingle();
+  const sessionForContract = bookingForStudio?.class_sessions as
+    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }
+    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }[]
+    | null;
+  const sC = Array.isArray(sessionForContract) ? sessionForContract[0] : sessionForContract;
+  const classesC = sC?.classes;
+  const checkinStudioId = Array.isArray(classesC) ? classesC[0]?.studio_id : classesC?.studio_id;
+  if (checkinStudioId) {
+    const blocked = await respondIfStudioContractSuspended(admin, checkinStudioId);
+    if (blocked) return blocked;
+  }
+
   if (role === "instructor") {
     const { data: booking } = await admin
       .from("bookings")

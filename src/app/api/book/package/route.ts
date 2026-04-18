@@ -20,6 +20,20 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
+  const { data: sessionRow } = await admin
+    .from("class_sessions")
+    .select("id, classes!inner(studio_id)")
+    .eq("id", parsed.data.session_id)
+    .maybeSingle();
+  const cls = sessionRow?.classes as { studio_id?: string } | { studio_id?: string }[] | null;
+  const pkgStudioId = Array.isArray(cls) ? cls[0]?.studio_id : cls?.studio_id;
+  if (pkgStudioId) {
+    const { data: st } = await admin.from("studios").select("contract_status").eq("id", pkgStudioId).maybeSingle();
+    if (st?.contract_status === "suspended") {
+      return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
+    }
+  }
+
   const { data, error } = await admin.rpc("create_package_booking", {
     p_session_id: parsed.data.session_id,
     p_client_id: user.id,

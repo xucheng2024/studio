@@ -76,6 +76,9 @@ export default async function PostAuthPage({ searchParams }: Props) {
   if (access.ctx.isSuperAdmin) {
     redirect("/dashboard/settings/owners");
   }
+  if (!access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess) {
+    redirect("/account/suspended");
+  }
   if (access.bestRole === "instructor") {
     redirect("/instructor/sessions");
   }

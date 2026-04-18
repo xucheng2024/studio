@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { buildAccessContext, resolveAccessContext } from "@/lib/rbac";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +33,7 @@ async function requireStudio(requestedStudioId?: string) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug")
+    .select("id, name, public_slug, contract_status, contract_ends_at")
     .eq("id", studioId)
     .maybeSingle();
   return { supabase, user, studio, ctx };
@@ -153,11 +154,41 @@ export async function updateStudioPaynowSettings(formData: FormData): Promise<vo
   if (studio.public_slug) revalidatePath(`/booking/${studio.public_slug}`);
 }
 
+export async function updateStudioContractSettings(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
+
+  const statusRaw = String(formData.get("contract_status") ?? "").trim().toLowerCase();
+  const contract_status = statusRaw === "suspended" ? "suspended" : "active";
+  const endsRaw = String(formData.get("contract_ends_at") ?? "").trim();
+  let contract_ends_at: string | null = null;
+  if (endsRaw) {
+    const d = new Date(endsRaw);
+    if (Number.isNaN(d.getTime())) return;
+    contract_ends_at = d.toISOString();
+  }
+
+  const { error } = await supabase
+    .from("studios")
+    .update({ contract_status, contract_ends_at })
+    .eq("id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/overview");
+  revalidatePath("/dashboard/operations");
+}
+
 export async function createInstructor(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const locationId = String(formData.get("location_id") ?? "").trim() || null;
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
   const name = String(formData.get("name") ?? "").trim();
@@ -180,6 +211,7 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
   const locationId = String(formData.get("location_id") ?? "").trim();
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
 
@@ -222,6 +254,7 @@ export async function createSession(formData: FormData): Promise<void> {
   const locationId = String(formData.get("location_id") ?? "").trim();
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager", "frontdesk"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
 
@@ -269,6 +302,7 @@ export async function createPackage(formData: FormData): Promise<void> {
   const locationId = String(formData.get("location_id") ?? "").trim();
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
 
@@ -307,6 +341,7 @@ export async function createPackage(formData: FormData): Promise<void> {
 export async function markAttended(bookingId: string): Promise<void> {
   const { supabase, studio, user, ctx } = await requireStudio();
   if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager", "frontdesk", "instructor"])) return;
 
   const { data: booking, error: bErr } = await supabase
@@ -357,6 +392,7 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !locationId || !classId || !startDate || !startTime) return;
+  if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
   const { data: cls } = await supabase
@@ -452,6 +488,7 @@ export async function saveBookingRules(formData: FormData): Promise<void> {
 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
 
@@ -497,6 +534,9 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
   const { supabase, studio, user } = await requireStudio(studioId || undefined);
   if (!studio || !email || !role) {
     redirect("/dashboard/staff?staff_error=missing_required_fields");
+  }
+  if (isStudioContractSuspended(studio)) {
+    redirect("/dashboard/staff?staff_error=studio_suspended");
   }
 
   const { data: me } = await supabase
@@ -578,11 +618,12 @@ export async function toggleStaffMembership(formData: FormData): Promise<void> {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id")
+    .select("id, contract_status")
     .eq("id", membership.studio_id)
     .eq("owner_id", user.id)
     .maybeSingle();
   if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
   if (membership.role === "owner") return;
 
   await supabase
@@ -632,6 +673,9 @@ export async function createStaffInvite(formData: FormData): Promise<void> {
   const { supabase, studio, user } = await requireStudio(studioId || undefined);
   if (!studio || !email || !role) {
     redirect("/dashboard/settings/staff-invites?invite_error=missing_required_fields");
+  }
+  if (isStudioContractSuspended(studio)) {
+    redirect("/dashboard/settings/staff-invites?invite_error=studio_suspended");
   }
   if (!["manager", "frontdesk", "instructor"].includes(role)) {
     redirect("/dashboard/settings/staff-invites?invite_error=invalid_role");

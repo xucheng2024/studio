@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,6 +27,26 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  const { data: bulkBookings } = await admin
+    .from("bookings")
+    .select("id, class_sessions!inner(classes!inner(studio_id))")
+    .in("id", parsed.data.booking_ids);
+  const bulkStudioIds = new Set<string>();
+  for (const b of bulkBookings ?? []) {
+    const session = b.class_sessions as
+      | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }
+      | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }[]
+      | null;
+    const s = Array.isArray(session) ? session[0] : session;
+    const classes = s?.classes;
+    const sid = Array.isArray(classes) ? classes[0]?.studio_id : classes?.studio_id;
+    if (sid) bulkStudioIds.add(sid);
+  }
+  for (const sid of bulkStudioIds) {
+    const blocked = await respondIfStudioContractSuspended(admin, sid);
+    if (blocked) return blocked;
+  }
+
   let instructorId: string | null = null;
   let allowedBookingIds: Set<string> | null = null;
   if (role === "instructor") {

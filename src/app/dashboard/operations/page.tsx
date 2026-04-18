@@ -119,6 +119,12 @@ export default async function OperationsPage({ searchParams }: Props) {
     .order("name");
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const { data: opContract } = await supabase
+    .from("studios")
+    .select("contract_status")
+    .eq("id", activeStudioId)
+    .maybeSingle();
+  const studioSuspended = opContract?.contract_status === "suspended";
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -136,6 +142,18 @@ export default async function OperationsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {studioSuspended ? (
+        <div
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100"
+          role="status"
+        >
+          <p className="font-medium">Studio contract suspended</p>
+          <p className={`mt-1 ${ui.muted}`}>
+            Operations APIs and mutating actions are paused for this studio. Owners can resume under Settings → Studio
+            contract.
+          </p>
+        </div>
+      ) : null}
       <div>
         <h1 className={ui.h1}>Operations hub</h1>
         <p className={ui.muted}>One queue for payment verification, check-in, exceptions, and manual actions.</p>

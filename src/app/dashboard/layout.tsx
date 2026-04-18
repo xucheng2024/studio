@@ -28,18 +28,21 @@ export default async function DashboardLayout({
         ? "manager"
         : "frontdesk";
   if (!access.hasBackofficeAccess || role === "instructor") {
+    if (!access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess) {
+      redirect("/account/suspended");
+    }
     redirect("/booking");
   }
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
   const superAdminNoStudioMode = access.ctx.isSuperAdmin;
   const { data: studios } =
     studioIds.length > 0
-      ? await supabase
+          ? await supabase
           .from("studios")
-          .select("id, name")
+          .select("id, name, contract_status")
           .in("id", studioIds)
           .order("name")
-      : { data: [] as { id: string; name: string }[] };
+      : { data: [] as { id: string; name: string; contract_status: string | null }[] };
 
   return (
     <div className={`${ui.pageWide} flex min-h-[calc(100dvh-3.5rem)] flex-col gap-8 md:flex-row md:gap-10`}>
@@ -56,7 +59,13 @@ export default async function DashboardLayout({
           </p>
         </div>
         {!superAdminNoStudioMode ? (
-          <StudioSwitcher studios={(studios ?? []).map((s) => ({ id: s.id, name: s.name }))} />
+          <StudioSwitcher
+            studios={(studios ?? []).map((s) => ({
+              id: s.id,
+              name: s.name,
+              contract_status: s.contract_status,
+            }))}
+          />
         ) : null}
         {studioIds.length === 0 ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">

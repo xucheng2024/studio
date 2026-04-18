@@ -6,6 +6,7 @@ import {
   toQrDataUrl,
   validatePaynowConfig,
 } from "@/lib/paynow";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,6 +39,9 @@ export async function POST(req: Request) {
   if (pkgErr || !pkg) {
     return NextResponse.json({ error: "package_not_found" }, { status: 404 });
   }
+
+  const blockedPkg = await respondIfStudioContractSuspended(admin, pkg.studio_id);
+  if (blockedPkg) return blockedPkg;
 
   const { data: studioPaynow } = await admin
     .from("studios")

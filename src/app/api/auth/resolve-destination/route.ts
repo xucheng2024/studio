@@ -11,7 +11,9 @@ export async function GET() {
 
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
   const destination =
-    access.bestRole === "instructor"
+    !access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess
+      ? "/account/suspended"
+      : access.bestRole === "instructor"
       ? "/instructor/sessions"
       : access.hasBackofficeAccess
         ? "/dashboard/operations"

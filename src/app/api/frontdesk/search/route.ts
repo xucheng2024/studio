@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireStaffScope } from "@/lib/scope";
+import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     locationId: parsed.data.location_id ?? null,
     roles: ["owner", "manager", "frontdesk"],
   });
-  if (!scoped.ok) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!scoped.ok) return staffScopeFailureResponse(scoped);
 
   const admin = createAdminClient();
   let q = admin

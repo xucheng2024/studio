@@ -28,8 +28,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (access.ctx.isSuperAdmin) {
     redirect("/dashboard/settings/owners");
   }
+  if (!access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess) {
+    redirect("/account/suspended");
+  }
   const { studioIds } = await getDashboardScope({
     userId: user.id,
+    email: user.email,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
   });

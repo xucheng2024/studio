@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
   if (!studioId) {
     return NextResponse.json({ error: "invalid_session" }, { status: 500 });
   }
+
+  const blockedCheckout = await respondIfStudioContractSuspended(admin, studioId);
+  if (blockedCheckout) return blockedCheckout;
 
   const { data: dropIn } = await admin
     .from("packages")

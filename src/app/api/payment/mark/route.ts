@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeOperationAudit } from "@/lib/audit";
 import { sendPaymentResultNotice } from "@/lib/email";
-import { requireStaffScope } from "@/lib/scope";
+import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     roles: ["owner", "manager", "frontdesk"],
   });
   if (!scoped.ok) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return staffScopeFailureResponse(scoped);
   }
 
   if (parsed.data.status === "paid") {

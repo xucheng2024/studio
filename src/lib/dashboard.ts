@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 export async function getDashboardScope(params: {
   userId: string;
+  email?: string | null;
   studioId?: string | null;
   locationId?: string | null;
 }) {
@@ -11,6 +12,7 @@ export async function getDashboardScope(params: {
   const locationIdInput = params.locationId ?? c.get("last_location_id")?.value ?? null;
   const ctx = await buildAccessContext({
     userId: params.userId,
+    email: params.email ?? null,
     selectedLocationId: locationIdInput,
   });
 

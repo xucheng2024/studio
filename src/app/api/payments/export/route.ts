@@ -53,6 +53,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  const exportStudioIds = studioId ? [studioId] : studioIds;
+  const { data: contractRows } = await supabase
+    .from("studios")
+    .select("id, contract_status")
+    .in("id", exportStudioIds);
+  if ((contractRows ?? []).some((r) => r.contract_status === "suspended")) {
+    return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
+  }
+
   let q = supabase
     .from("payments")
     .select("id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note")
