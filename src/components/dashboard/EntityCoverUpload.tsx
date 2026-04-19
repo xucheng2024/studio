@@ -13,7 +13,7 @@ import { ui } from "@/lib/ui";
  *   WebP so the alpha channel is preserved.
  * - Returns the compressed Blob; falls back to the original File on any error.
  */
-async function compressImage(file: File, maxDim = 1920, quality = 0.85): Promise<Blob> {
+async function compressImage(file: File, maxDim = 1600, quality = 0.85): Promise<Blob> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const img = new window.Image();
