@@ -59,18 +59,17 @@ export default async function Home({ searchParams }: Props) {
             </span>
           </Link>
 
-          {/* Non-interactive tile — visually muted to signal it's not a link */}
-          <div className="flex gap-4 rounded-2xl border border-dashed border-stone-200 bg-stone-50/60 p-4 dark:border-stone-700 dark:bg-stone-900/30">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-400 dark:bg-stone-800 dark:text-stone-500">
+          <Link href="/auth" className={`${ui.cardInteractive} group flex gap-4`}>
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition-colors group-hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:group-hover:bg-emerald-900/60">
               <RefreshCw size={19} />
             </span>
             <span className="flex flex-col justify-center gap-0.5">
-              <span className="text-sm font-semibold text-stone-600 dark:text-stone-400">One account, full history</span>
+              <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">One account, full history</span>
               <span className={`text-xs ${ui.muted}`}>
                 Sign in with your guest email to link all past bookings, payments, and credits automatically
               </span>
             </span>
-          </div>
+          </Link>
 
           <Link href="/dashboard" className={`${ui.cardInteractive} group flex gap-4`}>
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-500 transition-colors group-hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:group-hover:bg-stone-700">
