@@ -165,29 +165,42 @@ export default async function StudioBookingPage({ params }: Props) {
             credits_required: creditsRequired,
           };
           const hasEligiblePack = hasEligiblePackageForSession(userPacks, sessionCreditCtx);
+          const spotsLeft = Number(s.spots_left ?? 0);
+          const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
           return (
-            <li
-              key={s.id}
-              className={`${ui.cardInteractive} flex flex-wrap items-start justify-between gap-4`}
-            >
-              <div>
-                <p className="font-medium text-stone-900 dark:text-stone-100">{title}</p>
-                <p className={`mt-0.5 text-sm ${ui.muted}`}>{start}</p>
-                <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
-                  {s.spots_left} spots left
-                </p>
-                <p className={`mt-1 text-xs ${ui.muted}`}>
-                  Guest: ${Number(s.guest_price ?? 0).toFixed(2)} · Member: {creditsRequired} credits
-                </p>
+            <li key={s.id} className={ui.card}>
+              {/* ── Info row ── */}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-stone-900 dark:text-stone-100">{title}</p>
+                  <p className={`mt-1 text-sm ${ui.muted}`}>{start}</p>
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                    <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
+                    <span>{creditsRequired} credit{creditsRequired !== 1 ? "s" : ""} member</span>
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  spotsLeft === 0
+                    ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                    : spotsLow
+                      ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                      : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                }`}>
+                  {spotsLeft === 0 ? "Full" : `${spotsLeft} left`}
+                </span>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                {user ? (
-                  <div className="flex flex-wrap justify-end gap-2">
+
+              {/* ── Actions row ── */}
+              <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
+                {spotsLeft === 0 ? (
+                  <span className={`text-sm ${ui.muted}`}>Class full</span>
+                ) : user ? (
+                  <div className="flex flex-wrap gap-2">
                     <PackageBookButton sessionId={s.id} packages={userPacks} session={sessionCreditCtx} />
                     <BookButton sessionId={s.id} disabled={!paynow.configured} />
-                    {!hasEligiblePack ? (
-                      <span className="w-full text-right text-xs text-amber-700 dark:text-amber-300">
-                        Not enough credits for this class.
+                    {!hasEligiblePack && userPacks.length > 0 ? (
+                      <span className="text-xs text-amber-700 dark:text-amber-300">
+                        Package not eligible for this class
                       </span>
                     ) : null}
                   </div>
@@ -200,7 +213,9 @@ export default async function StudioBookingPage({ params }: Props) {
         })}
       </ul>
       {!sessions?.length ? (
-        <p className={`mt-6 text-center text-sm ${ui.muted}`}>No upcoming sessions yet.</p>
+        <div className={`mt-6 ${ui.emptyState}`}>
+          <p className={`text-sm ${ui.muted}`}>No upcoming sessions yet. Check back soon.</p>
+        </div>
       ) : null}
     </main>
   );

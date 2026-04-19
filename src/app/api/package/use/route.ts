@@ -52,13 +52,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "insufficient_credits" }, { status: 409 });
   }
 
-  const { error: updErr } = await admin
+  // Optimistic lock: only update if credits_left is still the value we read.
+  // Concurrent requests that also read the same value will match 0 rows and
+  // be detected as a conflict, preventing double-spend.
+  const { data: updated, error: updErr } = await admin
     .from("client_packages")
     .update({ credits_left: nextCredits })
-    .eq("id", row.id);
+    .eq("id", row.id)
+    .eq("credits_left", row.credits_left)
+    .select("credits_left");
 
   if (updErr) {
     return NextResponse.json({ error: updErr.message }, { status: 500 });
+  }
+  if (!updated?.length) {
+    return NextResponse.json({ error: "concurrent_modification" }, { status: 409 });
   }
 
   return NextResponse.json({ credits_left: nextCredits });

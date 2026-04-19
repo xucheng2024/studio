@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Check, CheckCircle2, Copy, Pause, Play, Pencil, Trash2, AlertCircle } from "lucide-react";
 import { ui } from "@/lib/ui";
 
 type Loc = { id: string; name: string };
@@ -163,13 +164,15 @@ export function PackageLifecycleRow({
             className={`${ui.btnSecondarySm} disabled:opacity-50`}
             onClick={() => void copyPurchaseLink()}
           >
+            <Copy size={13} />
             Copy purchase link
           </button>
         ) : null}
 
         {canEdit ? (
-          <details className="w-fit max-w-full rounded-md border border-stone-200 px-2 py-1 dark:border-stone-700 open:w-full open:px-2 open:py-2">
-            <summary className="cursor-pointer list-none text-sm font-medium text-stone-800 [&::-webkit-details-marker]:hidden dark:text-stone-200">
+          <details className="chevron w-fit max-w-full rounded-md border border-stone-200 px-2 py-1 dark:border-stone-700 open:w-full open:px-2 open:py-2">
+            <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-stone-800 dark:text-stone-200">
+              <Pencil size={13} />
               Edit
             </summary>
             <div className="mt-2 grid max-w-md gap-2 border-t border-stone-100 pt-2 dark:border-stone-800">
@@ -224,6 +227,7 @@ export function PackageLifecycleRow({
                 </select>
               </label>
               <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit`} onClick={() => void save()}>
+                <Check size={13} />
                 {busy ? "Saving…" : "Save changes"}
               </button>
             </div>
@@ -238,10 +242,12 @@ export function PackageLifecycleRow({
               className={`${ui.btnSecondarySm} border-amber-300 text-amber-900 dark:border-amber-700 dark:text-amber-200`}
               onClick={() => void stopSelling()}
             >
+              <Pause size={13} />
               Stop selling
             </button>
           ) : (
             <button type="button" disabled={busy} className={ui.btnPrimarySm} onClick={() => void resume()}>
+              <Play size={13} />
               Resume
             </button>
           )
@@ -253,12 +259,24 @@ export function PackageLifecycleRow({
             className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
             onClick={() => void deletePackage()}
           >
-            Delete package
+            <Trash2 size={13} />
+            Delete
           </button>
         ) : null}
       </div>
 
-      {msg ? <p className={`pt-0.5 text-xs ${ui.muted}`}>{msg}</p> : null}
+      {msg ? (
+        <p className={`flex items-center gap-1.5 pt-0.5 text-xs ${
+          msg === "Saved" || msg === "Copied purchase link" || msg === "Deleted"
+            ? "text-teal-700 dark:text-teal-400"
+            : "text-red-600 dark:text-red-400"
+        }`}>
+          {msg === "Saved" || msg === "Copied purchase link" || msg === "Deleted"
+            ? <CheckCircle2 size={12} />
+            : <AlertCircle size={12} />}
+          {msg}
+        </p>
+      ) : null}
     </div>
   );
 }

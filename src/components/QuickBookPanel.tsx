@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowRight, Loader2, X, AlertCircle } from "lucide-react";
 import { ui } from "@/lib/ui";
 
 type Props = {
@@ -18,102 +19,126 @@ export function QuickBookPanel({ slug, sessionId, disabled }: Props) {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const toFriendly = (code: string) => {
-    if (code === "full") return "This class is full now. Please choose another one.";
-    if (code === "already_has_booking") return "You already have a booking for this class.";
+    if (code === "full") return "This class is full. Please choose another session.";
+    if (code === "already_has_booking") return "You already have a booking for this session.";
     if (code === "PAYNOW_NOT_CONFIGURED")
-      return "This studio has not configured PayNow yet. Please contact frontdesk.";
+      return "This studio has not configured PayNow yet. Please contact the front desk.";
     return "Could not continue. Please check your details and try again.";
   };
 
   if (disabled) return null;
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={ui.btnPrimarySm}
+        onClick={() => { setOpen(true); setError(null); }}
+      >
+        <ArrowRight size={13} />
+        Book as guest
+      </button>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-end gap-2">
-      {!open ? (
+    <div className="w-full rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-900">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your details</p>
         <button
           type="button"
-          className={ui.btnPrimarySm}
-          onClick={() => {
-            setOpen(true);
+          className={`${ui.btnGhost} p-1`}
+          onClick={() => { setOpen(false); setError(null); }}
+          aria-label="Close booking form"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          <span className={ui.label}>Name</span>
+          <input
+            className={ui.input}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Alex Kim"
+            autoComplete="name"
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={ui.label}>Email</span>
+          <input
+            type="email"
+            className={ui.input}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="alex@example.com"
+            autoComplete="email"
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={`${ui.label}`}>
+            Phone{" "}
+            <span className={`font-normal ${ui.muted}`}>(optional)</span>
+          </span>
+          <input
+            type="tel"
+            className={ui.input}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+65 9123 4567"
+            autoComplete="tel"
+          />
+        </label>
+
+        {error ? (
+          <p className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
+            <AlertCircle size={13} />
+            {error}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          disabled={loading || !name.trim() || !email.trim()}
+          className={`${ui.btnPrimary} justify-center disabled:opacity-50`}
+          onClick={async () => {
+            setLoading(true);
             setError(null);
+            const res = await fetch("/api/book/create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                slug,
+                session_id: sessionId,
+                guest_name: name,
+                guest_email: email,
+                guest_phone: phone || null,
+              }),
+            });
+            const body = await res.json().catch(() => ({}));
+            setLoading(false);
+            if (!res.ok) {
+              setError(toFriendly(String(body.error ?? "")));
+              return;
+            }
+            if (body.checkout_url) {
+              router.push(body.checkout_url);
+            }
           }}
         >
-          Book
+          {loading ? (
+            <><Loader2 size={15} className="animate-spin" /> Processing…</>
+          ) : (
+            <><ArrowRight size={15} /> Continue to pay</>
+          )}
         </button>
-      ) : (
-        <div
-          className={`flex w-full min-w-[260px] max-w-sm flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-lg shadow-stone-900/10 dark:border-stone-700 dark:bg-stone-900`}
-        >
-          <p className={`${ui.h2} text-base`}>Your details</p>
-          <label className="flex flex-col gap-1">
-            <span className={ui.label}>Name</span>
-            <input
-              className={ui.input}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className={ui.label}>Email</span>
-            <input
-              type="email"
-              className={ui.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className={ui.label}>Phone (optional)</span>
-            <input
-              type="tel"
-              className={ui.input}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </label>
-          {error ? <p className={ui.error}>{error}</p> : null}
-          <div className="flex flex-wrap gap-2 pt-1">
-            <button
-              type="button"
-              disabled={loading}
-              className={`${ui.btnPrimary} disabled:opacity-50`}
-              onClick={async () => {
-                setLoading(true);
-                setError(null);
-                const res = await fetch("/api/book/create", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    slug,
-                    session_id: sessionId,
-                    guest_name: name,
-                    guest_email: email,
-                    guest_phone: phone || null,
-                  }),
-                });
-                const body = await res.json().catch(() => ({}));
-                setLoading(false);
-                if (!res.ok) {
-                  setError(toFriendly(String(body.error ?? "")));
-                  return;
-                }
-                if (body.checkout_url) {
-                  router.push(body.checkout_url);
-                  return;
-                }
-              }}
-            >
-              {loading ? "..." : "Continue to pay"}
-            </button>
-            <button type="button" className={ui.btnGhost} onClick={() => setOpen(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

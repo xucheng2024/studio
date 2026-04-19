@@ -40,7 +40,6 @@ export default async function ClassesPage({ searchParams }: Props) {
     .in("studio_id", studioIds)
     .order("name");
   if (selectedLocationId) instructorsQuery = instructorsQuery.eq("location_id", selectedLocationId);
-  const { data: instructors } = await instructorsQuery;
 
   let classesQuery = supabase
     .from("classes")
@@ -62,28 +61,28 @@ export default async function ClassesPage({ searchParams }: Props) {
     .in("studio_id", studioIds)
     .order("title");
   if (selectedLocationId) classesQuery = classesQuery.eq("location_id", selectedLocationId);
-  const { data: classes } = await classesQuery;
 
-  const { data: locationRows } = await supabase
+  const locationRowsQuery = supabase
     .from("locations")
     .select("id, name, studio_id")
     .in("studio_id", studioIds)
     .eq("is_active", true)
     .order("name");
 
+  // Run independent queries in parallel
+  const [{ data: instructors }, { data: classes }, { data: locationRows }] = await Promise.all([
+    instructorsQuery,
+    classesQuery,
+    locationRowsQuery,
+  ]);
+
   const studioId = instructors?.[0]?.studio_id ?? classes?.[0]?.studio_id ?? studioIds[0];
 
-  const { data: allInstructors } = await supabase
-    .from("instructors")
-    .select("id, name, studio_id")
-    .eq("studio_id", studioId)
-    .order("name");
-
-  const { data: studioMeta } = await supabase
-    .from("studios")
-    .select("public_slug")
-    .eq("id", studioId)
-    .maybeSingle();
+  // These two depend on studioId, run them in parallel with each other
+  const [{ data: allInstructors }, { data: studioMeta }] = await Promise.all([
+    supabase.from("instructors").select("id, name, studio_id").eq("studio_id", studioId).order("name"),
+    supabase.from("studios").select("public_slug").eq("id", studioId).maybeSingle(),
+  ]);
 
   const backParams = new URLSearchParams();
   if (selectedStudioId) backParams.set("studio_id", selectedStudioId);
@@ -105,85 +104,78 @@ export default async function ClassesPage({ searchParams }: Props) {
         </div>
 
         <h2 className={`${ui.h2} mt-8`}>Instructors</h2>
-        {canEdit ? (
-          <form
-            action={createInstructor}
-            className={`${ui.card} mt-4 flex flex-wrap items-end gap-3`}
-          >
-            <input type="hidden" name="studio_id" value={studioId} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-            <label className="flex min-w-[10rem] flex-col gap-1.5">
-              <span className={ui.label}>Name</span>
-              <input name="name" required className={ui.input} placeholder="Alex Kim" />
-            </label>
-            <SubmitButton className={ui.btnPrimary} pendingText="Adding...">
-              Add
-            </SubmitButton>
-          </form>
-        ) : null}
-        <ul className={`mt-4 flex flex-wrap gap-2 text-sm ${ui.muted}`}>
+        <ul className={`mt-3 flex flex-wrap gap-2 text-sm ${ui.muted}`}>
           {(instructors ?? []).map((i) => (
             <li key={i.id} className="rounded-full bg-stone-100 px-3 py-1 dark:bg-stone-800">
               {i.name}
             </li>
           ))}
+          {!(instructors ?? []).length ? (
+            <li className={ui.muted}>No instructors yet.</li>
+          ) : null}
         </ul>
+        {canEdit ? (
+          <details className={`chevron ${ui.card} mt-3 max-w-sm`}>
+            <summary className="flex cursor-pointer items-center justify-between text-sm font-medium text-stone-800 dark:text-stone-200">
+              <span>+ Add instructor</span>
+              <span className={`text-xs font-normal ${ui.muted}`}>Expand</span>
+            </summary>
+            <form action={createInstructor} className="mt-3 flex flex-wrap items-end gap-3">
+              <input type="hidden" name="studio_id" value={studioId} />
+              <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+              <label className="flex min-w-40 flex-col gap-1.5">
+                <span className={ui.label}>Name</span>
+                <input name="name" required className={ui.input} placeholder="Alex Kim" />
+              </label>
+              <SubmitButton className={ui.btnPrimary} pendingText="Adding...">
+                Add
+              </SubmitButton>
+            </form>
+          </details>
+        ) : null}
       </div>
 
       <div>
         <h2 className={ui.h2}>Class templates</h2>
         {canEdit ? (
-          <form action={createClassTemplate} className={`${ui.card} mt-4 grid gap-4 md:grid-cols-2`}>
-            <input type="hidden" name="studio_id" value={studioId} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Title</span>
-              <input name="title" required className={ui.input} placeholder="Vinyasa Flow" />
-            </label>
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Description</span>
-              <textarea
-                name="description"
-                rows={2}
-                className={`${ui.input} min-h-[4rem]`}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Capacity</span>
-              <input
-                name="capacity"
-                type="number"
-                min={1}
-                defaultValue={10}
-                className={ui.input}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Duration (min)</span>
-              <input
-                name="duration_min"
-                type="number"
-                min={15}
-                step={5}
-                defaultValue={60}
-                className={ui.input}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Instructor</span>
-              <select name="instructor_id" className={ui.select}>
-                <option value="">—</option>
-                {(instructors ?? []).map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <SubmitButton className={`${ui.btnPrimary} md:col-span-2`} pendingText="Saving...">
-              Save class template
-            </SubmitButton>
-          </form>
+          <details className={`chevron ${ui.card} mt-4 max-w-lg`} id="create-class-template">
+            <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
+              <span>+ New class template</span>
+              <span className={`text-xs font-normal ${ui.muted}`}>Expand to create</span>
+            </summary>
+            <form action={createClassTemplate} className="mt-4 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="studio_id" value={studioId} />
+              <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+              <label className="flex flex-col gap-1.5 md:col-span-2">
+                <span className={ui.label}>Title</span>
+                <input name="title" required className={ui.input} placeholder="Vinyasa Flow" />
+              </label>
+              <label className="flex flex-col gap-1.5 md:col-span-2">
+                <span className={ui.label}>Description</span>
+                <textarea name="description" rows={2} className={`${ui.input} min-h-16`} />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Capacity</span>
+                <input name="capacity" type="number" min={1} defaultValue={10} className={ui.input} />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Duration (min)</span>
+                <input name="duration_min" type="number" min={15} step={5} defaultValue={60} className={ui.input} />
+              </label>
+              <label className="flex flex-col gap-1.5 md:col-span-2">
+                <span className={ui.label}>Instructor</span>
+                <select name="instructor_id" className={ui.select}>
+                  <option value="">—</option>
+                  {(instructors ?? []).map((i) => (
+                    <option key={i.id} value={i.id}>{i.name}</option>
+                  ))}
+                </select>
+              </label>
+              <SubmitButton className={`${ui.btnPrimary} md:col-span-2 w-fit`} pendingText="Saving...">
+                Save class template
+              </SubmitButton>
+            </form>
+          </details>
         ) : null}
 
         <ul className="mt-6 flex flex-col gap-4">

@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   });
   if (!scoped.ok) return staffScopeFailureResponse(scoped);
 
-  await admin
+  const { error: matchErr } = await admin
     .from("payments")
     .update({
       booking_id: parsed.data.booking_id,
@@ -63,6 +63,10 @@ export async function POST(req: Request) {
       recon_note: parsed.data.recon_note?.trim() || "manual matched",
     })
     .eq("id", payment.id);
+
+  if (matchErr) {
+    return NextResponse.json({ error: matchErr.message }, { status: 500 });
+  }
 
   await writeOperationAudit({
     actorId: user.id,

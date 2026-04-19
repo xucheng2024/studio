@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { CheckCircle2, AlertCircle, Loader2, Zap } from "lucide-react";
 import {
   hasEligiblePackageForSession,
   type MemberPackageForCredits,
@@ -73,19 +74,23 @@ export function PackageBookButton({
           const body = await res.json().catch(() => ({}));
           setBusy(false);
           if (!res.ok) {
-            setMsg(toFriendly(String(body.error ?? "")));
+            setMsg(`error:${toFriendly(String(body.error ?? ""))}`);
             return;
           }
-          setMsg("Booked with credits");
+          setMsg("success:Booked with credits");
           router.refresh();
         }}
       >
-        {busy ? "Booking..." : "Book with credits"}
+        {busy ? (
+          <><Loader2 size={12} className="animate-spin" /> Booking…</>
+        ) : (
+          <><Zap size={12} /> Book with credits</>
+        )}
       </button>
 
-      <details className="w-full max-w-xs rounded-md border border-stone-200 p-2 text-left dark:border-stone-700 sm:max-w-sm">
+      <details className="chevron w-full max-w-xs rounded-xl border border-stone-200 p-2 text-left dark:border-stone-700 sm:max-w-sm">
         <summary className={`cursor-pointer text-xs ${ui.muted}`}>
-          Advanced · Manual package selection (front desk / override)
+          Choose package manually
         </summary>
         <div className="mt-2 flex flex-col gap-2">
           <select
@@ -118,19 +123,30 @@ export function PackageBookButton({
               const body = await res.json().catch(() => ({}));
               setBusy(false);
               if (!res.ok) {
-                setMsg(toFriendly(String(body.error ?? "")));
+                setMsg(`error:${toFriendly(String(body.error ?? ""))}`);
                 return;
               }
-              setMsg("Booked with selected package");
+              setMsg("success:Booked with selected package");
               router.refresh();
             }}
           >
-            {busy ? "Booking..." : "Book with selected package"}
+            {busy ? <><Loader2 size={12} className="animate-spin" /> Booking…</> : "Book with this package"}
           </button>
         </div>
       </details>
 
-      {msg ? <span className={`text-xs ${ui.muted}`}>{msg}</span> : null}
+      {msg ? (
+        <p className={`flex items-center gap-1 text-xs ${
+          msg.startsWith("success:")
+            ? "text-teal-700 dark:text-teal-400"
+            : "text-red-600 dark:text-red-400"
+        }`}>
+          {msg.startsWith("success:")
+            ? <CheckCircle2 size={12} />
+            : <AlertCircle size={12} />}
+          {msg.replace(/^(success|error):/, "")}
+        </p>
+      ) : null}
     </div>
   );
 }

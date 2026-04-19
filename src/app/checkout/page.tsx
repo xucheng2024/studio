@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShoppingBag, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { BuyPackageButton } from "@/components/BuyButtons";
 import { getPaynowSummary } from "@/lib/paynow";
 import { ui } from "@/lib/ui";
@@ -34,19 +35,21 @@ export default async function CheckoutPage() {
 
   return (
     <main className={ui.page}>
-      <header className="mb-8 flex max-w-2xl flex-col gap-2">
-        <h1 className={ui.h1}>Buy packs</h1>
-        <p className={ui.lead}>
-          Choose a package, pay with PayNow, then submit your payment notice for verification.
+      <header className="mb-8 max-w-2xl">
+        <p className={ui.badge}>Class packs</p>
+        <h1 className={`${ui.h1} mt-2`}>Buy a pack</h1>
+        <p className={`${ui.lead} mt-2`}>
+          Choose a package, pay with PayNow, and submit your payment receipt for verification.
         </p>
         {!user ? (
-          <Link href="/auth" className={`${ui.link} text-sm`}>
-            Sign in to buy packages
-          </Link>
+          <p className={`mt-3 text-sm ${ui.muted}`}>
+            <Link href="/auth" className={ui.link}>Sign in</Link>
+            {" "}to track purchases and bookings in one place.
+          </p>
         ) : null}
       </header>
 
-      <ul className="flex flex-col gap-4">
+      <ul className="flex max-w-2xl flex-col gap-4">
         {(packages ?? []).map((p) => {
           const studioObj = (p.studios as
             | {
@@ -76,32 +79,77 @@ export default async function CheckoutPage() {
             paynow_payee_name: studioRow?.paynow_payee_name ?? null,
           });
           return (
-            <li
-              key={p.id}
-              className={`${ui.cardInteractive} flex flex-wrap items-center justify-between gap-4`}
-            >
-              <div>
-                <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
-                <p className={`mt-0.5 text-sm ${ui.muted}`}>
-                  {studio} · {p.credits} credits · ${p.price}
-                </p>
-                <p className={`mt-1 text-xs ${ui.muted}`}>
-                  Expiry:{" "}
-                  {p.expiry_days != null ? `${p.expiry_days} days after purchase` : "none"}
-                </p>
-                <p className={`mt-1 text-xs ${paynow.configured ? ui.muted : ui.error}`}>
-                  {paynow.line}
-                </p>
+            <li key={p.id} className={ui.card}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                {/* ── Left: pack info ── */}
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                    <ShoppingBag size={19} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-stone-900 dark:text-stone-100">{p.name}</p>
+                    <p className={`mt-0.5 text-sm ${ui.muted}`}>{studio}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 size={11} className="text-teal-600 dark:text-teal-400" />
+                        {p.credits} credits
+                      </span>
+                      {p.expiry_days != null ? (
+                        <span className="flex items-center gap-1">
+                          <Clock size={11} />
+                          Expires in {p.expiry_days} days
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <Clock size={11} />
+                          No expiry
+                        </span>
+                      )}
+                    </div>
+                    {!paynow.configured ? (
+                      <p className={`mt-1.5 flex items-center gap-1 text-xs ${ui.error}`}>
+                        <AlertCircle size={11} />
+                        {paynow.line}
+                      </p>
+                    ) : (
+                      <p className={`mt-1 text-xs ${ui.muted}`}>{paynow.line}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Right: price + action ── */}
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <p className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-100">
+                    ${Number(p.price).toFixed(2)}
+                  </p>
+                  {user ? (
+                    <BuyPackageButton packageId={p.id} disabled={!paynow.configured} />
+                  ) : (
+                    <Link
+                      href={`/auth?next=/checkout`}
+                      className={ui.btnPrimarySm}
+                    >
+                      Sign in to buy
+                    </Link>
+                  )}
+                </div>
               </div>
-              {user ? <BuyPackageButton packageId={p.id} disabled={!paynow.configured} /> : null}
             </li>
           );
         })}
       </ul>
+
       {!packages?.length ? (
-        <p className={`mt-6 text-center text-sm ${ui.muted}`}>
-          No packages yet. Owners add them in the dashboard.
-        </p>
+        <div className={`mt-8 max-w-md ${ui.emptyState}`}>
+          <div className={ui.emptyStateIcon}>
+            <ShoppingBag size={18} />
+          </div>
+          <p className="font-medium text-stone-700 dark:text-stone-300">No packages available</p>
+          <p className={`text-sm ${ui.muted}`}>Check back soon, or browse classes now.</p>
+          <Link href="/booking" className={`${ui.link} text-sm`}>
+            Browse classes →
+          </Link>
+        </div>
       ) : null}
     </main>
   );

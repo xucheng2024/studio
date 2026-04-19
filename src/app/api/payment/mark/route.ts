@@ -166,7 +166,7 @@ export async function POST(req: Request) {
   if (payment.booking_id) {
     await admin
       .from("bookings")
-      .update({ status: "cancelled", payment_status: "pending" })
+      .update({ status: "cancelled", payment_status: parsed.data.status })
       .eq("id", payment.booking_id)
       .eq("status", "pending");
     const { data: booking } = await admin

@@ -4,6 +4,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { CalendarDays, Users, DollarSign, QrCode } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{ location_id?: string; studio_id?: string; create_error?: string }>;
@@ -108,11 +109,14 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
     bookingsToday = count ?? 0;
   }
 
+  // Scope revenue to current calendar month to avoid loading full payment history.
+  const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
   let paymentsQuery = supabase
     .from("payments")
-    .select("amount, location_id")
+    .select("amount")
     .in("studio_id", studioIds)
-    .eq("status", "paid");
+    .eq("status", "paid")
+    .gte("created_at", monthStart.toISOString());
   if (selectedLocationId) paymentsQuery = paymentsQuery.eq("location_id", selectedLocationId);
   const { data: payments } = await paymentsQuery;
 
@@ -120,33 +124,52 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className={ui.h1}>{studio.name}</h1>
           <p className={`mt-1 ${ui.muted}`}>Today at a glance</p>
         </div>
-        <DashboardAppLink href="/dashboard/qr" className={`${ui.btnSecondarySm} shrink-0`}>
-          QR & link
+        <DashboardAppLink href="/dashboard/qr" className={`${ui.btnSecondarySm} shrink-0 gap-2`}>
+          <QrCode size={14} />
+          QR &amp; link
         </DashboardAppLink>
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className={ui.statCard}>
-          <p className={`text-sm font-medium ${ui.muted}`}>Classes today</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-stone-900 dark:text-stone-50">
-            {todaySessions?.length ?? 0}
-          </p>
+
+      {/* ── Stat cards ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+            <CalendarDays size={18} />
+          </div>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Classes today</p>
+            <p className="mt-0.5 text-2xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+              {todaySessions?.length ?? 0}
+            </p>
+          </div>
         </div>
-        <div className={ui.statCard}>
-          <p className={`text-sm font-medium ${ui.muted}`}>Bookings today</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-stone-900 dark:text-stone-50">
-            {bookingsToday}
-          </p>
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
+            <Users size={18} />
+          </div>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Bookings today</p>
+            <p className="mt-0.5 text-2xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+              {bookingsToday}
+            </p>
+          </div>
         </div>
-        <div className={ui.statCard}>
-          <p className={`text-sm font-medium ${ui.muted}`}>Revenue (paid)</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-teal-700 dark:text-teal-300">
-            ${revenue.toFixed(2)}
-          </p>
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400">
+            <DollarSign size={18} />
+          </div>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Revenue this month</p>
+            <p className="mt-0.5 text-2xl font-bold tabular-nums text-teal-700 dark:text-teal-300">
+              ${revenue.toFixed(2)}
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function GET(req: Request) {
   const auth = req.headers.get("authorization");
   const expected = process.env.CRON_SECRET;
-  if (expected && auth !== `Bearer ${expected}`) {
+  // Require the secret to be configured – absence of CRON_SECRET is not a free pass
+  if (!expected || auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

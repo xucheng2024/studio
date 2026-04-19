@@ -31,7 +31,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("classes")
-    .select("id, studio_id, location_id")
+    .select("id, studio_id, location_id, instructor_id")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -76,6 +76,23 @@ export async function PATCH(req: Request, ctx: RouteParams) {
         .eq("is_active", true)
         .maybeSingle();
       if (!loc) return NextResponse.json({ error: "invalid_location" }, { status: 400 });
+
+      // When only location_id is patched (no instructor_id in this request),
+      // re-check the existing instructor against the new location to keep them consistent.
+      const effectiveInstructorId =
+        parsed.data.instructor_id !== undefined
+          ? parsed.data.instructor_id   // already validated above
+          : (row.instructor_id as string | null | undefined);
+      if (effectiveInstructorId) {
+        const { data: ins } = await admin
+          .from("instructors")
+          .select("id, location_id")
+          .eq("id", effectiveInstructorId)
+          .maybeSingle();
+        if (ins?.location_id && ins.location_id !== parsed.data.location_id) {
+          return NextResponse.json({ error: "instructor_location_mismatch" }, { status: 400 });
+        }
+      }
     }
     patch.location_id = parsed.data.location_id;
   }

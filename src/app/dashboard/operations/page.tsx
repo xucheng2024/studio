@@ -1,3 +1,4 @@
+import { CreditCard, UserCheck } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { OpsBoard } from "@/components/ops/OpsBoard";
 import { OpsFilters } from "@/components/ops/OpsFilters";
@@ -159,9 +160,11 @@ export default async function OperationsPage({ searchParams }: Props) {
         <p className={ui.muted}>One queue for payment checks, arrivals, and urgent follow-ups.</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/payments?view=recon&${filterParams.toString()}`} className={ui.btnSecondarySm}>
+            <CreditCard size={13} />
             Payment records
           </DashboardAppLink>
           <DashboardAppLink href={`/dashboard/frontdesk?${filterParams.toString()}`} className={ui.btnSecondarySm}>
+            <UserCheck size={13} />
             Walk-in & check-in
           </DashboardAppLink>
         </div>

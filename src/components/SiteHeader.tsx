@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { site } from "@/lib/brand";
 import { SignOutButton } from "@/components/SignOutButton";
+import { MobileMenu } from "@/components/MobileMenu";
 import { resolveAccessContext } from "@/lib/rbac";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -14,13 +15,9 @@ export async function SiteHeader() {
           <Link href="/" className={ui.linkHeaderBrand}>
             {site.name}
           </Link>
-          <nav className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1 sm:gap-x-3">
-            <Link href="/booking" className={ui.linkHeaderNav}>
-              Classes
-            </Link>
-            <Link href="/auth" className={ui.linkHeaderNav}>
-              Sign in / Sign up
-            </Link>
+          <nav className="flex items-center gap-1">
+            <Link href="/booking" className={ui.linkHeaderNav}>Classes</Link>
+            <Link href="/auth" className={`${ui.btnPrimarySm} py-1!`}>Sign in</Link>
           </nav>
         </div>
       </header>
@@ -28,9 +25,7 @@ export async function SiteHeader() {
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
   let showDashboard = false;
   if (user) {
@@ -42,52 +37,69 @@ export async function SiteHeader() {
     user?.id?.charAt(0).toUpperCase() ||
     "U";
 
+  const navItems = user
+    ? [
+        { href: "/booking", label: "Classes" },
+        { href: "/me/bookings", label: "My bookings" },
+        ...(showDashboard ? [{ href: "/dashboard", label: "Dashboard" }] : []),
+      ]
+    : [{ href: "/booking", label: "Classes" }];
+
   return (
     <header className={ui.headerBar}>
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        {/* Brand */}
         <Link href="/" className={ui.linkHeaderBrand}>
           {site.name}
         </Link>
-        <nav className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1 sm:gap-x-3">
-          <Link href="/booking" className={ui.linkHeaderNav}>
-            Classes
-          </Link>
+
+        {/* Desktop nav */}
+        <nav className="hidden items-center gap-1 sm:flex">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className={ui.linkHeaderNav}>
+              {item.label}
+            </Link>
+          ))}
           {user ? (
-            <>
-              <Link href="/me/bookings" className={ui.linkHeaderNav}>
-                My bookings
-              </Link>
-              {showDashboard ? (
-                <Link href="/dashboard" className={ui.linkHeaderNav}>
-                  Dashboard
-                </Link>
-              ) : null}
-              <details className="relative">
-                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:text-sm dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100">
-                  <span className="inline-flex size-6 items-center justify-center rounded-full bg-teal-100 text-xs font-semibold text-teal-900 dark:bg-teal-900/60 dark:text-teal-100">
-                    {userInitial}
-                  </span>
-                  <span className="hidden sm:inline">Account</span>
-                </summary>
-                <div className="absolute right-0 top-10 z-50 w-48 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 max-sm:fixed max-sm:left-3 max-sm:right-3 max-sm:top-16 max-sm:w-auto dark:border-stone-800 dark:bg-stone-900">
-                  <Link href="/me/bookings" className={ui.linkHeaderMenu}>
-                    My bookings
+            <details className="relative ml-1">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-stone-100 dark:hover:bg-stone-800">
+                <span className="inline-flex size-7 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800 dark:bg-teal-900/60 dark:text-teal-100">
+                  {userInitial}
+                </span>
+                <span className="text-xs font-medium text-stone-600 dark:text-stone-400">
+                  Account
+                </span>
+              </summary>
+              <div className="absolute right-0 top-11 z-50 min-w-44 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
+                {navItems.map((item) => (
+                  <Link key={item.href} href={item.href} className={ui.linkHeaderMenu}>
+                    {item.label}
                   </Link>
-                  {showDashboard ? (
-                    <Link href="/dashboard" className={ui.linkHeaderMenu}>
-                      Dashboard
-                    </Link>
-                  ) : null}
+                ))}
+                <div className={`mt-1 border-t ${ui.divider} pt-1`}>
                   <SignOutButton />
                 </div>
-              </details>
-            </>
+              </div>
+            </details>
           ) : (
-            <Link href="/auth" className={ui.linkHeaderNav}>
-              Sign in / Sign up
+            <Link href="/auth" className={`${ui.btnPrimarySm} ml-1 py-1!`}>
+              Sign in
             </Link>
           )}
         </nav>
+
+        {/* Mobile nav trigger */}
+        <div className="flex items-center gap-2 sm:hidden">
+          {user && (
+            <span className="inline-flex size-7 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800 dark:bg-teal-900/60 dark:text-teal-100">
+              {userInitial}
+            </span>
+          )}
+          <MobileMenu
+            navItems={navItems}
+            isLoggedIn={Boolean(user)}
+          />
+        </div>
       </div>
     </header>
   );

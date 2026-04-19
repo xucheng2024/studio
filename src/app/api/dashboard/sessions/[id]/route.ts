@@ -15,8 +15,11 @@ const patchSchema = z.object({
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function PATCH(req: Request, ctx: RouteParams) {
   const { id } = await ctx.params;
+  if (!UUID_RE.test(id)) return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   const json = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(json);
   if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
@@ -30,10 +33,13 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("class_sessions")
-    .select("id, class_id, location_id, start_time, end_time, capacity, spots_left, classes!inner(studio_id, duration_min)")
+    .select("id, class_id, location_id, start_time, end_time, capacity, spots_left, status, classes!inner(studio_id, duration_min)")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if ((row as { status?: string | null }).status === "cancelled") {
+    return NextResponse.json({ error: "session_cancelled" }, { status: 409 });
+  }
 
   const cls = Array.isArray(row.classes) ? row.classes[0] : row.classes;
   if (!cls?.studio_id) return NextResponse.json({ error: "invalid_session" }, { status: 409 });

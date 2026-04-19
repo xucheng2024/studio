@@ -39,6 +39,8 @@ function normalizeDateRange(dateFrom: string | null, dateTo: string | null) {
     return { startIso: start.toISOString(), endIso: e.toISOString() };
   }
   end.setDate(end.getDate() + 1);
+  // Silently swap if caller provided an inverted range rather than returning empty results
+  if (start > end) return { startIso: end.toISOString(), endIso: start.toISOString() };
   return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
 

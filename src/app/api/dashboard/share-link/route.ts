@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   if (parsed.data.entity_type === "session") {
     const { data: session, error: sErr } = await admin
       .from("class_sessions")
-      .select("id, class_id, location_id, classes!inner(id, studio_id, location_id, share_slug)")
+      .select("id, class_id, location_id, share_slug, classes!inner(id, studio_id, location_id, share_slug)")
       .eq("id", parsed.data.entity_id)
       .maybeSingle();
     if (sErr || !session) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -93,21 +93,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "studio_unavailable" }, { status: 409 });
     }
 
-    const slugResult = await resolveShareSlug(
+    // Ensure the parent class has a stable slug (auto-generate only; custom slug from the
+    // request applies to the SESSION, not the class, so we pass undefined here).
+    const classSlugResult = await resolveShareSlug(
       admin,
       "classes",
       sessionClass.id,
       sessionClass.share_slug,
-      parsed.data.slug,
+      undefined,
     );
-    if (!slugResult.ok) {
-      return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
+    if (!classSlugResult.ok) {
+      return NextResponse.json({ error: classSlugResult.error }, { status: classSlugResult.status });
     }
 
-    const url = `${base}/class/${studio.public_slug}/${slugResult.slug}?session_id=${session.id}`;
+    // Resolve the session's own share_slug (custom slug from request applies here).
+    const sessionSlugResult = await resolveShareSlug(
+      admin,
+      "class_sessions",
+      session.id,
+      (session as { share_slug?: string | null }).share_slug ?? null,
+      parsed.data.slug,
+    );
+    if (!sessionSlugResult.ok) {
+      return NextResponse.json({ error: sessionSlugResult.error }, { status: sessionSlugResult.status });
+    }
+
+    // Use the human-readable session slug in the shared URL.
+    // The class page accepts both ?session=<slug> and ?session_id=<uuid> so
+    // direct links with UUIDs (e.g. from ops tools) keep working.
+    const url = `${base}/class/${studio.public_slug}/${classSlugResult.slug}?session=${sessionSlugResult.slug}`;
     revalidatePath("/booking");
-    revalidatePath(`/class/${studio.public_slug}/${slugResult.slug}`);
-    return NextResponse.json({ url, share_slug: slugResult.slug, session_id: session.id });
+    revalidatePath(`/class/${studio.public_slug}/${classSlugResult.slug}`);
+    return NextResponse.json({
+      url,
+      share_slug: classSlugResult.slug,
+      session_share_slug: sessionSlugResult.slug,
+      session_id: session.id,
+    });
   }
 
   const { data: cls, error: cErr } = await admin
@@ -147,14 +169,17 @@ export async function POST(req: Request) {
 
 async function resolveShareSlug(
   admin: ReturnType<typeof createAdminClient>,
-  table: "packages" | "classes",
+  table: "packages" | "classes" | "class_sessions",
   id: string,
-  existing: string | null,
+  existing: string | null | undefined,
   customRaw: string | undefined,
 ): Promise<{ ok: true; slug: string } | { ok: false; error: string; status: number }> {
   const doUpdate = async (slug: string) => {
     if (table === "packages") {
       return admin.from("packages").update({ share_slug: slug }).eq("id", id);
+    }
+    if (table === "class_sessions") {
+      return admin.from("class_sessions").update({ share_slug: slug }).eq("id", id);
     }
     return admin.from("classes").update({ share_slug: slug }).eq("id", id);
   };

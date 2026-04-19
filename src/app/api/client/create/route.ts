@@ -1,7 +1,9 @@
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { bestRole, buildAccessContext } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
   name: z.string().min(1).max(120),
@@ -12,12 +14,27 @@ const bodySchema = z.object({
 /**
  * Creates an auth user + public.users row (client) for email OTP / password flows.
  * Password is random; user should sign in via Supabase email OTP from the client.
+ * Caller must be authenticated staff (owner / manager / frontdesk).
  */
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+
+  // Require authenticated staff – this route uses the service role and must not
+  // be callable anonymously (anyone with the URL could otherwise create users).
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
+  const role = bestRole(ctx);
+  if (!["owner", "manager", "frontdesk"].includes(role)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const admin = createAdminClient();

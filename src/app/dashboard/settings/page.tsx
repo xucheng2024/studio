@@ -7,6 +7,41 @@ import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import {
+  Building2, CreditCard, Users, MapPin, QrCode, ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
+
+function SettingCard({
+  as: Tag,
+  href,
+  icon: Icon,
+  title,
+  desc,
+  className,
+}: {
+  as: React.ElementType;
+  href: string;
+  icon: LucideIcon;
+  title: string;
+  desc: string;
+  className?: string;
+}) {
+  return (
+    <Tag
+      href={href}
+      className={`group flex items-start gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-stone-800 dark:bg-stone-900 ${className ?? ""}`}
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-500 transition-colors group-hover:bg-teal-50 group-hover:text-teal-700 dark:bg-stone-800 dark:text-stone-400 dark:group-hover:bg-teal-950/40 dark:group-hover:text-teal-400">
+        <Icon size={17} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-stone-900 dark:text-stone-100">{title}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-stone-500 dark:text-stone-400">{desc}</span>
+      </span>
+    </Tag>
+  );
+}
 
 type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
 
@@ -73,31 +108,52 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Settings</h1>
         <p className={ui.muted}>Studio-level configuration and admin tools.</p>
       </div>
-      <div className={`${ui.card} grid gap-3 md:grid-cols-2`}>
-        <DashboardAppLink href={scopedHref("/dashboard/overview", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
-          Studio profile
-        </DashboardAppLink>
-        <DashboardAppLink href={scopedHref("/dashboard/settings/payments", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
-          Payment settings
-        </DashboardAppLink>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/overview", selectedStudioId, selectedLocationId)}
+          icon={Building2}
+          title="Studio profile"
+          desc="Name, slug, public info, and branding"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/payments", selectedStudioId, selectedLocationId)}
+          icon={CreditCard}
+          title="Payment settings"
+          desc="Bank details, transfer instructions, and payment policies"
+        />
         {role === "owner" ? (
-          <DashboardAppLink
+          <SettingCard
+            as={DashboardAppLink}
             href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId, selectedLocationId)}
-            className={ui.btnSecondary}
-          >
-            Staff & roles
-          </DashboardAppLink>
+            icon={Users}
+            title="Staff & roles"
+            desc="Invite staff, assign roles, and manage access"
+          />
         ) : null}
-        <DashboardAppLink href={scopedHref("/dashboard/settings/locations", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
-          Locations
-        </DashboardAppLink>
-        <DashboardAppLink href={scopedHref("/dashboard/qr", selectedStudioId, selectedLocationId)} className={ui.btnSecondary}>
-          QR / share link
-        </DashboardAppLink>
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/locations", selectedStudioId, selectedLocationId)}
+          icon={MapPin}
+          title="Locations"
+          desc="Add or edit studio locations and addresses"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/qr", selectedStudioId, selectedLocationId)}
+          icon={QrCode}
+          title="QR / share link"
+          desc="Print or share the booking QR code for your studio"
+        />
         {isSuperAdmin ? (
-          <DashboardAppLink href="/dashboard/settings/owners" className={ui.btnSecondary}>
-            Platform owner access
-          </DashboardAppLink>
+          <SettingCard
+            as={DashboardAppLink}
+            href="/dashboard/settings/owners"
+            icon={ShieldCheck}
+            title="Platform owner access"
+            desc="Super-admin tools and studio management"
+          />
         ) : null}
       </div>
       {isSuperAdmin && contractStudio ? (

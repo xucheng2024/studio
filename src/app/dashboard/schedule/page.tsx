@@ -11,12 +11,15 @@ import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { CalendarCheck2, CalendarX2, Users, BookOpen, Package } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
     location_id?: string;
     studio_id?: string;
     session_status?: "all" | "scheduled" | "cancelled";
+    date_from?: string;
+    date_to?: string;
     q?: string;
   }>;
 };
@@ -50,14 +53,18 @@ export default async function SchedulePage({ searchParams }: Props) {
     .eq("is_active", true)
     .order("title");
   if (selectedLocationId) classesQuery = classesQuery.eq("location_id", selectedLocationId);
-  const { data: classes } = await classesQuery;
 
-  const { data: locations } = await supabase
+  const locationsQuery = supabase
     .from("locations")
     .select("id, name, studio_id")
     .in("studio_id", studioIds)
     .eq("is_active", true)
     .order("name");
+
+  const [{ data: classes }, { data: locations }] = await Promise.all([
+    classesQuery,
+    locationsQuery,
+  ]);
   const selectedLocation = selectedLocationId
     ? (locations ?? []).find((l) => l.id === selectedLocationId)
     : null;
@@ -65,6 +72,20 @@ export default async function SchedulePage({ searchParams }: Props) {
   const scopeParams = new URLSearchParams();
   scopeParams.set("studio_id", activeStudioId);
   if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
+
+  // Default window: today → +60 days, preventing unbounded full-table scans.
+  // Users can override via the date filter form.
+  const defaultFrom = new Date();
+  defaultFrom.setHours(0, 0, 0, 0);
+  const defaultTo = new Date(defaultFrom);
+  defaultTo.setDate(defaultTo.getDate() + 60);
+
+  const dateFrom = sp.date_from
+    ? new Date(`${sp.date_from}T00:00:00`).toISOString()
+    : defaultFrom.toISOString();
+  const dateTo = sp.date_to
+    ? new Date(`${sp.date_to}T23:59:59`).toISOString()
+    : defaultTo.toISOString();
 
   let sessionQuery = supabase
     .from("class_sessions")
@@ -92,7 +113,10 @@ export default async function SchedulePage({ searchParams }: Props) {
     `,
     )
     .in("classes.studio_id", studioIds)
-    .order("start_time", { ascending: true });
+    .gte("start_time", dateFrom)
+    .lte("start_time", dateTo)
+    .order("start_time", { ascending: true })
+    .limit(300);
   if (selectedLocationId) sessionQuery = sessionQuery.eq("location_id", selectedLocationId);
   const { data: sessions } = await sessionQuery;
   const rulesQuery = supabase
@@ -145,29 +169,51 @@ export default async function SchedulePage({ searchParams }: Props) {
         <p className={`mt-1 ${ui.muted}`}>Add sessions from your class templates.</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/classes?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
-            Manage classes
+            <BookOpen size={13} />
+            Classes
           </DashboardAppLink>
           <DashboardAppLink href={`/dashboard/packages?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
-            Manage packages
+            <Package size={13} />
+            Packages
           </DashboardAppLink>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Visible sessions</p>
-            <p className="mt-1 text-xl font-semibold">{sessionRows.length}</p>
+          <div className={`${ui.statCard} flex items-center gap-3`}>
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+              <CalendarCheck2 size={16} />
+            </div>
+            <div>
+              <p className={`text-xs ${ui.muted}`}>In window</p>
+              <p className="mt-0.5 text-xl font-bold tabular-nums">{sessionRows.length}</p>
+            </div>
           </div>
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Scheduled / cancelled</p>
-            <p className="mt-1 text-xl font-semibold">
-              {scheduledCount} / {cancelledCount}
-            </p>
+          <div className={`${ui.statCard} flex items-center gap-3`}>
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400">
+              <CalendarCheck2 size={16} />
+            </div>
+            <div>
+              <p className={`text-xs ${ui.muted}`}>Scheduled</p>
+              <p className="mt-0.5 text-xl font-bold tabular-nums">
+                {scheduledCount}
+                {cancelledCount > 0 && (
+                  <span className="ml-1.5 text-sm font-normal text-stone-400">
+                    / {cancelledCount} <CalendarX2 size={11} className="inline" />
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Active bookings</p>
-            <p className="mt-1 text-xl font-semibold">{bookingCount}</p>
+          <div className={`${ui.statCard} flex items-center gap-3`}>
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
+              <Users size={16} />
+            </div>
+            <div>
+              <p className={`text-xs ${ui.muted}`}>Active bookings</p>
+              <p className="mt-0.5 text-xl font-bold tabular-nums">{bookingCount}</p>
+            </div>
           </div>
         </div>
-        <details className={`${ui.card} mt-8 max-w-xl`} id="booking-rules">
+        <details className={`chevron ${ui.card} mt-8 max-w-xl`} id="booking-rules">
           <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
             <span>Booking rules</span>
             <span className={`text-xs font-normal ${ui.muted}`}>Expand settings</span>
@@ -246,39 +292,46 @@ export default async function SchedulePage({ searchParams }: Props) {
           </form>
         </details>
 
-        <h2 className={`${ui.h2} mt-8`}>Create session</h2>
-        <form action={createSession} className={`${ui.card} mt-6 flex max-w-md flex-col gap-4`}>
-          <input type="hidden" name="studio_id" value={activeStudioId} />
-          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Class</span>
-            <select name="class_id" required className={ui.select}>
-              <option value="">Select…</option>
-              {(classes ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Start</span>
-            <input name="start_time" type="datetime-local" required className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Guest price (single visit)</span>
-            <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} required className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Credits required</span>
-            <input name="credits_required" type="number" min={1} step="1" defaultValue={1} required className={ui.input} />
-          </label>
-          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
-            Create session
-          </SubmitButton>
-        </form>
+        <details className={`chevron ${ui.card} mt-8 max-w-md`} id="create-session">
+          <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
+            <span>+ Create session</span>
+            <span className={`text-xs font-normal ${ui.muted}`}>Expand to add</span>
+          </summary>
+          <form action={createSession} className="mt-4 flex flex-col gap-4">
+            <input type="hidden" name="studio_id" value={activeStudioId} />
+            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Class</span>
+              <select name="class_id" required className={ui.select}>
+                <option value="">Select…</option>
+                {(classes ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Start</span>
+              <input name="start_time" type="datetime-local" required className={ui.input} />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Guest price</span>
+                <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} required className={ui.input} />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Credits required</span>
+                <input name="credits_required" type="number" min={1} step="1" defaultValue={1} required className={ui.input} />
+              </label>
+            </div>
+            <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
+              Create session
+            </SubmitButton>
+          </form>
+        </details>
 
-        <details className={`${ui.card} mt-8 max-w-xl`} id="recurring-schedule">
+        <details className={`chevron ${ui.card} mt-8 max-w-xl`} id="recurring-schedule">
           <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
             <span>Recurring weekly schedule</span>
             <span className={`text-xs font-normal ${ui.muted}`}>Expand advanced</span>
@@ -338,7 +391,7 @@ export default async function SchedulePage({ searchParams }: Props) {
       </div>
 
       <div>
-        <h2 className={ui.h2}>Upcoming sessions</h2>
+        <h2 className={ui.h2}>Sessions</h2>
         <form method="get" className={`${ui.card} mt-4 grid gap-3 sm:grid-cols-3`}>
           {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
           {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
@@ -354,7 +407,17 @@ export default async function SchedulePage({ searchParams }: Props) {
             <span className={ui.label}>Search class / member / location</span>
             <input name="q" className={ui.input} defaultValue={sp.q ?? ""} placeholder="Yoga Flow, alice@mail..." />
           </label>
-          <div className="flex items-end gap-2">
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>From date</span>
+            <input type="date" name="date_from" className={ui.input}
+              defaultValue={sp.date_from ?? defaultFrom.toISOString().slice(0, 10)} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>To date</span>
+            <input type="date" name="date_to" className={ui.input}
+              defaultValue={sp.date_to ?? defaultTo.toISOString().slice(0, 10)} />
+          </label>
+          <div className="flex items-end gap-2 sm:col-span-2">
             <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
               Apply
             </SubmitButton>
@@ -369,6 +432,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
             const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
             const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
+            const isCancelled = sessionStatus === "cancelled";
             const bookings = (s.bookings ?? []) as {
               id: string;
               client_id: string | null;
@@ -379,42 +443,47 @@ export default async function SchedulePage({ searchParams }: Props) {
             }[];
             const activeBookingCount = bookings.filter((b) => b.status === "booked" || b.status === "pending").length;
             return (
-              <li key={s.id} className={ui.card}>
-                <div className="flex flex-wrap justify-between gap-4">
-                  <div>
+              <li key={s.id} className={`${ui.card} ${isCancelled ? "opacity-60" : ""}`}>
+                {/* ── Session header ──────────────────────────── */}
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-stone-900 dark:text-stone-100">
+                      <p className="font-semibold text-stone-900 dark:text-stone-100">
                         {cls?.title ?? "Class"}
                       </p>
-                      {sessionStatus === "cancelled" ? (
-                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-stone-700 dark:text-stone-200">
+                      {isCancelled ? (
+                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
                           Cancelled
                         </span>
                       ) : null}
                     </div>
                     {locationName ? (
-                      <p className={`mt-0.5 text-sm ${ui.muted}`}>{locationName}</p>
+                      <p className={`mt-0.5 text-xs ${ui.muted}`}>{locationName}</p>
                     ) : null}
-                    <p className={`${ui.muted} mt-0.5 text-sm`}>
-                      {new Date(s.start_time).toLocaleString()} –{" "}
-                      {new Date(s.end_time).toLocaleString()}
+                    <p className={`mt-1 text-sm ${ui.muted}`}>
+                      {new Date(s.start_time).toLocaleString()}
                     </p>
-                    <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
-                      {s.spots_left} spots left · {activeBookingCount} active bookings
-                    </p>
-                    <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                      Single visit: ${Number(s.guest_price ?? 0).toFixed(2)} · Credits required: {Number(s.credits_required ?? 1)}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                      <span>{s.spots_left} spots left</span>
+                      <span>{activeBookingCount} active bookings</span>
+                      <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
+                      <span>{Number(s.credits_required ?? 1)} credit{Number(s.credits_required ?? 1) !== 1 ? "s" : ""}</span>
+                    </div>
                   </div>
-                  <CancelSessionButton
-                    sessionId={s.id}
-                    classTitle={cls?.title ?? "Class"}
-                    startTimeIso={String(s.start_time)}
-                    locationName={locationName}
-                    sessionStatus={sessionStatus}
-                  />
-                  <SessionShareButton sessionId={s.id} />
+                  {/* Action buttons: right side on desktop, below on mobile */}
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <SessionShareButton sessionId={s.id} />
+                    <CancelSessionButton
+                      sessionId={s.id}
+                      classTitle={cls?.title ?? "Class"}
+                      startTimeIso={String(s.start_time)}
+                      locationName={locationName}
+                      sessionStatus={sessionStatus}
+                    />
+                  </div>
                 </div>
+
+                {/* ── Edit panel ──────────────────────────────── */}
                 <div className="mt-3">
                   <SessionEditPanel
                     sessionId={s.id}
@@ -430,38 +499,52 @@ export default async function SchedulePage({ searchParams }: Props) {
                       .map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }))}
                   />
                 </div>
-                <ul className="mt-4 flex flex-col gap-2 border-t border-stone-100 pt-3 text-sm dark:border-stone-800">
-                  {bookings.map((b) => (
-                    <li key={b.id} className="flex flex-wrap items-center gap-2">
-                      <span className="text-stone-800 dark:text-stone-200">
-                        {b.client_id
-                          ? (b.users?.email ?? b.client_id)
-                          : `${b.guest_name ?? "Guest"} · ${b.guest_email ?? ""}`}
-                      </span>
-                      {(() => {
+
+                {/* ── Booking roster ──────────────────────────── */}
+                <div className="mt-4 border-t border-stone-100 pt-3 dark:border-stone-800">
+                  {bookings.length > 0 ? (
+                    <ul className="flex flex-col gap-1.5">
+                      {bookings.map((b) => {
                         const badge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
+                        const memberLabel = b.client_id
+                          ? (b.users?.email ?? b.client_id)
+                          : `${b.guest_name ?? "Guest"}${b.guest_email ? ` · ${b.guest_email}` : ""}`;
                         return (
-                          <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badge.tone)}`}>
-                            {badge.text}
-                          </span>
+                          <li
+                            key={b.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-stone-50/70 px-2.5 py-1.5 dark:bg-stone-800/40"
+                          >
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span className="truncate text-sm text-stone-800 dark:text-stone-200">
+                                {memberLabel}
+                              </span>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badge.tone)}`}>
+                                {badge.text}
+                              </span>
+                            </div>
+                            {b.status === "booked" ? (
+                              <div className="flex shrink-0 gap-1.5">
+                                <MarkAttendedButton bookingId={b.id} />
+                                <CancelBookingButton bookingId={b.id} />
+                              </div>
+                            ) : null}
+                          </li>
                         );
-                      })()}
-                      {b.status === "booked" ? (
-                        <>
-                          <MarkAttendedButton bookingId={b.id} />
-                          <CancelBookingButton bookingId={b.id} />
-                        </>
-                      ) : null}
-                    </li>
-                  ))}
-                  {!bookings.length ? <li className={ui.muted}>No bookings yet.</li> : null}
-                </ul>
+                      })}
+                    </ul>
+                  ) : (
+                    <p className={`text-xs ${ui.muted}`}>No bookings yet.</p>
+                  )}
+                </div>
               </li>
             );
           })}
         </ul>
         {!filteredSessions.length ? (
-          <p className={`mt-4 text-sm ${ui.muted}`}>No upcoming sessions match this filter.</p>
+          <div className={`mt-4 ${ui.emptyState}`}>
+            <div className={ui.emptyStateIcon}><CalendarCheck2 size={18} /></div>
+            <p className={`text-sm ${ui.muted}`}>No sessions match this filter.</p>
+          </div>
         ) : null}
       </div>
     </div>

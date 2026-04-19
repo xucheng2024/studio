@@ -173,36 +173,52 @@ export default async function BookingPage() {
               ? ruleMap.get(`${cls.studio_id}:${s.location_id ?? "global"}`) ??
                 ruleMap.get(`${cls.studio_id}:global`)
               : null) ?? null;
+          const spotsLow = s.spots_left <= 3 && s.spots_left > 0;
           return (
-            <li key={s.id} className={`${ui.cardInteractive} flex flex-wrap items-center justify-between gap-4`}>
-              <div>
-                <p className="font-medium text-stone-900 dark:text-stone-100">{title}</p>
-                <p className={`mt-0.5 text-sm ${ui.muted}`}>
-                  {studio} · {start}
-                </p>
-                <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
-                  {s.spots_left} spots left
-                </p>
-                <p className={`mt-1 text-xs ${ui.muted}`}>
-                  Guest: ${Number(s.guest_price ?? 0).toFixed(2)} · Member: {creditsRequired} credits
-                </p>
-                {scopedRule ? (
-                  <p className={`mt-1 text-xs ${ui.muted}`}>
-                    Policy: cancel at least {scopedRule.cancel_cutoff_hours ?? 12}h before class for free.
-                    Late cancel {scopedRule.late_cancel_deduct_credit ?? true ? "uses" : "does not use"} a credit.
-                    No-show after {scopedRule.no_show_buffer_min ?? 15} minutes{" "}
-                    {scopedRule.no_show_deduct_credit ?? true ? "uses" : "does not use"} a credit.
-                  </p>
-                ) : null}
-                <p className={`mt-1 text-xs ${paynow.configured ? ui.muted : ui.error}`}>{paynow.line}</p>
+            <li key={s.id} className={ui.card}>
+              {/* ── Session info ────────────────────────────── */}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-stone-900 dark:text-stone-100">{title}</p>
+                  <p className={`mt-0.5 text-sm ${ui.muted}`}>{studio}</p>
+                  <p className={`mt-1 text-sm ${ui.muted}`}>{start}</p>
+                </div>
+                {/* Spots badge */}
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  s.spots_left === 0
+                    ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                    : spotsLow
+                      ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                      : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                }`}>
+                  {s.spots_left === 0 ? "Full" : `${s.spots_left} left`}
+                </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {user ? (
+
+              {/* ── Pricing + policy ────────────────────────── */}
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
+                <span>{creditsRequired} credit{creditsRequired !== 1 ? "s" : ""} member</span>
+              </div>
+              {scopedRule ? (
+                <p className={`mt-1 text-xs ${ui.muted}`}>
+                  Cancel ≥{scopedRule.cancel_cutoff_hours ?? 12}h before · Late cancel &amp; no-show may use credit
+                </p>
+              ) : null}
+              {!paynow.configured ? (
+                <p className={`mt-1 text-xs ${ui.error}`}>{paynow.line}</p>
+              ) : null}
+
+              {/* ── Booking actions ──────────────────────────── */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
+                {s.spots_left === 0 ? (
+                  <span className={`text-sm ${ui.muted}`}>Class full</span>
+                ) : user ? (
                   <>
                     <PackageBookButton sessionId={s.id} packages={userPacks} session={sessionCreditCtx} />
                     {!hasEligiblePack ? (
                       <span className="text-xs text-amber-700 dark:text-amber-300">
-                        Not enough credits for this class.
+                        Not enough credits
                       </span>
                     ) : null}
                     <BookButton sessionId={s.id} disabled={!paynow.configured} />
@@ -218,7 +234,9 @@ export default async function BookingPage() {
         })}
       </ul>
       {!sessions?.length ? (
-        <p className={`mt-6 text-center text-sm ${ui.muted}`}>No upcoming sessions yet.</p>
+        <div className={`mt-8 ${ui.emptyState}`}>
+          <p className={`text-sm ${ui.muted}`}>No upcoming sessions yet.</p>
+        </div>
       ) : null}
     </main>
   );

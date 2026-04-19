@@ -97,8 +97,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "full" }, { status: 409 });
   }
 
+  let checkinOk = false;
+  let checkinError: string | undefined;
   if (parsed.data.mark_checkin) {
-    await admin.rpc("checkin_booking", { p_booking_id: booking.id, p_actor_id: user.id });
+    const { data: checkinData, error: checkinErr } = await admin.rpc("checkin_booking", {
+      p_booking_id: booking.id,
+      p_actor_id: user.id,
+    });
+    const cr = checkinData as { ok?: boolean; error?: string } | null;
+    checkinOk = !checkinErr && (cr?.ok === true);
+    checkinError = checkinErr?.message ?? (cr?.ok === false ? (cr?.error ?? "checkin_failed") : undefined);
   }
   await writeOperationAudit({
     actorId: user.id,
@@ -106,7 +114,18 @@ export async function POST(req: Request) {
     action: "frontdesk_walkin",
     targetType: "booking",
     targetId: booking.id,
-    afterState: { payment_id: payment.id, payment_method: parsed.data.payment_method, checkin: !!parsed.data.mark_checkin },
+    afterState: {
+      payment_id: payment.id,
+      payment_method: parsed.data.payment_method,
+      checkin: checkinOk,
+      checkin_error: checkinError ?? null,
+    },
   });
-  return NextResponse.json({ ok: true, booking_id: booking.id, payment_id: payment.id });
+  return NextResponse.json({
+    ok: true,
+    booking_id: booking.id,
+    payment_id: payment.id,
+    checkin: checkinOk,
+    ...(checkinError ? { checkin_error: checkinError } : {}),
+  });
 }

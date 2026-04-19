@@ -14,7 +14,13 @@ export type PaynowConfig = {
 export function generatePaynowReference() {
   const date = new Date();
   const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  // Use crypto for better entropy (6 hex chars = ~16M combinations/day vs ~1.7M with Math.random + 4 base-36)
+  const buf = new Uint8Array(3);
+  crypto.getRandomValues(buf);
+  const rand = Array.from(buf)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
   return `${REF_PREFIX}-${ymd}-${rand}`;
 }
 

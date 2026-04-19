@@ -1,21 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { Copy, Check } from "lucide-react";
 import { ui } from "@/lib/ui";
 
 export function PaymentCopyButton({ text }: { text: string }) {
-  const [ok, setOk] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   return (
     <button
       type="button"
-      className={ui.linkMuted}
+      className={`inline-flex items-center gap-1 text-xs ${
+        copied
+          ? "text-teal-700 dark:text-teal-400"
+          : ui.linkMuted
+      } transition-colors`}
       onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        setOk(true);
-        setTimeout(() => setOk(false), 1200);
+        await navigator.clipboard.writeText(text).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
       }}
     >
-      {ok ? "Copied" : "Copy details"}
+      {copied ? <Check size={11} /> : <Copy size={11} />}
+      {copied ? "Copied" : "Copy details"}
     </button>
   );
 }

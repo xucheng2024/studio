@@ -11,20 +11,28 @@ async function sendEmail(params: {
     type: string;
     encoding: "base64";
   }>;
-}) {
+}): Promise<{ skipped: boolean; error?: string }> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
-  if (!key || !from) return { skipped: true as const };
+  if (!key || !from) return { skipped: true };
   const resend = new Resend(key);
-  await resend.emails.send({
-    from,
-    to: params.to,
-    subject: params.subject,
-    text: params.text,
-    html: params.html,
-    attachments: params.attachments,
-  });
-  return { skipped: false as const };
+  try {
+    await resend.emails.send({
+      from,
+      to: params.to,
+      subject: params.subject,
+      text: params.text,
+      html: params.html,
+      attachments: params.attachments,
+    });
+    return { skipped: false };
+  } catch (err) {
+    // Email delivery failures must never break the HTTP response.
+    // The database write has already succeeded at this point.
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[email] send failed:", params.subject, msg);
+    return { skipped: true, error: msg };
+  }
 }
 
 export async function sendBookingConfirmation(params: {

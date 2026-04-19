@@ -34,6 +34,11 @@ export async function GET(req: Request) {
   if (!scoped.ok) return staffScopeFailureResponse(scoped);
 
   const admin = createAdminClient();
+  // Escape LIKE wildcards and strip commas so they can't inject extra OR clauses
+  // into the PostgREST filter string. Commas in the raw value would be interpreted
+  // as clause separators; % / _ would act as SQL wildcards.
+  const safe = parsed.data.q.replace(/[%_,]/g, (c) => (c === "," ? "" : `\\${c}`)).trim();
+  if (!safe) return NextResponse.json({ ok: true, rows: [] });
   let q = admin
     .from("bookings")
     .select(
@@ -49,7 +54,7 @@ export async function GET(req: Request) {
     )
     .in("class_sessions.classes.studio_id", [parsed.data.studio_id])
     .or(
-      `guest_name.ilike.%${parsed.data.q}%,guest_email.ilike.%${parsed.data.q}%,guest_phone.ilike.%${parsed.data.q}%,users.email.ilike.%${parsed.data.q}%`,
+      `guest_name.ilike.%${safe}%,guest_email.ilike.%${safe}%,guest_phone.ilike.%${safe}%,users.email.ilike.%${safe}%`,
     )
     .order("created_at", { ascending: false })
     .limit(50);

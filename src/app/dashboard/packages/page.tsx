@@ -73,42 +73,35 @@ export default async function PackagesPage({ searchParams }: Props) {
           </DashboardAppLink>
         </div>
         {canEdit ? (
-          <form action={createPackage} className={`${ui.card} mt-6 grid max-w-lg gap-4`}>
-            <input type="hidden" name="studio_id" value={studioId} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Name</span>
-              <input name="name" required className={ui.input} placeholder="10 Class Pack" />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Credits</span>
-              <input
-                name="credits"
-                type="number"
-                min={1}
-                defaultValue={10}
-                className={ui.input}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Price</span>
-              <input
-                name="price"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue={120}
-                className={ui.input}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Expiry days (empty = none)</span>
-              <input name="expiry_days" type="number" min={1} className={ui.input} />
-            </label>
-            <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Saving...">
-              Save package
-            </SubmitButton>
-          </form>
+          <details className={`chevron ${ui.card} mt-5 max-w-md`} id="create-package">
+            <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
+              <span>+ New package</span>
+              <span className={`text-xs font-normal ${ui.muted}`}>Expand to create</span>
+            </summary>
+            <form action={createPackage} className="mt-4 grid gap-4 sm:grid-cols-2">
+              <input type="hidden" name="studio_id" value={studioId} />
+              <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className={ui.label}>Name</span>
+                <input name="name" required className={ui.input} placeholder="10 Class Pack" />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Credits</span>
+                <input name="credits" type="number" min={1} defaultValue={10} className={ui.input} />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Price</span>
+                <input name="price" type="number" min={0} step="0.01" defaultValue={120} className={ui.input} />
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className={ui.label}>Expiry days (empty = none)</span>
+                <input name="expiry_days" type="number" min={1} className={ui.input} />
+              </label>
+              <SubmitButton className={`${ui.btnPrimary} w-fit sm:col-span-2`} pendingText="Saving...">
+                Save package
+              </SubmitButton>
+            </form>
+          </details>
         ) : null}
       </div>
 

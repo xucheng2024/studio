@@ -53,15 +53,24 @@ export async function POST(req: Request) {
   }
 
   const note = parsed.data.note?.trim() || null;
-  const { error } = await admin
+  // Add .is("customer_confirmed_at", null) so that only ONE concurrent request
+  // can win the update. Any subsequent concurrent request will match 0 rows and
+  // we return already_confirmed without re-sending the staff notification.
+  const { error, data: updated } = await admin
     .from("payments")
     .update({
       customer_confirmed_at: new Date().toISOString(),
       customer_confirmation_note: note,
     })
     .eq("id", parsed.data.payment_id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .is("customer_confirmed_at", null)
+    .select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!updated?.length) {
+    // Another concurrent request already confirmed this payment
+    return NextResponse.json({ ok: true, already_confirmed: true });
+  }
 
   if (payment.studio_id) {
     const recipients = new Set<string>();

@@ -15,6 +15,7 @@ import {
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { Download } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
@@ -205,14 +206,15 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const payments = rawPayments ?? [];
   const bookingIds = [...new Set(payments.map((p) => p.booking_id).filter(Boolean))];
   const clientIds = [...new Set(payments.map((p) => p.client_id).filter(Boolean))];
-  const { data: bookings } =
+
+  const [{ data: bookings }, { data: clients }] = await Promise.all([
     bookingIds.length > 0
-      ? await supabase.from("bookings").select("id, guest_name, guest_email").in("id", bookingIds)
-      : { data: [] as const };
-  const { data: clients } =
+      ? supabase.from("bookings").select("id, guest_name, guest_email").in("id", bookingIds)
+      : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
-      ? await supabase.from("users").select("id, email").in("id", clientIds)
-      : { data: [] as const };
+      ? supabase.from("users").select("id, email").in("id", clientIds)
+      : Promise.resolve({ data: [] as const }),
+  ]);
   const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
   const clientMap = new Map((clients ?? []).map((u) => [u.id, u.email]));
 
@@ -250,14 +252,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     const allPayments = rawAllPayments ?? [];
     const allBookingIds = [...new Set(allPayments.map((p) => p.booking_id).filter(Boolean))];
     const allClientIds = [...new Set(allPayments.map((p) => p.client_id).filter(Boolean))];
-    const { data: allBookings } =
+    const [{ data: allBookings }, { data: allClients }] = await Promise.all([
       allBookingIds.length > 0
-        ? await supabase.from("bookings").select("id, guest_name, guest_email").in("id", allBookingIds)
-        : { data: [] as const };
-    const { data: allClients } =
+        ? supabase.from("bookings").select("id, guest_name, guest_email").in("id", allBookingIds)
+        : Promise.resolve({ data: [] as const }),
       allClientIds.length > 0
-        ? await supabase.from("users").select("id, email").in("id", allClientIds)
-        : { data: [] as const };
+        ? supabase.from("users").select("id, email").in("id", allClientIds)
+        : Promise.resolve({ data: [] as const }),
+    ]);
     const allBookingMap = new Map((allBookings ?? []).map((b) => [b.id, b]));
     const allClientMap = new Map((allClients ?? []).map((u) => [u.id, u.email]));
     allLocationFiltered = allPayments.filter((p) => {
@@ -337,41 +339,43 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ── Page header ─────────────────────────────────────────── */}
       <div>
         <h1 className={ui.h1}>Payment records</h1>
-        <p className={ui.muted}>Check incoming payments, handle exceptions, export records, and view action history.</p>
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+        <p className={`mt-1 ${ui.muted}`}>Check incoming payments, handle exceptions, export records, and view action history.</p>
+
+        {/* Tab bar + actions */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
           <DashboardAppLink href={`/dashboard/operations?${exportParams.toString()}`} className={ui.btnSecondarySm}>
-            Back to operations
+            ← Operations
           </DashboardAppLink>
-          <DashboardAppLink
-            className={view === "queue" ? ui.link : ui.linkMuted}
-            href={tabHref("queue")}
-          >
-            Pending
-          </DashboardAppLink>
-          <DashboardAppLink
-            className={view === "recon" ? ui.link : ui.linkMuted}
-            href={tabHref("recon")}
-          >
-            Exceptions
-          </DashboardAppLink>
-          <DashboardAppLink
-            className={view === "review" ? ui.link : ui.linkMuted}
-            href={tabHref("review")}
-          >
-            Processed
-          </DashboardAppLink>
+          <div className="flex items-center rounded-xl border border-stone-200 bg-stone-50 p-0.5 dark:border-stone-700 dark:bg-stone-900">
+            {(["queue", "recon", "review"] as const).map((v) => (
+              <DashboardAppLink
+                key={v}
+                href={tabHref(v)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  view === v
+                    ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-100"
+                    : "text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+                }`}
+              >
+                {v === "queue" ? "Pending" : v === "recon" ? "Exceptions" : "Processed"}
+              </DashboardAppLink>
+            ))}
+          </div>
           <a
-            className={`${ui.linkMuted} transition-opacity duration-100 active:opacity-60`}
+            className={`${ui.linkMuted} ml-auto inline-flex items-center gap-1.5`}
             href={`/api/payments/export?${exportParams.toString()}`}
           >
+            <Download size={13} />
             Export CSV
           </a>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-5">
+      {/* ── Stats grid (2 cols on mobile) ───────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className={ui.statCard}>
           <p className={`text-xs ${ui.muted}`}>Today received</p>
           <p className="mt-1 text-xl font-semibold">${scopedStats.todayReceived.toFixed(2)}</p>
@@ -409,7 +413,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className={ui.statCard}>
           <p className={`text-xs ${ui.muted}`}>Transactions (filtered)</p>
           <p className="mt-1 text-xl font-semibold">{scopedStats.txCount}</p>
@@ -435,13 +439,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className={ui.h2}>Daily close ({todayKey})</h2>
           <a
-            className={ui.linkMuted}
+            className={`${ui.linkMuted} inline-flex items-center gap-1.5`}
             href={`/api/payments/export?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&date_from=${todayKey}&date_to=${todayKey}`}
           >
-            Export today CSV
+            <Download size={13} />
+            Export today
           </a>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className={ui.statCard}>
             <p className={`text-xs ${ui.muted}`}>Transactions</p>
             <p className="mt-1 text-xl font-semibold">{dailyTxCount}</p>
@@ -462,101 +467,101 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </section>
 
-      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5`}>
+      <form method="get" className={`${ui.card} flex flex-col gap-4`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Location</span>
-          <select name="location_id" className={ui.select} defaultValue={selectedLocationId ?? ""}>
-            <option value="">All locations</option>
-            {(locations ?? []).map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name ?? "Unnamed location"}
-              </option>
-            ))}
-          </select>
-        </label>
         <input type="hidden" name="view" value={view} />
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Payment status</span>
-          <select name="status" className={ui.select} defaultValue={sp.status ?? ""}>
-            <option value="">All</option>
-            {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Payment method</span>
-          <select name="payment_method" className={ui.select} defaultValue={sp.payment_method ?? ""}>
-            <option value="">All</option>
-            {PAYMENT_METHOD_FILTER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Invoice status</span>
-          <select name="invoice_status" className={ui.select} defaultValue={sp.invoice_status ?? ""}>
-            <option value="">All</option>
-            {INVOICE_STATUS_FILTER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Review status</span>
-          <select name="recon_status" className={ui.select} defaultValue={sp.recon_status ?? ""}>
-            <option value="">All</option>
-            {RECON_STATUS_FILTER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="sm:col-span-2 xl:col-span-4 2xl:col-span-2 grid gap-3 sm:grid-cols-2">
+
+        {/* ── Always-visible quick filters ─────────────────────── */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1.5">
-            <span className={`${ui.label} whitespace-nowrap`}>Date from</span>
-            <input
-              type="date"
-              name="date_from"
-              defaultValue={sp.date_from ?? ""}
-              className={`${ui.input} whitespace-nowrap`}
-            />
+            <span className={ui.label}>Location</span>
+            <select name="location_id" className={ui.select} defaultValue={selectedLocationId ?? ""}>
+              <option value="">All locations</option>
+              {(locations ?? []).map((l) => (
+                <option key={l.id} value={l.id}>{l.name ?? "Unnamed location"}</option>
+              ))}
+            </select>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={`${ui.label} whitespace-nowrap`}>Date to</span>
-            <input
-              type="date"
-              name="date_to"
-              defaultValue={sp.date_to ?? ""}
-              className={`${ui.input} whitespace-nowrap`}
-            />
+            <span className={ui.label}>Date from</span>
+            <input type="date" name="date_from" defaultValue={sp.date_from ?? ""} className={ui.input} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Date to</span>
+            <input type="date" name="date_to" defaultValue={sp.date_to ?? ""} className={ui.input} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Search member / ref</span>
+            <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="email, name, ref…" />
           </label>
         </div>
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Min amount</span>
-          <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Max amount</span>
-          <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Reference</span>
-          <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
+
+        {/* ── Advanced filters (collapsed) ─────────────────────── */}
+        <details className="chevron rounded-lg border border-stone-200 dark:border-stone-700">
+          <summary className={`cursor-pointer px-3 py-2 text-sm font-medium ${ui.muted} hover:text-stone-800 dark:hover:text-stone-200`}>
+            Advanced filters
+            {[sp.status, sp.payment_method, sp.invoice_status, sp.recon_status, sp.amount_min, sp.amount_max, sp.reference].some(Boolean)
+              ? <span className="ml-2 rounded-full bg-teal-100 px-1.5 py-0.5 text-xs text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">active</span>
+              : null}
+          </summary>
+          <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Payment status</span>
+              <select name="status" className={ui.select} defaultValue={sp.status ?? ""}>
+                <option value="">All</option>
+                {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Payment method</span>
+              <select name="payment_method" className={ui.select} defaultValue={sp.payment_method ?? ""}>
+                <option value="">All</option>
+                {PAYMENT_METHOD_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Invoice status</span>
+              <select name="invoice_status" className={ui.select} defaultValue={sp.invoice_status ?? ""}>
+                <option value="">All</option>
+                {INVOICE_STATUS_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Review status</span>
+              <select name="recon_status" className={ui.select} defaultValue={sp.recon_status ?? ""}>
+                <option value="">All</option>
+                {RECON_STATUS_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Min amount</span>
+              <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Max amount</span>
+              <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Reference code</span>
+              <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={`${ui.label} whitespace-nowrap`}>Search</span>
           <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member / email / note" />
-        </label>
-        <div className="md:col-span-5 flex gap-2">
+            </label>
+          </div>
+        </details>
+
+        {/* ── Apply / Reset ─────────────────────────────────── */}
+        <div className="flex gap-2">
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters
           </SubmitButton>
@@ -586,97 +591,162 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           return (
             <li
               key={p.id}
-              className={`${ui.card} ${needsReview ? "border-amber-300 bg-amber-50/50 dark:border-amber-700/70 dark:bg-amber-950/20" : ""}`}
+              className={`${ui.card} ${
+                slaOverdue
+                  ? "border-red-300 dark:border-red-800/60"
+                  : needsReview
+                    ? "border-amber-300 bg-amber-50/40 dark:border-amber-700/60 dark:bg-amber-950/20"
+                    : ""
+              }`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="font-medium text-stone-900 dark:text-stone-100">
+              {/* ── Card header: amount + badges ──────────────────── */}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-lg font-semibold text-stone-900 dark:text-stone-100">
                     {p.currency} {Number(p.amount).toFixed(2)}
+                    {Number(p.paid_amount ?? p.amount) !== Number(p.amount) ? (
+                      <span className="ml-2 text-sm font-normal text-stone-500">
+                        (paid {Number(p.paid_amount).toFixed(2)})
+                      </span>
+                    ) : null}
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.payment.tone)}`}>{badges.payment.text}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.recon.tone)}`}>{badges.recon.text}</span>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badges.payment.tone)}`}>
+                      {badges.payment.text}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badges.recon.tone)}`}>
+                      {badges.recon.text}
+                    </span>
+                    {slaOverdue ? (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/60 dark:text-red-300">
+                        Overdue &gt;10m
+                      </span>
+                    ) : null}
                     {p.invoice_status === "void" ? (
-                      <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-stone-700 dark:text-stone-200">
+                      <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-700 dark:text-stone-300">
                         Invoice voided
                       </span>
                     ) : null}
                   </div>
-                  <p className={ui.muted}>Member: {clientLabel}</p>
-                  <p className={ui.muted}>
-                    Location: {p.location_id ? (locationMap.get(p.location_id) ?? "Unknown location") : "Unassigned"}
-                  </p>
-                  <p className={ui.muted}>Ref: <span className={ui.code}>{p.reference_code ?? "-"}</span></p>
-                  <p className={ui.muted}>Method: {p.payment_method ?? "-"}</p>
-                  <p className={ui.muted}>Review: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
-                  {p.status === "paid" && p.invoice_status !== "void" ? (
-                    <div className="space-y-0.5">
-                      {p.invoice_number ? (
-                        <p className={ui.muted}>
-                          Invoice: <span className={ui.code}>{p.invoice_number}</span>
-                          {p.invoice_sent_at
-                            ? ` · sent ${new Date(p.invoice_sent_at).toLocaleString()}`
-                            : " · not sent yet"}
-                        </p>
-                      ) : (
-                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-                          Invoice number missing — run migration 022 backfill or contact support.
-                        </p>
-                      )}
-                      <p className={`text-[11px] ${ui.muted}`}>
-                        Invoice number is assigned when staff confirms payment (Mark paid).
-                      </p>
-                    </div>
-                  ) : null}
-                  {p.status === "refunded" && p.invoice_status === "void" && p.invoice_number ? (
-                    <p className={ui.muted}>
-                      Invoice voided: <span className={ui.code}>{p.invoice_number}</span>
-                      {p.invoice_voided_at
-                        ? ` · ${new Date(p.invoice_voided_at).toLocaleString()}`
-                        : ""}
-                      {p.invoice_void_reason ? ` · ${p.invoice_void_reason}` : ""}
+                </div>
+                {/* Copy button top-right */}
+                <PaymentCopyButton text={`Amount: ${p.currency} ${Number(p.amount).toFixed(2)}\nRef: ${p.reference_code ?? "-"}`} />
+              </div>
+
+              {/* ── Key fields grid ───────────────────────────────── */}
+              <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Member</dt>
+                  <dd className="truncate font-medium text-stone-700 dark:text-stone-300">{clientLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Method</dt>
+                  <dd className="text-stone-700 dark:text-stone-300">{p.payment_method ?? "-"}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Ref</dt>
+                  <dd><span className={ui.code}>{p.reference_code ?? "-"}</span></dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Location</dt>
+                  <dd className="text-stone-700 dark:text-stone-300">
+                    {p.location_id ? (locationMap.get(p.location_id) ?? "Unknown") : "Unassigned"}
+                  </dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Created</dt>
+                  <dd className="text-stone-600 dark:text-stone-400">
+                    {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
+                  </dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Confirmed</dt>
+                  <dd className="text-stone-600 dark:text-stone-400">
+                    {p.customer_confirmed_at ? new Date(p.customer_confirmed_at).toLocaleString() : "—"}
+                  </dd>
+                </div>
+                {p.verified_at ? (
+                  <div className="flex gap-2 sm:col-span-2">
+                    <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Verified</dt>
+                    <dd className="text-stone-600 dark:text-stone-400">
+                      {new Date(p.verified_at).toLocaleString()} · {p.verified_by ?? "-"}
+                    </dd>
+                  </div>
+                ) : null}
+                {p.recon_note ? (
+                  <div className="flex gap-2 sm:col-span-2">
+                    <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Note</dt>
+                    <dd className="text-stone-600 dark:text-stone-400">{p.recon_note}</dd>
+                  </div>
+                ) : null}
+              </dl>
+
+              {/* ── Invoice info ──────────────────────────────────── */}
+              {p.status === "paid" && p.invoice_status !== "void" ? (
+                <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-800/30">
+                  {p.invoice_number ? (
+                    <p className="text-xs text-stone-600 dark:text-stone-400">
+                      Invoice <span className={ui.code}>{p.invoice_number}</span>
+                      {p.invoice_sent_at
+                        ? ` · sent ${new Date(p.invoice_sent_at).toLocaleString()}`
+                        : " · not sent"}
                     </p>
-                  ) : null}
-                  {p.status === "refunded" && !p.invoice_number ? (
-                    <p className={`text-sm ${ui.muted}`}>No invoice was issued; refund recorded without void step.</p>
-                  ) : null}
-                  {p.recon_note ? <p className={ui.muted}>Review note: {p.recon_note}</p> : null}
-                  <p className={ui.muted}>Created: {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</p>
-                  <p className={ui.muted}>Customer payment notice: {p.customer_confirmed_at ? new Date(p.customer_confirmed_at).toLocaleString() : "not submitted"}</p>
-                  {p.verified_at ? <p className={ui.muted}>Verified: {new Date(p.verified_at).toLocaleString()} · By {p.verified_by ?? "-"}</p> : null}
-                  {slaOverdue ? <p className="text-xs font-medium text-red-600 dark:text-red-400">Overdue (&gt;10m)</p> : null}
-                  {timeline.length ? (
-                    <div className="mt-2 rounded-lg border border-stone-200 p-2 text-xs dark:border-stone-700">
-                      <p className={`mb-1 font-medium ${ui.muted}`}>Audit timeline</p>
-                      <ul className="space-y-1">
-                        {timeline.map((a) => (
-                          <li key={a.id} className={ui.muted}>
-                            {new Date(a.created_at).toLocaleString()} · {a.action} · {a.actor_role ?? "staff"} · {a.actor_id ?? "system"}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
+                  ) : (
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                      Invoice number missing — contact support.
+                    </p>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <PaymentCopyButton text={`Amount: ${p.currency} ${Number(p.amount).toFixed(2)}\nRef: ${p.reference_code ?? "-"}`} />
-                  {p.status === "pending" ? (
-                    <>
-                      <PaymentMarkButton paymentId={p.id} status="paid" label="Mark paid" />
-                      <PaymentMarkButton paymentId={p.id} status="failed" label="Mark failed" />
-                      <PaymentMarkButton paymentId={p.id} status="expired" label="Mark expired" />
-                    </>
-                  ) : null}
-                  {p.status === "paid" && p.invoice_status !== "void" ? <InvoiceSendButton paymentId={p.id} /> : null}
-                  {p.status === "paid" ? <PaymentMarkButton paymentId={p.id} status="refunded" label="Mark refunded" /> : null}
-                  {!p.booking_id ? <PaymentMatchForm paymentId={p.id} /> : null}
+              ) : null}
+              {p.status === "refunded" && p.invoice_status === "void" && p.invoice_number ? (
+                <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-800/30">
+                  <p className="text-xs text-stone-600 dark:text-stone-400">
+                    Invoice <span className={ui.code}>{p.invoice_number}</span> voided
+                    {p.invoice_voided_at ? ` · ${new Date(p.invoice_voided_at).toLocaleString()}` : ""}
+                    {p.invoice_void_reason ? ` · ${p.invoice_void_reason}` : ""}
+                  </p>
                 </div>
+              ) : null}
+
+              {/* ── Audit timeline (collapsed) ────────────────────── */}
+              {timeline.length ? (
+                <details className="mt-3">
+                  <summary className={`cursor-pointer text-xs ${ui.muted}`}>
+                    Audit timeline ({timeline.length})
+                  </summary>
+                  <ul className="mt-2 space-y-1 pl-1">
+                    {timeline.map((a) => (
+                      <li key={a.id} className={`text-xs ${ui.muted}`}>
+                        {new Date(a.created_at).toLocaleString()} · {a.action} · {a.actor_role ?? "staff"}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+
+              {/* ── Action buttons ────────────────────────────────── */}
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
+                {p.status === "pending" ? (
+                  <>
+                    <PaymentMarkButton paymentId={p.id} status="paid" label="Mark paid" />
+                    <PaymentMarkButton paymentId={p.id} status="failed" label="Mark failed" />
+                    <PaymentMarkButton paymentId={p.id} status="expired" label="Mark expired" />
+                  </>
+                ) : null}
+                {p.status === "paid" && p.invoice_status !== "void" ? <InvoiceSendButton paymentId={p.id} /> : null}
+                {p.status === "paid" ? <PaymentMarkButton paymentId={p.id} status="refunded" label="Mark refunded" /> : null}
+                {!p.booking_id ? <PaymentMatchForm paymentId={p.id} /> : null}
               </div>
             </li>
           );
         })}
       </ul>
-      {!visible.length ? <p className={ui.muted}>No payments match this filter.</p> : null}
+      {!visible.length ? (
+        <div className={ui.emptyState}>
+          <p className={`font-medium ${ui.muted}`}>No payments match this filter.</p>
+          <p className={`text-xs ${ui.muted}`}>Try adjusting the filters above.</p>
+        </div>
+      ) : null}
     </div>
   );
 }

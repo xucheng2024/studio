@@ -97,7 +97,10 @@ export async function POST(req: Request) {
     }
     const r = data as { ok?: boolean; error?: string };
     if (!r?.ok && r?.error === "not_booked") {
-      results.push({ booking_id: bookingId, ok: true });
+      // "not_booked" means the booking status is not 'booked' (e.g. cancelled,
+      // already attended, or wrong session). Treat as a real failure so callers
+      // know which IDs were not actually checked in.
+      results.push({ booking_id: bookingId, ok: false, error: "not_booked" });
       continue;
     }
     if (!r?.ok) {

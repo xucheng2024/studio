@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Check, CheckCircle2, Pencil, AlertCircle } from "lucide-react";
 import { ui } from "@/lib/ui";
 
 type LocationOption = { id: string; name: string };
@@ -35,8 +36,11 @@ export function SessionEditPanel({
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
 
   return (
-    <details className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
-      <summary className="cursor-pointer text-xs font-medium text-stone-700 dark:text-stone-300">Edit session</summary>
+    <details className="chevron rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+      <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-700 dark:text-stone-300">
+        <Pencil size={12} />
+        Edit session
+      </summary>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1 sm:col-span-2">
           <span className={ui.label}>Start time</span>
@@ -75,6 +79,21 @@ export function SessionEditPanel({
           className={`${ui.btnPrimarySm} w-fit sm:col-span-2`}
           disabled={busy}
           onClick={async () => {
+            const parsedCapacity = Number(capacity);
+            const parsedGuestPrice = Number(guestPrice);
+            const parsedCredits = Number(creditsRequired);
+            if (!Number.isFinite(parsedCapacity) || parsedCapacity < 1) {
+              setMsg("Capacity must be a positive number");
+              return;
+            }
+            if (!Number.isFinite(parsedGuestPrice) || parsedGuestPrice < 0) {
+              setMsg("Guest price must be 0 or greater");
+              return;
+            }
+            if (!Number.isFinite(parsedCredits) || parsedCredits < 1) {
+              setMsg("Credits required must be a positive number");
+              return;
+            }
             setBusy(true);
             setMsg(null);
             const local = new Date(startTime);
@@ -83,9 +102,9 @@ export function SessionEditPanel({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 start_time: local.toISOString(),
-                capacity: Number(capacity),
-                guest_price: Number(guestPrice),
-                credits_required: Number(creditsRequired),
+                capacity: parsedCapacity,
+                guest_price: parsedGuestPrice,
+                credits_required: parsedCredits,
                 location_id: locationId || null,
               }),
             });
@@ -99,9 +118,17 @@ export function SessionEditPanel({
             router.refresh();
           }}
         >
-          {busy ? "Saving..." : "Save session"}
+          <Check size={13} />
+          {busy ? "Saving…" : "Save session"}
         </button>
-        {msg ? <p className={`text-xs ${ui.muted} sm:col-span-2`}>{msg}</p> : null}
+        {msg ? (
+          <p className={`flex items-center gap-1.5 text-xs sm:col-span-2 ${
+            msg === "Saved" ? "text-teal-700 dark:text-teal-400" : "text-red-600 dark:text-red-400"
+          }`}>
+            {msg === "Saved" ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+            {msg}
+          </p>
+        ) : null}
       </div>
     </details>
   );

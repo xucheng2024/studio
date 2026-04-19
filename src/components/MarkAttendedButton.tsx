@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { UserCheck, Loader2 } from "lucide-react";
 import { markAttended } from "@/app/dashboard/actions";
 import { ui } from "@/lib/ui";
 
@@ -13,7 +14,7 @@ export function MarkAttendedButton({ bookingId }: { bookingId: string }) {
     <button
       type="button"
       disabled={loading}
-      className={`text-xs ${ui.linkMuted} disabled:opacity-50`}
+      className={`inline-flex items-center gap-1 text-xs ${ui.linkMuted} disabled:opacity-50`}
       onClick={async () => {
         setLoading(true);
         await markAttended(bookingId);
@@ -21,7 +22,12 @@ export function MarkAttendedButton({ bookingId }: { bookingId: string }) {
         router.refresh();
       }}
     >
-      {loading ? "…" : "Mark attended"}
+      {loading ? (
+        <Loader2 size={11} className="animate-spin" />
+      ) : (
+        <UserCheck size={11} />
+      )}
+      {loading ? "Marking…" : "Mark attended"}
     </button>
   );
 }

@@ -25,6 +25,30 @@ function dayRangeEnd(d?: string | null) {
   return dt.toISOString();
 }
 
+type PaymentRow = {
+  id: string;
+  booking_id: string | null;
+  client_id: string | null;
+  guest_name: string | null;
+  guest_email: string | null;
+  status: string | null;
+  payment_method: string | null;
+  recon_status: string | null;
+  amount: number | null;
+  paid_amount: number | null;
+  currency: string | null;
+  reference_code: string | null;
+  created_at: string | null;
+  customer_confirmed_at: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  recon_note: string | null;
+  invoice_number?: string | null;
+  invoice_status?: string | null;
+  invoice_voided_at?: string | null;
+  invoice_void_reason?: string | null;
+};
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const studioId = url.searchParams.get("studio_id");
@@ -36,8 +60,22 @@ export async function GET(req: Request) {
   const amountMin = url.searchParams.get("amount_min");
   const amountMax = url.searchParams.get("amount_max");
   const reference = url.searchParams.get("reference");
-  const from = dayRangeStart(url.searchParams.get("date_from"));
-  const to = dayRangeEnd(url.searchParams.get("date_to"));
+  const dateFromParam = url.searchParams.get("date_from");
+  const dateToParam = url.searchParams.get("date_to");
+
+  // Default to last 30 days when no date range supplied, preventing unbounded full-table exports.
+  const fallbackTo = new Date();
+  const fallbackFrom = new Date(fallbackTo);
+  fallbackFrom.setDate(fallbackFrom.getDate() - 30);
+
+  const from = dateFromParam
+    ? dayRangeStart(dateFromParam)
+    : fallbackFrom.toISOString();
+  const to = dateToParam
+    ? dayRangeEnd(dateToParam)
+    : fallbackTo.toISOString();
+  const view = url.searchParams.get("view") ?? ""; // queue | recon | review | "" (all)
+  const keyword = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
   const supabase = await createClient();
   const {
@@ -67,21 +105,83 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, booking_id, client_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(5000); // Hard cap: export larger datasets via date-range pagination
   if (locationId) q = q.eq("location_id", locationId);
   if (status) q = q.eq("status", status);
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
   if (invoiceStatus) q = q.eq("invoice_status", invoiceStatus);
   if (reconStatus) q = q.eq("recon_status", reconStatus);
-  if (amountMin) q = q.gte("amount", Number(amountMin));
-  if (amountMax) q = q.lte("amount", Number(amountMax));
+  const parsedAmountMin = amountMin ? Number(amountMin) : NaN;
+  const parsedAmountMax = amountMax ? Number(amountMax) : NaN;
+  if (!Number.isNaN(parsedAmountMin)) q = q.gte("amount", parsedAmountMin);
+  if (!Number.isNaN(parsedAmountMax)) q = q.lte("amount", parsedAmountMax);
   if (reference) q = q.ilike("reference_code", `%${reference}%`);
   if (from) q = q.gte("created_at", from);
   if (to) q = q.lt("created_at", to);
   const { data: payments } = await q;
+  let rows: PaymentRow[] = (payments ?? []) as PaymentRow[];
+
+  // Fetch related bookings and users for keyword search & operator email resolution
+  const bookingIds = [...new Set(rows.map((p) => p.booking_id).filter(Boolean))] as string[];
+  const clientIds = [...new Set(rows.map((p) => p.client_id).filter(Boolean))] as string[];
+  const operatorIds = [...new Set(rows.map((p) => p.verified_by).filter(Boolean))] as string[];
+  const allUserIds = [...new Set([...clientIds, ...operatorIds])];
+
+  const [{ data: bookings }, { data: userRows }] = await Promise.all([
+    bookingIds.length > 0
+      ? supabase.from("bookings").select("id, guest_name, guest_email").in("id", bookingIds)
+      : Promise.resolve({ data: [] as const }),
+    allUserIds.length > 0
+      ? supabase.from("users").select("id, email").in("id", allUserIds)
+      : Promise.resolve({ data: [] as const }),
+  ]);
+
+  const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
+  const userEmailMap = new Map((userRows ?? []).map((u) => [u.id, u.email ?? ""]));
+
+  // Apply keyword filter (mirrors payments page logic)
+  if (keyword) {
+    rows = rows.filter((p) => {
+      const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+      const clientEmail = p.client_id ? userEmailMap.get(p.client_id) : null;
+      return [
+        p.reference_code,
+        p.recon_note,
+        p.guest_email,
+        p.guest_name,
+        booking?.guest_email,
+        booking?.guest_name,
+        clientEmail,
+      ]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(keyword));
+    });
+  }
+
+  // Apply view (tab) filter (mirrors payments page logic)
+  if (view === "queue") {
+    rows = rows.filter(
+      (p) =>
+        p.status === "pending" &&
+        (p.recon_status === "awaiting_verification" ||
+          p.customer_confirmed_at != null ||
+          !p.booking_id),
+    );
+  } else if (view === "recon") {
+    rows = rows.filter(
+      (p) =>
+        p.recon_status === "mismatch" ||
+        p.recon_status === "manual_review" ||
+        !p.reference_code ||
+        Number(p.paid_amount ?? p.amount ?? 0) !== Number(p.amount ?? 0),
+    );
+  } else if (view === "review") {
+    rows = rows.filter((p) => p.status !== "pending" || p.verified_at != null);
+  }
 
   const headers = [
     "payment_id",
@@ -100,27 +200,22 @@ export async function GET(req: Request) {
     "created_at",
     "customer_confirmed_at",
     "verified_at",
-    "operator",
+    "operator_email",
     "recon_note",
   ];
-  const rows = (payments ?? []).map((p) => {
+  const csvRows = rows.map((p) => {
     const expected = Number(p.amount ?? 0);
     const paid = Number(p.paid_amount ?? expected);
-    const row = p as typeof p & {
-      invoice_number?: string | null;
-      invoice_status?: string | null;
-      invoice_voided_at?: string | null;
-      invoice_void_reason?: string | null;
-    };
+    const operatorEmail = p.verified_by ? (userEmailMap.get(p.verified_by) ?? p.verified_by) : "";
     return [
       p.id,
       p.booking_id ?? "",
       p.status ?? "",
       p.payment_method ?? "",
-      row.invoice_status ?? "",
-      row.invoice_number ?? "",
-      row.invoice_voided_at ?? "",
-      row.invoice_void_reason ?? "",
+      p.invoice_status ?? "",
+      p.invoice_number ?? "",
+      p.invoice_voided_at ?? "",
+      p.invoice_void_reason ?? "",
       p.recon_status ?? "",
       expected.toFixed(2),
       paid.toFixed(2),
@@ -129,15 +224,31 @@ export async function GET(req: Request) {
       p.created_at ?? "",
       p.customer_confirmed_at ?? "",
       p.verified_at ?? "",
-      p.verified_by ?? "",
+      operatorEmail,
       p.recon_note ?? "",
     ];
   });
-  const csv = [headers, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
+  const EXPORT_CAP = 5000;
+  const wasCapped = (payments ?? []).length >= EXPORT_CAP;
+  // Warning goes at the END so that the header row always stays on line 1.
+  // BI tools and accounting software treat the first row as column names;
+  // prepending a comment row would shift all fields by one column.
+  // The x-export-capped response header already signals truncation to API callers.
+  const capWarningRow = wasCapped
+    ? [["# WARNING: export capped at 5000 rows — narrow the date range for a complete export"]]
+    : [];
+
+  const csv = [headers, ...csvRows, ...capWarningRow].map((r) => r.map(csvEscape).join(",")).join("\n");
+  const dateLabel =
+    dateFromParam && dateToParam
+      ? `${dateFromParam}_${dateToParam}`
+      : `last30d_${new Date().toISOString().slice(0, 10)}`;
   return new NextResponse(csv, {
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="payments-export.csv"`,
+      "content-disposition": `attachment; filename="payments-${dateLabel}.csv"`,
+      "x-export-row-count": String(rows.length),
+      "x-export-capped": String(wasCapped),
     },
   });
 }

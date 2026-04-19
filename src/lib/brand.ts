@@ -5,19 +5,19 @@ export const site = {
   title: "Studio — Bookings Made Simple",
   description:
     "Simple class booking, visit packs, and frontdesk tools for gyms and studios.",
-  badge: "For studios, gyms, and wellness spaces",
+  badge: "For studios, gyms & wellness spaces",
   homeHeadline: "Fill classes faster with less admin work",
   homeLead:
     "One booking link for members, one daily desk view for staff, and one clean payment record for owners.",
   marketing: {
     memberHighlights: [
-      "Reserve in seconds from your phone",
-      "Track payment status from submitted to verified",
-      "Clear cancellation and no-show rules upfront",
-      "Past guest bookings auto-link to your member timeline",
+      "Book any class in seconds — real-time spots, no calls needed",
+      "Know your payment status the moment staff verifies it",
+      "Cancellation and no-show rules shown clearly before you commit",
+      "Booked as a guest before? Your full history links when you sign in",
     ],
     memberIntro:
-      "Book confidently: clear status, clear rules, and no need to chase staff on WhatsApp.",
+      "Book, pay, and track everything in one place — no more chasing staff on WhatsApp.",
     ownerHighlights: [
       "Handle today's desk tasks: payment checks, arrivals, and quick fixes",
       "Track payment records with filters, CSV export, and audit timeline",
@@ -26,7 +26,8 @@ export const site = {
     ownerIntro:
       "Run daily operations with fewer manual steps and better visibility across locations.",
     paymentFlowNote:
-      "How payment works: you submit transfer notice, staff verifies, and your booking is confirmed.",
-    mergeNote: "Booked as guest before? Sign in with the same email to link your history automatically.",
+      "Payment flow: you upload transfer proof, staff confirms, and your booking is locked in.",
+    mergeNote:
+      "Used a guest email before? Sign in with the same address to merge your history automatically.",
   },
 } as const;

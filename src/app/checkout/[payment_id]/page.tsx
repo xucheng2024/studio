@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { ConfirmPaymentButton } from "@/components/ConfirmPaymentButton";
 import { CopyRefButton } from "@/components/CopyRefButton";
 import { toQrDataUrl } from "@/lib/paynow";
@@ -42,6 +43,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
 
   if (error || !payment) notFound();
   const qrDataUrl = payment.qr_payload ? await toQrDataUrl(payment.qr_payload) : null;
+
   let ruleLine: string | null = null;
   if (payment.booking_id) {
     const { data: booking } = await admin
@@ -67,82 +69,126 @@ export default async function PaymentCheckoutPage({ params }: Props) {
         ? await q.eq("location_id", locationId).maybeSingle()
         : await q.is("location_id", null).maybeSingle();
       if (r) {
-        ruleLine = `Cancel before ${r.cancel_cutoff_hours ?? 12}h; late-cancel ${
+        ruleLine = `Cancel ≥${r.cancel_cutoff_hours ?? 12}h before class · Late-cancel ${
           r.late_cancel_deduct_credit ? "deducts" : "returns"
-        } credit; no-show ${r.no_show_deduct_credit ? "deducts" : "returns"} credit after ${
-          r.no_show_buffer_min ?? 15
-        }m buffer.`;
+        } a credit · No-show after ${r.no_show_buffer_min ?? 15}m ${
+          r.no_show_deduct_credit ? "deducts" : "returns"
+        } a credit`;
       }
     }
   }
 
+  const payeeProxy =
+    payment.paynow_proxy_type_snapshot === "mobile"
+      ? `Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
+      : payment.paynow_proxy_type_snapshot === "uen_mobile"
+        ? `UEN ${maskTail(payment.paynow_uen_snapshot)} · Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
+        : `UEN ${maskTail(payment.paynow_uen_snapshot)}`;
+
+  const isPaid = payment.status === "paid";
+  const isFailed = payment.status === "failed" || payment.status === "expired";
+
   return (
-    <main className={ui.page}>
-      <div className="mx-auto flex max-w-2xl flex-col gap-6">
-        <div>
-          <h1 className={ui.h1}>PayNow checkout</h1>
-          <p className={ui.lead}>
-            Scan to pay, then tap <strong>I have paid</strong>. Frontdesk will verify and confirm your booking.
-          </p>
-        </div>
+    <main className={`${ui.page} sm:py-10`}>
+      <div className="mx-auto flex max-w-md flex-col gap-6">
 
-        <section className={ui.card}>
-          <div className="flex flex-col items-center gap-4">
-            {qrDataUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={qrDataUrl}
-                alt="PayNow QR"
-                width={320}
-                height={320}
-                className="rounded-lg border border-stone-200 bg-white p-2"
-              />
-            ) : null}
-            <p className="text-3xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">
-              {payment.currency} {Number(payment.amount).toFixed(2)}
-            </p>
-            <p className={ui.muted}>
-              Reference: <span className={ui.code}>{payment.reference_code}</span>
-            </p>
-            <p className={ui.muted}>
-              PayNow payee:{" "}
-              {payment.paynow_payee_name_snapshot ?? "Payee"} ·{" "}
-              {payment.paynow_proxy_type_snapshot === "mobile"
-                ? `Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
-                : payment.paynow_proxy_type_snapshot === "uen_mobile"
-                  ? `UEN ${maskTail(payment.paynow_uen_snapshot)} · Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
-                  : `UEN ${maskTail(payment.paynow_uen_snapshot)}`}
-            </p>
-            {payment.reference_code ? <CopyRefButton reference={payment.reference_code} /> : null}
-            <p className={ui.muted}>Please include this reference in your transfer note to speed up verification.</p>
-            {ruleLine ? <p className={`text-sm ${ui.muted}`}>{ruleLine}</p> : null}
-            <ConfirmPaymentButton
-              paymentId={payment.id}
-              expiresAt={payment.expires_at ?? null}
-              referenceCode={payment.reference_code ?? null}
-              paymentStatus={payment.status}
-              customerConfirmedAt={payment.customer_confirmed_at ?? null}
-            />
-            {payment.customer_confirmed_at ? (
-              <p className={ui.muted}>
-                Submitted: {new Date(payment.customer_confirmed_at).toLocaleString()} (waiting for staff review)
-              </p>
-            ) : null}
-            {payment.status === "pending" && !payment.customer_confirmed_at ? (
-              <p className={ui.muted}>Status: waiting for your payment notice</p>
-            ) : null}
-            {payment.status === "pending" && payment.customer_confirmed_at ? (
-              <p className={ui.muted}>Status: pending staff verification</p>
-            ) : null}
-            {payment.status !== "pending" ? (
-              <p className={ui.success}>Current status: {payment.status}</p>
-            ) : null}
-          </div>
-        </section>
-
-        <Link href="/booking" className={ui.link}>
+        {/* ── Back link ── */}
+        <Link
+          href="/booking"
+          className={`inline-flex items-center gap-1.5 text-sm ${ui.linkMuted} w-fit`}
+        >
+          <ArrowLeft size={14} />
           Back to booking
         </Link>
+
+        {/* ── Amount hero ── */}
+        <div className="rounded-2xl bg-linear-to-br from-teal-600 to-teal-700 px-6 py-8 text-center shadow-lg shadow-teal-900/20 dark:from-teal-700 dark:to-teal-800">
+          <p className="text-sm font-medium text-teal-100">Amount due</p>
+          <p className="mt-1 text-5xl font-bold tabular-nums tracking-tight text-white">
+            {payment.currency} {Number(payment.amount).toFixed(2)}
+          </p>
+          <p className="mt-2 text-sm text-teal-200">
+            Pay to: {payment.paynow_payee_name_snapshot ?? "Studio"}
+          </p>
+          <p className="text-xs text-teal-300">{payeeProxy}</p>
+        </div>
+
+        {/* ── QR code section ── */}
+        {qrDataUrl ? (
+          <section className={`${ui.card} flex flex-col items-center gap-4`}>
+            <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">
+              Scan with your banking app
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrDataUrl}
+              alt={`PayNow QR code — ${payment.currency} ${Number(payment.amount).toFixed(2)}`}
+              width={260}
+              height={260}
+              className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-stone-700"
+            />
+          </section>
+        ) : null}
+
+        {/* ── Reference code ── */}
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/20">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-400">
+            Transfer reference
+          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <code className="text-xl font-bold tracking-widest text-stone-900 dark:text-stone-100">
+              {payment.reference_code}
+            </code>
+            {payment.reference_code ? <CopyRefButton reference={payment.reference_code} /> : null}
+          </div>
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+            Include this code in the transfer note — it lets staff match your payment instantly.
+          </p>
+        </section>
+
+        {/* ── Confirm + countdown + note ── */}
+        {!isPaid && !isFailed ? (
+          <ConfirmPaymentButton
+            paymentId={payment.id}
+            expiresAt={payment.expires_at ?? null}
+            referenceCode={payment.reference_code ?? null}
+            paymentStatus={payment.status}
+            customerConfirmedAt={payment.customer_confirmed_at ?? null}
+          />
+        ) : null}
+
+        {/* ── Terminal states ── */}
+        {isPaid ? (
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-5 text-center dark:border-teal-800/50 dark:bg-teal-950/30">
+            <ShieldCheck size={24} className="text-teal-600 dark:text-teal-400" />
+            <p className="font-semibold text-teal-900 dark:text-teal-200">Payment confirmed</p>
+            <p className={`text-sm ${ui.muted}`}>Your booking is locked in. See you at class!</p>
+            <Link href="/me/bookings" className={`mt-1 text-sm ${ui.link}`}>
+              View my bookings →
+            </Link>
+          </div>
+        ) : null}
+
+        {isFailed ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 dark:border-red-800/50 dark:bg-red-950/20">
+            <p className="font-semibold text-red-800 dark:text-red-300">
+              Payment {payment.status}
+            </p>
+            <p className={`mt-1 text-sm ${ui.muted}`}>
+              This payment link has expired or failed. Please start a new booking.
+            </p>
+            <Link href="/booking" className={`mt-2 block text-sm ${ui.link}`}>
+              ← Browse sessions
+            </Link>
+          </div>
+        ) : null}
+
+        {/* ── Booking policy ── */}
+        {ruleLine ? (
+          <p className={`rounded-xl border border-stone-100 px-3 py-2 text-xs ${ui.muted} dark:border-stone-800`}>
+            {ruleLine}
+          </p>
+        ) : null}
       </div>
     </main>
   );

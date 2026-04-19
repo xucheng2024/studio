@@ -9,6 +9,7 @@ import {
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { TrendingUp, RefreshCcw, DollarSign } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
@@ -258,45 +259,88 @@ export default async function ReportsPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <form method="get" className={`${ui.card} flex flex-wrap items-end gap-3`}>
-        {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
-        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5">
-            <span className={`${ui.label} whitespace-nowrap`}>Date from</span>
-            <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={`${ui.label} whitespace-nowrap`}>Date to</span>
-            <input type="date" name="date_to" defaultValue={dateTo} className={`${ui.input} whitespace-nowrap`} />
-          </label>
+      {/* Date range filter with quick presets */}
+      <div className={`${ui.card} flex flex-col gap-3`}>
+        {/* Preset buttons */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "This month",  from: bounds.from,                    to: bounds.to },
+            { label: "Last 30 days", from: (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); })(), to: new Date().toISOString().slice(0, 10) },
+            { label: "Last month",  from: (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); })(), to: (() => { const d = new Date(); d.setDate(0); return d.toISOString().slice(0, 10); })() },
+            { label: "Last 90 days", from: (() => { const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().slice(0, 10); })(), to: new Date().toISOString().slice(0, 10) },
+          ].map(({ label, from, to }) => {
+            const isActive = dateFrom === from && dateTo === to;
+            const params = new URLSearchParams();
+            if (selectedStudioId) params.set("studio_id", selectedStudioId);
+            if (selectedLocationId) params.set("location_id", selectedLocationId);
+            params.set("date_from", from);
+            params.set("date_to", to);
+            return (
+              <a
+                key={label}
+                href={`?${params.toString()}`}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "border-teal-400 bg-teal-50 text-teal-800 dark:border-teal-600 dark:bg-teal-950/40 dark:text-teal-300"
+                    : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 dark:hover:border-stone-600 dark:hover:text-stone-200"
+                }`}
+              >
+                {label}
+              </a>
+            );
+          })}
         </div>
-        <button type="submit" className={ui.btnPrimarySm}>
-          Apply range
-        </button>
-      </form>
+        {/* Custom range */}
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
+          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className={`${ui.label} whitespace-nowrap`}>From</span>
+              <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={`${ui.label} whitespace-nowrap`}>To</span>
+              <input type="date" name="date_to" defaultValue={dateTo} className={`${ui.input} whitespace-nowrap`} />
+            </label>
+          </div>
+          <button type="submit" className={ui.btnPrimarySm}>Apply</button>
+        </form>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className={ui.statCard}>
-          <p className={`text-sm font-medium ${ui.muted}`}>Gross revenue</p>
-          <p className={`mt-1 text-xs ${ui.muted}`}>Sum of payments with status paid.</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-teal-700 dark:text-teal-300">
-            ${summary.gross.toFixed(2)}
-          </p>
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400">
+            <DollarSign size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Gross revenue</p>
+            <p className="mt-0.5 text-2xl font-bold tabular-nums text-teal-700 dark:text-teal-300">
+              ${summary.gross.toFixed(2)}
+            </p>
+          </div>
         </div>
-        <div className={ui.statCard}>
-          <p className={`text-sm font-medium ${ui.muted}`}>Refunds</p>
-          <p className={`mt-1 text-xs ${ui.muted}`}>Sum of payments with status refunded (positive number).</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-blue-800 dark:text-blue-200">
-            ${summary.refunds.toFixed(2)}
-          </p>
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+            <RefreshCcw size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Refunds</p>
+            <p className="mt-0.5 text-2xl font-bold tabular-nums text-blue-800 dark:text-blue-200">
+              ${summary.refunds.toFixed(2)}
+            </p>
+          </div>
         </div>
-        <div className={ui.statCard}>
-          <p className={`text-sm font-medium ${ui.muted}`}>Net revenue</p>
-          <p className={`mt-1 text-xs ${ui.muted}`}>Gross − Refunds. Dimension tables below use the same net rule.</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">
-            ${summary.net.toFixed(2)}
-          </p>
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+            <TrendingUp size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Net revenue</p>
+            <p className="mt-0.5 text-2xl font-bold tabular-nums text-stone-900 dark:text-stone-100">
+              ${summary.net.toFixed(2)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -384,24 +428,39 @@ export default async function ReportsPage({ searchParams }: Props) {
         <h2 className={`${ui.h2} text-base`}>Bookings by class template</h2>
         <p className={`mt-2 text-xs ${ui.muted}`}>On phone, swipe horizontally to view all columns.</p>
         <div className="overflow-auto">
-          <table className="mt-4 min-w-[560px] text-left text-sm">
+          <table className="mt-4 min-w-[520px] text-left text-sm">
             <thead>
               <tr className="border-b border-stone-200 dark:border-stone-700">
                 <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Class</th>
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">
-                  Booked / attended
-                </th>
+                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Booked</th>
+                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Attended</th>
+                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Rate</th>
               </tr>
             </thead>
             <tbody>
-              {Object.entries(byClassAttendance).map(([id, row]) => (
-                <tr key={id} className="border-b border-stone-100 last:border-0 dark:border-stone-800">
-                  <td className="py-2.5 text-stone-900 dark:text-stone-100">{row.title}</td>
-                  <td className="py-2.5 tabular-nums text-stone-700 dark:text-stone-300">
-                    {row.booked} / {row.attended}
-                  </td>
-                </tr>
-              ))}
+              {Object.entries(byClassAttendance).map(([id, row]) => {
+                const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
+                return (
+                  <tr key={id} className="border-b border-stone-100 last:border-0 dark:border-stone-800">
+                    <td className="py-2.5 text-stone-900 dark:text-stone-100">{row.title}</td>
+                    <td className="py-2.5 tabular-nums text-stone-700 dark:text-stone-300">{row.booked}</td>
+                    <td className="py-2.5 tabular-nums text-stone-700 dark:text-stone-300">{row.attended}</td>
+                    <td className="py-2.5 tabular-nums">
+                      {rate !== null ? (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          rate >= 80
+                            ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                            : rate >= 50
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                              : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+                        }`}>
+                          {rate}%
+                        </span>
+                      ) : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -412,19 +471,26 @@ export default async function ReportsPage({ searchParams }: Props) {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className={ui.card}>
-          <h2 className={`${ui.h2} text-base`}>Attendance compare by location</h2>
+          <h2 className={`${ui.h2} text-base`}>Attendance by location</h2>
           <ul className="mt-4 space-y-2 text-sm">
-            {compareByLocation.map(([name, row]) => (
-              <li
-                key={name}
-                className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800"
-              >
-                <span className="text-stone-900 dark:text-stone-100">{name}</span>
-                <span className="tabular-nums text-stone-700 dark:text-stone-300">
-                  {row.booked} / {row.attended}
-                </span>
-              </li>
-            ))}
+            {compareByLocation.map(([name, row]) => {
+              const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
+              return (
+                <li key={name} className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800">
+                  <span className="text-stone-900 dark:text-stone-100">{name}</span>
+                  <span className="flex items-center gap-2 tabular-nums">
+                    <span className={`text-xs ${ui.muted}`}>{row.booked} / {row.attended}</span>
+                    {rate !== null ? (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        rate >= 80 ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                          : rate >= 50 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+                      }`}>{rate}%</span>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
           {!compareByLocation.length ? (
             <p className={`mt-4 text-sm ${ui.muted}`}>No location attendance data in this range.</p>
@@ -432,19 +498,26 @@ export default async function ReportsPage({ searchParams }: Props) {
         </div>
 
         <div className={ui.card}>
-          <h2 className={`${ui.h2} text-base`}>Attendance compare by instructor</h2>
+          <h2 className={`${ui.h2} text-base`}>Attendance by instructor</h2>
           <ul className="mt-4 space-y-2 text-sm">
-            {compareByInstructor.map(([name, row]) => (
-              <li
-                key={name}
-                className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800"
-              >
-                <span className="text-stone-900 dark:text-stone-100">{name}</span>
-                <span className="tabular-nums text-stone-700 dark:text-stone-300">
-                  {row.booked} / {row.attended}
-                </span>
-              </li>
-            ))}
+            {compareByInstructor.map(([name, row]) => {
+              const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
+              return (
+                <li key={name} className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800">
+                  <span className="text-stone-900 dark:text-stone-100">{name}</span>
+                  <span className="flex items-center gap-2 tabular-nums">
+                    <span className={`text-xs ${ui.muted}`}>{row.booked} / {row.attended}</span>
+                    {rate !== null ? (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        rate >= 80 ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                          : rate >= 50 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+                      }`}>{rate}%</span>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
           {!compareByInstructor.length ? (
             <p className={`mt-4 text-sm ${ui.muted}`}>No instructor attendance data in this range.</p>
@@ -486,27 +559,42 @@ export default async function ReportsPage({ searchParams }: Props) {
         ) : null}
       </div>
 
-      <div>
-        <h2 className={ui.h2}>Recent payments (same range)</h2>
-        <ul className="mt-3 flex flex-col gap-2 text-sm">
+      <div className={ui.card}>
+        <h2 className={`${ui.h2} text-base`}>Recent payments (same range)</h2>
+        <ul className="mt-4 flex flex-col gap-2 text-sm">
           {revenuePayments.slice(0, 20).map((p) => {
             const row = p as PaymentWithBooking & { id: string; type?: string };
+            const isPaid = p.status === "paid";
             return (
               <li
                 key={row.id}
-                className="rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-100 px-3 py-2.5 dark:border-stone-800"
               >
-                <span className="font-medium text-stone-800 dark:text-stone-200">{p.status}</span> ·{" "}
-                <span className="text-stone-800 dark:text-stone-200">{row.type ?? "-"}</span> · $
-                {Number(p.amount).toFixed(2)} ·{" "}
-                <span className={ui.muted}>
-                  {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    isPaid
+                      ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                      : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                  }`}>
+                    {p.status}
+                  </span>
+                  {row.type ? (
+                    <span className={`text-xs ${ui.muted}`}>{row.type}</span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold tabular-nums text-stone-900 dark:text-stone-100">
+                    ${Number(p.amount).toFixed(2)}
+                  </span>
+                  <span className={`text-xs ${ui.muted}`}>
+                    {p.created_at ? new Date(p.created_at).toLocaleDateString() : ""}
+                  </span>
+                </div>
               </li>
             );
           })}
         </ul>
-        {!revenuePayments.length ? <p className={`mt-2 text-sm ${ui.muted}`}>No rows.</p> : null}
+        {!revenuePayments.length ? <p className={`mt-4 text-sm ${ui.muted}`}>No payments in this range.</p> : null}
       </div>
     </div>
   );

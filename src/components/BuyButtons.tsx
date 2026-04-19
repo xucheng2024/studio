@@ -53,38 +53,3 @@ export function BuyPackageButton({
   );
 }
 
-export function BuySingleButton({ sessionId }: { sessionId: string }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  return (
-    <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        disabled={loading}
-        className={`${ui.btnSecondarySm} disabled:opacity-50`}
-        onClick={async () => {
-          setLoading(true);
-          setMsg(null);
-          const res = await fetch("/api/checkout/single", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session_id: sessionId }),
-          });
-          const body = await res.json().catch(() => ({}));
-          setLoading(false);
-          if (!res.ok) {
-            setMsg(body.error ?? "Failed");
-            return;
-          }
-          router.refresh();
-          setMsg("Single visit added");
-        }}
-      >
-        {loading ? "…" : "Buy single visit"}
-      </button>
-      {msg ? <span className={`text-xs ${ui.muted}`}>{msg}</span> : null}
-    </div>
-  );
-}

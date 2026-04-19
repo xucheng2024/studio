@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     .select(
       `
       id,
+      status,
       spots_left,
       location_id,
       guest_price,
@@ -59,6 +60,9 @@ export async function POST(req: Request) {
 
   if (sErr || !session) {
     return NextResponse.json({ error: "session_not_found" }, { status: 404 });
+  }
+  if ((session.status ?? "scheduled") !== "scheduled") {
+    return NextResponse.json({ error: "session_not_available" }, { status: 409 });
   }
 
   const classes = session.classes as

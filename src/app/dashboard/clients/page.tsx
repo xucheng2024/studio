@@ -9,6 +9,7 @@ import {
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { Package, CalendarX } from "lucide-react";
 
 type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
 
@@ -191,46 +192,55 @@ export default async function ClientsPage({ searchParams }: Props) {
           ))}
         </ul>
         {!memberSummaries.length ? (
-          <p className={`mt-3 text-sm ${ui.muted}`}>No active package credits yet.</p>
+          <div className={`mt-4 ${ui.emptyState}`}>
+            <div className={ui.emptyStateIcon}><Package size={18} /></div>
+            <p className={`text-sm ${ui.muted}`}>No active package credits yet.</p>
+          </div>
         ) : null}
       </div>
 
       <div>
         <h2 className={ui.h2}>Booking and attendance history</h2>
-        <ul className="mt-3 flex flex-col gap-2 text-sm">
+        <ul className="mt-3 flex flex-col gap-2">
           {(bookings ?? []).map((b) => {
             const u = b.users as { email?: string | null } | null;
             const cs = b.class_sessions as {
               start_time?: string;
               classes?: { title?: string } | null;
             } | null;
-            const label =
+            const memberLabel =
               b.client_id != null
                 ? (u?.email ?? b.client_id)
-                : `${b.guest_name ?? "Guest"} (${b.guest_email ?? ""})`;
+                : `${b.guest_name ?? "Guest"}${b.guest_email ? ` · ${b.guest_email}` : ""}`;
+            const badge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
             return (
               <li
                 key={b.id}
-                className="rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800"
+                className="rounded-xl border border-stone-100 bg-white/70 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40"
               >
-                <span className="text-stone-800 dark:text-stone-200">{label}</span> ·{" "}
-                {(() => {
-                  const badge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
-                  return (
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badge.tone)}`}>
-                      {badge.text}
-                    </span>
-                  );
-                })()}{" "}
-                ·{" "}
-                {cs?.classes?.title ?? "Class"} ·{" "}
-                {cs?.start_time ? new Date(cs.start_time).toLocaleString() : ""}
+                {/* Row 1: member + status badge */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate max-w-[60%]">
+                    {memberLabel}
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badge.tone)}`}>
+                    {badge.text}
+                  </span>
+                </div>
+                {/* Row 2: class + time */}
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                  <span>{cs?.classes?.title ?? "Class"}</span>
+                  {cs?.start_time ? <span>{new Date(cs.start_time).toLocaleString()}</span> : null}
+                </div>
               </li>
             );
           })}
         </ul>
         {!bookings?.length ? (
-          <p className={`text-sm ${ui.muted}`}>No bookings yet.</p>
+          <div className={`mt-3 ${ui.emptyState}`}>
+            <div className={ui.emptyStateIcon}><CalendarX size={18} /></div>
+            <p className={`text-sm ${ui.muted}`}>No bookings yet.</p>
+          </div>
         ) : null}
       </div>
     </div>

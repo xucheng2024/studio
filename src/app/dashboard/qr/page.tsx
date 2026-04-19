@@ -1,7 +1,9 @@
 import QRCode from "qrcode";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Download, ExternalLink } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { updateStudioSlug } from "@/app/dashboard/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -32,12 +34,20 @@ export default async function QrPage({ searchParams }: Props) {
 
   if (!studio) {
     return (
-      <div className="max-w-md space-y-2">
-        <p className={ui.muted}>
-          {studios?.length
-            ? "Select a studio from the sidebar to generate QR."
-            : "Create your studio on the overview first, then return here for your QR link."}
+      <div className={`${ui.emptyState} max-w-md py-12`}>
+        <p className="font-medium text-stone-700 dark:text-stone-300">
+          {studios?.length ? "Choose a studio first" : "No studio yet"}
         </p>
+        <p className={`text-sm ${ui.muted}`}>
+          {studios?.length
+            ? "Select a studio from the sidebar to generate its QR code."
+            : "Create your studio on the Overview page, then return here for your booking QR link."}
+        </p>
+        {!studios?.length ? (
+          <DashboardAppLink href="/dashboard/overview" className={`${ui.btnPrimary} mt-2`}>
+            Create studio
+          </DashboardAppLink>
+        ) : null}
       </div>
     );
   }
@@ -88,21 +98,50 @@ export default async function QrPage({ searchParams }: Props) {
         </div>
       ) : null}
 
-      <div className={`${ui.card} flex flex-col items-start gap-4`}>
+      <div className={`${ui.card} flex flex-col items-start gap-4 sm:flex-row sm:items-start`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={dataUrl} width={280} height={280} alt="" className="rounded-lg" />
-        <div className="flex w-full min-w-0 flex-col gap-2 text-sm">
-          <span className={`text-xs font-medium uppercase tracking-wide ${ui.muted}`}>URL</span>
-          <a className={`${ui.link} break-all`} href={bookingUrl}>
-            {bookingUrl}
-          </a>
-          <a
-            className={`${ui.btnSecondarySm} mt-2 inline-flex w-fit`}
-            href={dataUrl}
-            download={`booking-qr-${studio.public_slug}.png`}
-          >
-            Download PNG
-          </a>
+        <img
+          src={dataUrl}
+          width={200}
+          height={200}
+          alt={`Booking QR code for ${studio.name}`}
+          className="rounded-xl border border-stone-100 dark:border-stone-800"
+        />
+        <div className="flex w-full min-w-0 flex-col gap-3">
+          <div>
+            <span className={`text-xs font-medium uppercase tracking-wide ${ui.muted}`}>
+              Booking URL
+            </span>
+            <a
+              className={`mt-1 block break-all text-sm ${ui.link}`}
+              href={bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {bookingUrl}
+            </a>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <CopyUrlButton url={bookingUrl} />
+            <a
+              className={`${ui.btnSecondarySm} inline-flex`}
+              href={dataUrl}
+              download={`booking-qr-${studio.public_slug}.png`}
+            >
+              <Download size={13} />
+              Download PNG
+            </a>
+            <DashboardAppLink
+              href={path}
+              className={`${ui.btnSecondarySm} inline-flex`}
+            >
+              <ExternalLink size={13} />
+              Preview page
+            </DashboardAppLink>
+          </div>
+          <p className={`text-xs ${ui.muted}`}>
+            Print and post at reception — members scan, see available classes, and book with just their name and email.
+          </p>
         </div>
       </div>
 
@@ -138,9 +177,6 @@ export default async function QrPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <DashboardAppLink href={path} className={`${ui.btnSecondary} inline-flex w-fit`}>
-        Open public booking page
-      </DashboardAppLink>
     </div>
   );
 }

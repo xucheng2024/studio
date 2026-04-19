@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
+/* ── Design tokens ─────────────────────────────────────────────────── */
 :root {
   --background: #f8fafc;
   --foreground: #1c1917;
   --card: #ffffff;
   --muted: #78716c;
+  --radius: 1.25rem;
 }
 
 @theme inline {
@@ -23,30 +25,139 @@
   }
 }
 
+/* ── Base ───────────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
+  /* Prevent font size inflation on mobile */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   min-height: 100dvh;
   background-color: var(--background);
   background-image:
-    radial-gradient(ellipse 120% 80% at 8% -10%, rgb(14 165 233 / 0.12), transparent 45%),
-    radial-gradient(ellipse 100% 70% at 92% -15%, rgb(45 212 191 / 0.11), transparent 42%),
+    radial-gradient(ellipse 120% 80% at 8% -10%, rgb(14 165 233 / 0.10), transparent 45%),
+    radial-gradient(ellipse 100% 70% at 92% -15%, rgb(45 212 191 / 0.09), transparent 42%),
     linear-gradient(180deg, #f8fafc 0%, #f8fafc 40%, #f1f5f9 100%);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Smooth font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @media (prefers-color-scheme: dark) {
   body {
     background-image:
-      radial-gradient(ellipse 100% 60% at 6% -10%, rgb(8 145 178 / 0.24), transparent 42%),
-      radial-gradient(ellipse 90% 50% at 94% -16%, rgb(20 184 166 / 0.2), transparent 40%),
+      radial-gradient(ellipse 100% 60% at 6% -10%, rgb(8 145 178 / 0.20), transparent 42%),
+      radial-gradient(ellipse 90% 50% at 94% -16%, rgb(20 184 166 / 0.16), transparent 40%),
       linear-gradient(180deg, #0c0a09 0%, #111827 100%);
   }
 }
 
+/* ── Mobile: remove tap highlight ──────────────────────────────────── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+/* ── Selection ──────────────────────────────────────────────────────── */
 ::selection {
   background-color: rgb(20 184 166 / 0.25);
+}
+
+/* ── Focus ring (keyboard only) ─────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgb(20 184 166 / 0.8);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Scrollbar (webkit) ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(120 113 108 / 0.35);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(120 113 108 / 0.55);
+}
+
+/* ── Mobile bottom nav safe area ────────────────────────────────────── */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.bottom-safe {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Prevent body scroll when mobile sheet is open ──────────────────── */
+body.menu-open {
+  overflow: hidden;
+}
+
+/* ── <details> disclosure: hide native marker, add animated chevron ── */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Chevron via ::after pseudo-element — only on summaries that carry the
+   .chevron-summary class, so we don't break custom summaries elsewhere. */
+details.chevron > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+details.chevron > summary::after {
+  content: "";
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: transform 200ms ease;
+}
+details.chevron[open] > summary::after {
+  transform: rotate(180deg);
+}
+@media (prefers-color-scheme: dark) {
+  details.chevron > summary::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  }
+}
+
+/* ── Smooth page transitions ────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter {
+    animation: fadeSlideIn 180ms ease-out both;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

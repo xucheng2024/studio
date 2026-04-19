@@ -24,10 +24,18 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: sessionRow } = await admin
     .from("class_sessions")
-    .select("id, classes!inner(studio_id)")
+    .select("id, status, classes!inner(studio_id)")
     .eq("id", parsed.data.session_id)
     .maybeSingle();
-  const cls = sessionRow?.classes as { studio_id?: string } | { studio_id?: string }[] | null;
+
+  if (!sessionRow) {
+    return NextResponse.json({ error: "session_not_found" }, { status: 404 });
+  }
+  if ((sessionRow.status ?? "scheduled") !== "scheduled") {
+    return NextResponse.json({ error: "session_not_available" }, { status: 409 });
+  }
+
+  const cls = sessionRow.classes as { studio_id?: string } | { studio_id?: string }[] | null;
   const pkgStudioId = Array.isArray(cls) ? cls[0]?.studio_id : cls?.studio_id;
   if (pkgStudioId) {
     const { data: st } = await admin.from("studios").select("contract_status").eq("id", pkgStudioId).maybeSingle();
