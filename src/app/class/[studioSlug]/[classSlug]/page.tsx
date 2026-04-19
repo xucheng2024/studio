@@ -1,8 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BookButton } from "@/components/BookButton";
 import { PackageBookButton } from "@/components/PackageBookButton";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
+import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import {
   hasEligiblePackageForSession,
@@ -10,6 +12,7 @@ import {
   type MemberPackageForCredits,
 } from "@/lib/memberCredits";
 import { getPaynowSummary } from "@/lib/paynow";
+import { buildClassShareMetadata } from "@/lib/publicShareOg";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -19,6 +22,11 @@ type Props = {
   params: Promise<{ studioSlug: string; classSlug: string }>;
   searchParams: Promise<{ session_id?: string; session?: string }>;
 };
+
+export async function generateMetadata({ params }: { params: Promise<{ studioSlug: string; classSlug: string }> }): Promise<Metadata> {
+  const { studioSlug, classSlug } = await params;
+  return buildClassShareMetadata(studioSlug, classSlug);
+}
 
 export default async function PublicClassBookingPage({ params, searchParams }: Props) {
   const { studioSlug: rawStudio, classSlug: rawClass } = await params;
@@ -47,7 +55,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, title, description, studio_id, is_active, locations ( name )")
+    .select("id, title, description, studio_id, is_active, image_url, locations ( name )")
     .eq("studio_id", studio.id)
     .eq("share_slug", classSlug)
     .maybeSingle();
@@ -124,8 +132,13 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   const loc = cls.locations as { name?: string } | { name?: string }[] | null;
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
+  const coverSrc = (cls as { image_url?: string | null }).image_url ?? null;
+
   return (
     <main className={ui.page}>
+      {/* ── Hero cover (full-bleed within page padding) ── */}
+      <ShareCoverImage src={coverSrc} alt={cls.title} />
+
       {/* ── Class header ── */}
       <div className="max-w-2xl">
         <p className={ui.badge}>Shared class</p>

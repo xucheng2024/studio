@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Check, CheckCircle2, Copy, EyeOff, Play, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { EntityCoverUpload } from "@/components/dashboard/EntityCoverUpload";
 import { ui } from "@/lib/ui";
 
 type Loc = { id: string; name: string };
@@ -15,6 +16,7 @@ export function ClassTemplateLifecycleRow({
   isActive,
   canEdit,
   canCopyLink,
+  coverImageUrl,
   initial,
   locations,
   instructors,
@@ -25,6 +27,7 @@ export function ClassTemplateLifecycleRow({
   isActive: boolean;
   canEdit: boolean;
   canCopyLink: boolean;
+  coverImageUrl: string | null;
   initial: {
     title: string;
     description: string | null;
@@ -61,8 +64,12 @@ export function ClassTemplateLifecycleRow({
       return;
     }
     if (body.url) {
-      await navigator.clipboard.writeText(body.url);
-      setMsg("Copied booking link");
+      try {
+        await navigator.clipboard.writeText(body.url);
+        setMsg("Copied booking link");
+      } catch {
+        setMsg(body.url);
+      }
     }
   };
 
@@ -140,6 +147,7 @@ export function ClassTemplateLifecycleRow({
 
   return (
     <div className="flex flex-col gap-3">
+      <EntityCoverUpload entity="class" entityId={classId} imageUrl={coverImageUrl} canEdit={canEdit} />
       <div className="flex flex-wrap items-center gap-2">
         {!isActive ? (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">

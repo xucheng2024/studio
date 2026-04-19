@@ -37,7 +37,7 @@ export default async function PackagesPage({ searchParams }: Props) {
   let packagesQuery = supabase
     .from("packages")
     .select(
-      "id, name, credits, price, expiry_days, studio_id, location_id, is_active, share_slug, studios ( public_slug )",
+      "id, name, credits, price, expiry_days, studio_id, location_id, is_active, share_slug, image_url, studios ( public_slug )",
     )
     .in("studio_id", studioIds)
     .order("price");
@@ -124,6 +124,7 @@ export default async function PackagesPage({ searchParams }: Props) {
                   isActive={p.is_active !== false}
                   canEdit={canEdit}
                   canCopyLink={canCopyLink}
+                  coverImageUrl={(p as { image_url?: string | null }).image_url ?? null}
                   initial={{
                     name: p.name,
                     credits: p.credits,

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="Placeholder">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e7e5e4"/>
+      <stop offset="100%" style="stop-color:#d6d3d1"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#g)"/>
+  <g fill="#78716c" font-family="system-ui,sans-serif" font-size="42" text-anchor="middle">
+    <text x="600" y="340">Class / package cover</text>
+    <text x="600" y="395" font-size="28" fill="#a8a29e">Upload an image in the dashboard</text>
+  </g>
+</svg>

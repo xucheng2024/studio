@@ -1,13 +1,21 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BuyPackageButton } from "@/components/BuyButtons";
 import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
+import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { getPaynowSummary } from "@/lib/paynow";
+import { buildPackageShareMetadata } from "@/lib/publicShareOg";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ studioSlug: string; packageSlug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug, packageSlug } = await params;
+  return buildPackageShareMetadata(studioSlug, packageSlug);
+}
 
 export default async function PublicPackageBuyPage({ params }: Props) {
   const { studioSlug: rawStudio, packageSlug: rawPkg } = await params;
@@ -35,7 +43,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
 
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, name, credits, price, expiry_days, location_id, is_active, locations ( name )")
+    .select("id, name, credits, price, expiry_days, location_id, is_active, image_url, locations ( name )")
     .eq("studio_id", studio.id)
     .eq("share_slug", pkgSlug)
     .maybeSingle();
@@ -52,42 +60,49 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
   const signInNext = `/buy/${studioSlug}/${pkgSlug}`;
 
+  const coverSrc = (pkg as { image_url?: string | null }).image_url ?? null;
+
   return (
     <main className={ui.page}>
-      <p className={ui.badge}>Shared package</p>
-      <h1 className={`${ui.h1} mt-3`}>{pkg.name}</h1>
-      <p className={`mt-2 ${ui.lead}`}>
-        {studio.name} · {pkg.credits} credits · ${pkg.price}
-      </p>
-      <ul className={`mt-4 space-y-2 text-sm ${ui.muted}`}>
-        <li>
-          Expiry:{" "}
-          {pkg.expiry_days != null ? `${pkg.expiry_days} days after purchase` : "No fixed expiry rule"}
-        </li>
-        <li>
-          Location:{" "}
-          {pkg.location_id ? (locName ?? "Selected branch") : "All locations in this studio"}
-        </li>
-        <li className={paynow.configured ? "" : ui.error}>{paynow.line}</li>
-      </ul>
+      {/* ── Hero cover (full-bleed within page padding) ── */}
+      <ShareCoverImage src={coverSrc} alt={pkg.name} />
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        {user ? (
-          <BuyPackageButton packageId={pkg.id} disabled={!paynow.configured} />
-        ) : (
-          <div className="flex max-w-md flex-col gap-2">
-            <GuestBuyPackagePanel packageId={pkg.id} disabled={!paynow.configured} />
-            <p className={`text-xs ${ui.muted}`}>
-              Already have an account?{" "}
-              <Link href={`/auth?next=${encodeURIComponent(signInNext)}`} className={ui.link}>
-                Sign in
-              </Link>
-            </p>
-          </div>
-        )}
-        <Link href="/booking" className={ui.btnSecondary}>
-          Browse all classes
-        </Link>
+      <div className="max-w-2xl">
+        <p className={ui.badge}>Shared package</p>
+        <h1 className={`${ui.h1} mt-3`}>{pkg.name}</h1>
+        <p className={`mt-2 ${ui.lead}`}>
+          {studio.name} · {pkg.credits} credits · ${pkg.price}
+        </p>
+        <ul className={`mt-4 space-y-2 text-sm ${ui.muted}`}>
+          <li>
+            Expiry:{" "}
+            {pkg.expiry_days != null ? `${pkg.expiry_days} days after purchase` : "No fixed expiry rule"}
+          </li>
+          <li>
+            Location:{" "}
+            {pkg.location_id ? (locName ?? "Selected branch") : "All locations in this studio"}
+          </li>
+          <li className={paynow.configured ? "" : ui.error}>{paynow.line}</li>
+        </ul>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          {user ? (
+            <BuyPackageButton packageId={pkg.id} disabled={!paynow.configured} />
+          ) : (
+            <div className="flex max-w-md flex-col gap-2">
+              <GuestBuyPackagePanel packageId={pkg.id} disabled={!paynow.configured} />
+              <p className={`text-xs ${ui.muted}`}>
+                Already have an account?{" "}
+                <Link href={`/auth?next=${encodeURIComponent(signInNext)}`} className={ui.link}>
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          )}
+          <Link href="/booking" className={ui.btnSecondary}>
+            Browse all classes
+          </Link>
+        </div>
       </div>
     </main>
   );

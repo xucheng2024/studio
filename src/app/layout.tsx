@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
 import { site } from "@/lib/brand";
+import { getAppOriginForOg } from "@/lib/coverMedia";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,9 +15,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const metadataBase = (() => {
+  const origin = getAppOriginForOg();
+  if (!origin) return undefined;
+  try {
+    return new URL(origin);
+  } catch {
+    return undefined;
+  }
+})();
+
 export const metadata: Metadata = {
   title: site.title,
   description: site.description,
+  ...(metadataBase ? { metadataBase } : {}),
 };
 
 export default function RootLayout({

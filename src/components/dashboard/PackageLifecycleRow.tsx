@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Check, CheckCircle2, Copy, Pause, Play, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { EntityCoverUpload } from "@/components/dashboard/EntityCoverUpload";
 import { ui } from "@/lib/ui";
 
 type Loc = { id: string; name: string };
@@ -14,6 +15,7 @@ export function PackageLifecycleRow({
   isActive,
   canEdit,
   canCopyLink,
+  coverImageUrl,
   initial,
   locations,
 }: {
@@ -23,6 +25,7 @@ export function PackageLifecycleRow({
   isActive: boolean;
   canEdit: boolean;
   canCopyLink: boolean;
+  coverImageUrl: string | null;
   initial: {
     name: string;
     credits: number;
@@ -58,8 +61,12 @@ export function PackageLifecycleRow({
       return;
     }
     if (body.url) {
-      await navigator.clipboard.writeText(body.url);
-      setMsg("Copied purchase link");
+      try {
+        await navigator.clipboard.writeText(body.url);
+        setMsg("Copied purchase link");
+      } catch {
+        setMsg(body.url);
+      }
     }
   };
 
@@ -141,6 +148,7 @@ export function PackageLifecycleRow({
 
   return (
     <div className="flex flex-col gap-2">
+      <EntityCoverUpload entity="package" entityId={packageId} imageUrl={coverImageUrl} canEdit={canEdit} />
       {showMeta ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           {!isActive ? (

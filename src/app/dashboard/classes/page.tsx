@@ -55,6 +55,7 @@ export default async function ClassesPage({ searchParams }: Props) {
       location_id,
       is_active,
       share_slug,
+      image_url,
       instructors ( name )
     `,
     )
@@ -197,6 +198,7 @@ export default async function ClassesPage({ searchParams }: Props) {
                     isActive={c.is_active !== false}
                     canEdit={canEdit}
                     canCopyLink={canCopyLink}
+                    coverImageUrl={(c as { image_url?: string | null }).image_url ?? null}
                     initial={{
                       title: c.title,
                       description: (c as { description?: string | null }).description ?? null,
