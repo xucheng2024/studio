@@ -92,3 +92,46 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   revalidatePath("/booking");
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(_req: Request, ctx: RouteParams) {
+  const { id } = await ctx.params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const admin = createAdminClient();
+  const { data: row, error } = await admin
+    .from("classes")
+    .select("id, studio_id, location_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  const scope = await requireStaffScope({
+    userId: user.id,
+    studioId: row.studio_id,
+    locationId: row.location_id,
+    roles: ["owner", "manager"],
+  });
+  if (!scope.ok) return staffScopeFailureResponse(scope);
+
+  const { data: hasSession } = await admin
+    .from("class_sessions")
+    .select("id")
+    .eq("class_id", id)
+    .limit(1)
+    .maybeSingle();
+  if (hasSession?.id) {
+    return NextResponse.json({ error: "class_has_sessions" }, { status: 409 });
+  }
+
+  const { error: dErr } = await admin.from("classes").delete().eq("id", id);
+  if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
+
+  revalidatePath("/dashboard/classes");
+  revalidatePath("/dashboard/schedule");
+  revalidatePath("/booking");
+  return NextResponse.json({ ok: true });
+}

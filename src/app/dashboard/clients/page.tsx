@@ -1,3 +1,4 @@
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import {
@@ -165,6 +166,14 @@ export default async function ClientsPage({ searchParams }: Props) {
                   </div>
                 </summary>
                 <ul className="border-t border-stone-100 px-3 py-2 text-xs dark:border-stone-800">
+                  <li className="pb-2">
+                    <DashboardAppLink
+                      href={`/dashboard/clients/${clientId}?studio_id=${selectedStudioId ?? studioIds[0]}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+                      className={ui.btnSecondarySm}
+                    >
+                      Open package ledger
+                    </DashboardAppLink>
+                  </li>
                   {rows.map((p) => (
                     <li key={p.id} className="py-1">
                       <span className="text-stone-800 dark:text-stone-200">{p.name}</span>

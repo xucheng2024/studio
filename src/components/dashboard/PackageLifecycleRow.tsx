@@ -115,23 +115,48 @@ export function PackageLifecycleRow({
     router.refresh();
   };
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {!isActive ? (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-            Stopped
-          </span>
-        ) : null}
-        {shareSlug && studioPublicSlug ? (
-          <span className={`font-mono text-xs ${ui.muted}`}>
-            /buy/{studioPublicSlug}/{shareSlug}
-          </span>
-        ) : null}
-      </div>
+  const deletePackage = async () => {
+    setMsg(null);
+    if (!window.confirm("Delete this package? This only works when there is no sales history for it.")) {
+      return;
+    }
+    setBusy(true);
+    const res = await fetch(`/api/dashboard/packages/${packageId}`, { method: "DELETE" });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      if (body.error === "package_has_sales") {
+        setMsg("This package has sales history. Stop selling instead.");
+        return;
+      }
+      setMsg(body.error ?? "Failed");
+      return;
+    }
+    setMsg("Deleted");
+    router.refresh();
+  };
 
-      {canCopyLink ? (
-        <div className="flex flex-wrap gap-2">
+  const showMeta = !isActive || (shareSlug && studioPublicSlug);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {showMeta ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {!isActive ? (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+              Stopped
+            </span>
+          ) : null}
+          {shareSlug && studioPublicSlug ? (
+            <span className={`font-mono text-xs ${ui.muted}`}>
+              /buy/{studioPublicSlug}/{shareSlug}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {canCopyLink ? (
           <button
             type="button"
             disabled={busy || !studioPublicSlug}
@@ -140,75 +165,73 @@ export function PackageLifecycleRow({
           >
             Copy purchase link
           </button>
-        </div>
-      ) : null}
+        ) : null}
 
-      {canEdit ? (
-        <details className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
-          <summary className="cursor-pointer text-sm font-medium text-stone-800 dark:text-stone-200">
-            Edit
-          </summary>
-          <div className="mt-3 grid max-w-md gap-3">
-            <label className="flex flex-col gap-1">
-              <span className={ui.label}>Name</span>
-              <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={ui.label}>Credits</span>
-              <input
-                className={ui.input}
-                type="number"
-                min={1}
-                value={credits}
-                onChange={(e) => setCredits(e.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={ui.label}>Price</span>
-              <input
-                className={ui.input}
-                type="number"
-                min={0}
-                step="0.01"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={ui.label}>Expiry days (empty = none)</span>
-              <input
-                className={ui.input}
-                type="number"
-                min={1}
-                value={expiryDays}
-                onChange={(e) => setExpiryDays(e.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={ui.label}>Location (optional)</span>
-              <select
-                className={ui.select}
-                value={locationId}
-                onChange={(e) => setLocationId(e.target.value)}
-              >
-                <option value="">All locations</option>
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit`} onClick={() => void save()}>
-              {busy ? "Saving…" : "Save changes"}
-            </button>
-          </div>
-        </details>
-      ) : null}
+        {canEdit ? (
+          <details className="w-fit max-w-full rounded-md border border-stone-200 px-2 py-1 dark:border-stone-700 open:w-full open:px-2 open:py-2">
+            <summary className="cursor-pointer list-none text-sm font-medium text-stone-800 [&::-webkit-details-marker]:hidden dark:text-stone-200">
+              Edit
+            </summary>
+            <div className="mt-2 grid max-w-md gap-2 border-t border-stone-100 pt-2 dark:border-stone-800">
+              <label className="flex flex-col gap-1">
+                <span className={ui.label}>Name</span>
+                <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={ui.label}>Credits</span>
+                <input
+                  className={ui.input}
+                  type="number"
+                  min={1}
+                  value={credits}
+                  onChange={(e) => setCredits(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={ui.label}>Price</span>
+                <input
+                  className={ui.input}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={ui.label}>Expiry days (empty = none)</span>
+                <input
+                  className={ui.input}
+                  type="number"
+                  min={1}
+                  value={expiryDays}
+                  onChange={(e) => setExpiryDays(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={ui.label}>Location (optional)</span>
+                <select
+                  className={ui.select}
+                  value={locationId}
+                  onChange={(e) => setLocationId(e.target.value)}
+                >
+                  <option value="">All locations</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit`} onClick={() => void save()}>
+                {busy ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </details>
+        ) : null}
 
-      {canEdit ? (
-        <div className="flex flex-wrap gap-2">
-          {isActive ? (
+        {canEdit ? (
+          isActive ? (
             <button
               type="button"
               disabled={busy}
@@ -221,11 +244,21 @@ export function PackageLifecycleRow({
             <button type="button" disabled={busy} className={ui.btnPrimarySm} onClick={() => void resume()}>
               Resume
             </button>
-          )}
-        </div>
-      ) : null}
+          )
+        ) : null}
+        {canEdit ? (
+          <button
+            type="button"
+            disabled={busy}
+            className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
+            onClick={() => void deletePackage()}
+          >
+            Delete package
+          </button>
+        ) : null}
+      </div>
 
-      {msg ? <p className={`text-xs ${ui.muted}`}>{msg}</p> : null}
+      {msg ? <p className={`pt-0.5 text-xs ${ui.muted}`}>{msg}</p> : null}
     </div>
   );
 }

@@ -13,11 +13,16 @@ import { getPaynowSummary } from "@/lib/paynow";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
 
-type Props = { params: Promise<{ studioSlug: string; classSlug: string }> };
+type Props = {
+  params: Promise<{ studioSlug: string; classSlug: string }>;
+  searchParams: Promise<{ session_id?: string }>;
+};
 
-export default async function PublicClassBookingPage({ params }: Props) {
+export default async function PublicClassBookingPage({ params, searchParams }: Props) {
   const { studioSlug: rawStudio, classSlug: rawClass } = await params;
+  const sp = await searchParams;
   const studioSlug = normalizeStudioSlug(rawStudio ?? "");
   const classSlug = String(rawClass ?? "")
     .trim()
@@ -47,6 +52,9 @@ export default async function PublicClassBookingPage({ params }: Props) {
     .eq("share_slug", classSlug)
     .maybeSingle();
   if (!cls || cls.is_active === false) notFound();
+  const requestedSessionId = z.string().uuid().safeParse(sp.session_id ?? "").success
+    ? String(sp.session_id)
+    : null;
 
   let userPacks: MemberPackageForCredits[] = [];
   let packCredits = 0;
@@ -85,6 +93,12 @@ export default async function PublicClassBookingPage({ params }: Props) {
     .eq("status", "scheduled")
     .gte("start_time", new Date().toISOString())
     .order("start_time", { ascending: true });
+  const orderedSessions = [...(sessions ?? [])].sort((a, b) => {
+    if (!requestedSessionId) return 0;
+    if (a.id === requestedSessionId) return -1;
+    if (b.id === requestedSessionId) return 1;
+    return 0;
+  });
 
   const paynow = getPaynowSummary({
     paynow_enabled: Boolean(studio.paynow_enabled),
@@ -122,7 +136,7 @@ export default async function PublicClassBookingPage({ params }: Props) {
 
       <h2 className={`${ui.h2} mt-10`}>Upcoming sessions</h2>
       <ul className="mt-4 flex flex-col gap-4">
-        {(sessions ?? []).map((s) => {
+        {orderedSessions.map((s) => {
           const start = new Date(s.start_time).toLocaleString();
           const creditsRequired = Number(s.credits_required ?? 1);
           const sessionCreditCtx = {
@@ -134,7 +148,9 @@ export default async function PublicClassBookingPage({ params }: Props) {
           return (
             <li
               key={s.id}
-              className={`${ui.cardInteractive} flex flex-wrap items-start justify-between gap-4`}
+              className={`${ui.cardInteractive} flex flex-wrap items-start justify-between gap-4 ${
+                requestedSessionId === s.id ? "ring-2 ring-teal-400/70" : ""
+              }`}
             >
               <div>
                 <p className={`text-sm ${ui.muted}`}>{start}</p>
@@ -164,7 +180,7 @@ export default async function PublicClassBookingPage({ params }: Props) {
           );
         })}
       </ul>
-      {!sessions?.length ? (
+      {!orderedSessions.length ? (
         <p className={`mt-6 text-sm ${ui.muted}`}>No upcoming sessions for this class yet.</p>
       ) : null}
     </main>

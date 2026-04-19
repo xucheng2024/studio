@@ -73,3 +73,55 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   revalidatePath("/checkout");
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(_req: Request, ctx: RouteParams) {
+  const { id } = await ctx.params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const admin = createAdminClient();
+  const { data: row, error } = await admin
+    .from("packages")
+    .select("id, studio_id, location_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  const scope = await requireStaffScope({
+    userId: user.id,
+    studioId: row.studio_id,
+    locationId: row.location_id,
+    roles: ["owner", "manager"],
+  });
+  if (!scope.ok) return staffScopeFailureResponse(scope);
+
+  const { data: hasClientPackages } = await admin
+    .from("client_packages")
+    .select("id")
+    .eq("package_id", id)
+    .limit(1)
+    .maybeSingle();
+  if (hasClientPackages?.id) {
+    return NextResponse.json({ error: "package_has_sales" }, { status: 409 });
+  }
+
+  const { data: hasPayments } = await admin
+    .from("payments")
+    .select("id")
+    .eq("package_id", id)
+    .limit(1)
+    .maybeSingle();
+  if (hasPayments?.id) {
+    return NextResponse.json({ error: "package_has_sales" }, { status: 409 });
+  }
+
+  const { error: dErr } = await admin.from("packages").delete().eq("id", id);
+  if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
+
+  revalidatePath("/dashboard/packages");
+  revalidatePath("/checkout");
+  return NextResponse.json({ ok: true });
+}

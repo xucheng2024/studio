@@ -116,6 +116,27 @@ export function ClassTemplateLifecycleRow({
     router.refresh();
   };
 
+  const deleteTemplate = async () => {
+    setMsg(null);
+    if (!window.confirm("Delete this class template? This only works when no session has ever been created from it.")) {
+      return;
+    }
+    setBusy(true);
+    const res = await fetch(`/api/dashboard/classes/${classId}`, { method: "DELETE" });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      if (body.error === "class_has_sessions") {
+        setMsg("This template already has sessions. Hide it instead.");
+        return;
+      }
+      setMsg(body.error ?? "Failed");
+      return;
+    }
+    setMsg("Deleted");
+    router.refresh();
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -242,6 +263,14 @@ export function ClassTemplateLifecycleRow({
               Resume
             </button>
           )}
+          <button
+            type="button"
+            disabled={busy}
+            className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
+            onClick={() => void deleteTemplate()}
+          >
+            Delete template
+          </button>
         </div>
       ) : null}
 

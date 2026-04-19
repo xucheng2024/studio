@@ -8,7 +8,7 @@ import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
-  entity_type: z.enum(["class", "package"]),
+  entity_type: z.enum(["class", "package", "session"]),
   entity_id: z.string().uuid(),
   slug: z.string().max(80).optional(),
 });
@@ -64,6 +64,50 @@ export async function POST(req: Request) {
     revalidatePath("/checkout");
     revalidatePath(`/buy/${studio.public_slug}/${slugResult.slug}`);
     return NextResponse.json({ url, share_slug: slugResult.slug });
+  }
+
+  if (parsed.data.entity_type === "session") {
+    const { data: session, error: sErr } = await admin
+      .from("class_sessions")
+      .select("id, class_id, location_id, classes!inner(id, studio_id, location_id, share_slug)")
+      .eq("id", parsed.data.entity_id)
+      .maybeSingle();
+    if (sErr || !session) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    const sessionClass = Array.isArray(session.classes) ? session.classes[0] : session.classes;
+    if (!sessionClass) return NextResponse.json({ error: "class_not_found" }, { status: 404 });
+
+    const scope = await requireStaffScope({
+      userId: user.id,
+      studioId: sessionClass.studio_id,
+      locationId: session.location_id ?? sessionClass.location_id,
+      roles: ["owner", "manager", "frontdesk"],
+    });
+    if (!scope.ok) return staffScopeFailureResponse(scope);
+
+    const { data: studio } = await admin
+      .from("studios")
+      .select("public_slug, contract_status")
+      .eq("id", sessionClass.studio_id)
+      .maybeSingle();
+    if (!studio?.public_slug || studio.contract_status === "suspended") {
+      return NextResponse.json({ error: "studio_unavailable" }, { status: 409 });
+    }
+
+    const slugResult = await resolveShareSlug(
+      admin,
+      "classes",
+      sessionClass.id,
+      sessionClass.share_slug,
+      parsed.data.slug,
+    );
+    if (!slugResult.ok) {
+      return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
+    }
+
+    const url = `${base}/class/${studio.public_slug}/${slugResult.slug}?session_id=${session.id}`;
+    revalidatePath("/booking");
+    revalidatePath(`/class/${studio.public_slug}/${slugResult.slug}`);
+    return NextResponse.json({ url, share_slug: slugResult.slug, session_id: session.id });
   }
 
   const { data: cls, error: cErr } = await admin

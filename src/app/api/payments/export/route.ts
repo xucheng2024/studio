@@ -30,6 +30,7 @@ export async function GET(req: Request) {
   const studioId = url.searchParams.get("studio_id");
   const locationId = url.searchParams.get("location_id");
   const status = url.searchParams.get("status");
+  const paymentMethod = url.searchParams.get("payment_method");
   const invoiceStatus = url.searchParams.get("invoice_status");
   const reconStatus = url.searchParams.get("recon_status");
   const amountMin = url.searchParams.get("amount_min");
@@ -66,12 +67,13 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, status, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, booking_id, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false });
   if (locationId) q = q.eq("location_id", locationId);
   if (status) q = q.eq("status", status);
+  if (paymentMethod) q = q.eq("payment_method", paymentMethod);
   if (invoiceStatus) q = q.eq("invoice_status", invoiceStatus);
   if (reconStatus) q = q.eq("recon_status", reconStatus);
   if (amountMin) q = q.gte("amount", Number(amountMin));
@@ -85,6 +87,7 @@ export async function GET(req: Request) {
     "payment_id",
     "booking_id",
     "payment_status",
+    "payment_method",
     "invoice_status",
     "invoice_number",
     "invoice_voided_at",
@@ -113,6 +116,7 @@ export async function GET(req: Request) {
       p.id,
       p.booking_id ?? "",
       p.status ?? "",
+      p.payment_method ?? "",
       row.invoice_status ?? "",
       row.invoice_number ?? "",
       row.invoice_voided_at ?? "",

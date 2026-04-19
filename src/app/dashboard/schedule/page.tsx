@@ -3,6 +3,8 @@ import { createRecurringRule, createSession, saveBookingRules } from "@/app/dash
 import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { CancelSessionButton } from "@/components/CancelSessionButton";
 import { MarkAttendedButton } from "@/components/MarkAttendedButton";
+import { SessionEditPanel } from "@/components/SessionEditPanel";
+import { SessionShareButton } from "@/components/SessionShareButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
@@ -73,6 +75,7 @@ export default async function SchedulePage({ searchParams }: Props) {
       end_time,
       spots_left,
       status,
+      capacity,
       guest_price,
       credits_required,
       location_id,
@@ -409,6 +412,22 @@ export default async function SchedulePage({ searchParams }: Props) {
                     startTimeIso={String(s.start_time)}
                     locationName={locationName}
                     sessionStatus={sessionStatus}
+                  />
+                  <SessionShareButton sessionId={s.id} />
+                </div>
+                <div className="mt-3">
+                  <SessionEditPanel
+                    sessionId={s.id}
+                    initial={{
+                      start_time: String(s.start_time),
+                      capacity: Number(s.capacity ?? 1),
+                      guest_price: Number(s.guest_price ?? 0),
+                      credits_required: Number(s.credits_required ?? 1),
+                      location_id: s.location_id ?? null,
+                    }}
+                    locations={(locations ?? [])
+                      .filter((l) => l.studio_id === activeStudioId)
+                      .map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }))}
                   />
                 </div>
                 <ul className="mt-4 flex flex-col gap-2 border-t border-stone-100 pt-3 text-sm dark:border-stone-800">

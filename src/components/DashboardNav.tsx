@@ -40,7 +40,7 @@ export function DashboardNav({
   const search = useSearchParams();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const keep = new URLSearchParams();
-  for (const key of ["studio_id", "location_id", "date_from", "date_to", "status", "recon_status", "q"]) {
+  for (const key of ["studio_id", "location_id", "date_from", "date_to", "status", "payment_method", "invoice_status", "recon_status", "q"]) {
     const v = search.get(key);
     if (v) keep.set(key, v);
   }

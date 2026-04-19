@@ -112,18 +112,18 @@ export default async function PackagesPage({ searchParams }: Props) {
         ) : null}
       </div>
 
-      <ul className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-3">
         {(packages ?? []).map((p) => {
           const st = p.studios as { public_slug?: string | null } | { public_slug?: string | null }[] | null;
           const pub = Array.isArray(st) ? st[0]?.public_slug : st?.public_slug;
           return (
-            <li key={p.id} className={ui.card}>
+            <li key={p.id} className={`${ui.card} p-4!`}>
               <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
-              <p className={`mt-1 text-sm ${ui.muted}`}>
+              <p className={`mt-0.5 text-sm ${ui.muted}`}>
                 {p.credits} credits · ${p.price}
                 {p.is_active === false ? " · Stopped" : ""}
               </p>
-              <div className="mt-4">
+              <div className="mt-2">
                 <PackageLifecycleRow
                   packageId={p.id}
                   studioPublicSlug={pub ?? null}

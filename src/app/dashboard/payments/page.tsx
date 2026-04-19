@@ -8,6 +8,7 @@ import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import {
   INVOICE_STATUS_FILTER_OPTIONS,
+  PAYMENT_METHOD_FILTER_OPTIONS,
   PAYMENT_STATUS_FILTER_OPTIONS,
   RECON_STATUS_FILTER_OPTIONS,
 } from "@/lib/payment-filter-options";
@@ -21,6 +22,7 @@ type Props = {
     studio_id?: string;
     view?: "queue" | "recon" | "review";
     status?: string;
+    payment_method?: string;
     invoice_status?: string;
     recon_status?: string;
     date_from?: string;
@@ -47,9 +49,17 @@ function dayRangeEnd(d?: string) {
   return dt.toISOString();
 }
 
+function toDateInputValue(date: Date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function buildPaymentStats(
   rows: Array<{
     status: string;
+    payment_method: string | null;
     recon_status: string | null;
     booking_id: string | null;
     amount: number | null;
@@ -78,8 +88,42 @@ function buildPaymentStats(
       !p.verified_at &&
       nowMs - new Date(p.customer_confirmed_at).getTime() > 10 * 60 * 1000,
   ).length;
+  const txCount = rows.length;
+  const settledRows = rows.filter((p) => p.status === "paid" || p.status === "refunded");
+  const paidAmount = settledRows
+    .filter((p) => p.status === "paid")
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
+  const refundedAmount = settledRows
+    .filter((p) => p.status === "refunded")
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
+  const netAmount = paidAmount - refundedAmount;
+  const byMethod = {
+    paynow: {
+      count: settledRows.filter((p) => (p.payment_method ?? "").toLowerCase() === "paynow").length,
+      amount: settledRows
+        .filter((p) => (p.payment_method ?? "").toLowerCase() === "paynow")
+        .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0),
+    },
+    cash: {
+      count: settledRows.filter((p) => (p.payment_method ?? "").toLowerCase() === "cash").length,
+      amount: settledRows
+        .filter((p) => (p.payment_method ?? "").toLowerCase() === "cash")
+        .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0),
+    },
+  };
 
-  return { todayReceived, todayVerified, mismatchCount, unmatchedCount, slaOverdueCount };
+  return {
+    todayReceived,
+    todayVerified,
+    mismatchCount,
+    unmatchedCount,
+    slaOverdueCount,
+    txCount,
+    paidAmount,
+    refundedAmount,
+    netAmount,
+    byMethod,
+  };
 }
 
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
@@ -104,6 +148,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const todayKey = toDateInputValue(new Date());
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -111,17 +156,41 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .eq("is_active", true)
     .order("name");
   const locationMap = new Map((locations ?? []).map((l) => [l.id, l.name ?? "Unnamed location"]));
+  let dailyQ = supabase
+    .from("payments")
+    .select("id, status, payment_method, amount, paid_amount")
+    .eq("studio_id", activeStudioId)
+    .gte("created_at", dayRangeStart(todayKey) ?? new Date().toISOString())
+    .lt("created_at", dayRangeEnd(todayKey) ?? new Date().toISOString());
+  if (selectedLocationId) dailyQ = dailyQ.eq("location_id", selectedLocationId);
+  const { data: dailyRowsRaw } = await dailyQ;
+  const dailyRows = dailyRowsRaw ?? [];
+  const dailyTxCount = dailyRows.length;
+  const dailyPaid = dailyRows
+    .filter((p) => p.status === "paid")
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
+  const dailyRefunded = dailyRows
+    .filter((p) => p.status === "refunded")
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
+  const dailyNet = dailyPaid - dailyRefunded;
+  const dailyPaynowAmount = dailyRows
+    .filter((p) => (p.payment_method ?? "").toLowerCase() === "paynow")
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0);
+  const dailyCashAmount = dailyRows
+    .filter((p) => (p.payment_method ?? "").toLowerCase() === "cash")
+    .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0);
 
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
     .limit(300);
   if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
   if (sp.status) q = q.eq("status", sp.status);
+  if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
   if (sp.invoice_status) q = q.eq("invoice_status", sp.invoice_status);
   if (sp.recon_status) q = q.eq("recon_status", sp.recon_status);
   if (sp.reference) q = q.ilike("reference_code", `%${sp.reference}%`);
@@ -161,12 +230,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     let allQ = supabase
       .from("payments")
       .select(
-        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
       )
       .in("studio_id", [activeStudioId])
       .order("created_at", { ascending: false })
       .limit(1000);
     if (sp.status) allQ = allQ.eq("status", sp.status);
+    if (sp.payment_method) allQ = allQ.eq("payment_method", sp.payment_method);
     if (sp.invoice_status) allQ = allQ.eq("invoice_status", sp.invoice_status);
     if (sp.recon_status) allQ = allQ.eq("recon_status", sp.recon_status);
     if (sp.reference) allQ = allQ.ilike("reference_code", `%${sp.reference}%`);
@@ -250,6 +320,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
   exportParams.set("view", view);
   if (sp.status) exportParams.set("status", sp.status);
+  if (sp.payment_method) exportParams.set("payment_method", sp.payment_method);
   if (sp.invoice_status) exportParams.set("invoice_status", sp.invoice_status);
   if (sp.recon_status) exportParams.set("recon_status", sp.recon_status);
   if (sp.date_from) exportParams.set("date_from", sp.date_from);
@@ -338,6 +409,59 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Transactions (filtered)</p>
+          <p className="mt-1 text-xl font-semibold">{scopedStats.txCount}</p>
+          <p className={`mt-1 text-xs ${ui.muted}`}>Paid ${scopedStats.paidAmount.toFixed(2)} · Ref ${scopedStats.refundedAmount.toFixed(2)}</p>
+        </div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Net (paid - refunded)</p>
+          <p className="mt-1 text-xl font-semibold">${scopedStats.netAmount.toFixed(2)}</p>
+          {selectedLocationId ? <p className={`mt-1 text-xs ${ui.muted}`}>All locations: ${allLocationStats.netAmount.toFixed(2)}</p> : null}
+        </div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Method split (net)</p>
+          <p className={`mt-1 text-sm ${ui.muted}`}>
+            PayNow: {scopedStats.byMethod.paynow.count} · ${scopedStats.byMethod.paynow.amount.toFixed(2)}
+          </p>
+          <p className={`text-sm ${ui.muted}`}>
+            Cash: {scopedStats.byMethod.cash.count} · ${scopedStats.byMethod.cash.amount.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      <section className={ui.card}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={ui.h2}>Daily close ({todayKey})</h2>
+          <a
+            className={ui.linkMuted}
+            href={`/api/payments/export?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&date_from=${todayKey}&date_to=${todayKey}`}
+          >
+            Export today CSV
+          </a>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Transactions</p>
+            <p className="mt-1 text-xl font-semibold">{dailyTxCount}</p>
+          </div>
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Net</p>
+            <p className="mt-1 text-xl font-semibold">${dailyNet.toFixed(2)}</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Paid ${dailyPaid.toFixed(2)} · Ref ${dailyRefunded.toFixed(2)}</p>
+          </div>
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>PayNow net</p>
+            <p className="mt-1 text-xl font-semibold">${dailyPaynowAmount.toFixed(2)}</p>
+          </div>
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Cash net</p>
+            <p className="mt-1 text-xl font-semibold">${dailyCashAmount.toFixed(2)}</p>
+          </div>
+        </div>
+      </section>
+
       <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         <label className="flex flex-col gap-1.5">
@@ -357,6 +481,17 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <select name="status" className={ui.select} defaultValue={sp.status ?? ""}>
             <option value="">All</option>
             {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={`${ui.label} whitespace-nowrap`}>Payment method</span>
+          <select name="payment_method" className={ui.select} defaultValue={sp.payment_method ?? ""}>
+            <option value="">All</option>
+            {PAYMENT_METHOD_FILTER_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -472,6 +607,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     Location: {p.location_id ? (locationMap.get(p.location_id) ?? "Unknown location") : "Unassigned"}
                   </p>
                   <p className={ui.muted}>Ref: <span className={ui.code}>{p.reference_code ?? "-"}</span></p>
+                  <p className={ui.muted}>Method: {p.payment_method ?? "-"}</p>
                   <p className={ui.muted}>Review: {p.recon_status} · Paid amount: {p.currency} {Number(p.paid_amount ?? p.amount).toFixed(2)}</p>
                   {p.status === "paid" && p.invoice_status !== "void" ? (
                     <div className="space-y-0.5">
