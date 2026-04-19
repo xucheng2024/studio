@@ -118,7 +118,6 @@ export default async function SchedulePage({ searchParams }: Props) {
     .order("start_time", { ascending: true })
     .limit(300);
   if (selectedLocationId) sessionQuery = sessionQuery.eq("location_id", selectedLocationId);
-  const { data: sessions } = await sessionQuery;
   const rulesQuery = supabase
     .from("booking_rules")
     .select(
@@ -126,9 +125,15 @@ export default async function SchedulePage({ searchParams }: Props) {
     )
     .eq("studio_id", activeStudioId)
     .limit(1);
-  const { data: activeRules } = selectedLocationId
-    ? await rulesQuery.eq("location_id", selectedLocationId).maybeSingle()
-    : await rulesQuery.is("location_id", null).maybeSingle();
+  const finalRulesQuery = selectedLocationId
+    ? rulesQuery.eq("location_id", selectedLocationId).maybeSingle()
+    : rulesQuery.is("location_id", null).maybeSingle();
+
+  // sessions and booking rules are independent — fetch in parallel
+  const [{ data: sessions }, { data: activeRules }] = await Promise.all([
+    sessionQuery,
+    finalRulesQuery,
+  ]);
   const sessionStatusFilter = sp.session_status ?? "all";
   const keyword = (sp.q ?? "").trim().toLowerCase();
   const sessionRows = sessions ?? [];

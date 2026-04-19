@@ -14,7 +14,7 @@ export default async function StaffPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
+  const ctx = await buildAccessContext(user.id, user.email ?? null, null);
   if (bestRole(ctx) !== "owner") {
     return <p className={ui.muted}>Only owners can manage staff.</p>;
   }

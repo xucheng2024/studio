@@ -20,7 +20,7 @@ async function requireUser() {
 
 async function requireStudio(requestedStudioId?: string) {
   const { supabase, user } = await requireUser();
-  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
+  const ctx = await buildAccessContext(user.id, user.email ?? null, null);
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
   const studioId = requestedStudioId
     ? studioIds.includes(requestedStudioId)

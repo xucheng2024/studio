@@ -10,11 +10,11 @@ export async function getDashboardScope(params: {
   const c = await cookies();
   const studioIdInput = params.studioId ?? c.get("last_studio_id")?.value ?? null;
   const locationIdInput = params.locationId ?? c.get("last_location_id")?.value ?? null;
-  const ctx = await buildAccessContext({
-    userId: params.userId,
-    email: params.email ?? null,
-    selectedLocationId: locationIdInput,
-  });
+  const ctx = await buildAccessContext(
+    params.userId,
+    params.email ?? null,
+    locationIdInput,
+  );
 
   const allStudioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
   const studioIds =

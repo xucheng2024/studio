@@ -62,7 +62,7 @@ export async function GET(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
+  const ctx = await buildAccessContext(user.id, user.email ?? null, null);
   const role = bestRole(ctx);
   if (!["owner", "manager", "frontdesk"].includes(role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });

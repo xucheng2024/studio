@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseUrl } from "@/lib/supabase/env";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -71,11 +72,19 @@ export function canCheckIn(ctx: AccessContext) {
   return r === "owner" || r === "manager" || r === "frontdesk" || r === "instructor";
 }
 
-export async function buildAccessContext(params: {
-  userId: string;
-  email?: string | null;
-  selectedLocationId?: string | null;
-}) {
+/**
+ * Expensive RBAC context builder, memoised per RSC request via React.cache.
+ * Accepts primitive args so cache keys compare by value (not object reference).
+ *
+ * Perf: Phase-1 queries (memberships, owned studios, owner grants, email) run
+ * in parallel. Phase-2 (contract-status batch) runs once Phase-1 resolves.
+ * Phase-3 (locations) runs after active studio ids are known.
+ */
+export const buildAccessContext = cache(async (
+  userId: string,
+  email: string | null,
+  selectedLocationId: string | null,
+): Promise<AccessContext> => {
   const url = getSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing Supabase env for RBAC");
@@ -83,29 +92,39 @@ export async function buildAccessContext(params: {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: memberships } = await admin
-    .from("staff_memberships")
-    .select("studio_id, location_id, role, is_active")
-    .eq("user_id", params.userId)
-    .eq("is_active", true);
+  // ── Phase 1: all independent queries in parallel ──────────────────────
+  const emailPromise =
+    email != null
+      ? Promise.resolve(email as string | null)
+      : admin
+          .from("users")
+          .select("email")
+          .eq("id", userId)
+          .maybeSingle()
+          .then((r) => (r.data as { email?: string } | null)?.email ?? null) as Promise<string | null>;
 
-  let resolvedEmail = params.email ?? null;
-  if (!resolvedEmail) {
-    const { data: profile } = await admin.from("users").select("email").eq("id", params.userId).maybeSingle();
-    resolvedEmail = profile?.email ?? null;
-  }
+  const [membershipsRes, ownedStudiosRes, ownerGrantsRes, resolvedEmail] = await Promise.all([
+    admin
+      .from("staff_memberships")
+      .select("studio_id, location_id, role, is_active")
+      .eq("user_id", userId)
+      .eq("is_active", true),
+    admin.from("studios").select("id, contract_status").eq("owner_id", userId),
+    admin
+      .from("platform_owner_grants")
+      .select("user_id, is_active")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle(),
+    emailPromise,
+  ]);
 
-  const studioIds = new Set<string>();
-  const roles = new Set<StaffRole>();
-  const normalizedMemberships: AccessContext["memberships"] = [];
+  const memberships = membershipsRes.data;
+  const ownedStudios = ownedStudiosRes.data;
+  const ownerGrants = ownerGrantsRes.data;
   const isSuperAdmin = isSuperAdminEmail(resolvedEmail);
-  let hasSuspendedBackofficeAccess = false;
 
-  const { data: ownedStudios } = await admin
-    .from("studios")
-    .select("id, contract_status")
-    .eq("owner_id", params.userId);
-
+  // ── Phase 2: contract-status batch (needs studioIds from Phase 1) ─────
   const allStudioIds = new Set<string>();
   for (const m of memberships ?? []) allStudioIds.add(m.studio_id);
   for (const s of ownedStudios ?? []) allStudioIds.add(s.id);
@@ -115,9 +134,16 @@ export async function buildAccessContext(params: {
     studioArrayForStatus.length > 0
       ? await admin.from("studios").select("id, contract_status").in("id", studioArrayForStatus)
       : { data: [] as { id: string; contract_status: string | null }[] };
+
   const activeStudioIdSet = new Set(
     (studioStates ?? []).filter((s) => s.contract_status !== "suspended").map((s) => s.id),
   );
+
+  // Build roles + memberships from Phase-1 + Phase-2 results
+  const studioIds = new Set<string>();
+  const roles = new Set<StaffRole>();
+  const normalizedMemberships: AccessContext["memberships"] = [];
+  let hasSuspendedBackofficeAccess = false;
 
   for (const m of memberships ?? []) {
     const role = (m.role as StaffRole) ?? "client";
@@ -127,11 +153,7 @@ export async function buildAccessContext(params: {
     }
     roles.add(role);
     studioIds.add(m.studio_id);
-    normalizedMemberships.push({
-      studio_id: m.studio_id,
-      location_id: m.location_id,
-      role,
-    });
+    normalizedMemberships.push({ studio_id: m.studio_id, location_id: m.location_id, role });
   }
 
   for (const s of ownedStudios ?? []) {
@@ -141,24 +163,15 @@ export async function buildAccessContext(params: {
     }
     roles.add("owner");
     studioIds.add(s.id);
-    normalizedMemberships.push({
-      studio_id: s.id,
-      location_id: null,
-      role: "owner",
-    });
+    normalizedMemberships.push({ studio_id: s.id, location_id: null, role: "owner" });
   }
 
-  const { data: ownerGrants } = await admin
-    .from("platform_owner_grants")
-    .select("user_id, is_active")
-    .eq("user_id", params.userId)
-    .eq("is_active", true)
-    .maybeSingle();
   const hasAnyStudioAssociation = (memberships?.length ?? 0) > 0 || (ownedStudios?.length ?? 0) > 0;
   if (ownerGrants?.user_id && !hasAnyStudioAssociation) {
     roles.add("owner");
   }
 
+  // ── Phase 3: locations (needs active studioIds) ───────────────────────
   const studioArray = [...studioIds];
   const { data: locations } =
     studioArray.length > 0
@@ -177,12 +190,12 @@ export async function buildAccessContext(params: {
   }));
 
   const selected =
-    params.selectedLocationId && locs.some((l) => l.id === params.selectedLocationId)
-      ? params.selectedLocationId
+    selectedLocationId && locs.some((l) => l.id === selectedLocationId)
+      ? selectedLocationId
       : null;
 
   return {
-    userId: params.userId,
+    userId,
     isSuperAdmin,
     roles,
     memberships: normalizedMemberships,
@@ -190,14 +203,18 @@ export async function buildAccessContext(params: {
     selectedLocationId: selected,
     hasSuspendedBackofficeAccess,
   } as AccessContext;
-}
+});
 
 export async function resolveAccessContext(params: {
   userId: string;
   email?: string | null;
   selectedLocationId?: string | null;
 }) {
-  const ctx = await buildAccessContext(params);
+  const ctx = await buildAccessContext(
+    params.userId,
+    params.email ?? null,
+    params.selectedLocationId ?? null,
+  );
   const role = bestRole(ctx);
   const hasBackofficeAccess =
     ctx.isSuperAdmin ||

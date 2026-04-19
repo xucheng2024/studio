@@ -11,7 +11,7 @@ export default async function InstructorSessionsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const ctx = await buildAccessContext({ userId: user.id, email: user.email });
+  const ctx = await buildAccessContext(user.id, user.email ?? null, null);
   if (bestRole(ctx) !== "instructor" && ctx.hasSuspendedBackofficeAccess) {
     redirect("/account/suspended");
   }
