@@ -1,4 +1,5 @@
 import { getDashboardScope } from "@/lib/dashboard";
+import AdvancedDetails from "./advanced-details";
 import {
   computeRevenueSummary,
   revenueByClassTitle,
@@ -17,6 +18,8 @@ type Props = {
     studio_id?: string;
     date_from?: string;
     date_to?: string;
+    class_sort?: string;
+    class_top_n?: string;
   }>;
 };
 
@@ -47,6 +50,7 @@ function monthBounds() {
 
 type PaymentWithBooking = RevenuePaymentRow & {
   booking_id?: string | null;
+  payment_method?: string | null;
   bookings?: {
     class_sessions?: {
       classes?: { title?: string | null } | { title?: string | null }[] | null;
@@ -96,6 +100,9 @@ export default async function ReportsPage({ searchParams }: Props) {
   const bounds = monthBounds();
   const dateFrom = sp.date_from ?? bounds.from;
   const dateTo = sp.date_to ?? bounds.to;
+  const classSort = sp.class_sort === "rate" ? "rate" : sp.class_sort === "booked" ? "booked" : "attended";
+  const classTopN = Number(sp.class_top_n ?? 20);
+  const classTopNSafe = Number.isFinite(classTopN) && classTopN > 0 ? Math.min(Math.floor(classTopN), 200) : 20;
   const fromIso = dayRangeStart(dateFrom);
   const toIso = dayRangeEnd(dateTo);
 
@@ -106,6 +113,7 @@ export default async function ReportsPage({ searchParams }: Props) {
       id,
       amount,
       type,
+      payment_method,
       status,
       created_at,
       location_id,
@@ -229,6 +237,34 @@ export default async function ReportsPage({ searchParams }: Props) {
   const compareByInstructor = Object.entries(byInstructor).sort(
     (a, b) => b[1].attended - a[1].attended,
   );
+  const classAttendanceRows = Object.entries(byClassAttendance)
+    .map(([id, row]) => ({
+      id,
+      title: row.title,
+      booked: row.booked,
+      attended: row.attended,
+      rate: row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : -1,
+    }))
+    .sort((a, b) => {
+      if (classSort === "booked") return b.booked - a.booked;
+      if (classSort === "rate") return b.rate - a.rate;
+      return b.attended - a.attended;
+    });
+  const classRowsTop = classAttendanceRows.slice(0, classTopNSafe);
+
+  const reportParams = new URLSearchParams();
+  if (selectedStudioId) reportParams.set("studio_id", selectedStudioId);
+  if (selectedLocationId) reportParams.set("location_id", selectedLocationId);
+  reportParams.set("date_from", dateFrom);
+  reportParams.set("date_to", dateTo);
+  if (classSort !== "attended") reportParams.set("class_sort", classSort);
+  if (classTopNSafe !== 20) reportParams.set("class_top_n", String(classTopNSafe));
+
+  const exportParams = new URLSearchParams();
+  if (selectedStudioId) exportParams.set("studio_id", selectedStudioId);
+  if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
+  exportParams.set("date_from", dateFrom);
+  exportParams.set("date_to", dateTo);
 
   const lowCreditsThreshold = 2;
   const packsQuery = supabase
@@ -372,60 +408,36 @@ export default async function ReportsPage({ searchParams }: Props) {
         {!byDay.length ? <p className={`mt-4 text-sm ${ui.muted}`}>No payments in this range.</p> : null}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className={ui.card}>
-          <h2 className={`${ui.h2} text-base`}>Net revenue by location</h2>
-          <p className={`mt-1 text-xs ${ui.muted}`}>Allocated by payment location_id.</p>
-          <ul className="mt-4 space-y-2 text-sm">
-            {byLocation.map((row) => (
-              <li
-                key={row.name}
-                className="flex flex-col gap-0.5 rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-stone-900 dark:text-stone-100">{row.name}</span>
-                <span className="tabular-nums text-stone-700 dark:text-stone-300">
-                  ${row.net.toFixed(2)}{" "}
-                  <span className={`text-xs ${ui.muted}`}>
-                    (gross ${row.gross.toFixed(2)} · ref ${row.refunds.toFixed(2)})
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          {!byLocation.length ? (
-            <p className={`mt-4 text-sm ${ui.muted}`}>No payment rows in this range.</p>
-          ) : null}
-        </div>
-
-        <div className={ui.card}>
-          <h2 className={`${ui.h2} text-base`}>Net revenue by class (via booking)</h2>
-          <p className={`mt-1 text-xs ${ui.muted}`}>
-            Payments linked to a booking session; package-only payments appear under &quot;Other&quot;.
-          </p>
-          <ul className="mt-4 space-y-2 text-sm">
-            {byClass.map((row) => (
-              <li
-                key={row.name}
-                className="flex flex-col gap-0.5 rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-stone-900 dark:text-stone-100">{row.name}</span>
-                <span className="tabular-nums text-stone-700 dark:text-stone-300">
-                  ${row.net.toFixed(2)}{" "}
-                  <span className={`text-xs ${ui.muted}`}>
-                    (gross ${row.gross.toFixed(2)} · ref ${row.refunds.toFixed(2)})
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          {!byClass.length ? (
-            <p className={`mt-4 text-sm ${ui.muted}`}>No class-linked payments in this range.</p>
-          ) : null}
-        </div>
-      </div>
-
       <div className={ui.card}>
-        <h2 className={`${ui.h2} text-base`}>Bookings by class template</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={`${ui.h2} text-base`}>Attendance by class</h2>
+          <form method="get" className="flex flex-wrap items-end gap-2">
+            {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
+            {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+            <input type="hidden" name="date_from" value={dateFrom} />
+            <input type="hidden" name="date_to" value={dateTo} />
+            <label className="flex items-center gap-1 text-xs">
+              <span className={ui.muted}>Sort</span>
+              <select name="class_sort" defaultValue={classSort} className={`${ui.select} h-9 py-1 text-xs`}>
+                <option value="attended">Attended</option>
+                <option value="booked">Booked</option>
+                <option value="rate">Rate</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-1 text-xs">
+              <span className={ui.muted}>Top</span>
+              <input
+                name="class_top_n"
+                type="number"
+                min={1}
+                max={200}
+                defaultValue={classTopNSafe}
+                className={`${ui.input} h-9 w-20 py-1 text-xs`}
+              />
+            </label>
+            <button type="submit" className={ui.btnSecondarySm}>Apply</button>
+          </form>
+        </div>
         <p className={`mt-2 text-xs ${ui.muted}`}>On phone, swipe horizontally to view all columns.</p>
         <div className="overflow-auto">
           <table className="mt-4 min-w-[520px] text-left text-sm">
@@ -438,10 +450,10 @@ export default async function ReportsPage({ searchParams }: Props) {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(byClassAttendance).map(([id, row]) => {
-                const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
+              {classRowsTop.map((row) => {
+                const rate = row.rate >= 0 ? row.rate : null;
                 return (
-                  <tr key={id} className="border-b border-stone-100 last:border-0 dark:border-stone-800">
+                  <tr key={row.id} className="border-b border-stone-100 last:border-0 dark:border-stone-800">
                     <td className="py-2.5 text-stone-900 dark:text-stone-100">{row.title}</td>
                     <td className="py-2.5 tabular-nums text-stone-700 dark:text-stone-300">{row.booked}</td>
                     <td className="py-2.5 tabular-nums text-stone-700 dark:text-stone-300">{row.attended}</td>
@@ -467,62 +479,6 @@ export default async function ReportsPage({ searchParams }: Props) {
         {!Object.keys(byClassAttendance).length ? (
           <p className={`mt-4 text-sm ${ui.muted}`}>No booking data in this range.</p>
         ) : null}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className={ui.card}>
-          <h2 className={`${ui.h2} text-base`}>Attendance by location</h2>
-          <ul className="mt-4 space-y-2 text-sm">
-            {compareByLocation.map(([name, row]) => {
-              const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
-              return (
-                <li key={name} className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800">
-                  <span className="text-stone-900 dark:text-stone-100">{name}</span>
-                  <span className="flex items-center gap-2 tabular-nums">
-                    <span className={`text-xs ${ui.muted}`}>{row.booked} / {row.attended}</span>
-                    {rate !== null ? (
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        rate >= 80 ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                          : rate >= 50 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                          : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
-                      }`}>{rate}%</span>
-                    ) : null}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          {!compareByLocation.length ? (
-            <p className={`mt-4 text-sm ${ui.muted}`}>No location attendance data in this range.</p>
-          ) : null}
-        </div>
-
-        <div className={ui.card}>
-          <h2 className={`${ui.h2} text-base`}>Attendance by instructor</h2>
-          <ul className="mt-4 space-y-2 text-sm">
-            {compareByInstructor.map(([name, row]) => {
-              const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
-              return (
-                <li key={name} className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800">
-                  <span className="text-stone-900 dark:text-stone-100">{name}</span>
-                  <span className="flex items-center gap-2 tabular-nums">
-                    <span className={`text-xs ${ui.muted}`}>{row.booked} / {row.attended}</span>
-                    {rate !== null ? (
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        rate >= 80 ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                          : rate >= 50 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                          : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
-                      }`}>{rate}%</span>
-                    ) : null}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          {!compareByInstructor.length ? (
-            <p className={`mt-4 text-sm ${ui.muted}`}>No instructor attendance data in this range.</p>
-          ) : null}
-        </div>
       </div>
 
       <div className={ui.card}>
@@ -560,11 +516,18 @@ export default async function ReportsPage({ searchParams }: Props) {
       </div>
 
       <div className={ui.card}>
-        <h2 className={`${ui.h2} text-base`}>Recent payments (same range)</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={`${ui.h2} text-base`}>Recent payments (same range)</h2>
+          <a className={`${ui.linkMuted} text-xs`} href={`/api/payments/export?${exportParams.toString()}`}>
+            Export this range (CSV)
+          </a>
+        </div>
         <ul className="mt-4 flex flex-col gap-2 text-sm">
           {revenuePayments.slice(0, 20).map((p) => {
-            const row = p as PaymentWithBooking & { id: string; type?: string };
+            const row = p as PaymentWithBooking & { id: string; type?: string; payment_method?: string | null };
             const isPaid = p.status === "paid";
+            const method = row.payment_method?.trim().toLowerCase() ?? "";
+            const methodLabel = method === "paynow" ? "PayNow" : method === "cash" ? "Cash" : method ? method : null;
             return (
               <li
                 key={row.id}
@@ -581,6 +544,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                   {row.type ? (
                     <span className={`text-xs ${ui.muted}`}>{row.type}</span>
                   ) : null}
+                  {methodLabel ? <span className={`text-xs ${ui.muted}`}>{methodLabel}</span> : null}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold tabular-nums text-stone-900 dark:text-stone-100">
@@ -596,6 +560,118 @@ export default async function ReportsPage({ searchParams }: Props) {
         </ul>
         {!revenuePayments.length ? <p className={`mt-4 text-sm ${ui.muted}`}>No payments in this range.</p> : null}
       </div>
+
+      <AdvancedDetails className={ui.card} summary="Advanced details">
+        <p className={`mt-1 text-xs ${ui.muted}`}>Lower-frequency breakdowns for deeper analysis.</p>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className={ui.card}>
+            <h2 className={`${ui.h2} text-base`}>Net revenue by location</h2>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Allocated by payment location_id.</p>
+            <ul className="mt-4 space-y-2 text-sm">
+              {byLocation.map((row) => (
+                <li
+                  key={row.name}
+                  className="flex flex-col gap-0.5 rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span className="text-stone-900 dark:text-stone-100">{row.name}</span>
+                  <span className="tabular-nums text-stone-700 dark:text-stone-300">
+                    ${row.net.toFixed(2)}{" "}
+                    <span className={`text-xs ${ui.muted}`}>
+                      (gross ${row.gross.toFixed(2)} · ref ${row.refunds.toFixed(2)})
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {!byLocation.length ? (
+              <p className={`mt-4 text-sm ${ui.muted}`}>No payment rows in this range.</p>
+            ) : null}
+          </div>
+
+          <div className={ui.card}>
+            <h2 className={`${ui.h2} text-base`}>Net revenue by class (via booking)</h2>
+            <p className={`mt-1 text-xs ${ui.muted}`}>
+              Payments linked to a booking session; package-only payments appear under &quot;Other&quot;.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm">
+              {byClass.map((row) => (
+                <li
+                  key={row.name}
+                  className="flex flex-col gap-0.5 rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span className="text-stone-900 dark:text-stone-100">{row.name}</span>
+                  <span className="tabular-nums text-stone-700 dark:text-stone-300">
+                    ${row.net.toFixed(2)}{" "}
+                    <span className={`text-xs ${ui.muted}`}>
+                      (gross ${row.gross.toFixed(2)} · ref ${row.refunds.toFixed(2)})
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {!byClass.length ? (
+              <p className={`mt-4 text-sm ${ui.muted}`}>No class-linked payments in this range.</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className={ui.card}>
+            <h2 className={`${ui.h2} text-base`}>Attendance by location</h2>
+            <ul className="mt-4 space-y-2 text-sm">
+              {compareByLocation.map(([name, row]) => {
+                const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
+                return (
+                  <li key={name} className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800">
+                    <span className="text-stone-900 dark:text-stone-100">{name}</span>
+                    <span className="flex items-center gap-2 tabular-nums">
+                      <span className={`text-xs ${ui.muted}`}>{row.booked} / {row.attended}</span>
+                      {rate !== null ? (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          rate >= 80 ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                            : rate >= 50 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                            : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+                        }`}>{rate}%</span>
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {!compareByLocation.length ? (
+              <p className={`mt-4 text-sm ${ui.muted}`}>No location attendance data in this range.</p>
+            ) : null}
+          </div>
+
+          <div className={ui.card}>
+            <h2 className={`${ui.h2} text-base`}>Attendance by instructor</h2>
+            <ul className="mt-4 space-y-2 text-sm">
+              {compareByInstructor.map(([name, row]) => {
+                const rate = row.booked > 0 ? Math.round((row.attended / row.booked) * 100) : null;
+                return (
+                  <li key={name} className="flex items-center justify-between rounded-lg border border-stone-100 px-3 py-2 dark:border-stone-800">
+                    <span className="text-stone-900 dark:text-stone-100">{name}</span>
+                    <span className="flex items-center gap-2 tabular-nums">
+                      <span className={`text-xs ${ui.muted}`}>{row.booked} / {row.attended}</span>
+                      {rate !== null ? (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          rate >= 80 ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                            : rate >= 50 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                            : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+                        }`}>{rate}%</span>
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {!compareByInstructor.length ? (
+              <p className={`mt-4 text-sm ${ui.muted}`}>No instructor attendance data in this range.</p>
+            ) : null}
+          </div>
+        </div>
+      </AdvancedDetails>
     </div>
   );
 }
