@@ -118,6 +118,9 @@ export async function GET(req: Request) {
     location_id: string | null;
     client_id: string | null;
     booking_id: string | null;
+    guest_name: string | null;
+    guest_email: string | null;
+    guest_phone: string | null;
     amount: number | null;
     currency: string;
     status: string;
@@ -131,7 +134,7 @@ export async function GET(req: Request) {
     let paymentsQuery = admin
       .from("payments")
       .select(
-        "id, studio_id, location_id, client_id, booking_id, amount, currency, status, reference_code, created_at, recon_status, paid_amount, recon_note, verified_at",
+        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, guest_phone, amount, currency, status, reference_code, created_at, recon_status, paid_amount, recon_note, verified_at",
       )
       .in("studio_id", studioIds)
       .order("created_at", { ascending: false })
@@ -145,26 +148,65 @@ export async function GET(req: Request) {
   })();
 
   const paymentBookingIds = [...new Set((payments ?? []).map((p) => p.booking_id).filter(Boolean))];
+  const paymentClientIds = [...new Set((payments ?? []).map((p) => p.client_id).filter(Boolean))];
   const { data: paymentBookings } =
     paymentBookingIds.length > 0
       ? await admin
           .from("bookings")
-          .select("id, guest_name, guest_email, class_sessions!inner(start_time, classes!inner(title))")
+          .select("id, guest_name, guest_email, guest_phone, class_sessions!inner(start_time, classes!inner(title))")
           .in("id", paymentBookingIds)
       : { data: [] as const };
+  const { data: paymentClients } =
+    paymentClientIds.length > 0
+      ? await admin.from("users").select("id, email").in("id", paymentClientIds)
+      : { data: [] as const };
+  const { data: paymentClientProfiles } =
+    paymentClientIds.length > 0
+      ? await admin.from("user_profiles").select("id, phone").in("id", paymentClientIds)
+      : { data: [] as const };
   const bookingMap = new Map((paymentBookings ?? []).map((b) => [b.id, b]));
+  const clientMap = new Map((paymentClients ?? []).map((u) => [u.id, u.email ?? null]));
+  const clientPhoneMap = new Map((paymentClientProfiles ?? []).map((u) => [u.id, u.phone ?? null]));
 
   // SLA threshold: payment pending for more than 30 min without staff verification
   const verificationSlaMin = 30;
   const nowMs = new Date().getTime();
+
+  function getExceptionCode(p: {
+    amount: number | null;
+    paid_amount: number | null;
+    reference_code: string | null;
+    recon_status: string | null;
+    created_at: string | null;
+    verified_at: string | null;
+  }) {
+    const expected = Number(p.amount ?? 0);
+    const paid = Number(p.paid_amount ?? expected);
+    if (paid !== expected) return "amount_mismatch" as const;
+    if (!p.reference_code) return "missing_reference" as const;
+    if (p.recon_status === "manual_review") return "manual_review" as const;
+    if (p.recon_status === "mismatch") return "amount_mismatch" as const;
+    if (
+      p.created_at &&
+      !p.verified_at &&
+      nowMs - new Date(p.created_at).getTime() > verificationSlaMin * 60 * 1000
+    ) {
+      return "verification_sla_overdue" as const;
+    }
+    return null;
+  }
+
   const pendingVerifications = (payments ?? [])
     .filter((p) => p.status === "pending")
+    .filter((p) => getExceptionCode(p) == null)
     .filter((p) => {
       if (!keyword) return true;
       const b = (p.booking_id ? bookingMap.get(p.booking_id) : null) as
-        | { guest_name?: string | null; guest_email?: string | null }
+        | { guest_name?: string | null; guest_email?: string | null; guest_phone?: string | null }
         | undefined;
-      return [p.reference_code, b?.guest_name, b?.guest_email]
+      const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
+      const clientPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
+      return [p.reference_code, p.guest_name, p.guest_email, p.guest_phone, b?.guest_name, b?.guest_email, b?.guest_phone, clientEmail, clientPhone]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(keyword));
     })
@@ -173,6 +215,7 @@ export async function GET(req: Request) {
         | {
             guest_name?: string | null;
             guest_email?: string | null;
+            guest_phone?: string | null;
             class_sessions?:
               | { start_time?: string | null; classes?: { title?: string | null } | null }
               | Array<{ start_time?: string | null; classes?: { title?: string | null } | null }>
@@ -183,6 +226,21 @@ export async function GET(req: Request) {
         ? booking?.class_sessions[0]
         : booking?.class_sessions;
       const cls = Array.isArray(session?.classes) ? session?.classes[0] : session?.classes;
+      const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
+      const clientPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
+      const displayName = p.guest_name ?? booking?.guest_name ?? null;
+      const displayEmail = p.guest_email ?? booking?.guest_email ?? clientEmail ?? null;
+      const displayPhone = p.guest_phone ?? booking?.guest_phone ?? clientPhone ?? null;
+      const personLabel = displayName
+        ? displayEmail
+          ? `${displayName} <${displayEmail}>`
+          : displayName
+        : displayEmail
+          ? `${p.client_id ? "Member" : "Guest"}: ${displayEmail}`
+          : p.client_id
+            ? `Member · ${p.client_id}`
+            : "Guest";
+      const personWithPhone = displayPhone ? `${personLabel} · ${displayPhone}` : personLabel;
       // Use created_at as the reference time now that customers no longer confirm
       const submitted = p.created_at;
       const waitMinutes = submitted
@@ -196,9 +254,9 @@ export async function GET(req: Request) {
         id: p.id,
         type: "pending_verification",
         primary_label: `${p.currency} ${Number(p.amount ?? 0).toFixed(2)} · ${p.reference_code ?? "-"}`,
-        secondary_label: `${booking?.guest_name ?? booking?.guest_email ?? p.client_id ?? "Member"} · ${
-          cls?.title ?? "Payment"
-        } · ${submitted ? new Date(submitted).toLocaleString() : "-"}`,
+        secondary_label: `${personWithPhone} · ${cls?.title ?? "Payment"} · ${
+          submitted ? new Date(submitted).toLocaleString() : "-"
+        }`,
         payment_status: p.status,
         recon_status: p.recon_status,
         exception_code: slaOverdue ? "verification_sla_overdue" : null,
@@ -347,15 +405,7 @@ export async function GET(req: Request) {
   }
 
   const paymentExceptions = (payments ?? [])
-    .filter((p) => {
-      const amountMismatch = Number(p.paid_amount ?? p.amount ?? 0) !== Number(p.amount ?? 0);
-      const missingReference = !p.reference_code;
-      const verificationSlaOverdue =
-        p.created_at &&
-        !p.verified_at &&
-        nowMs - new Date(p.created_at).getTime() > verificationSlaMin * 60 * 1000;
-      return amountMismatch || missingReference || verificationSlaOverdue || p.recon_status === "mismatch";
-    })
+    .filter((p) => getExceptionCode(p) != null)
     .filter((p) => {
       if (!keyword) return true;
       return [p.reference_code, p.recon_note]
@@ -366,29 +416,26 @@ export async function GET(req: Request) {
       const expected = Number(p.amount ?? 0);
       const paid = Number(p.paid_amount ?? expected);
       const delta = paid - expected;
-      const amountMismatch = paid !== expected;
-      const missingReference = !p.reference_code;
-      const verificationSlaOverdue =
-        p.created_at &&
-        !p.verified_at &&
-        nowMs - new Date(p.created_at).getTime() > verificationSlaMin * 60 * 1000;
-      const reviewReason =
-        amountMismatch
-          ? "amount_mismatch"
-          : missingReference
-            ? "missing_reference"
-            : p.recon_status === "manual_review"
-              ? "manual_review"
-              : verificationSlaOverdue
-                ? "verification_sla_overdue"
-                : "needs_review";
+      const reviewReason = getExceptionCode(p) ?? "needs_review";
+      const excBooking = (p.booking_id ? bookingMap.get(p.booking_id) : null) as
+        | { guest_name?: string | null; guest_email?: string | null; guest_phone?: string | null }
+        | undefined;
+      const excClientEmail = p.client_id ? clientMap.get(p.client_id) : null;
+      const excClientPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
+      const excName = p.guest_name ?? excBooking?.guest_name ?? null;
+      const excEmail = p.guest_email ?? excBooking?.guest_email ?? excClientEmail ?? null;
+      const excPhone = p.guest_phone ?? excBooking?.guest_phone ?? excClientPhone ?? null;
+      const excPerson = excName
+        ? excEmail ? `${excName} <${excEmail}>` : excName
+        : excEmail
+          ? `${p.client_id ? "Member" : "Guest"}: ${excEmail}`
+          : p.client_id ? `Member · ${p.client_id}` : null;
+      const excPersonWithPhone = excPhone && excPerson ? `${excPerson} · ${excPhone}` : (excPerson ?? "-");
       return {
         id: p.id,
         type: "payment_exception",
         primary_label: `Expected ${p.currency} ${expected.toFixed(2)} · Paid ${paid.toFixed(2)} · Δ ${delta.toFixed(2)}`,
-        secondary_label: `Ref ${p.reference_code ?? "-"} · Recon ${p.recon_status ?? "-"} · ${
-          reviewReason
-        }`,
+        secondary_label: `${excPersonWithPhone} · Ref ${p.reference_code ?? "-"} · ${reviewReason}`,
         exception_code: reviewReason,
         payment_status: p.status,
         recon_status: p.recon_status,

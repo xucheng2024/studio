@@ -207,23 +207,39 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const bookingIds = [...new Set(payments.map((p) => p.booking_id).filter(Boolean))];
   const clientIds = [...new Set(payments.map((p) => p.client_id).filter(Boolean))];
 
-  const [{ data: bookings }, { data: clients }] = await Promise.all([
+  const [{ data: bookings }, { data: clients }, { data: clientProfiles }] = await Promise.all([
     bookingIds.length > 0
-      ? supabase.from("bookings").select("id, guest_name, guest_email").in("id", bookingIds)
+      ? supabase.from("bookings").select("id, guest_name, guest_email, guest_phone").in("id", bookingIds)
       : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
       ? supabase.from("users").select("id, email").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
+    clientIds.length > 0
+      ? supabase.from("user_profiles").select("id, phone").in("id", clientIds)
+      : Promise.resolve({ data: [] as const }),
   ]);
   const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
   const clientMap = new Map((clients ?? []).map((u) => [u.id, u.email]));
+  const clientPhoneMap = new Map((clientProfiles ?? []).map((u) => [u.id, u.phone]));
 
   const keyword = (sp.q ?? "").trim().toLowerCase();
   const filtered = payments.filter((p) => {
     if (!keyword) return true;
     const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
     const c = p.client_id ? clientMap.get(p.client_id) : null;
-    return [p.reference_code, p.recon_note, p.guest_email, p.guest_name, booking?.guest_email, booking?.guest_name, c]
+    const cPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
+    return [
+      p.reference_code,
+      p.recon_note,
+      p.guest_email,
+      p.guest_name,
+      (p as { guest_phone?: string | null }).guest_phone ?? null,
+      booking?.guest_email,
+      booking?.guest_name,
+      (booking as { guest_phone?: string | null } | null)?.guest_phone ?? null,
+      c,
+      cPhone,
+    ]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(keyword));
   });
@@ -252,21 +268,37 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     const allPayments = rawAllPayments ?? [];
     const allBookingIds = [...new Set(allPayments.map((p) => p.booking_id).filter(Boolean))];
     const allClientIds = [...new Set(allPayments.map((p) => p.client_id).filter(Boolean))];
-    const [{ data: allBookings }, { data: allClients }] = await Promise.all([
+    const [{ data: allBookings }, { data: allClients }, { data: allClientProfiles }] = await Promise.all([
       allBookingIds.length > 0
-        ? supabase.from("bookings").select("id, guest_name, guest_email").in("id", allBookingIds)
+        ? supabase.from("bookings").select("id, guest_name, guest_email, guest_phone").in("id", allBookingIds)
         : Promise.resolve({ data: [] as const }),
       allClientIds.length > 0
         ? supabase.from("users").select("id, email").in("id", allClientIds)
         : Promise.resolve({ data: [] as const }),
+      allClientIds.length > 0
+        ? supabase.from("user_profiles").select("id, phone").in("id", allClientIds)
+        : Promise.resolve({ data: [] as const }),
     ]);
     const allBookingMap = new Map((allBookings ?? []).map((b) => [b.id, b]));
     const allClientMap = new Map((allClients ?? []).map((u) => [u.id, u.email]));
+    const allClientPhoneMap = new Map((allClientProfiles ?? []).map((u) => [u.id, u.phone]));
     allLocationFiltered = allPayments.filter((p) => {
       if (!keyword) return true;
       const booking = p.booking_id ? allBookingMap.get(p.booking_id) : null;
       const c = p.client_id ? allClientMap.get(p.client_id) : null;
-      return [p.reference_code, p.recon_note, p.guest_email, p.guest_name, booking?.guest_email, booking?.guest_name, c]
+      const cPhone = p.client_id ? allClientPhoneMap.get(p.client_id) : null;
+      return [
+        p.reference_code,
+        p.recon_note,
+        p.guest_email,
+        p.guest_name,
+        (p as { guest_phone?: string | null }).guest_phone ?? null,
+        booking?.guest_email,
+        booking?.guest_name,
+        (booking as { guest_phone?: string | null } | null)?.guest_phone ?? null,
+        c,
+        cPhone,
+      ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(keyword));
     });
@@ -583,14 +615,24 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             needsReview && p.created_at != null && nowMs - new Date(p.created_at).getTime() > 30 * 60 * 1000;
           const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
-          const clientLabel =
-            clientEmail ??
-            p.guest_email ??
-            p.guest_name ??
-            booking?.guest_email ??
-            booking?.guest_name ??
-            p.client_id ??
-            "-";
+          const clientPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
+          const displayName = p.guest_name ?? booking?.guest_name ?? null;
+          const displayEmail = p.guest_email ?? booking?.guest_email ?? clientEmail ?? null;
+          const displayPhone =
+            (p as { guest_phone?: string | null }).guest_phone ??
+            (booking as { guest_phone?: string | null } | null)?.guest_phone ??
+            clientPhone ??
+            null;
+          const clientLabel = displayName
+            ? displayEmail
+              ? `${displayName} <${displayEmail}>`
+              : displayName
+            : displayEmail
+              ? `${p.client_id ? "Member" : "Guest"}: ${displayEmail}`
+              : p.client_id
+                ? `Member · ${p.client_id}`
+                : "-";
+          const clientLabelWithPhone = displayPhone ? `${clientLabel} · ${displayPhone}` : clientLabel;
           const timeline = (auditMap.get(p.id) ?? []).slice(0, 5);
           return (
             <li
@@ -641,7 +683,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
                 <div className="flex gap-2">
                   <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Member</dt>
-                  <dd className="truncate font-medium text-stone-700 dark:text-stone-300">{clientLabel}</dd>
+                  <dd className="truncate font-medium text-stone-700 dark:text-stone-300">{clientLabelWithPhone}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Method</dt>

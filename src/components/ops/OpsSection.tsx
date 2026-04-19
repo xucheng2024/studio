@@ -1,3 +1,4 @@
+import { Children } from "react";
 import { ui } from "@/lib/ui";
 
 export function OpsSection({
@@ -11,7 +12,9 @@ export function OpsSection({
   children: React.ReactNode;
   emptyText: string;
 }) {
-  const hasItems = Boolean(children);
+  // Children.toArray filters out null/undefined/false — so length > 0 means
+  // there is at least one real renderable node (not just nulls from ternaries).
+  const hasItems = Children.toArray(children).length > 0;
   return (
     <section className={ui.card}>
       <h2 className={ui.h2}>{title}</h2>

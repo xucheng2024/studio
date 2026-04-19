@@ -55,7 +55,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, title, description, studio_id, is_active, image_url, locations ( name )")
+    .select("id, title, description, studio_id, capacity, is_active, image_url, locations ( name )")
     .eq("studio_id", studio.id)
     .eq("share_slug", classSlug)
     .maybeSingle();
@@ -109,7 +109,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
   const { data: sessions } = await supabase
     .from("class_sessions")
-    .select("id, start_time, spots_left, guest_price, credits_required, status, location_id")
+    .select("id, start_time, spots_left, capacity, guest_price, credits_required, status, location_id")
     .eq("class_id", cls.id)
     .eq("status", "scheduled")
     .gte("start_time", new Date().toISOString())
@@ -183,6 +183,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
           };
           const hasEligiblePack = hasEligiblePackageForSession(userPacks, sessionCreditCtx);
           const spotsLeft = Number(s.spots_left ?? 0);
+          const sessionCapacity =
+            Number(
+              (s as { capacity?: number | null }).capacity ??
+                (cls as { capacity?: number | null }).capacity ??
+                0,
+            ) || 0;
           const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
           const isHighlighted = requestedSessionId === s.id;
           return (
@@ -224,7 +230,15 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                       ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                       : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
                 }`}>
-                  {spotsLeft === 0 ? "Full" : spotsLow ? `${spotsLeft} spots left` : `${spotsLeft} spots`}
+                  {spotsLeft === 0
+                    ? sessionCapacity > 0
+                      ? `Full · 0 / ${sessionCapacity}`
+                      : "Full"
+                    : sessionCapacity > 0
+                      ? `${spotsLeft} / ${sessionCapacity} spots left`
+                      : spotsLow
+                        ? `${spotsLeft} spots left`
+                        : `${spotsLeft} spots`}
                 </span>
               </div>
 

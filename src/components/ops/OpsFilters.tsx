@@ -136,8 +136,11 @@ export function OpsFilters({
           defaultValue={query}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
-            const input = e.currentTarget as HTMLInputElement;
-            update({ q: input.value.trim() || null });
+            update({ q: (e.currentTarget as HTMLInputElement).value.trim() || null });
+          }}
+          onBlur={(e) => {
+            const val = e.currentTarget.value.trim() || null;
+            if (val !== (query || null)) update({ q: val });
           }}
         />
       </label>
