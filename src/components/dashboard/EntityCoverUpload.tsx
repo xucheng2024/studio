@@ -6,6 +6,38 @@ import { AlertCircle, CheckCircle2, ImageIcon, Loader2, Trash2, Upload } from "l
 import { COVER_MAX_BYTES } from "@/lib/coverMedia";
 import { ui } from "@/lib/ui";
 
+/**
+ * Resize + compress an image file using an off-screen canvas.
+ * - Caps longest edge at maxDim (default 1920px) while preserving aspect ratio.
+ * - Outputs JPEG at `quality` (0–1). PNG/WebP with transparency fall back to
+ *   WebP so the alpha channel is preserved.
+ * - Returns the compressed Blob; falls back to the original File on any error.
+ */
+async function compressImage(file: File, maxDim = 1920, quality = 0.85): Promise<Blob> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const { width, height } = img;
+      const scale = Math.min(1, maxDim / Math.max(width, height));
+      const cw = Math.round(width * scale);
+      const ch = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, cw, ch);
+      // Preserve alpha for PNG/WebP; use JPEG for opaque photos (smaller files).
+      const outMime = file.type === "image/png" || file.type === "image/webp" ? "image/webp" : "image/jpeg";
+      canvas.toBlob((blob) => resolve(blob ?? file), outMime, quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 const ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 
 type Props = {
@@ -44,8 +76,12 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { setError("Use JPG, PNG, or WebP."); return; }
     setBusy(true);
     try {
+      // Compress + resize client-side before upload (keeps storage small).
+      const compressed = await compressImage(file);
+      const uploadFile = compressed.size < file.size ? compressed : file;
+
       const fd = new FormData();
-      fd.set("file", file);
+      fd.set("file", uploadFile instanceof File ? uploadFile : new File([uploadFile], file.name, { type: uploadFile.type }));
       const res = await fetch(apiBase, { method: "POST", body: fd });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { setError(body.error === "file_too_large" ? "Image must be 5MB or smaller." : (body.error ?? "Upload failed")); return; }

@@ -1,18 +1,20 @@
+import Image from "next/image";
+
 type Props = {
   src: string | null | undefined;
   alt: string;
+  /** Set false only for below-the-fold covers. Default true = eager, high priority. */
   priority?: boolean;
 };
 
 /**
  * 16:9 hero cover for public class / package share pages.
- * - Uses eager loading (priority) so the cover appears immediately on mobile.
- * - Falls back to an animated skeleton when no image is set, keeping layout stable.
+ * - Uses next/image for automatic WebP/AVIF conversion + responsive srcset.
+ * - Priority=true (default) so the hero image is LCP-optimised on mobile.
+ * - Falls back to a gradient skeleton when no image is set.
  */
 export function ShareCoverImage({ src, alt, priority = true }: Props) {
-  const hasCover = !!src?.trim();
-
-  if (!hasCover) {
+  if (!src?.trim()) {
     return (
       <div className="mb-6 w-full overflow-hidden rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
         <div className="aspect-video w-full" aria-hidden="true" />
@@ -21,15 +23,15 @@ export function ShareCoverImage({ src, alt, priority = true }: Props) {
   }
 
   return (
-    <div className="mb-6 w-full overflow-hidden rounded-2xl shadow-sm">
+    <div className="relative mb-6 w-full overflow-hidden rounded-2xl shadow-sm">
       <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src ?? undefined}
+        <Image
+          src={src}
           alt={alt}
-          className="size-full object-cover"
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : "auto"}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, 42rem"
+          priority={priority}
         />
       </div>
     </div>
