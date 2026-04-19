@@ -170,9 +170,11 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
       {/* ── Sessions ── */}
       <h2 className={`${ui.h2} mt-10`}>Upcoming sessions</h2>
-      <ul className="mt-4 flex max-w-2xl flex-col gap-4">
+      <ul className="mt-4 flex max-w-2xl flex-col gap-3">
         {orderedSessions.map((s) => {
-          const start = new Date(s.start_time).toLocaleString();
+          const dt = new Date(s.start_time);
+          const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", month: "short", day: "numeric" });
+          const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
           const creditsRequired = Number(s.credits_required ?? 1);
           const sessionCreditCtx = {
             studio_id: studio.id,
@@ -182,35 +184,54 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
           const hasEligiblePack = hasEligiblePackageForSession(userPacks, sessionCreditCtx);
           const spotsLeft = Number(s.spots_left ?? 0);
           const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
+          const isHighlighted = requestedSessionId === s.id;
           return (
             <li
               key={s.id}
-              className={`${ui.card} ${requestedSessionId === s.id ? "ring-2 ring-teal-400/70" : ""}`}
+              className={`${ui.card} transition-shadow ${isHighlighted ? "ring-2 ring-teal-400/70 shadow-md shadow-teal-400/10" : ""}`}
             >
-              {/* Info */}
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-medium ${ui.muted}`}>{start}</p>
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                    <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
-                    <span>{creditsRequired} credit{creditsRequired !== 1 ? "s" : ""} member</span>
+              {/* Date + spots row */}
+              <div className="flex items-start justify-between gap-3">
+                {/* Date block */}
+                <div className="flex items-center gap-3">
+                  {/* Calendar accent */}
+                  <div className="flex w-12 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1 dark:border-stone-700 dark:bg-stone-800">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                      {dateLabel.split(" ")[0]}
+                    </span>
+                    <span className="text-lg font-bold leading-tight text-stone-900 dark:text-stone-50">
+                      {dt.getDate()}
+                    </span>
+                    <span className="text-[10px] text-stone-500 dark:text-stone-400">
+                      {dateLabel.split(" ")[1]}
+                    </span>
+                  </div>
+                  {/* Time + price */}
+                  <div>
+                    <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
+                    <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-stone-500 dark:text-stone-400">
+                      <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
+                      <span>·</span>
+                      <span>{creditsRequired} credit{creditsRequired !== 1 ? "s" : ""} member</span>
+                    </div>
                   </div>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                {/* Spots badge */}
+                <span className={`mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
                   spotsLeft === 0
                     ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
                     : spotsLow
                       ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                       : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
                 }`}>
-                  {spotsLeft === 0 ? "Full" : `${spotsLeft} left`}
+                  {spotsLeft === 0 ? "Full" : spotsLow ? `${spotsLeft} spots left` : `${spotsLeft} spots`}
                 </span>
               </div>
 
               {/* Actions */}
-              <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
+              <div className="mt-4 border-t border-stone-100 pt-3 dark:border-stone-800">
                 {spotsLeft === 0 ? (
-                  <span className={`text-sm ${ui.muted}`}>Class full</span>
+                  <span className={`text-sm ${ui.muted}`}>This class is full</span>
                 ) : user ? (
                   <div className="flex flex-wrap gap-2">
                     <PackageBookButton sessionId={s.id} packages={userPacks} session={sessionCreditCtx} />

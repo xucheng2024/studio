@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Loader2, Send, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, CheckCheck, AlertCircle } from "lucide-react";
 import { ui } from "@/lib/ui";
 
 export function ConfirmPaymentButton({
@@ -69,12 +69,10 @@ export function ConfirmPaymentButton({
   if (submitted) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-5 text-center dark:border-teal-800/50 dark:bg-teal-950/30">
-        <CheckCircle2 size={24} className="text-teal-600 dark:text-teal-400" />
-        <p className="font-semibold text-teal-900 dark:text-teal-200">
-          Payment notice submitted
-        </p>
+        <CheckCircle2 size={28} className="text-teal-600 dark:text-teal-400" />
+        <p className="font-semibold text-teal-900 dark:text-teal-200">Payment notice submitted</p>
         <p className={`text-sm ${ui.muted}`}>
-          Staff will verify your transfer and confirm the booking shortly.
+          Staff will verify your transfer and confirm your booking shortly.
         </p>
       </div>
     );
@@ -86,15 +84,23 @@ export function ConfirmPaymentButton({
       {countdown !== null ? (
         <div className={`flex items-center justify-center gap-1.5 text-sm font-medium ${countdownColor}`}>
           <Clock size={14} />
-          {expired ? "Link expired" : `${countdown} remaining`}
+          {expired ? "Link expired" : `Expires in ${countdown}`}
         </div>
       ) : null}
 
-      {/* Primary action */}
+      {/* Primary CTA — large green button with subtle pulse ring */}
       <button
         type="button"
         disabled={disabled}
-        className={`${ui.btnPrimary} w-full justify-center text-base disabled:opacity-50`}
+        className={`
+          relative w-full rounded-2xl py-4 text-base font-bold tracking-wide text-white
+          transition-all duration-200 active:scale-[0.98]
+          disabled:pointer-events-none disabled:opacity-50
+          ${disabled
+            ? "bg-stone-400"
+            : "bg-linear-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-600/30 hover:shadow-xl hover:shadow-emerald-500/35 hover:brightness-105"
+          }
+        `}
         onClick={async () => {
           setBusy(true);
           setMsg(null);
@@ -115,11 +121,17 @@ export function ConfirmPaymentButton({
           router.refresh();
         }}
       >
-        {busy ? (
-          <><Loader2 size={16} className="animate-spin" /> Submitting…</>
-        ) : (
-          <><Send size={16} /> I have paid</>
-        )}
+        {/* Pulsing ring shown only when active + not busy */}
+        {!disabled && !busy ? (
+          <span className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-emerald-400/60 ring-offset-2 ring-offset-white animate-pulse dark:ring-offset-stone-950" />
+        ) : null}
+        <span className="relative flex items-center justify-center gap-2">
+          {busy ? (
+            <><Loader2 size={18} className="animate-spin" /> Submitting…</>
+          ) : (
+            <><CheckCheck size={18} /> I&apos;ve paid — notify staff</>
+          )}
+        </span>
       </button>
 
       {/* Error */}
@@ -149,7 +161,7 @@ export function ConfirmPaymentButton({
       </details>
 
       <p className={`text-center text-xs ${ui.muted}`}>
-        After tapping, staff will verify and lock in your booking.
+        Staff will verify and confirm your booking shortly.
       </p>
     </div>
   );
