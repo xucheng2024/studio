@@ -34,7 +34,6 @@ export async function POST(req: Request) {
       studio_id,
       location_id,
       booking_id,
-      customer_confirmed_at,
       studios ( owner_id )
     `,
     )
@@ -59,9 +58,6 @@ export async function POST(req: Request) {
   }
 
   if (parsed.data.status === "paid") {
-    if (!payment.customer_confirmed_at) {
-      return NextResponse.json({ error: "customer_not_confirmed" }, { status: 409 });
-    }
     const { data: result, error } = await admin.rpc("confirm_paynow_payment_with_invoice", {
       p_payment_id: parsed.data.payment_id,
       p_verified_by: user.id,
@@ -157,18 +153,21 @@ export async function POST(req: Request) {
     });
   }
 
-  const { error: updErr } = await admin
-    .from("payments")
-    .update({ status: parsed.data.status })
-    .eq("id", parsed.data.payment_id);
-  if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+  // Use the atomic RPC so the reserved seat is restored in the same transaction.
+  const { data: cancelResult, error: cancelErr } = await admin.rpc("cancel_pending_payment", {
+    p_payment_id: parsed.data.payment_id,
+    p_new_status: parsed.data.status,
+  });
+  if (cancelErr) return NextResponse.json({ error: cancelErr.message }, { status: 500 });
+  const cr = cancelResult as { ok?: boolean; error?: string };
+  if (!cr?.ok && cr?.error !== "not_pending") {
+    return NextResponse.json({ error: cr?.error ?? "cancel_failed" }, { status: 409 });
+  }
+  if (!cr?.ok && cr?.error === "not_pending") {
+    return NextResponse.json({ error: "not_pending" }, { status: 409 });
+  }
 
   if (payment.booking_id) {
-    await admin
-      .from("bookings")
-      .update({ status: "cancelled", payment_status: parsed.data.status })
-      .eq("id", payment.booking_id)
-      .eq("status", "pending");
     const { data: booking } = await admin
       .from("bookings")
       .select("client_id, guest_email")

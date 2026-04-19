@@ -45,6 +45,7 @@ export async function POST(req: Request) {
       `
       id,
       status,
+      start_time,
       spots_left,
       location_id,
       guest_price,
@@ -124,7 +125,17 @@ export async function POST(req: Request) {
     reference,
   });
   const qrCodeUrl = await toQrDataUrl(qrPayload);
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  // Expire before class start so reserved seats are not held too long.
+  // Target: 2 hours before class. Clamp to [now+1m, now+24h], and never after class-5m.
+  const classStart = session.start_time ? new Date(session.start_time as string).getTime() : null;
+  const twoHoursBeforeClass = classStart ? classStart - 2 * 60 * 60 * 1000 : null;
+  const nowMs = Date.now();
+  const minExpiry = nowMs + 60 * 1000;
+  const maxExpiry = nowMs + 24 * 60 * 60 * 1000;
+  const classHardCap = classStart ? classStart - 5 * 60 * 1000 : null;
+  const rawExpiry = twoHoursBeforeClass ?? maxExpiry;
+  const upperBound = classHardCap != null ? Math.min(maxExpiry, classHardCap) : maxExpiry;
+  const expiresAt = new Date(Math.max(minExpiry, Math.min(upperBound, rawExpiry))).toISOString();
 
   const { data: bookingRpc, error: bErr } = await admin.rpc("create_pending_booking", {
     p_session_id: parsed.data.session_id,

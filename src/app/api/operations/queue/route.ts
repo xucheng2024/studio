@@ -126,13 +126,12 @@ export async function GET(req: Request) {
     recon_status: string | null;
     paid_amount: number | null;
     recon_note: string | null;
-    customer_confirmed_at: string | null;
     verified_at: string | null;
   }> = await (async () => {
     let paymentsQuery = admin
       .from("payments")
       .select(
-        "id, studio_id, location_id, client_id, booking_id, amount, currency, status, reference_code, created_at, recon_status, paid_amount, recon_note, customer_confirmed_at, verified_at",
+        "id, studio_id, location_id, client_id, booking_id, amount, currency, status, reference_code, created_at, recon_status, paid_amount, recon_note, verified_at",
       )
       .in("studio_id", studioIds)
       .order("created_at", { ascending: false })
@@ -155,14 +154,11 @@ export async function GET(req: Request) {
       : { data: [] as const };
   const bookingMap = new Map((paymentBookings ?? []).map((b) => [b.id, b]));
 
-  const verificationSlaMin = 10;
+  // SLA threshold: payment pending for more than 30 min without staff verification
+  const verificationSlaMin = 30;
   const nowMs = new Date().getTime();
   const pendingVerifications = (payments ?? [])
-    .filter(
-      (p) =>
-        p.status === "pending" &&
-        (p.recon_status === "awaiting_verification" || p.customer_confirmed_at != null),
-    )
+    .filter((p) => p.status === "pending")
     .filter((p) => {
       if (!keyword) return true;
       const b = (p.booking_id ? bookingMap.get(p.booking_id) : null) as
@@ -187,14 +183,15 @@ export async function GET(req: Request) {
         ? booking?.class_sessions[0]
         : booking?.class_sessions;
       const cls = Array.isArray(session?.classes) ? session?.classes[0] : session?.classes;
-      const submitted = p.customer_confirmed_at ?? p.created_at;
+      // Use created_at as the reference time now that customers no longer confirm
+      const submitted = p.created_at;
       const waitMinutes = submitted
         ? Math.max(0, Math.floor((nowMs - new Date(submitted).getTime()) / (60 * 1000)))
         : 0;
       const slaOverdue =
-        p.customer_confirmed_at &&
+        submitted &&
         !p.verified_at &&
-        nowMs - new Date(p.customer_confirmed_at).getTime() > verificationSlaMin * 60 * 1000;
+        nowMs - new Date(submitted).getTime() > verificationSlaMin * 60 * 1000;
       return {
         id: p.id,
         type: "pending_verification",
@@ -354,9 +351,9 @@ export async function GET(req: Request) {
       const amountMismatch = Number(p.paid_amount ?? p.amount ?? 0) !== Number(p.amount ?? 0);
       const missingReference = !p.reference_code;
       const verificationSlaOverdue =
-        p.customer_confirmed_at &&
+        p.created_at &&
         !p.verified_at &&
-        nowMs - new Date(p.customer_confirmed_at).getTime() > verificationSlaMin * 60 * 1000;
+        nowMs - new Date(p.created_at).getTime() > verificationSlaMin * 60 * 1000;
       return amountMismatch || missingReference || verificationSlaOverdue || p.recon_status === "mismatch";
     })
     .filter((p) => {
@@ -372,9 +369,9 @@ export async function GET(req: Request) {
       const amountMismatch = paid !== expected;
       const missingReference = !p.reference_code;
       const verificationSlaOverdue =
-        p.customer_confirmed_at &&
+        p.created_at &&
         !p.verified_at &&
-        nowMs - new Date(p.customer_confirmed_at).getTime() > verificationSlaMin * 60 * 1000;
+        nowMs - new Date(p.created_at).getTime() > verificationSlaMin * 60 * 1000;
       const reviewReason =
         amountMismatch
           ? "amount_mismatch"

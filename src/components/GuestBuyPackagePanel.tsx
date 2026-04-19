@@ -34,6 +34,8 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
         if (!res.ok) {
           if (body.error === "guest_details_required") {
             setMsg("Please enter your name and email.");
+          } else if (body.error === "sign_in_required_for_package") {
+            setMsg("Please sign in before purchasing a package.");
           } else if (body.error === "PAYNOW_NOT_CONFIGURED") {
             setMsg("PayNow is not configured for this studio yet.");
           } else {
@@ -76,4 +78,3 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
     </form>
   );
 }
-

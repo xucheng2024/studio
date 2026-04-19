@@ -28,6 +28,7 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  let purchaserId = user?.id ?? null;
   const guestName = parsed.data.guest_name?.trim();
   const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
   const guestPhone = parsed.data.guest_phone?.trim() || null;
@@ -36,6 +37,21 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  if (!purchaserId && guestEmail) {
+    const { data: existingUser } = await admin
+      .from("users")
+      .select("id")
+      .eq("email", guestEmail)
+      .maybeSingle();
+    purchaserId = existingUser?.id ?? null;
+  }
+  if (!purchaserId) {
+    return NextResponse.json(
+      { error: "sign_in_required_for_package", message: "Please sign in before purchasing a package." },
+      { status: 409 },
+    );
+  }
+
   const { data: pkg, error: pkgErr } = await admin
     .from("packages")
     .select("id, studio_id, name, credits, price, expiry_days, is_active")
@@ -78,7 +94,8 @@ export async function POST(req: Request) {
     reference,
   });
   const qrCodeUrl = await toQrDataUrl(qrPayload);
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  // Package payments have no class start time, so give staff 24 h to confirm.
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
   const { data: payment, error: pErr } = await admin
     .from("payments")
@@ -86,7 +103,7 @@ export async function POST(req: Request) {
       booking_id: null,
       package_id: pkg.id,
       studio_id: pkg.studio_id,
-      client_id: user?.id ?? null,
+      client_id: purchaserId,
       guest_name: user ? null : guestName ?? null,
       guest_email: user ? null : guestEmail ?? null,
       guest_phone: user ? null : guestPhone,

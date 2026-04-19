@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     )
     .eq("status", "no_show")
     .is("outcome_notified_at", null)
-    .gt("no_show_marked_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+    .gt("no_show_marked_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
     .limit(200);
 
   for (const b of noShows ?? []) {

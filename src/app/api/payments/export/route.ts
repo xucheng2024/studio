@@ -39,7 +39,6 @@ type PaymentRow = {
   currency: string | null;
   reference_code: string | null;
   created_at: string | null;
-  customer_confirmed_at: string | null;
   verified_at: string | null;
   verified_by: string | null;
   recon_note: string | null;
@@ -105,7 +104,7 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, client_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, created_at, customer_confirmed_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, booking_id, client_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -164,13 +163,7 @@ export async function GET(req: Request) {
 
   // Apply view (tab) filter (mirrors payments page logic)
   if (view === "queue") {
-    rows = rows.filter(
-      (p) =>
-        p.status === "pending" &&
-        (p.recon_status === "awaiting_verification" ||
-          p.customer_confirmed_at != null ||
-          !p.booking_id),
-    );
+    rows = rows.filter((p) => p.status === "pending");
   } else if (view === "recon") {
     rows = rows.filter(
       (p) =>
@@ -198,7 +191,7 @@ export async function GET(req: Request) {
     "delta",
     "reference",
     "created_at",
-    "customer_confirmed_at",
+    "submitted_at",
     "verified_at",
     "operator_email",
     "recon_note",
@@ -222,7 +215,7 @@ export async function GET(req: Request) {
       (paid - expected).toFixed(2),
       p.reference_code ?? "",
       p.created_at ?? "",
-      p.customer_confirmed_at ?? "",
+      p.created_at ?? "",
       p.verified_at ?? "",
       operatorEmail,
       p.recon_note ?? "",

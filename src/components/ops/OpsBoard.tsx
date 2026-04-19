@@ -138,7 +138,7 @@ export function OpsBoard({
     <div className="grid gap-4">
       <OpsSection
         title="Pending Transfers"
-        description="Customer-submitted transfers waiting for staff confirmation."
+        description="Pending transfers waiting for staff verification."
         emptyText="No pending transfers."
       >
         {data.pending_verifications.length ? (

@@ -65,7 +65,7 @@ function buildPaymentStats(
     booking_id: string | null;
     amount: number | null;
     paid_amount: number | null;
-    customer_confirmed_at: string | null;
+    created_at: string | null;
     verified_at: string | null;
   }>,
 ) {
@@ -75,7 +75,7 @@ function buildPaymentStats(
   const todayMs = todayStart.getTime();
 
   const todayReceived = rows
-    .filter((p) => p.customer_confirmed_at && new Date(p.customer_confirmed_at).getTime() >= todayMs)
+    .filter((p) => p.created_at && new Date(p.created_at).getTime() >= todayMs)
     .reduce((a, p) => a + Number(p.paid_amount ?? p.amount ?? 0), 0);
   const todayVerified = rows
     .filter((p) => p.verified_at && new Date(p.verified_at).getTime() >= todayMs)
@@ -85,9 +85,9 @@ function buildPaymentStats(
   const slaOverdueCount = rows.filter(
     (p) =>
       p.status === "pending" &&
-      p.customer_confirmed_at &&
+      p.created_at &&
       !p.verified_at &&
-      nowMs - new Date(p.customer_confirmed_at).getTime() > 10 * 60 * 1000,
+      nowMs - new Date(p.created_at).getTime() > 30 * 60 * 1000,
   ).length;
   const txCount = rows.length;
   const settledRows = rows.filter((p) => p.status === "paid" || p.status === "refunded");
@@ -184,7 +184,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -232,7 +232,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     let allQ = supabase
       .from("payments")
       .select(
-        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, customer_confirmed_at, customer_confirmation_note, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, recon_note, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
       )
       .in("studio_id", [activeStudioId])
       .order("created_at", { ascending: false })
@@ -273,10 +273,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   }
 
   const nowMs = new Date().getTime();
+  // Show pending AND recently-expired payments (within 24 h) so staff can
+  // force-confirm payments that expired before they were processed.
   const queueRows = filtered.filter(
     (p) =>
-      p.status === "pending" &&
-      (p.recon_status === "awaiting_verification" || p.customer_confirmed_at != null || !p.booking_id),
+      p.status === "pending" ||
+      (p.status === "expired" &&
+        p.created_at != null &&
+        nowMs - new Date(p.created_at).getTime() < 24 * 60 * 60 * 1000),
   );
   const reconRows = filtered.filter(
     (p) =>
@@ -574,9 +578,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       <ul className="flex flex-col gap-3">
         {visible.map((p) => {
           const badges = getUnifiedStatusBadges({ payment_status: p.status, recon_status: p.recon_status });
-          const needsReview = p.status === "pending" && p.customer_confirmed_at != null && p.verified_at == null;
+          const needsReview = p.status === "pending" && p.verified_at == null;
           const slaOverdue =
-            needsReview && nowMs - new Date(p.customer_confirmed_at ?? 0).getTime() > 10 * 60 * 1000;
+            needsReview && p.created_at != null && nowMs - new Date(p.created_at).getTime() > 30 * 60 * 1000;
           const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
           const clientLabel =
@@ -659,12 +663,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
                   </dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Confirmed</dt>
-                  <dd className="text-stone-600 dark:text-stone-400">
-                    {p.customer_confirmed_at ? new Date(p.customer_confirmed_at).toLocaleString() : "—"}
-                  </dd>
-                </div>
                 {p.verified_at ? (
                   <div className="flex gap-2 sm:col-span-2">
                     <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Verified</dt>
@@ -732,6 +730,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     <PaymentMarkButton paymentId={p.id} status="failed" label="Mark failed" />
                     <PaymentMarkButton paymentId={p.id} status="expired" label="Mark expired" />
                   </>
+                ) : null}
+                {p.status === "expired" ? (
+                  <PaymentMarkButton paymentId={p.id} status="paid" label="Mark paid (override)" />
                 ) : null}
                 {p.status === "paid" && p.invoice_status !== "void" ? <InvoiceSendButton paymentId={p.id} /> : null}
                 {p.status === "paid" ? <PaymentMarkButton paymentId={p.id} status="refunded" label="Mark refunded" /> : null}

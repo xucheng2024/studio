@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ShieldCheck, XCircle } from "lucide-react";
-import { ConfirmPaymentButton } from "@/components/ConfirmPaymentButton";
+import { ArrowLeft, Clock, ShieldCheck, XCircle } from "lucide-react";
 import { CopyRefButton } from "@/components/CopyRefButton";
 import { QrDownloadButton } from "@/components/QrDownloadButton";
+import { PaymentStatusPoller } from "@/components/PaymentStatusPoller";
 import { toQrDataUrl } from "@/lib/paynow";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,12 +30,12 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       status,
       reference_code,
       expires_at,
+      verified_at,
       qr_payload,
       paynow_proxy_type_snapshot,
       paynow_uen_snapshot,
       paynow_mobile_snapshot,
       paynow_payee_name_snapshot,
-      customer_confirmed_at,
       booking_id
     `,
     )
@@ -87,12 +87,26 @@ export default async function PaymentCheckoutPage({ params }: Props) {
         : `UEN ${maskTail(payment.paynow_uen_snapshot)}`;
 
   const isPaid = payment.status === "paid";
-  const isFailed = payment.status === "failed" || payment.status === "expired";
+  const isFailed =
+    payment.status === "failed" ||
+    payment.status === "expired" ||
+    payment.status === "refunded";
   const isPending = !isPaid && !isFailed;
 
+  // Expiry display
+  const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
+  const expiryLabel =
+    expiresAt && isPending
+      ? expiresAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
+        ", " +
+        expiresAt.toLocaleDateString([], { month: "short", day: "numeric" })
+      : null;
+
   return (
-    /* Extra bottom padding so the sticky bar doesn't cover content */
-    <main className="mx-auto w-full max-w-md px-4 pb-40 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
+    <main className="mx-auto w-full max-w-md px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
+      {/* Auto-refresh every 20 s while payment is still pending */}
+      <PaymentStatusPoller stop={!isPending} />
+
       <div className="flex flex-col gap-5">
 
         {/* ── Back link ── */}
@@ -113,7 +127,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
           <p className="text-xs text-teal-300">{payeeProxy}</p>
         </div>
 
-        {/* ── Terminal states ── */}
+        {/* ── Terminal: paid ── */}
         {isPaid ? (
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-6 text-center dark:border-teal-800/50 dark:bg-teal-950/30">
             <ShieldCheck size={28} className="text-teal-600 dark:text-teal-400" />
@@ -125,25 +139,29 @@ export default async function PaymentCheckoutPage({ params }: Props) {
           </div>
         ) : null}
 
+        {/* ── Terminal: failed / expired / refunded ── */}
         {isFailed ? (
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-center dark:border-red-800/50 dark:bg-red-950/20">
             <XCircle size={28} className="text-red-500 dark:text-red-400" />
-            <p className="text-lg font-semibold text-red-800 dark:text-red-300">
+            <p className="text-lg font-semibold text-red-800 dark:text-red-300 capitalize">
               Payment {payment.status}
             </p>
             <p className={`text-sm ${ui.muted}`}>
-              This payment link has expired or failed. Please start a new booking.
+              {payment.status === "refunded"
+                ? "This payment has been refunded."
+                : "This payment link has expired or failed. Please start a new booking."}
             </p>
-            <Link href="/booking" className={`mt-2 text-sm ${ui.link}`}>
-              ← Browse sessions
-            </Link>
+            {payment.status !== "refunded" ? (
+              <Link href="/booking" className={`mt-2 text-sm ${ui.link}`}>
+                ← Browse sessions
+              </Link>
+            ) : null}
           </div>
         ) : null}
 
-        {/* ── Steps (only shown when pending) ── */}
+        {/* ── Pending: payment instructions ── */}
         {isPending ? (
-          <div className="flex flex-col gap-3">
-
+          <>
             {/* Step 1 – Scan QR */}
             {qrDataUrl ? (
               <div className={`${ui.card} flex flex-col items-center gap-3`}>
@@ -151,7 +169,6 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   <StepBadge n={1} />
                   <p className="font-semibold text-stone-800 dark:text-stone-100">Scan with your banking app</p>
                 </div>
-                {/* QR image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={qrDataUrl}
@@ -160,8 +177,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   height={240}
                   className="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm dark:border-stone-700"
                 />
-                {/* Save to photos */}
-                <QrDownloadButton dataUrl={qrDataUrl} amount={`${payment.currency} ${Number(payment.amount).toFixed(2)}`} />
+                <QrDownloadButton
+                  dataUrl={qrDataUrl}
+                  amount={`${payment.currency} ${Number(payment.amount).toFixed(2)}`}
+                />
               </div>
             ) : null}
 
@@ -182,7 +201,32 @@ export default async function PaymentCheckoutPage({ params }: Props) {
               </p>
             </div>
 
-          </div>
+            {/* Waiting confirmation banner */}
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 dark:border-stone-700 dark:bg-stone-900/40">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/40">
+                  <Clock size={18} className="animate-pulse text-teal-600 dark:text-teal-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+                    Waiting for payment confirmation
+                  </p>
+                  <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                    Please complete your transfer. We&apos;ll confirm it shortly after receiving the payment.
+                  </p>
+                </div>
+              </div>
+              {expiryLabel ? (
+                <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
+                  Link expires at {expiryLabel} · This page updates automatically
+                </p>
+              ) : (
+                <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
+                  This page updates automatically
+                </p>
+              )}
+            </div>
+          </>
         ) : null}
 
         {/* ── Booking policy ── */}
@@ -193,36 +237,6 @@ export default async function PaymentCheckoutPage({ params }: Props) {
         ) : null}
 
       </div>
-
-      {/* ── Step 3: sticky "I've paid" bar (mobile) — in-flow on desktop ── */}
-      {isPending ? (
-        <div
-          className="
-            fixed bottom-0 left-0 right-0 z-30
-            border-t border-stone-200 bg-white/95 px-4
-            pb-[max(1rem,env(safe-area-inset-bottom))] pt-3
-            shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md
-            dark:border-stone-800 dark:bg-stone-950/95
-            sm:static sm:z-auto sm:border-0 sm:bg-transparent sm:px-0
-            sm:pb-0 sm:pt-0 sm:shadow-none sm:backdrop-blur-none
-          "
-        >
-          {/* Step 3 label — only visible on mobile (fixed bar) */}
-          <div className="mb-2 flex items-center gap-2 sm:hidden">
-            <StepBadge n={3} />
-            <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
-              After paying, tap below
-            </p>
-          </div>
-          <ConfirmPaymentButton
-            paymentId={payment.id}
-            expiresAt={payment.expires_at ?? null}
-            referenceCode={payment.reference_code ?? null}
-            paymentStatus={payment.status}
-            customerConfirmedAt={payment.customer_confirmed_at ?? null}
-          />
-        </div>
-      ) : null}
     </main>
   );
 }
@@ -231,9 +245,7 @@ function StepBadge({ n, amber }: { n: number; amber?: boolean }) {
   return (
     <span
       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-        amber
-          ? "bg-amber-500 text-white"
-          : "bg-teal-600 text-white"
+        amber ? "bg-amber-500 text-white" : "bg-teal-600 text-white"
       }`}
     >
       {n}
