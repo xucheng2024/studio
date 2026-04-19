@@ -41,12 +41,8 @@ export function AuthPageInner() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<OtpStep>("request");
   const [otpCode, setOtpCode] = useState("");
-  const [inApp, setInApp] = useState<{ isInApp: boolean; name: string }>({ isInApp: false, name: "" });
+  const [inApp] = useState<{ isInApp: boolean; name: string }>(() => detectInAppBrowser());
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setInApp(detectInAppBrowser());
-  }, []);
 
   const oauthNext = encodeURIComponent(postAuthPath);
   const oauthCallbackPath = `/auth/callback?next=${oauthNext}`;

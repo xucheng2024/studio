@@ -649,6 +649,7 @@ export async function saveBookingRules(formData: FormData): Promise<void> {
   const noShowBuffer = Number(formData.get("no_show_buffer_min") ?? 15);
   const maxActiveBookings = Number(formData.get("max_active_bookings_per_client") ?? 3);
   const maxWeeklyLate = Number(formData.get("max_weekly_late_cancel") ?? 2);
+  const paymentVerificationSlaMin = Number(formData.get("payment_verification_sla_min") ?? 30);
   const lateCancelDeductCredit = formData.get("late_cancel_deduct_credit") === "on";
   const noShowDeductCredit = formData.get("no_show_deduct_credit") === "on";
   const allowWaitlist = formData.get("allow_waitlist") === "on";
@@ -677,6 +678,9 @@ export async function saveBookingRules(formData: FormData): Promise<void> {
       ? Math.max(maxActiveBookings, 1)
       : 3,
     max_weekly_late_cancel: Number.isFinite(maxWeeklyLate) ? Math.max(maxWeeklyLate, 0) : 2,
+    payment_verification_sla_min: Number.isFinite(paymentVerificationSlaMin)
+      ? Math.min(1440, Math.max(paymentVerificationSlaMin, 1))
+      : 30,
     late_cancel_deduct_credit: lateCancelDeductCredit,
     no_show_deduct_credit: noShowDeductCredit,
     allow_waitlist: allowWaitlist,

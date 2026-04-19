@@ -121,7 +121,7 @@ export default async function SchedulePage({ searchParams }: Props) {
   const rulesQuery = supabase
     .from("booking_rules")
     .select(
-      "id, cancel_cutoff_hours, no_show_buffer_min, max_active_bookings_per_client, max_weekly_late_cancel, late_cancel_deduct_credit, no_show_deduct_credit, allow_waitlist",
+      "id, cancel_cutoff_hours, no_show_buffer_min, max_active_bookings_per_client, max_weekly_late_cancel, payment_verification_sla_min, late_cancel_deduct_credit, no_show_deduct_credit, allow_waitlist",
     )
     .eq("studio_id", activeStudioId)
     .limit(1);
@@ -270,6 +270,18 @@ export default async function SchedulePage({ searchParams }: Props) {
                 className={ui.input}
               />
               <span className={`text-xs ${ui.muted}`}>Member can be blocked from new bookings after reaching this limit.</span>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Payment verification SLA (minutes)</span>
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                name="payment_verification_sla_min"
+                defaultValue={activeRules?.payment_verification_sla_min ?? 30}
+                className={ui.input}
+              />
+              <span className={`text-xs ${ui.muted}`}>Pending payments older than this are flagged as overdue.</span>
             </label>
             <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
               <input

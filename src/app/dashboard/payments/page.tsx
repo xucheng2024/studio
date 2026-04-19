@@ -12,6 +12,7 @@ import {
   PAYMENT_STATUS_FILTER_OPTIONS,
   RECON_STATUS_FILTER_OPTIONS,
 } from "@/lib/payment-filter-options";
+import { resolvePaymentVerificationSlaMin } from "@/lib/payment-verification-sla";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -59,6 +60,8 @@ function toDateInputValue(date: Date) {
 
 function buildPaymentStats(
   rows: Array<{
+    studio_id: string;
+    location_id: string | null;
     status: string;
     payment_method: string | null;
     recon_status: string | null;
@@ -68,6 +71,7 @@ function buildPaymentStats(
     created_at: string | null;
     verified_at: string | null;
   }>,
+  getSlaMin: (studioId: string, locationId: string | null) => number,
 ) {
   const nowMs = new Date().getTime();
   const todayStart = new Date();
@@ -87,7 +91,7 @@ function buildPaymentStats(
       p.status === "pending" &&
       p.created_at &&
       !p.verified_at &&
-      nowMs - new Date(p.created_at).getTime() > 30 * 60 * 1000,
+      nowMs - new Date(p.created_at).getTime() > getSlaMin(p.studio_id, p.location_id) * 60 * 1000,
   ).length;
   const txCount = rows.length;
   const settledRows = rows.filter((p) => p.status === "paid" || p.status === "refunded");
@@ -157,6 +161,17 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .eq("is_active", true)
     .order("name");
   const locationMap = new Map((locations ?? []).map((l) => [l.id, l.name ?? "Unnamed location"]));
+  const { data: bookingRuleRows } = await supabase
+    .from("booking_rules")
+    .select("studio_id, location_id, payment_verification_sla_min")
+    .in("studio_id", [activeStudioId]);
+  const slaRules = (bookingRuleRows ?? []) as Array<{
+    studio_id: string;
+    location_id: string | null;
+    payment_verification_sla_min: number | null;
+  }>;
+  const getSlaMin = (studioId: string, locationId: string | null) =>
+    resolvePaymentVerificationSlaMin(slaRules, studioId, locationId);
   let dailyQ = supabase
     .from("payments")
     .select("id, status, payment_method, amount, paid_amount")
@@ -324,8 +339,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const reviewRows = filtered.filter((p) => p.status !== "pending" || p.verified_at != null);
   const visible = view === "recon" ? reconRows : view === "review" ? reviewRows : queueRows;
 
-  const scopedStats = buildPaymentStats(filtered);
-  const allLocationStats = selectedLocationId ? buildPaymentStats(allLocationFiltered) : scopedStats;
+  const scopedStats = buildPaymentStats(filtered, getSlaMin);
+  const allLocationStats = selectedLocationId ? buildPaymentStats(allLocationFiltered, getSlaMin) : scopedStats;
 
   const ids = visible.map((p) => p.id);
   const { data: audits } =
@@ -611,8 +626,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         {visible.map((p) => {
           const badges = getUnifiedStatusBadges({ payment_status: p.status, recon_status: p.recon_status });
           const needsReview = p.status === "pending" && p.verified_at == null;
+          const rowSlaMin = getSlaMin(p.studio_id, p.location_id ?? null);
           const slaOverdue =
-            needsReview && p.created_at != null && nowMs - new Date(p.created_at).getTime() > 30 * 60 * 1000;
+            needsReview &&
+            p.created_at != null &&
+            nowMs - new Date(p.created_at).getTime() > rowSlaMin * 60 * 1000;
           const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
           const clientPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
@@ -665,7 +683,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     </span>
                     {slaOverdue ? (
                       <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/60 dark:text-red-300">
-                        Overdue &gt;10m
+                        Overdue &gt;{rowSlaMin}m
                       </span>
                     ) : null}
                     {p.invoice_status === "void" ? (

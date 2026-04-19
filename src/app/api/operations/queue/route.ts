@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { resolvePaymentVerificationSlaMin } from "@/lib/payment-verification-sla";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -168,11 +169,24 @@ export async function GET(req: Request) {
   const clientMap = new Map((paymentClients ?? []).map((u) => [u.id, u.email ?? null]));
   const clientPhoneMap = new Map((paymentClientProfiles ?? []).map((u) => [u.id, u.phone ?? null]));
 
-  // SLA threshold: payment pending for more than 30 min without staff verification
-  const verificationSlaMin = 30;
+  const { data: bookingRuleRows } = await admin
+    .from("booking_rules")
+    .select("studio_id, location_id, payment_verification_sla_min")
+    .in("studio_id", studioIds);
+  const slaRules = (bookingRuleRows ?? []) as Array<{
+    studio_id: string;
+    location_id: string | null;
+    payment_verification_sla_min: number | null;
+  }>;
+  const getSlaMin = (studioId: string, locationId: string | null) =>
+    resolvePaymentVerificationSlaMin(slaRules, studioId, locationId);
+
+  // SLA threshold: payment pending for too long without staff verification
   const nowMs = new Date().getTime();
 
   function getExceptionCode(p: {
+    studio_id: string;
+    location_id: string | null;
     amount: number | null;
     paid_amount: number | null;
     reference_code: string | null;
@@ -186,10 +200,11 @@ export async function GET(req: Request) {
     if (!p.reference_code) return "missing_reference" as const;
     if (p.recon_status === "manual_review") return "manual_review" as const;
     if (p.recon_status === "mismatch") return "amount_mismatch" as const;
+    const slaMin = getSlaMin(p.studio_id, p.location_id ?? null);
     if (
       p.created_at &&
       !p.verified_at &&
-      nowMs - new Date(p.created_at).getTime() > verificationSlaMin * 60 * 1000
+      nowMs - new Date(p.created_at).getTime() > slaMin * 60 * 1000
     ) {
       return "verification_sla_overdue" as const;
     }
@@ -246,10 +261,11 @@ export async function GET(req: Request) {
       const waitMinutes = submitted
         ? Math.max(0, Math.floor((nowMs - new Date(submitted).getTime()) / (60 * 1000)))
         : 0;
+      const slaMin = getSlaMin(p.studio_id, p.location_id ?? null);
       const slaOverdue =
         submitted &&
         !p.verified_at &&
-        nowMs - new Date(submitted).getTime() > verificationSlaMin * 60 * 1000;
+        nowMs - new Date(submitted).getTime() > slaMin * 60 * 1000;
       return {
         id: p.id,
         type: "pending_verification",
