@@ -4,30 +4,30 @@ export const site = {
   name: "Studio",
   title: "Studio — Bookings Made Simple",
   description:
-    "Simple class booking, visit packs, and frontdesk tools for gyms and studios.",
-  badge: "For studios, gyms & wellness spaces",
-  homeHeadline: "Fill classes faster with less admin work",
+    "PayNow booking, automatic payment tracking, and a front desk dashboard for Singapore fitness studios.",
+  badge: "For gyms, yoga & wellness studios · Singapore",
+  homeHeadline: "Run your studio without the admin pile",
   homeLead:
-    "One booking link for members, one daily desk view for staff, and one clean payment record for owners.",
+    "PayNow booking links, automatic payment tracking, and a front desk dashboard — built for Singapore studios. No more WhatsApp to confirm a transfer.",
   marketing: {
     memberHighlights: [
-      "Book any class in seconds — real-time spots, no calls needed",
-      "Know your payment status the moment staff verifies it",
-      "Cancellation and no-show rules shown clearly before you commit",
-      "Booked as a guest before? Your full history links when you sign in",
+      "Pick any class and book in under a minute — real-time spots, no phone calls",
+      "Pay via PayNow and get confirmed the moment the transfer clears",
+      "Cancellation windows and credit rules shown clearly before you commit",
+      "Booked as a guest before? Sign in once to see your full history and credits",
     ],
     memberIntro:
-      "Book, pay, and track everything in one place — no more chasing staff on WhatsApp.",
+      "Track bookings, credits, and payments in one place — no more asking staff on WhatsApp.",
     ownerHighlights: [
-      "Handle today's desk tasks: payment checks, arrivals, and quick fixes",
-      "Track payment records with filters, CSV export, and audit timeline",
-      "Send invoice PDFs after payment is confirmed",
+      "Today's pending payments, arrivals, and exceptions — one front desk view",
+      "Filter, search, and export payment records with a full audit trail",
+      "Invoice PDFs sent automatically once payment is confirmed",
     ],
     ownerIntro:
-      "Run daily operations with fewer manual steps and better visibility across locations.",
+      "Fewer manual steps, better visibility — across sessions, locations, and payment methods.",
     paymentFlowNote:
-      "Payment flow: you upload transfer proof, staff confirms, and your booking is locked in.",
+      "Payment via PayNow: transfer to the studio's UEN or mobile, and your booking is confirmed once it clears.",
     mergeNote:
-      "Used a guest email before? Sign in with the same address to merge your history automatically.",
+      "Used a guest email before? Sign in with the same address to merge your full history automatically.",
   },
 } as const;

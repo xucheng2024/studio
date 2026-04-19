@@ -45,7 +45,7 @@ export default async function Home({ searchParams }: Props) {
             </span>
             <span className="flex flex-col justify-center gap-0.5">
               <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">Book a class</span>
-              <span className={`text-xs ${ui.muted}`}>Real-time seats, clear rules, verified payment flow</span>
+              <span className={`text-xs ${ui.muted}`}>Pick a slot, pay via PayNow — seat held instantly</span>
             </span>
           </Link>
 
@@ -55,7 +55,7 @@ export default async function Home({ searchParams }: Props) {
             </span>
             <span className="flex flex-col justify-center gap-0.5">
               <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">Buy a class pack</span>
-              <span className={`text-xs ${ui.muted}`}>Top up credits, book faster, full usage history in one account</span>
+              <span className={`text-xs ${ui.muted}`}>Credits ready when you are — book any class in seconds</span>
             </span>
           </Link>
 
@@ -65,9 +65,9 @@ export default async function Home({ searchParams }: Props) {
               <RefreshCw size={19} />
             </span>
             <span className="flex flex-col justify-center gap-0.5">
-              <span className="text-sm font-semibold text-stone-600 dark:text-stone-400">Keep member history synced</span>
+              <span className="text-sm font-semibold text-stone-600 dark:text-stone-400">One account, full history</span>
               <span className={`text-xs ${ui.muted}`}>
-                Sign in with your guest email to merge bookings, payments, and credits into one timeline
+                Sign in with your guest email to link all past bookings, payments, and credits automatically
               </span>
             </span>
           </div>
@@ -77,22 +77,26 @@ export default async function Home({ searchParams }: Props) {
               <LayoutDashboard size={19} />
             </span>
             <span className="flex flex-col justify-center gap-0.5">
-              <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">Operations workspace</span>
-              <span className={`text-xs ${ui.muted}`}>Daily desk view, payment records, invoices, multi-location tools</span>
+              <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">Studio dashboard</span>
+              <span className={`text-xs ${ui.muted}`}>Pending payments, today&apos;s arrivals, records &amp; invoices</span>
             </span>
           </Link>
         </div>
 
-        <p className={`mt-10 text-sm ${ui.muted}`}>
-          Each studio can share one booking URL like{" "}
-          <code className={ui.code}>/booking/your-slug</code> — print the QR from the dashboard.
-          {` ${site.marketing.paymentFlowNote} ${site.marketing.mergeNote}`}
-          Need access?{" "}
-          <Link href="/auth" className={ui.link}>
-            Sign in
-          </Link>
-          .
-        </p>
+        <div className={`mt-10 rounded-xl border border-stone-100 bg-stone-50/60 px-4 py-3 text-sm ${ui.muted} dark:border-stone-800 dark:bg-stone-900/40`}>
+          <p>
+            Studios get a shareable booking link at{" "}
+            <code className={ui.code}>/booking/your-slug</code>{" "}
+            — print the QR code directly from the dashboard.{" "}
+            {site.marketing.paymentFlowNote}
+          </p>
+          <p className="mt-1.5">
+            {site.marketing.mergeNote}{" "}
+            <Link href="/auth" className={ui.link}>
+              Sign in →
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );
