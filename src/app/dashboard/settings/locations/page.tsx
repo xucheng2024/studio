@@ -116,7 +116,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Phone (optional)</span>
-            <input name="phone" className={ui.input} placeholder="+65 ..." />
+            <input name="phone" type="tel" inputMode="tel" className={ui.input} placeholder="+65 9123 4567" />
           </label>
           <div className="md:col-span-2">
             <SubmitButton className={ui.btnPrimary} pendingText="Creating...">
@@ -131,7 +131,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
       <div className={ui.card}>
         <p className={`mb-3 text-xs ${ui.muted}`}>Locations are used for schedule/frontdesk/operations filters and scoped staff access.</p>
         {(locations ?? []).length === 0 ? (
-          <p className={ui.muted}>No locations added yet.</p>
+          <p className={`text-sm ${ui.muted}`}>No locations added yet. Add one above to enable per-location filtering and scoped staff access.</p>
         ) : (
           <div className="space-y-3">
             {(locations ?? []).map((loc) => (
@@ -154,7 +154,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
                     <input name="name" required defaultValue={loc.name} className={ui.input} />
                     <input name="address" defaultValue={loc.address ?? ""} className={ui.input} placeholder="Address" />
                     <div className="flex gap-2">
-                      <input name="phone" defaultValue={loc.phone ?? ""} className={ui.input} placeholder="Phone" />
+                      <input name="phone" type="tel" inputMode="tel" defaultValue={loc.phone ?? ""} className={ui.input} placeholder="+65 9123 4567" />
                       <SubmitButton className={ui.btnSecondarySm} pendingText="Saving...">
                         Save
                       </SubmitButton>

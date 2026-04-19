@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { BuyPackageButton } from "@/components/BuyButtons";
@@ -20,6 +21,7 @@ export default async function CheckoutPage() {
       credits,
       price,
       expiry_days,
+      image_url,
       studios (
         name,
         paynow_enabled,
@@ -78,60 +80,75 @@ export default async function CheckoutPage() {
             paynow_mobile: studioRow?.paynow_mobile ?? null,
             paynow_payee_name: studioRow?.paynow_payee_name ?? null,
           });
+          const imageUrl = (p as { image_url?: string | null }).image_url ?? null;
           return (
-            <li key={p.id} className={ui.card}>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                {/* ── Left: pack info ── */}
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
-                    <ShoppingBag size={19} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-stone-900 dark:text-stone-100">{p.name}</p>
-                    <p className={`mt-0.5 text-sm ${ui.muted}`}>{studio}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 size={11} className="text-teal-600 dark:text-teal-400" />
-                        {p.credits} credits
+            <li key={p.id} className="overflow-hidden rounded-2xl border border-stone-200/90 bg-white/95 shadow-sm dark:border-stone-800/90 dark:bg-stone-900/70">
+              {/* Cover image */}
+              {imageUrl ? (
+                <div className="relative h-36 w-full sm:h-44">
+                  <Image
+                    src={imageUrl}
+                    alt={p.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, 672px"
+                  />
+                </div>
+              ) : null}
+
+              <div className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  {/* ── Left: pack info ── */}
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    {!imageUrl ? (
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                        <ShoppingBag size={19} />
                       </span>
-                      {p.expiry_days != null ? (
+                    ) : null}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-stone-900 dark:text-stone-100">{p.name}</p>
+                      <p className={`mt-0.5 text-sm ${ui.muted}`}>{studio}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                         <span className="flex items-center gap-1">
-                          <Clock size={11} />
-                          Expires in {p.expiry_days} days
+                          <CheckCircle2 size={11} className="text-teal-600 dark:text-teal-400" />
+                          {p.credits} credits
                         </span>
+                        {p.expiry_days != null ? (
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} />
+                            Expires in {p.expiry_days} days
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} />
+                            No expiry
+                          </span>
+                        )}
+                      </div>
+                      {!paynow.configured ? (
+                        <p className={`mt-1.5 flex items-center gap-1 text-xs ${ui.error}`}>
+                          <AlertCircle size={11} />
+                          {paynow.line}
+                        </p>
                       ) : (
-                        <span className="flex items-center gap-1">
-                          <Clock size={11} />
-                          No expiry
-                        </span>
+                        <p className={`mt-1 text-xs ${ui.muted}`}>{paynow.line}</p>
                       )}
                     </div>
-                    {!paynow.configured ? (
-                      <p className={`mt-1.5 flex items-center gap-1 text-xs ${ui.error}`}>
-                        <AlertCircle size={11} />
-                        {paynow.line}
-                      </p>
+                  </div>
+
+                  {/* ── Right: price + action ── */}
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <p className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-100">
+                      ${Number(p.price).toFixed(2)}
+                    </p>
+                    {user ? (
+                      <BuyPackageButton packageId={p.id} disabled={!paynow.configured} />
                     ) : (
-                      <p className={`mt-1 text-xs ${ui.muted}`}>{paynow.line}</p>
+                      <Link href={`/auth?next=/checkout`} className={ui.btnPrimarySm}>
+                        Sign in to buy
+                      </Link>
                     )}
                   </div>
-                </div>
-
-                {/* ── Right: price + action ── */}
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <p className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-100">
-                    ${Number(p.price).toFixed(2)}
-                  </p>
-                  {user ? (
-                    <BuyPackageButton packageId={p.id} disabled={!paynow.configured} />
-                  ) : (
-                    <Link
-                      href={`/auth?next=/checkout`}
-                      className={ui.btnPrimarySm}
-                    >
-                      Sign in to buy
-                    </Link>
-                  )}
                 </div>
               </div>
             </li>

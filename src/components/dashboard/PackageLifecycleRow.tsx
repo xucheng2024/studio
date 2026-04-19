@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, CheckCircle2, Copy, Pause, Play, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { Check, Copy, Pause, Play, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 import { EntityCoverUpload } from "@/components/dashboard/EntityCoverUpload";
 import { ui } from "@/lib/ui";
 
@@ -36,8 +37,8 @@ export function PackageLifecycleRow({
   locations: Loc[];
 }) {
   const router = useRouter();
-  const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [name, setName] = useState(initial.name);
   const [credits, setCredits] = useState(String(initial.credits));
   const [price, setPrice] = useState(String(initial.price));
@@ -47,7 +48,6 @@ export function PackageLifecycleRow({
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
 
   const copyPurchaseLink = async () => {
-    setMsg(null);
     setBusy(true);
     const res = await fetch("/api/dashboard/share-link", {
       method: "POST",
@@ -57,21 +57,20 @@ export function PackageLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      setMsg(body.error ?? "Could not build link");
+      toast.error(body.error ?? "Could not build link");
       return;
     }
     if (body.url) {
       try {
         await navigator.clipboard.writeText(body.url);
-        setMsg("Copied purchase link");
+        toast.success("Purchase link copied");
       } catch {
-        setMsg(body.url);
+        toast.info(body.url);
       }
     }
   };
 
   const save = async () => {
-    setMsg(null);
     setBusy(true);
     const creditsNum = Number(credits);
     const priceNum = Number(price);
@@ -90,57 +89,54 @@ export function PackageLifecycleRow({
     setBusy(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setMsg(body.error ?? "Save failed");
+      toast.error(body.error ?? "Save failed");
       return;
     }
-    setMsg("Saved");
+    toast.success("Changes saved");
     router.refresh();
   };
 
   const stopSelling = async () => {
-    setMsg(null);
     setBusy(true);
     const res = await fetch(`/api/dashboard/packages/${packageId}/disable`, { method: "POST" });
     setBusy(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setMsg(body.error ?? "Failed");
+      toast.error(body.error ?? "Failed");
       return;
     }
+    toast.success("Package stopped");
     router.refresh();
   };
 
   const resume = async () => {
-    setMsg(null);
     setBusy(true);
     const res = await fetch(`/api/dashboard/packages/${packageId}/restore`, { method: "POST" });
     setBusy(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setMsg(body.error ?? "Failed");
+      toast.error(body.error ?? "Failed");
       return;
     }
+    toast.success("Package resumed");
     router.refresh();
   };
 
   const deletePackage = async () => {
-    setMsg(null);
-    if (!window.confirm("Delete this package? This only works when there is no sales history for it.")) {
-      return;
-    }
     setBusy(true);
+    setDeleteConfirm(false);
     const res = await fetch(`/api/dashboard/packages/${packageId}`, { method: "DELETE" });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
       if (body.error === "package_has_sales") {
-        setMsg("This package has sales history. Stop selling instead.");
+        toast.error("This package has sales history. Stop selling instead.");
         return;
       }
-      setMsg(body.error ?? "Failed");
+      toast.error(body.error ?? "Delete failed");
       return;
     }
-    setMsg("Deleted");
+    toast.success("Package deleted");
     router.refresh();
   };
 
@@ -261,30 +257,34 @@ export function PackageLifecycleRow({
           )
         ) : null}
         {canEdit ? (
-          <button
-            type="button"
-            disabled={busy}
-            className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
-            onClick={() => void deletePackage()}
-          >
-            <Trash2 size={13} />
-            Delete
-          </button>
+          deleteConfirm ? (
+            <span className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs dark:border-red-800/50 dark:bg-red-950/20">
+              <AlertTriangle size={12} className="text-red-600 dark:text-red-400" />
+              <span className="text-red-700 dark:text-red-300">Delete package?</span>
+              <button
+                type="button"
+                className="font-semibold text-red-700 hover:underline dark:text-red-400"
+                onClick={() => void deletePackage()}
+              >
+                Yes, delete
+              </button>
+              <button type="button" className={ui.btnGhost} onClick={() => setDeleteConfirm(false)}>
+                <X size={11} />
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
+              onClick={() => setDeleteConfirm(true)}
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
+          )
         ) : null}
       </div>
-
-      {msg ? (
-        <p className={`flex items-center gap-1.5 pt-0.5 text-xs ${
-          msg === "Saved" || msg === "Copied purchase link" || msg === "Deleted"
-            ? "text-teal-700 dark:text-teal-400"
-            : "text-red-600 dark:text-red-400"
-        }`}>
-          {msg === "Saved" || msg === "Copied purchase link" || msg === "Deleted"
-            ? <CheckCircle2 size={12} />
-            : <AlertCircle size={12} />}
-          {msg}
-        </p>
-      ) : null}
     </div>
   );
 }

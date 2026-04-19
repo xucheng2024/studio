@@ -6,6 +6,7 @@ import {
   CheckCircle2, XCircle, RefreshCcw, Ban,
   AlertTriangle, Check, X, Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { ui } from "@/lib/ui";
 
 const statusConfig = {
@@ -43,12 +44,24 @@ export function PaymentMarkButton({
     if (status === "refunded" && refundReason.trim()) {
       body.refund_reason = refundReason.trim();
     }
-    await fetch("/api/payment/mark", {
+    const res = await fetch("/api/payment/mark", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     setBusy(false);
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      toast.error(errBody.error ?? "Action failed");
+      return;
+    }
+    const successMessages: Record<string, string> = {
+      paid: "Payment confirmed",
+      failed: "Marked as failed",
+      expired: "Marked as expired",
+      refunded: "Refund recorded",
+    };
+    toast.success(successMessages[status] ?? "Done");
     if (status === "refunded") setRefundReason("");
     if (onDone) onDone();
     else router.refresh();

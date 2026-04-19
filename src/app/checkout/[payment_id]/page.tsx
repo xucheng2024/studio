@@ -97,9 +97,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
   const expiryLabel =
     expiresAt && isPending
-      ? expiresAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
-        ", " +
-        expiresAt.toLocaleDateString([], { month: "short", day: "numeric" })
+      ? expiresAt.toLocaleString("en-SG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
       : null;
 
   return (
@@ -110,10 +108,18 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       <div className="flex flex-col gap-5">
 
         {/* ── Back link ── */}
-        <Link href="/booking" className={`inline-flex items-center gap-1.5 text-sm ${ui.linkMuted} w-fit`}>
+        <Link
+          href={payment.booking_id ? "/me/bookings" : "/checkout"}
+          className={`inline-flex items-center gap-1.5 text-sm ${ui.linkMuted} w-fit`}
+        >
           <ArrowLeft size={14} />
-          Back to booking
+          {payment.booking_id ? "My bookings" : "Browse packages"}
         </Link>
+
+        {/* ── Page title (visually hidden, for a11y / SEO) ── */}
+        <h1 className="sr-only">
+          {isPaid ? "Payment confirmed" : isFailed ? `Payment ${payment.status}` : "Complete your payment"}
+        </h1>
 
         {/* ── Amount hero ── */}
         <div className="rounded-2xl bg-linear-to-br from-teal-600 to-teal-700 px-6 py-7 text-center shadow-lg shadow-teal-900/20 dark:from-teal-700 dark:to-teal-800">

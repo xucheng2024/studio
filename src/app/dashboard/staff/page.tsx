@@ -47,44 +47,53 @@ export default async function StaffPage({ searchParams }: Props) {
         </div>
       </div>
       <div className={ui.card}>
-        <p className={`mb-2 text-xs ${ui.muted}`}>On phone, swipe horizontally to view all columns.</p>
-        <div className="overflow-auto">
-          <table className="min-w-[720px] text-sm">
-          <thead>
-            <tr className="text-left text-stone-500">
-              <th className="px-3 py-2">Role</th>
-              <th className="px-3 py-2">User</th>
-              <th className="px-3 py-2">Studio</th>
-              <th className="px-3 py-2">Location</th>
-              <th className="px-3 py-2">Active</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(staff ?? []).map((s) => (
-              <tr key={s.id} className="border-t border-stone-200/70 dark:border-stone-800/70">
-                <td className="px-3 py-2">{s.role}</td>
-                <td className="px-3 py-2 text-xs">
-                  {(
-                    ((Array.isArray(s.users) ? s.users[0] : s.users) as { email?: string | null } | null)?.email ??
-                    s.user_id
-                  )}
-                </td>
-                <td className="px-3 py-2 font-mono text-xs">{s.studio_id}</td>
-                <td className="px-3 py-2 font-mono text-xs">{s.location_id ?? "all"}</td>
-                <td className="px-3 py-2">
+        {!(staff ?? []).length ? (
+          <p className={`text-sm ${ui.muted}`}>No staff members yet. Send an invite to get started.</p>
+        ) : (
+          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+            {(staff ?? []).map((s) => {
+              const email =
+                ((Array.isArray(s.users) ? s.users[0] : s.users) as { email?: string | null } | null)?.email ??
+                s.user_id;
+              const roleBg = s.role === "owner"
+                ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                : s.role === "manager"
+                  ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                  : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300";
+              return (
+                <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${roleBg}`}>
+                        {s.role}
+                      </span>
+                      {!s.is_active ? (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-500 dark:bg-red-950/40 dark:text-red-400">
+                          disabled
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{email}</span>
+                    <span className={`text-xs ${ui.muted}`}>
+                      {s.location_id ? `Location-scoped` : "All locations"}
+                    </span>
+                  </div>
                   <form action={toggleStaffMembership}>
                     <input type="hidden" name="membership_id" value={s.id} />
                     <input type="hidden" name="next_active" value={String(!s.is_active)} />
-                    <button type="submit" className={ui.linkMuted} disabled={s.role === "owner"}>
+                    <button
+                      type="submit"
+                      className={`${s.is_active ? ui.btnGhost : ui.btnSecondarySm} text-xs`}
+                      disabled={s.role === "owner"}
+                    >
                       {s.is_active ? "Disable" : "Enable"}
                     </button>
                   </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          </table>
-        </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

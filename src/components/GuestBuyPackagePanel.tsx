@@ -66,9 +66,12 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
         className={ui.input}
       />
       <input
+        type="tel"
+        inputMode="tel"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         placeholder="Phone (optional)"
+        autoComplete="tel"
         className={ui.input}
       />
       <button type="submit" disabled={busy || disabled} className={`${ui.btnPrimary} disabled:opacity-50`}>

@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, CheckCircle2, Pencil, AlertCircle } from "lucide-react";
+import { Check, Pencil, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { ui } from "@/lib/ui";
 
 type LocationOption = { id: string; name: string };
@@ -24,7 +25,7 @@ export function SessionEditPanel({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [validationMsg, setValidationMsg] = useState<string | null>(null);
   const [startTime, setStartTime] = useState(() => {
     const d = new Date(initial.start_time);
     const tzOffsetMs = d.getTimezoneOffset() * 60000;
@@ -83,19 +84,19 @@ export function SessionEditPanel({
             const parsedGuestPrice = Number(guestPrice);
             const parsedCredits = Number(creditsRequired);
             if (!Number.isFinite(parsedCapacity) || parsedCapacity < 1) {
-              setMsg("Capacity must be a positive number");
+              setValidationMsg("Capacity must be a positive number");
               return;
             }
             if (!Number.isFinite(parsedGuestPrice) || parsedGuestPrice < 0) {
-              setMsg("Guest price must be 0 or greater");
+              setValidationMsg("Guest price must be 0 or greater");
               return;
             }
             if (!Number.isFinite(parsedCredits) || parsedCredits < 1) {
-              setMsg("Credits required must be a positive number");
+              setValidationMsg("Credits required must be a positive number");
               return;
             }
             setBusy(true);
-            setMsg(null);
+            setValidationMsg(null);
             const local = new Date(startTime);
             const res = await fetch(`/api/dashboard/sessions/${sessionId}`, {
               method: "PATCH",
@@ -111,22 +112,20 @@ export function SessionEditPanel({
             const body = await res.json().catch(() => ({}));
             setBusy(false);
             if (!res.ok) {
-              setMsg(body.error ?? "save_failed");
+              toast.error(body.error ?? "Save failed");
               return;
             }
-            setMsg("Saved");
+            toast.success("Session saved");
             router.refresh();
           }}
         >
           <Check size={13} />
           {busy ? "Saving…" : "Save session"}
         </button>
-        {msg ? (
-          <p className={`flex items-center gap-1.5 text-xs sm:col-span-2 ${
-            msg === "Saved" ? "text-teal-700 dark:text-teal-400" : "text-red-600 dark:text-red-400"
-          }`}>
-            {msg === "Saved" ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-            {msg}
+        {validationMsg ? (
+          <p className="flex items-center gap-1.5 text-xs text-red-600 sm:col-span-2 dark:text-red-400">
+            <AlertCircle size={12} />
+            {validationMsg}
           </p>
         ) : null}
       </div>

@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CreditCard, Loader2, AlertCircle } from "lucide-react";
+import { CreditCard, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { ui } from "@/lib/ui";
 
 export function BookButton({
@@ -14,8 +15,6 @@ export function BookButton({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [isError, setIsError] = useState(false);
 
   const toFriendly = (code: string) => {
     if (code === "full") return "This class is full. Please pick another time.";
@@ -28,15 +27,12 @@ export function BookButton({
   if (disabled) return null;
 
   return (
-    <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        disabled={loading}
-        className={`${ui.btnSecondarySm} disabled:opacity-50`}
-        onClick={async () => {
+    <button
+      type="button"
+      disabled={loading}
+      className={`${ui.btnSecondarySm} disabled:opacity-50`}
+      onClick={async () => {
           setLoading(true);
-          setMessage(null);
-          setIsError(false);
           const res = await fetch("/api/book/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -45,31 +41,19 @@ export function BookButton({
           const body = await res.json().catch(() => ({}));
           setLoading(false);
           if (!res.ok) {
-            setMessage(toFriendly(String(body.error ?? "")));
-            setIsError(true);
+            toast.error(toFriendly(String(body.error ?? "")));
             return;
           }
           if (body.checkout_url) {
             router.push(body.checkout_url);
-            return;
           }
-          setMessage("Reservation created. Proceeding to payment…");
         }}
       >
         {loading ? (
-          <><Loader2 size={12} className="animate-spin" /> Processing…</>
-        ) : (
-          <><CreditCard size={12} /> Pay by transfer</>
-        )}
-      </button>
-      {message ? (
-        <span className={`flex items-center gap-1 text-xs ${
-          isError ? "text-red-600 dark:text-red-400" : ui.muted
-        }`}>
-          {isError ? <AlertCircle size={11} /> : null}
-          {message}
-        </span>
-      ) : null}
-    </div>
+        <><Loader2 size={12} className="animate-spin" /> Processing…</>
+      ) : (
+        <><CreditCard size={12} /> Pay by transfer</>
+      )}
+    </button>
   );
 }

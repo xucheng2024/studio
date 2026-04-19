@@ -315,7 +315,7 @@ export default async function ReportsPage({ searchParams }: Props) {
               <a
                 key={label}
                 href={`?${params.toString()}`}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors min-h-[32px] inline-flex items-center ${
                   isActive
                     ? "border-teal-400 bg-teal-50 text-teal-800 dark:border-teal-600 dark:bg-teal-950/40 dark:text-teal-300"
                     : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 dark:hover:border-stone-600 dark:hover:text-stone-200"
@@ -383,28 +383,24 @@ export default async function ReportsPage({ searchParams }: Props) {
       <div className={ui.card}>
         <h2 className={`${ui.h2} text-base`}>Net revenue by day</h2>
         <p className={`mt-1 text-xs ${ui.muted}`}>Each row: gross paid, refunds, net for that calendar day.</p>
-        <div className="overflow-auto">
-          <table className="mt-4 min-w-[480px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-stone-200 dark:border-stone-700">
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Date</th>
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Gross</th>
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Refunds</th>
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Net</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byDay.map((row) => (
-                <tr key={row.day} className="border-b border-stone-100 last:border-0 dark:border-stone-800">
-                  <td className="py-2.5 text-stone-900 dark:text-stone-100">{row.day}</td>
-                  <td className="py-2.5 tabular-nums">${row.gross.toFixed(2)}</td>
-                  <td className="py-2.5 tabular-nums">${row.refunds.toFixed(2)}</td>
-                  <td className="py-2.5 tabular-nums font-medium">${row.net.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="mt-3 divide-y divide-stone-100 text-sm dark:divide-stone-800">
+          {byDay.map((row) => (
+            <li key={row.day} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5">
+              <span className="font-medium tabular-nums text-stone-800 dark:text-stone-200">{row.day}</span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                <span className="tabular-nums text-stone-600 dark:text-stone-400">
+                  <span className="mr-1 text-xs">Gross</span>${row.gross.toFixed(2)}
+                </span>
+                <span className="tabular-nums text-stone-500 dark:text-stone-500">
+                  <span className="mr-1 text-xs">Ref</span>−${row.refunds.toFixed(2)}
+                </span>
+                <span className="min-w-20 text-right font-semibold tabular-nums text-stone-900 dark:text-stone-100">
+                  ${row.net.toFixed(2)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
         {!byDay.length ? <p className={`mt-4 text-sm ${ui.muted}`}>No payments in this range.</p> : null}
       </div>
 
@@ -438,44 +434,32 @@ export default async function ReportsPage({ searchParams }: Props) {
             <button type="submit" className={ui.btnSecondarySm}>Apply</button>
           </form>
         </div>
-        <p className={`mt-2 text-xs ${ui.muted}`}>On phone, swipe horizontally to view all columns.</p>
-        <div className="overflow-auto">
-          <table className="mt-4 min-w-[520px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-stone-200 dark:border-stone-700">
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Class</th>
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Booked</th>
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Attended</th>
-                <th className="py-2.5 font-medium text-stone-600 dark:text-stone-400">Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classRowsTop.map((row) => {
-                const rate = row.rate >= 0 ? row.rate : null;
-                return (
-                  <tr key={row.id} className="border-b border-stone-100 last:border-0 dark:border-stone-800">
-                    <td className="py-2.5 text-stone-900 dark:text-stone-100">{row.title}</td>
-                    <td className="py-2.5 tabular-nums text-stone-700 dark:text-stone-300">{row.booked}</td>
-                    <td className="py-2.5 tabular-nums text-stone-700 dark:text-stone-300">{row.attended}</td>
-                    <td className="py-2.5 tabular-nums">
-                      {rate !== null ? (
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          rate >= 80
-                            ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                            : rate >= 50
-                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                              : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
-                        }`}>
-                          {rate}%
-                        </span>
-                      ) : "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ul className="mt-3 divide-y divide-stone-100 text-sm dark:divide-stone-800">
+          {classRowsTop.map((row) => {
+            const rate = row.rate >= 0 ? row.rate : null;
+            return (
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5">
+                <span className="min-w-0 flex-1 truncate font-medium text-stone-800 dark:text-stone-200">{row.title}</span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className={`text-xs ${ui.muted}`}>
+                    {row.attended} / {row.booked}
+                  </span>
+                  {rate !== null ? (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      rate >= 80
+                        ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                        : rate >= 50
+                          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+                    }`}>
+                      {rate}%
+                    </span>
+                  ) : <span className={ui.muted}>—</span>}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
         {!Object.keys(byClassAttendance).length ? (
           <p className={`mt-4 text-sm ${ui.muted}`}>No booking data in this range.</p>
         ) : null}
@@ -492,26 +476,26 @@ export default async function ReportsPage({ searchParams }: Props) {
             return (
               <li
                 key={row.id}
-                className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 dark:border-amber-900/70 dark:bg-amber-950/30"
+                className="flex items-start justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 dark:border-amber-900/70 dark:bg-amber-950/30"
               >
-                <span className="font-medium text-stone-900 dark:text-stone-100">
-                  {u?.email ?? row.client_id ?? "unknown member"}
-                </span>{" "}
-                · {pkg?.name ?? "Package"} ·{" "}
-                <span className="tabular-nums text-amber-800 dark:text-amber-300">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-stone-900 dark:text-stone-100" title={u?.email ?? row.client_id ?? undefined}>
+                    {u?.email ?? row.client_id ?? "unknown member"}
+                  </p>
+                  <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                    {pkg?.name ?? "Package"}
+                    {row.expiry_date ? ` · exp ${new Date(row.expiry_date).toLocaleDateString()}` : ""}
+                  </p>
+                </div>
+                <span className="shrink-0 tabular-nums font-medium text-amber-800 dark:text-amber-300">
                   {row.credits_left} left
                 </span>
-                {row.expiry_date ? (
-                  <span className={`ml-2 ${ui.muted}`}>
-                    exp {new Date(row.expiry_date).toLocaleDateString()}
-                  </span>
-                ) : null}
               </li>
             );
           })}
         </ul>
         {!lowCreditRows?.length ? (
-          <p className={`mt-4 text-sm ${ui.muted}`}>No low-credit members in this range.</p>
+          <p className={`mt-4 text-sm ${ui.muted}`}>No members with low credits right now.</p>
         ) : null}
       </div>
 

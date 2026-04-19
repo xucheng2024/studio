@@ -426,7 +426,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       </div>
 
       {/* ── Stats grid (2 cols on mobile) ───────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div className={ui.statCard}>
           <p className={`text-xs ${ui.muted}`}>Today received</p>
           <p className="mt-1 text-xl font-semibold">${scopedStats.todayReceived.toFixed(2)}</p>
@@ -604,10 +604,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               <span className={ui.label}>Reference code</span>
               <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
         </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={`${ui.label} whitespace-nowrap`}>Search</span>
-          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Member / email / note" />
-            </label>
           </div>
         </details>
 
@@ -616,8 +612,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters
           </SubmitButton>
-          <DashboardAppLink href={`/dashboard/payments?view=${view}&studio_id=${activeStudioId}`} className={ui.btnGhost}>
-            Reset
+          <DashboardAppLink
+            href={`/dashboard/payments?view=${view}&studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            className={ui.btnGhost}
+          >
+            Clear filters
           </DashboardAppLink>
         </div>
       </form>
@@ -701,7 +700,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
                 <div className="flex gap-2">
                   <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Member</dt>
-                  <dd className="truncate font-medium text-stone-700 dark:text-stone-300">{clientLabelWithPhone}</dd>
+                  <dd className="min-w-0 break-all font-medium text-stone-700 dark:text-stone-300">{clientLabelWithPhone}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Method</dt>

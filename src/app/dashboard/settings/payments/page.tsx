@@ -1,5 +1,7 @@
 import { updateStudioPaynowSettings } from "@/app/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Toggle } from "@/components/ui/Toggle";
 import { getDashboardScope } from "@/lib/dashboard";
 import { getPaynowSummary, validatePaynowConfig } from "@/lib/paynow";
 import { bestRole } from "@/lib/rbac";
@@ -52,19 +54,17 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
   return (
     <div className="flex max-w-2xl flex-col gap-6">
       <div>
+        <DashboardAppLink href="/dashboard/settings" className={`${ui.btnSecondarySm} mb-3`}>
+          ← Settings
+        </DashboardAppLink>
         <h1 className={ui.h1}>Payment settings</h1>
         <p className={`mt-1 ${ui.muted}`}>Configure PayNow for {studio.name}.</p>
       </div>
 
       <form action={updateStudioPaynowSettings} className={`${ui.card} grid gap-4`}>
         <input type="hidden" name="studio_id" value={studio.id} />
-        <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-          <input
-            type="checkbox"
-            name="paynow_enabled"
-            defaultChecked={Boolean(studio.paynow_enabled)}
-            className="h-4 w-4 rounded border-stone-300"
-          />
+        <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
+          <Toggle name="paynow_enabled" defaultChecked={Boolean(studio.paynow_enabled)} />
           Enable PayNow
         </label>
 

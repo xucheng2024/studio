@@ -6,6 +6,9 @@ import { MarkAttendedButton } from "@/components/MarkAttendedButton";
 import { SessionEditPanel } from "@/components/SessionEditPanel";
 import { SessionShareButton } from "@/components/SessionShareButton";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DefaultDatetimeInput } from "@/components/ui/DefaultDatetimeInput";
+import { Toggle } from "@/components/ui/Toggle";
+import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
@@ -283,17 +286,15 @@ export default async function SchedulePage({ searchParams }: Props) {
               />
               <span className={`text-xs ${ui.muted}`}>Pending payments older than this are flagged as overdue.</span>
             </label>
-            <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-              <input
-                type="checkbox"
+            <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
+              <Toggle
                 name="late_cancel_deduct_credit"
                 defaultChecked={activeRules?.late_cancel_deduct_credit ?? true}
               />
               Deduct 1 credit for late cancel
             </label>
-            <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-              <input
-                type="checkbox"
+            <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
+              <Toggle
                 name="no_show_deduct_credit"
                 defaultChecked={activeRules?.no_show_deduct_credit ?? true}
               />
@@ -314,6 +315,13 @@ export default async function SchedulePage({ searchParams }: Props) {
             <span>+ Create session</span>
             <span className={`text-xs font-normal ${ui.muted}`}>Expand to add</span>
           </summary>
+          {(classes ?? []).length === 0 ? (
+            <p className={`mt-4 text-sm ${ui.muted}`}>
+              No class templates yet.{" "}
+              <a href="/dashboard/classes" className={ui.link}>Create a class</a>{" "}
+              first, then come back to schedule sessions.
+            </p>
+          ) : (
           <form action={createSession} className="mt-4 flex flex-col gap-4">
             <input type="hidden" name="studio_id" value={activeStudioId} />
             <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
@@ -330,7 +338,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Start</span>
-              <input name="start_time" type="datetime-local" required className={ui.input} />
+              <DefaultDatetimeInput name="start_time" required className={ui.input} />
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1.5">
@@ -346,6 +354,7 @@ export default async function SchedulePage({ searchParams }: Props) {
               Create session
             </SubmitButton>
           </form>
+          )}
         </details>
 
         <details className={`chevron ${ui.card} mt-8 max-w-xl`} id="recurring-schedule">
@@ -354,6 +363,13 @@ export default async function SchedulePage({ searchParams }: Props) {
             <span className={`text-xs font-normal ${ui.muted}`}>Expand advanced</span>
           </summary>
           <p className={`mt-1 text-xs ${ui.muted}`}>Advanced setup. Use when you need auto-generated sessions.</p>
+          {(classes ?? []).length === 0 ? (
+            <p className={`mt-4 text-sm ${ui.muted}`}>
+              No class templates yet.{" "}
+              <a href="/dashboard/classes" className={ui.link}>Create a class</a>{" "}
+              first, then set up recurring rules.
+            </p>
+          ) : (
           <form action={createRecurringRule} className="mt-4 grid gap-4 md:grid-cols-2">
             <input type="hidden" name="studio_id" value={activeStudioId} />
             <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
@@ -368,10 +384,10 @@ export default async function SchedulePage({ searchParams }: Props) {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Weekdays (comma)</span>
-              <input name="by_weekday" defaultValue="mon,wed" className={ui.input} />
-            </label>
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <span className={ui.label}>Weekdays</span>
+              <WeekdayPicker name="by_weekday" defaultValue="mon,wed" />
+            </div>
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Start date</span>
               <input type="date" name="start_date" required className={ui.input} />
@@ -404,6 +420,7 @@ export default async function SchedulePage({ searchParams }: Props) {
               Create recurring rule (8 weeks)
             </SubmitButton>
           </form>
+          )}
         </details>
       </div>
 
@@ -478,7 +495,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                       <p className={`mt-0.5 text-xs ${ui.muted}`}>{locationName}</p>
                     ) : null}
                     <p className={`mt-1 text-sm ${ui.muted}`}>
-                      {new Date(s.start_time).toLocaleString()}
+                      {new Date(s.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                       <span>{s.spots_left} spots left</span>

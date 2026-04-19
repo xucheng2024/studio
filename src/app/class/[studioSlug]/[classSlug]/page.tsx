@@ -173,7 +173,8 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
       <ul className="mt-4 flex max-w-2xl flex-col gap-3">
         {orderedSessions.map((s) => {
           const dt = new Date(s.start_time);
-          const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", month: "short", day: "numeric" });
+          const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
+          const monthLabel = dt.toLocaleDateString("en-SG", { month: "short" });
           const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
           const creditsRequired = Number(s.credits_required ?? 1);
           const sessionCreditCtx = {
@@ -203,13 +204,13 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   {/* Calendar accent */}
                   <div className="flex w-12 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1 dark:border-stone-700 dark:bg-stone-800">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                      {dateLabel.split(" ")[0]}
+                      {weekdayLabel}
                     </span>
                     <span className="text-lg font-bold leading-tight text-stone-900 dark:text-stone-50">
                       {dt.getDate()}
                     </span>
                     <span className="text-[10px] text-stone-500 dark:text-stone-400">
-                      {dateLabel.split(" ")[1]}
+                      {monthLabel}
                     </span>
                   </div>
                   {/* Time + price */}

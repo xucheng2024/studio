@@ -143,7 +143,10 @@ export default async function ClientsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className={ui.h1}>Member records</h1>
+      <div>
+        <h1 className={ui.h1}>Member records</h1>
+        <p className={`mt-1 ${ui.muted}`}>Active credit balances and booking history for your studio members.</p>
+      </div>
 
       <div>
         <h2 className={ui.h2}>Active credits</h2>
@@ -155,9 +158,9 @@ export default async function ClientsPage({ searchParams }: Props) {
         <ul className="mt-4 flex flex-col gap-3 text-sm">
           {memberSummaries.map(({ clientId, email, rows, total, nearestExpiryLabel }) => (
             <li key={clientId}>
-              <details className="rounded-lg border border-stone-200 dark:border-stone-700">
-                <summary className="cursor-pointer list-none px-3 py-2 [&::-webkit-details-marker]:hidden">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <details className="chevron rounded-lg border border-stone-200 dark:border-stone-700">
+                <summary className="cursor-pointer px-3 py-2">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
                     <span className="font-medium text-stone-900 dark:text-stone-100">{email}</span>
                     <span className={`text-xs ${ui.muted}`}>
                       Total credits: <span className="font-semibold text-stone-800 dark:text-stone-200">{total}</span>
@@ -220,7 +223,7 @@ export default async function ClientsPage({ searchParams }: Props) {
               >
                 {/* Row 1: member + status badge */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate max-w-[60%]">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-stone-800 dark:text-stone-200">
                     {memberLabel}
                   </span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badge.tone)}`}>
@@ -230,7 +233,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                 {/* Row 2: class + time */}
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                   <span>{cs?.classes?.title ?? "Class"}</span>
-                  {cs?.start_time ? <span>{new Date(cs.start_time).toLocaleString()}</span> : null}
+                  {cs?.start_time ? <span>{new Date(cs.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span> : null}
                 </div>
               </li>
             );

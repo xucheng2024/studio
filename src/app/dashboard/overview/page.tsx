@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createStudio } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -138,7 +139,10 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
 
       {/* ── Stat cards ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className={`${ui.statCard} flex items-center gap-4`}>
+        <Link
+          href={`/dashboard/schedule?studio_id=${selectedStudioId ?? studioIds[0]}`}
+          className={`${ui.statCard} flex items-center gap-4 transition-shadow hover:shadow-md`}
+        >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
             <CalendarDays size={18} />
           </div>
@@ -148,8 +152,11 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
               {todaySessions?.length ?? 0}
             </p>
           </div>
-        </div>
-        <div className={`${ui.statCard} flex items-center gap-4`}>
+        </Link>
+        <Link
+          href={`/dashboard/schedule?studio_id=${selectedStudioId ?? studioIds[0]}`}
+          className={`${ui.statCard} flex items-center gap-4 transition-shadow hover:shadow-md`}
+        >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
             <Users size={18} />
           </div>
@@ -159,8 +166,11 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
               {bookingsToday}
             </p>
           </div>
-        </div>
-        <div className={`${ui.statCard} flex items-center gap-4`}>
+        </Link>
+        <Link
+          href={`/dashboard/payments?studio_id=${selectedStudioId ?? studioIds[0]}`}
+          className={`${ui.statCard} flex items-center gap-4 transition-shadow hover:shadow-md`}
+        >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400">
             <DollarSign size={18} />
           </div>
@@ -170,7 +180,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
               ${revenue.toFixed(2)}
             </p>
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   );

@@ -110,34 +110,41 @@ export default async function FrontdeskPage({ searchParams }: Props) {
             Search
           </SubmitButton>
         </form>
-        <ul className="mt-3 space-y-2">
-          {(rows ?? []).map((r) => {
-            const userObj = Array.isArray(r.users) ? r.users[0] : r.users;
-            return (
-              <li key={r.id} className={ui.card}>
-                <p className="text-sm text-stone-900 dark:text-stone-100">
-                  {userObj?.email ?? `${r.guest_name ?? "Guest"} · ${r.guest_email ?? r.guest_phone ?? "-"}`}
-                </p>
-                {(() => {
-                  const booking = getUnifiedStatusBadges({ booking_status: r.status }).booking;
-                  return (
-                    <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs ${badgeToneClass(booking.tone)}`}>
-                      {booking.text}
-                    </span>
-                  );
-                })()}
-              </li>
-            );
-          })}
-        </ul>
+        {!q ? (
+          <p className={`mt-3 text-sm ${ui.muted}`}>Enter a name, email, or phone number to search.</p>
+        ) : !(rows ?? []).length ? (
+          <p className={`mt-3 text-sm ${ui.muted}`}>No results for &ldquo;{q}&rdquo;.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {(rows ?? []).map((r) => {
+              const userObj = Array.isArray(r.users) ? r.users[0] : r.users;
+              const booking = getUnifiedStatusBadges({ booking_status: r.status }).booking;
+              return (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-100 px-3 py-2.5 dark:border-stone-800">
+                  <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
+                    {userObj?.email ?? `${r.guest_name ?? "Guest"}${r.guest_email ? ` · ${r.guest_email}` : ""}${r.guest_phone ? ` · ${r.guest_phone}` : ""}`}
+                  </p>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${badgeToneClass(booking.tone)}`}>
+                    {booking.text}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       <section className={ui.card}>
         <h2 className={ui.h2}>Bulk check-in</h2>
         <p className={`mt-1 text-xs ${ui.muted}`}>Open a class card and check in attendees quickly before start.</p>
         <div className="mt-3 space-y-3">
-          {(sessions ?? []).map((s) => {
+          {(sessions ?? []).length === 0 ? (
+            <p className={`text-sm ${ui.muted}`}>No upcoming sessions.</p>
+          ) : (sessions ?? []).map((s) => {
             const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
+            const dt = new Date(s.start_time);
+            const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+            const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", month: "short", day: "numeric" });
             const attendees = ((s.bookings ?? []) as {
               id: string;
               status: string;
@@ -155,7 +162,7 @@ export default async function FrontdeskPage({ searchParams }: Props) {
             return (
               <BulkCheckinPanel
                 key={s.id}
-                sessionLabel={`${cls?.title ?? "Class"} · ${new Date(s.start_time).toLocaleString()}`}
+                sessionLabel={`${cls?.title ?? "Class"} · ${dateLabel} ${timeLabel}`}
                 attendees={attendees}
               />
             );

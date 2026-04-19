@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Toggle } from "@/components/ui/Toggle";
 import { ui } from "@/lib/ui";
 
 export function FrontdeskWalkinForm({
@@ -11,7 +13,6 @@ export function FrontdeskWalkinForm({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
 
   return (
     <form
@@ -20,7 +21,6 @@ export function FrontdeskWalkinForm({
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         setBusy(true);
-        setMsg(null);
         const res = await fetch("/api/frontdesk/walkin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -37,10 +37,10 @@ export function FrontdeskWalkinForm({
         const body = await res.json().catch(() => ({}));
         setBusy(false);
         if (!res.ok) {
-          setMsg(body.error ?? "walkin_failed");
+          toast.error(body.error ?? "Walk-in failed. Please try again.");
           return;
         }
-        setMsg("Walk-in created.");
+        toast.success("Walk-in created");
         (e.currentTarget as HTMLFormElement).reset();
         router.refresh();
       }}
@@ -57,21 +57,20 @@ export function FrontdeskWalkinForm({
         </select>
       </label>
       <input name="guest_name" placeholder="Name" className={ui.input} required />
-      <input name="guest_phone" placeholder="Phone" className={ui.input} />
+      <input name="guest_phone" type="tel" inputMode="tel" placeholder="+65 9123 4567" className={ui.input} />
       <input name="guest_email" placeholder="Email" className={ui.input} />
       <input name="amount" type="number" step="0.01" min={0} defaultValue={0} className={ui.input} required />
       <select name="payment_method" className={ui.select}>
         <option value="cash">cash</option>
         <option value="paynow">paynow</option>
       </select>
-      <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-        <input type="checkbox" name="mark_checkin" />
+      <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
+        <Toggle name="mark_checkin" aria-label="Check-in immediately" />
         Check-in immediately
       </label>
       <button type="submit" className={`${ui.btnPrimary} w-fit md:col-span-2`} disabled={busy}>
         {busy ? "Saving..." : "Create walk-in"}
       </button>
-      {msg ? <p className={`${ui.muted} md:col-span-2`}>{msg}</p> : null}
     </form>
   );
 }

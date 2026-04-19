@@ -82,28 +82,28 @@ export function OpsItemRow({
       <p className={`mt-1 text-xs ${ui.muted}`}>{secondary}</p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {bookingStatus ? (
-          <span className={`rounded-full px-2 py-0.5 text-[11px] ${badgeToneClass(badges.booking.tone)}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.booking.tone)}`}>
             {badges.booking.text}
           </span>
         ) : null}
         {paymentStatus ? (
-          <span className={`rounded-full px-2 py-0.5 text-[11px] ${badgeToneClass(badges.payment.tone)}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.payment.tone)}`}>
             {badges.payment.text}
           </span>
         ) : null}
         {reconStatus ? (
-          <span className={`rounded-full px-2 py-0.5 text-[11px] ${badgeToneClass(badges.recon.tone)}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.recon.tone)}`}>
             Review: {badges.recon.text}
           </span>
         ) : null}
         {reasonText ? (
-          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-700 dark:bg-stone-800 dark:text-stone-200">
             {reasonText}
           </span>
         ) : null}
         {typeof waitMinutes === "number" ? (
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] ${
+            className={`rounded-full px-2 py-0.5 text-xs ${
               overdue
                 ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
                 : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200"
@@ -163,7 +163,7 @@ export function OpsItemRow({
         {moreActions.length ? (
           <details className="relative">
             <summary className={ui.btnGhost}>More actions</summary>
-            <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-stone-200 bg-white p-1 dark:border-stone-700 dark:bg-stone-900">
+            <div className="absolute right-0 z-20 mt-1 w-48 max-w-[calc(100vw-2rem)] rounded-lg border border-stone-200 bg-white p-1 shadow-lg dark:border-stone-700 dark:bg-stone-900">
               {moreActions.map((a, i) =>
                 "href" in a ? (
                   <DashboardAppLink

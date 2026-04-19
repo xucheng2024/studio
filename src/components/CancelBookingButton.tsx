@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertCircle, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import { ui } from "@/lib/ui";
 
 type Step = "idle" | "confirm" | "busy" | "error";
@@ -39,6 +40,7 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
               body: JSON.stringify({ booking_id: bookingId }),
             });
             if (res.ok) {
+              toast.success("Booking cancelled");
               router.refresh();
             } else {
               const body = await res.json().catch(() => ({}));

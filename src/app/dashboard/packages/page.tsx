@@ -105,15 +105,26 @@ export default async function PackagesPage({ searchParams }: Props) {
         ) : null}
       </div>
 
+      {!(packages ?? []).length ? (
+        <div className={ui.emptyState}>
+          <p className={`text-sm ${ui.muted}`}>No packages yet.</p>
+          {canEdit ? (
+            <p className={`mt-1 text-xs ${ui.muted}`}>
+              Expand &ldquo;+ New package&rdquo; above to create your first credit pack.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <ul className="flex flex-col gap-3">
         {(packages ?? []).map((p) => {
           const st = p.studios as { public_slug?: string | null } | { public_slug?: string | null }[] | null;
           const pub = Array.isArray(st) ? st[0]?.public_slug : st?.public_slug;
           return (
-            <li key={p.id} className={`${ui.card} p-4!`}>
+            <li key={p.id} className={ui.card}>
               <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
               <p className={`mt-0.5 text-sm ${ui.muted}`}>
-                {p.credits} credits · ${p.price}
+                {p.credits} credits · ${Number(p.price).toFixed(2)}
                 {p.is_active === false ? " · Stopped" : ""}
               </p>
               <div className="mt-2">

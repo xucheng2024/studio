@@ -49,6 +49,9 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <div>
+        <Link href="/dashboard/settings" className={`${ui.btnSecondarySm} mb-3 inline-flex`}>
+          ← Settings
+        </Link>
         <h1 className={ui.h1}>Staff invites</h1>
         <p className={ui.muted}>Workspace access is managed by invitation.</p>
       </div>
@@ -60,7 +63,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Role</span>
-          <select name="role" className={ui.input} required>
+          <select name="role" className={ui.select} required>
             <option value="manager">Manager</option>
             <option value="frontdesk">Frontdesk</option>
             <option value="instructor">Instructor</option>
@@ -68,7 +71,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Studio</span>
-          <select name="studio_id" className={ui.input} required>
+          <select name="studio_id" className={ui.select} required>
             <option value="">Select a studio</option>
             {(studios ?? []).map((studio) => (
               <option key={studio.id} value={studio.id}>
@@ -79,7 +82,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Location (optional)</span>
-          <select name="location_id" className={ui.input}>
+          <select name="location_id" className={ui.select}>
             <option value="">All locations</option>
             {(studios ?? []).flatMap((studio) => {
               const locations = Array.isArray(studio.locations) ? studio.locations : [];
@@ -100,47 +103,53 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         {errorMsg ? <p className={`${ui.error} md:col-span-2`}>{errorMsg}</p> : null}
       </form>
 
-      <section className={`${ui.card} overflow-x-auto`}>
+      <section className={ui.card}>
         <h2 className={`${ui.h2} mb-3`}>Invites</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-stone-500">
-              <th className="py-2 pr-4">Email</th>
-              <th className="py-2 pr-4">Role</th>
-              <th className="py-2 pr-4">Status</th>
-              <th className="py-2 pr-4">Link</th>
-              <th className="py-2 pr-4">Action</th>
-            </tr>
-          </thead>
-          <tbody>
+        {!(invites as unknown[]).length ? (
+          <p className={`text-sm ${ui.muted}`}>No invites sent yet.</p>
+        ) : (
+          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
             {(invites as Array<{ id: string; email: string; role: string; status: string; token: string; expires_at: string }>).map(
-              (invite) => (
-                <tr key={invite.id} className="border-t border-stone-100 dark:border-stone-800">
-                  <td className="py-2 pr-4">{invite.email}</td>
-                  <td className="py-2 pr-4 capitalize">{invite.role}</td>
-                  <td className="py-2 pr-4">{invite.status}</td>
-                  <td className="py-2 pr-4">
-                    <Link href={`/auth?invite_token=${invite.token}`} className={ui.link}>
-                      Open invite link
-                    </Link>
-                  </td>
-                  <td className="py-2 pr-4">
-                    {invite.status === "pending" ? (
-                      <form action={revokeStaffInvite}>
-                        <input type="hidden" name="invite_id" value={invite.id} />
-                        <SubmitButton className={ui.btnGhost} pendingText="Revoking...">
-                          Revoke
-                        </SubmitButton>
-                      </form>
-                    ) : (
-                      <span className={ui.muted}>-</span>
-                    )}
-                  </td>
-                </tr>
-              ),
+              (invite) => {
+                const statusBg = invite.status === "pending"
+                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                  : invite.status === "accepted"
+                    ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                    : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400";
+                return (
+                  <li key={invite.id} className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="flex min-w-0 flex-col gap-1.5">
+                      <span className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{invite.email}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs capitalize text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                          {invite.role}
+                        </span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBg}`}>
+                          {invite.status}
+                        </span>
+                      </div>
+                      <Link href={`/auth?invite_token=${invite.token}`} className={`text-xs ${ui.link}`}>
+                        Open invite link →
+                      </Link>
+                    </div>
+                    <div className="shrink-0">
+                      {invite.status === "pending" ? (
+                        <form action={revokeStaffInvite}>
+                          <input type="hidden" name="invite_id" value={invite.id} />
+                          <SubmitButton className={ui.btnGhost} pendingText="Revoking...">
+                            Revoke
+                          </SubmitButton>
+                        </form>
+                      ) : (
+                        <span className={`text-xs ${ui.muted}`}>—</span>
+                      )}
+                    </div>
+                  </li>
+                );
+              },
             )}
-          </tbody>
-        </table>
+          </ul>
+        )}
       </section>
     </div>
   );

@@ -70,20 +70,25 @@ export default async function PublicPackageBuyPage({ params }: Props) {
       <div className="max-w-2xl">
         <p className={ui.badge}>Shared package</p>
         <h1 className={`${ui.h1} mt-3`}>{pkg.name}</h1>
-        <p className={`mt-2 ${ui.lead}`}>
-          {studio.name} · {pkg.credits} credits · ${pkg.price}
+        <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
+        <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+          SGD {Number(pkg.price ?? 0).toFixed(2)}
         </p>
-        <ul className={`mt-4 space-y-2 text-sm ${ui.muted}`}>
-          <li>
-            Expiry:{" "}
-            {pkg.expiry_days != null ? `${pkg.expiry_days} days after purchase` : "No fixed expiry rule"}
-          </li>
-          <li>
-            Location:{" "}
-            {pkg.location_id ? (locName ?? "Selected branch") : "All locations in this studio"}
-          </li>
-          <li className={paynow.configured ? "" : ui.error}>{paynow.line}</li>
-        </ul>
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
+          <span className="flex items-center gap-1.5">
+            <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
+            {pkg.credits} credits
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
+            {pkg.expiry_days != null ? `Expires in ${pkg.expiry_days} days` : "No expiry"}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
+            {pkg.location_id ? (locName ?? "Selected branch") : "All locations"}
+          </span>
+        </div>
+        <p className={`mt-3 text-sm ${paynow.configured ? ui.muted : ui.error}`}>{paynow.line}</p>
 
         <div className="mt-8 flex flex-wrap gap-3">
           {user ? (

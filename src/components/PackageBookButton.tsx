@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { CheckCircle2, AlertCircle, Loader2, Zap } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
+import { toast } from "sonner";
 import {
   hasEligiblePackageForSession,
   type MemberPackageForCredits,
@@ -23,7 +24,6 @@ export function PackageBookButton({
   const router = useRouter();
   const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
 
   const eligible = useMemo(
     () => hasEligiblePackageForSession(packages, session),
@@ -65,7 +65,6 @@ export function PackageBookButton({
         className={`${ui.btnPrimarySm} w-full disabled:opacity-50 sm:w-auto`}
         onClick={async () => {
           setBusy(true);
-          setMsg(null);
           const res = await fetch("/api/book/member", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -74,10 +73,10 @@ export function PackageBookButton({
           const body = await res.json().catch(() => ({}));
           setBusy(false);
           if (!res.ok) {
-            setMsg(`error:${toFriendly(String(body.error ?? ""))}`);
+            toast.error(toFriendly(String(body.error ?? "")));
             return;
           }
-          setMsg("success:Booked with credits");
+          toast.success("Booked with credits");
           router.refresh();
         }}
       >
@@ -114,7 +113,6 @@ export function PackageBookButton({
             className={`${ui.btnSecondarySm} w-full disabled:opacity-50`}
             onClick={async () => {
               setBusy(true);
-              setMsg(null);
               const res = await fetch("/api/book/package", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -123,10 +121,10 @@ export function PackageBookButton({
               const body = await res.json().catch(() => ({}));
               setBusy(false);
               if (!res.ok) {
-                setMsg(`error:${toFriendly(String(body.error ?? ""))}`);
+                toast.error(toFriendly(String(body.error ?? "")));
                 return;
               }
-              setMsg("success:Booked with selected package");
+              toast.success("Booked with selected package");
               router.refresh();
             }}
           >
@@ -135,18 +133,6 @@ export function PackageBookButton({
         </div>
       </details>
 
-      {msg ? (
-        <p className={`flex items-center gap-1 text-xs ${
-          msg.startsWith("success:")
-            ? "text-teal-700 dark:text-teal-400"
-            : "text-red-600 dark:text-red-400"
-        }`}>
-          {msg.startsWith("success:")
-            ? <CheckCircle2 size={12} />
-            : <AlertCircle size={12} />}
-          {msg.replace(/^(success|error):/, "")}
-        </p>
-      ) : null}
     </div>
   );
 }

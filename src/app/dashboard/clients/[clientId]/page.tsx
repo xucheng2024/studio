@@ -1,3 +1,4 @@
+import { CheckCircle2, Circle } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
@@ -168,7 +169,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                   {p.payment_method ? <span>{p.payment_method}</span> : null}
                   {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
-                  {p.created_at ? <span>{new Date(p.created_at).toLocaleString()}</span> : null}
+                  {p.created_at ? <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span> : null}
                 </div>
               </li>
             );
@@ -196,20 +197,32 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                   <span className="text-sm font-semibold text-stone-900 dark:text-stone-100">
                     {clsObj?.title ?? "Class"}
                   </span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    b.status === "booked" ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                      : b.status === "cancelled" ? "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400"
-                      : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400"
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                    b.status === "booked" || b.status === "attended"
+                      ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                      : b.status === "cancelled" || b.status === "no_show"
+                        ? "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400"
+                        : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                   }`}>
-                    {b.status}
+                    {b.status.replaceAll("_", " ")}
                   </span>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                   {sessionObj?.start_time ? (
-                    <span>{new Date(sessionObj.start_time).toLocaleString()}</span>
+                    <span>{new Date(sessionObj.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span>
                   ) : null}
-                  <span>{checkedIn ? "✓ Checked in" : "Not checked in"}</span>
-                  <span>{creditUsed ? "✓ Credit used" : "Credit pending"}</span>
+                  <span className="flex items-center gap-1">
+                    {checkedIn
+                      ? <CheckCircle2 size={11} className="text-teal-500" />
+                      : <Circle size={11} className="text-stone-400" />}
+                    {checkedIn ? "Checked in" : "Not checked in"}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    {creditUsed
+                      ? <CheckCircle2 size={11} className="text-teal-500" />
+                      : <Circle size={11} className="text-stone-400" />}
+                    {creditUsed ? "Credit used" : "Credit pending"}
+                  </span>
                 </div>
               </li>
             );

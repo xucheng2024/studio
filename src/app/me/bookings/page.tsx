@@ -50,8 +50,8 @@ export default async function MyBookingsPage() {
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className={ui.h1}>My plan</h1>
-            <p className={`mt-1 ${ui.muted}`}>Bookings, payments, and credits — guest history links by email.</p>
+            <h1 className={ui.h1}>My bookings</h1>
+            <p className={`mt-1 ${ui.muted}`}>Your class bookings and payment history.</p>
           </div>
           <Link href="/checkout" className={`${ui.btnSecondary} shrink-0 self-start`}>
             Buy credits
@@ -60,40 +60,56 @@ export default async function MyBookingsPage() {
 
         {/* ── Bookings ─────────────────────────────────────────────── */}
         <section>
-          <h2 className={ui.h2}>My bookings</h2>
           <ul className="mt-4 flex flex-col gap-3">
             {(bookings ?? []).map((b) => {
               const session = Array.isArray(b.class_sessions) ? b.class_sessions[0] : b.class_sessions;
               const cls = Array.isArray(session?.classes) ? session?.classes[0] : session?.classes;
-              const start = session?.start_time ? new Date(session.start_time).toLocaleString() : null;
               const bookingBadge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
               const isPast = session?.start_time ? new Date(session.start_time) < new Date() : false;
+              const dt = session?.start_time ? new Date(session.start_time) : null;
+              const timeLabel = dt
+                ? dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" })
+                : null;
+              const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short" }) : "";
+              const dayNum = dt ? dt.getDate() : "";
+              const month = dt ? dt.toLocaleDateString("en-SG", { month: "short" }) : "";
               return (
-                <li
-                  key={b.id}
-                  className={`${ui.card} ${isPast ? "opacity-70" : ""}`}
-                >
-                  {/* Row 1: title + booking status */}
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-semibold text-stone-900 dark:text-stone-100">
-                      {cls?.title ?? "Class"}
-                    </p>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeToneClass(bookingBadge.tone)}`}>
-                      {bookingBadge.text}
-                    </span>
-                  </div>
-                  {/* Row 2: time + payment status */}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                    {start ? <span className={ui.muted}>{start}</span> : null}
-                    {b.payment_status ? (
-                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${paymentStatusColor[b.payment_status] ?? paymentStatusColor.pending}`}>
-                        Payment: {b.payment_status}
-                      </span>
+                <li key={b.id} className={`${ui.card} ${isPast ? "opacity-70" : ""}`}>
+                  <div className="flex items-start gap-3">
+                    {/* Calendar block */}
+                    {dt ? (
+                      <div className="flex w-11 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1 dark:border-stone-700 dark:bg-stone-800">
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                          {weekday}
+                        </span>
+                        <span className="text-base font-bold leading-tight text-stone-900 dark:text-stone-50">
+                          {dayNum}
+                        </span>
+                        <span className="text-[9px] text-stone-500 dark:text-stone-400">
+                          {month}
+                        </span>
+                      </div>
                     ) : null}
+                    {/* Content */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="font-semibold text-stone-900 dark:text-stone-100">
+                          {cls?.title ?? "Class"}
+                        </p>
+                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeToneClass(bookingBadge.tone)}`}>
+                          {bookingBadge.text}
+                        </span>
+                      </div>
+                      {timeLabel ? (
+                        <p className={`mt-0.5 text-sm ${ui.muted}`}>{timeLabel}</p>
+                      ) : null}
+                      {b.payment_status ? (
+                        <span className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${paymentStatusColor[b.payment_status] ?? paymentStatusColor.pending}`}>
+                          {b.payment_status.charAt(0).toUpperCase() + b.payment_status.slice(1)}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                  <p className={`mt-1.5 text-xs ${ui.muted}`}>
-                    Cancellation policy applies — check studio rules for cutoff and credit deduction.
-                  </p>
                   {["booked", "pending"].includes(b.status) && !isPast ? (
                     <div className="mt-3 border-t border-stone-100 pt-2.5 dark:border-stone-800">
                       <CancelBookingButton bookingId={b.id} />
@@ -121,14 +137,16 @@ export default async function MyBookingsPage() {
                   <span className="font-semibold text-stone-900 dark:text-stone-100">
                     {p.currency} {Number(p.amount).toFixed(2)}
                   </span>
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${paymentStatusColor[p.status ?? ""] ?? paymentStatusColor.pending}`}>
-                    {p.status ?? "unknown"}
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${paymentStatusColor[p.status ?? ""] ?? paymentStatusColor.pending}`}>
+                    {p.status ?? "Unknown"}
                   </span>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                  {p.payment_method ? <span>{p.payment_method}</span> : null}
+                  {p.payment_method ? <span className="capitalize">{p.payment_method}</span> : null}
                   {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
-                  {p.created_at ? <span>{new Date(p.created_at).toLocaleString()}</span> : null}
+                  {p.created_at ? (
+                    <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span>
+                  ) : null}
                 </div>
               </li>
             ))}
@@ -136,6 +154,9 @@ export default async function MyBookingsPage() {
           {!payments?.length ? (
             <div className={`mt-4 ${ui.emptyState}`}>
               <p className={`text-sm ${ui.muted}`}>No payments yet.</p>
+              <Link href="/booking" className={`mt-1 text-sm ${ui.link}`}>
+                Browse classes →
+              </Link>
             </div>
           ) : null}
         </section>

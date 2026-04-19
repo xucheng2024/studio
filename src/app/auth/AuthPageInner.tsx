@@ -72,7 +72,7 @@ export function AuthPageInner() {
   return (
     <main className={`${ui.page} max-w-5xl`}>
       <div className="grid gap-6 md:grid-cols-5 md:items-stretch">
-        <section className={`${ui.card} h-full md:col-span-3`}>
+        <section className={`${ui.card} h-full md:col-span-3 md:order-1 order-2`}>
           <p className={ui.badge}>Members &amp; staff</p>
           <h1 className={`${ui.h1} mt-3`}>Your classes, credits &amp; payments — in one place</h1>
           <p className={`mt-2 ${ui.lead}`}>{site.marketing.memberIntro}</p>
@@ -98,7 +98,7 @@ export function AuthPageInner() {
           </p>
         </section>
 
-        <section className={`${ui.card} mx-auto w-full max-w-md md:col-span-2`}>
+        <section className={`${ui.card} mx-auto w-full max-w-md md:col-span-2 md:order-2 order-1`}>
           {inApp.isInApp ? (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/30">
               <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">

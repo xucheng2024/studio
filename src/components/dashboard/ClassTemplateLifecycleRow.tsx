@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, CheckCircle2, Copy, EyeOff, Play, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { Check, Copy, EyeOff, Play, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 import { EntityCoverUpload } from "@/components/dashboard/EntityCoverUpload";
 import { ui } from "@/lib/ui";
 
@@ -40,8 +41,8 @@ export function ClassTemplateLifecycleRow({
   instructors: Ins[];
 }) {
   const router = useRouter();
-  const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description ?? "");
   const [capacity, setCapacity] = useState(String(initial.capacity));
@@ -50,7 +51,6 @@ export function ClassTemplateLifecycleRow({
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
 
   const copyBookingLink = async () => {
-    setMsg(null);
     setBusy(true);
     const res = await fetch("/api/dashboard/share-link", {
       method: "POST",
@@ -60,21 +60,20 @@ export function ClassTemplateLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      setMsg(body.error ?? "Could not build link");
+      toast.error(body.error ?? "Could not build link");
       return;
     }
     if (body.url) {
       try {
         await navigator.clipboard.writeText(body.url);
-        setMsg("Copied booking link");
+        toast.success("Booking link copied");
       } catch {
-        setMsg(body.url);
+        toast.info(body.url);
       }
     }
   };
 
   const save = async () => {
-    setMsg(null);
     setBusy(true);
     const res = await fetch(`/api/dashboard/classes/${classId}`, {
       method: "PATCH",
@@ -91,57 +90,54 @@ export function ClassTemplateLifecycleRow({
     setBusy(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setMsg(body.error ?? "Save failed");
+      toast.error(body.error ?? "Save failed");
       return;
     }
-    setMsg("Saved");
+    toast.success("Changes saved");
     router.refresh();
   };
 
   const hideTemplate = async () => {
-    setMsg(null);
     setBusy(true);
     const res = await fetch(`/api/dashboard/classes/${classId}/disable`, { method: "POST" });
     setBusy(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setMsg(body.error ?? "Failed");
+      toast.error(body.error ?? "Failed");
       return;
     }
+    toast.success("Class hidden");
     router.refresh();
   };
 
   const resume = async () => {
-    setMsg(null);
     setBusy(true);
     const res = await fetch(`/api/dashboard/classes/${classId}/restore`, { method: "POST" });
     setBusy(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setMsg(body.error ?? "Failed");
+      toast.error(body.error ?? "Failed");
       return;
     }
+    toast.success("Class resumed");
     router.refresh();
   };
 
   const deleteTemplate = async () => {
-    setMsg(null);
-    if (!window.confirm("Delete this class template? This only works when no session has ever been created from it.")) {
-      return;
-    }
     setBusy(true);
+    setDeleteConfirm(false);
     const res = await fetch(`/api/dashboard/classes/${classId}`, { method: "DELETE" });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
       if (body.error === "class_has_sessions") {
-        setMsg("This template already has sessions. Hide it instead.");
+        toast.error("This template has sessions. Hide it instead.");
         return;
       }
-      setMsg(body.error ?? "Failed");
+      toast.error(body.error ?? "Delete failed");
       return;
     }
-    setMsg("Deleted");
+    toast.success("Class template deleted");
     router.refresh();
   };
 
@@ -243,29 +239,33 @@ export function ClassTemplateLifecycleRow({
               Resume
             </button>
           )}
-          <button
-            type="button"
-            disabled={busy}
-            className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
-            onClick={() => void deleteTemplate()}
-          >
-            <Trash2 size={13} />
-            Delete
-          </button>
+          {deleteConfirm ? (
+            <span className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs dark:border-red-800/50 dark:bg-red-950/20">
+              <AlertTriangle size={12} className="text-red-600 dark:text-red-400" />
+              <span className="text-red-700 dark:text-red-300">Delete template?</span>
+              <button
+                type="button"
+                className="font-semibold text-red-700 hover:underline dark:text-red-400"
+                onClick={() => void deleteTemplate()}
+              >
+                Yes, delete
+              </button>
+              <button type="button" className={ui.btnGhost} onClick={() => setDeleteConfirm(false)}>
+                <X size={11} />
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
+              onClick={() => setDeleteConfirm(true)}
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
+          )}
         </div>
-      ) : null}
-
-      {msg ? (
-        <p className={`flex items-center gap-1.5 text-xs ${
-          msg === "Saved" || msg === "Copied booking link"
-            ? "text-teal-700 dark:text-teal-400"
-            : "text-red-600 dark:text-red-400"
-        }`}>
-          {msg === "Saved" || msg === "Copied booking link"
-            ? <CheckCircle2 size={12} />
-            : <AlertCircle size={12} />}
-          {msg}
-        </p>
       ) : null}
     </div>
   );

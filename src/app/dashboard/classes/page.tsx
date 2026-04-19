@@ -179,6 +179,17 @@ export default async function ClassesPage({ searchParams }: Props) {
           </details>
         ) : null}
 
+        {!(classes ?? []).length ? (
+          <div className={`mt-6 ${ui.emptyState}`}>
+            <p className={`text-sm ${ui.muted}`}>No class templates yet.</p>
+            {canEdit ? (
+              <p className={`mt-1 text-xs ${ui.muted}`}>
+                Expand &ldquo;+ New class template&rdquo; above to create your first one.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <ul className="mt-6 flex flex-col gap-4">
           {(classes ?? []).map((c) => {
             const ins = c.instructors as { name?: string } | null;

@@ -2,13 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { ui } from "@/lib/ui";
 
 export function PaymentMatchForm({ paymentId, onDone }: { paymentId: string; onDone?: () => void }) {
   const router = useRouter();
   const [bookingId, setBookingId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -24,7 +24,6 @@ export function PaymentMatchForm({ paymentId, onDone }: { paymentId: string; onD
         disabled={busy || !bookingId}
         onClick={async () => {
           setBusy(true);
-          setMsg(null);
           const res = await fetch("/api/payment/match", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -33,18 +32,17 @@ export function PaymentMatchForm({ paymentId, onDone }: { paymentId: string; onD
           const body = await res.json().catch(() => ({}));
           setBusy(false);
           if (!res.ok) {
-            setMsg(body.error ?? "match_failed");
+            toast.error(body.error ?? "Match failed");
             return;
           }
-          setMsg("Matched");
+          toast.success("Payment matched");
           setBookingId("");
           if (onDone) onDone();
           else router.refresh();
         }}
       >
-        {busy ? "..." : "Manual match"}
+        {busy ? "…" : "Manual match"}
       </button>
-      {msg ? <span className={`text-xs ${ui.muted}`}>{msg}</span> : null}
     </div>
   );
 }
