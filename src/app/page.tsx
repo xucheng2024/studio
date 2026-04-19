@@ -82,20 +82,12 @@ export default async function Home({ searchParams }: Props) {
           </Link>
         </div>
 
-        <div className={`mt-10 rounded-xl border border-stone-100 bg-stone-50/60 px-4 py-3 text-sm ${ui.muted} dark:border-stone-800 dark:bg-stone-900/40`}>
-          <p>
-            Studios get a shareable booking link at{" "}
-            <code className={ui.code}>/booking/your-slug</code>{" "}
-            — print the QR code directly from the dashboard.{" "}
-            {site.marketing.paymentFlowNote}
-          </p>
-          <p className="mt-1.5">
-            {site.marketing.mergeNote}{" "}
-            <Link href="/auth" className={ui.link}>
-              Sign in →
-            </Link>
-          </p>
-        </div>
+        <p className={`mt-10 text-sm ${ui.muted}`}>
+          Studios get a shareable booking link at{" "}
+          <code className={ui.code}>/booking/your-slug</code>{" "}
+          — QR code printable directly from the dashboard.{" "}
+          <Link href="/auth" className={ui.link}>Sign in →</Link>
+        </p>
       </div>
     </main>
   );
