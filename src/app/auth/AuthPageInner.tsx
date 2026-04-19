@@ -7,6 +7,20 @@ import { site } from "@/lib/brand";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
+function detectInAppBrowser(): { isInApp: boolean; name: string } {
+  if (typeof navigator === "undefined") return { isInApp: false, name: "" };
+  const ua = navigator.userAgent;
+  if (/MicroMessenger/i.test(ua)) return { isInApp: true, name: "WeChat" };
+  if (/FBAV|FBAN/i.test(ua)) return { isInApp: true, name: "Facebook" };
+  if (/Instagram/i.test(ua)) return { isInApp: true, name: "Instagram" };
+  if (/Line\//i.test(ua)) return { isInApp: true, name: "Line" };
+  if (/TikTok/i.test(ua)) return { isInApp: true, name: "TikTok" };
+  if (/Twitter/i.test(ua)) return { isInApp: true, name: "Twitter" };
+  // Generic Android WebView
+  if (/wv\)/i.test(ua) && /Android/i.test(ua)) return { isInApp: true, name: "in-app browser" };
+  return { isInApp: false, name: "" };
+}
+
 type OtpStep = "request" | "verify";
 
 export function AuthPageInner() {
@@ -27,6 +41,12 @@ export function AuthPageInner() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<OtpStep>("request");
   const [otpCode, setOtpCode] = useState("");
+  const [inApp, setInApp] = useState<{ isInApp: boolean; name: string }>({ isInApp: false, name: "" });
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setInApp(detectInAppBrowser());
+  }, []);
 
   const oauthNext = encodeURIComponent(postAuthPath);
   const oauthCallbackPath = `/auth/callback?next=${oauthNext}`;
@@ -83,6 +103,32 @@ export function AuthPageInner() {
         </section>
 
         <section className={`${ui.card} mx-auto w-full max-w-md md:col-span-2`}>
+          {inApp.isInApp ? (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/30">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                Open in your browser to sign in with Google
+              </p>
+              <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
+                {`Google sign-in is blocked inside ${inApp.name}. You can still sign in with email below, or open this page in Safari / Chrome.`}
+              </p>
+              <button
+                type="button"
+                className="mt-2.5 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-50 active:opacity-80 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100"
+                onClick={async () => {
+                  const url = window.location.href;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2500);
+                  } catch {
+                    setCopied(false);
+                  }
+                }}
+              >
+                {copied ? "✓ Link copied — paste in Safari / Chrome" : "Copy link to open in browser"}
+              </button>
+            </div>
+          ) : null}
           <div className="mt-2 flex flex-col gap-4">
             <div className="space-y-1">
               <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">
@@ -91,9 +137,12 @@ export function AuthPageInner() {
               <p className={`text-xs ${ui.muted}`}>
                 {step === "verify"
                   ? "Enter the 6-digit code we sent you."
-                  : "Continue with Google, or use your email to receive a one-time code."}
+                  : inApp.isInApp
+                    ? "Use your email to receive a one-time sign-in code."
+                    : "Continue with Google, or use your email to receive a one-time code."}
               </p>
             </div>
+            {!inApp.isInApp ? (
             <button
               type="button"
               className={`${ui.btnSecondary} flex w-full items-center justify-center gap-2.5 disabled:opacity-60`}
@@ -120,12 +169,15 @@ export function AuthPageInner() {
               </svg>
               {loading ? "Redirecting…" : "Continue with Google"}
             </button>
-            <div className="relative py-1">
-              <div className="h-px w-full bg-stone-200 dark:bg-stone-800" />
-              <p className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-[11px] ${ui.muted} dark:bg-stone-900`}>
-                or email OTP
-              </p>
-            </div>
+            ) : null}
+            {!inApp.isInApp ? (
+              <div className="relative py-1">
+                <div className="h-px w-full bg-stone-200 dark:bg-stone-800" />
+                <p className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-[11px] ${ui.muted} dark:bg-stone-900`}>
+                  or email OTP
+                </p>
+              </div>
+            ) : null}
             <form
               className="flex flex-col gap-3"
               onSubmit={async (e) => {
