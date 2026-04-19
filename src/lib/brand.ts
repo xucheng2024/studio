@@ -11,13 +11,13 @@ export const site = {
     "PayNow booking links, automatic payment tracking, and a front desk dashboard — built for Singapore studios. No more WhatsApp to confirm a transfer.",
   marketing: {
     memberHighlights: [
-      "Pick any class and book in under a minute — real-time spots, no phone calls",
-      "Pay via PayNow and get confirmed the moment the transfer clears",
-      "Cancellation windows and credit rules shown clearly before you commit",
-      "Booked as a guest before? Sign in once to see your full history and credits",
+      "Pick any class and book in under a minute with real-time availability.",
+      "Pay via PayNow; we’ll confirm shortly after the transfer is received.",
+      "Cancellation windows and credit rules are shown clearly before you book.",
+      "Booked as a guest before? Sign in with the same email to sync your history.",
     ],
     memberIntro:
-      "Track bookings, credits, and payments in one place — no more asking staff on WhatsApp.",
+      "Sign in to track bookings, package credits, and payments without back-and-forth messages.",
     ownerHighlights: [
       "Today's pending payments, arrivals, and exceptions — one front desk view",
       "Filter, search, and export payment records with a full audit trail",
@@ -26,8 +26,8 @@ export const site = {
     ownerIntro:
       "Fewer manual steps, better visibility — across sessions, locations, and payment methods.",
     paymentFlowNote:
-      "Payment via PayNow: transfer to the studio's UEN or mobile, and your booking is confirmed once it clears.",
+      "PayNow payments are verified by the studio after transfer receipt.",
     mergeNote:
-      "Used a guest email before? Sign in with the same address to merge your full history automatically.",
+      "Use the same email as your guest bookings to merge records automatically.",
   },
 } as const;

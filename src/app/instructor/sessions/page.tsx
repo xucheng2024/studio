@@ -29,7 +29,9 @@ export default async function InstructorSessionsPage() {
     return <p className={ui.muted}>No instructor profile matched your account yet.</p>;
   }
 
-  const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const windowStartDate = new Date();
+  windowStartDate.setDate(windowStartDate.getDate() - 30);
+  const windowStart = windowStartDate.toISOString();
   const { data: sessions } = await supabase
     .from("class_sessions")
     .select(

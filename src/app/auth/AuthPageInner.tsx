@@ -74,7 +74,7 @@ export function AuthPageInner() {
       <div className="grid gap-6 md:grid-cols-5 md:items-stretch">
         <section className={`${ui.card} h-full md:col-span-3 md:order-1 order-2`}>
           <p className={ui.badge}>Members &amp; staff</p>
-          <h1 className={`${ui.h1} mt-3`}>Your classes, credits &amp; payments — in one place</h1>
+          <h1 className={`${ui.h1} mt-3`}>Your classes and payments — all in one place</h1>
           <p className={`mt-2 ${ui.lead}`}>{site.marketing.memberIntro}</p>
           <ul className="mt-5 flex flex-col gap-2.5 text-sm">
             {site.marketing.memberHighlights.map((item) => (
