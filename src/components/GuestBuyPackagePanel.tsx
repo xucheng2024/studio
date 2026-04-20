@@ -26,7 +26,7 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
             package_id: packageId,
             guest_name: name,
             guest_email: email,
-            guest_phone: phone || null,
+            guest_phone: phone.trim() || null,
           }),
         });
         const body = await res.json().catch(() => ({}));
@@ -65,15 +65,21 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
         placeholder="Email"
         className={ui.input}
       />
-      <input
-        type="tel"
-        inputMode="tel"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Phone (optional)"
-        autoComplete="tel"
-        className={ui.input}
-      />
+      <div className="flex items-center overflow-hidden rounded-lg border border-stone-300 bg-white focus-within:ring-2 focus-within:ring-teal-500 dark:border-stone-700 dark:bg-stone-900">
+        <span className="select-none border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+          +65
+        </span>
+        <input
+          type="tel"
+          inputMode="numeric"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+          placeholder="9123 4567"
+          autoComplete="tel-national"
+          maxLength={8}
+          className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-stone-400"
+        />
+      </div>
       <button type="submit" disabled={busy || disabled} className={`${ui.btnPrimary} disabled:opacity-50`}>
         {busy ? "Creating..." : disabled ? "PayNow unavailable" : "Buy as guest"}
       </button>

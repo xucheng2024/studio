@@ -28,7 +28,7 @@ export function FrontdeskWalkinForm({
             session_id: String(fd.get("session_id") ?? ""),
             guest_name: String(fd.get("guest_name") ?? ""),
             guest_email: String(fd.get("guest_email") ?? ""),
-            guest_phone: String(fd.get("guest_phone") ?? ""),
+            guest_phone: String(fd.get("guest_phone_local") ?? "").trim(),
             amount: Number(fd.get("amount") ?? 0),
             payment_method: String(fd.get("payment_method") ?? "cash"),
             mark_checkin: fd.get("mark_checkin") === "on",
@@ -57,7 +57,20 @@ export function FrontdeskWalkinForm({
         </select>
       </label>
       <input name="guest_name" placeholder="Name" className={ui.input} required />
-      <input name="guest_phone" type="tel" inputMode="tel" placeholder="+65 9123 4567" className={ui.input} />
+      <div className="flex items-center overflow-hidden rounded-lg border border-stone-300 bg-white focus-within:ring-2 focus-within:ring-teal-500 dark:border-stone-700 dark:bg-stone-900">
+        <span className="select-none border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+          +65
+        </span>
+        <input
+          name="guest_phone_local"
+          type="tel"
+          inputMode="numeric"
+          placeholder="9123 4567"
+          autoComplete="tel-national"
+          maxLength={8}
+          className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-stone-400"
+        />
+      </div>
       <input name="guest_email" placeholder="Email" className={ui.input} />
       <input name="amount" type="number" step="0.01" min={0} defaultValue={0} className={ui.input} required />
       <select name="payment_method" className={ui.select}>

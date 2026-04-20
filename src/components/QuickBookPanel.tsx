@@ -86,14 +86,21 @@ export function QuickBookPanel({ slug, sessionId, disabled }: Props) {
             Phone{" "}
             <span className={`font-normal ${ui.muted}`}>(optional)</span>
           </span>
-          <input
-            type="tel"
-            className={ui.input}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+65 9123 4567"
-            autoComplete="tel"
-          />
+          <div className="flex items-center overflow-hidden rounded-lg border border-stone-300 bg-white focus-within:ring-2 focus-within:ring-teal-500 dark:border-stone-700 dark:bg-stone-900">
+            <span className="select-none border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+              +65
+            </span>
+            <input
+              type="tel"
+              inputMode="numeric"
+              className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-stone-400"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              placeholder="9123 4567"
+              autoComplete="tel-national"
+              maxLength={8}
+            />
+          </div>
         </label>
 
         {error ? (
@@ -118,7 +125,7 @@ export function QuickBookPanel({ slug, sessionId, disabled }: Props) {
                 session_id: sessionId,
                 guest_name: name,
                 guest_email: email,
-                guest_phone: phone || null,
+                guest_phone: phone.trim() || null,
               }),
             });
             const body = await res.json().catch(() => ({}));
