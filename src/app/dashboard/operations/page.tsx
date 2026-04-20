@@ -14,7 +14,6 @@ type Props = {
     date_from?: string;
     date_to?: string;
     status?: string;
-    recon_status?: string;
     q?: string;
   }>;
 };
@@ -138,7 +137,6 @@ export default async function OperationsPage({ searchParams }: Props) {
   if (sp.date_from) filterParams.set("date_from", sp.date_from);
   if (sp.date_to) filterParams.set("date_to", sp.date_to);
   if (sp.status) filterParams.set("status", sp.status);
-  if (sp.recon_status) filterParams.set("recon_status", sp.recon_status);
   if (sp.q) filterParams.set("q", sp.q);
 
   return (
@@ -177,7 +175,6 @@ export default async function OperationsPage({ searchParams }: Props) {
         dateFrom={sp.date_from ?? todayISODate()}
         dateTo={sp.date_to ?? todayISODate()}
         status={sp.status ?? ""}
-        reconStatus={sp.recon_status ?? ""}
         query={sp.q ?? ""}
       />
       <OpsBoard
@@ -186,7 +183,6 @@ export default async function OperationsPage({ searchParams }: Props) {
         dateFrom={sp.date_from ?? todayISODate()}
         dateTo={sp.date_to ?? todayISODate()}
         status={sp.status ?? ""}
-        reconStatus={sp.recon_status ?? ""}
         q={sp.q ?? ""}
       />
     </div>

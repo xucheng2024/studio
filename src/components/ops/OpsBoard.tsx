@@ -40,7 +40,6 @@ export function OpsBoard({
   dateFrom,
   dateTo,
   status,
-  reconStatus,
   q,
 }: {
   studioId: string | null;
@@ -48,7 +47,6 @@ export function OpsBoard({
   dateFrom: string;
   dateTo: string;
   status: string;
-  reconStatus: string;
   q: string;
 }) {
   const [loading, setLoading] = useState(true);
@@ -66,10 +64,9 @@ export function OpsBoard({
     if (dateFrom) p.set("date_from", dateFrom);
     if (dateTo) p.set("date_to", dateTo);
     if (status) p.set("status", status);
-    if (reconStatus) p.set("recon_status", reconStatus);
     if (q) p.set("q", q);
     return p.toString();
-  }, [studioId, locationId, dateFrom, dateTo, status, reconStatus, q]);
+  }, [studioId, locationId, dateFrom, dateTo, status, q]);
 
   useEffect(() => {
     let mounted = true;
@@ -125,7 +122,7 @@ export function OpsBoard({
     <div className="grid gap-4">
       <OpsSection
         title="Pending Transfers"
-        description="Normal pending transfers waiting for staff verification (exceptions are shown below)."
+        description="All pending transfers in one queue; overdue items are highlighted."
         emptyText="No pending transfers."
       >
         {data.pending_verifications.length ? (
@@ -174,6 +171,8 @@ export function OpsBoard({
         ) : null}
       </OpsSection>
 
+      {/* Exception section intentionally removed.
+          Re-enable only after bank-reconciliation data can produce high-signal exceptions. */}
     </div>
   );
 }

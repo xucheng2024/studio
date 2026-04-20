@@ -63,18 +63,7 @@ export function OpsItemRow({
   const primaryActions = actions.slice(0, 2);
   const moreActions = actions.slice(2);
 
-  const reasonText =
-    exceptionCode === "amount_mismatch"
-      ? "Amount mismatch"
-      : exceptionCode === "missing_reference"
-        ? "Missing reference"
-          : exceptionCode === "manual_review"
-          ? "Manual review"
-          : exceptionCode === "verification_sla_overdue"
-            ? "Overdue"
-            : exceptionCode === "unmatched_payment"
-              ? "No booking linked"
-              : null;
+  const reasonText = exceptionCode === "verification_sla_overdue" ? "Overdue" : null;
 
   return (
     <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">

@@ -73,10 +73,8 @@ export async function GET(req: Request) {
   if (allStudioIds.length === 0) {
     return NextResponse.json({
       pending_verifications: [],
-      payment_exceptions: [],
       starting_soon: [],
       starting_soon_grouped: [],
-      unmatched_payments: [],
     });
   }
   const studioIds =
@@ -184,6 +182,13 @@ export async function GET(req: Request) {
   // SLA threshold: payment pending for too long without staff verification
   const nowMs = new Date().getTime();
 
+  // NOTE:
+  // We intentionally do NOT split a separate "payment_exceptions" section here.
+  // With current product behavior, exception rules (mismatch/reference/manual-review)
+  // either rarely trigger or create noisy overlap with normal pending operations.
+  // Keep all pending payments in one queue and surface urgency via SLA overdue badges.
+  // Reintroduce a dedicated exceptions section only after real bank reconciliation
+  // (authoritative paid_amount / webhook ingest) is available.
   const pendingVerifications = (payments ?? [])
     .filter((p) => p.status === "pending")
     .filter((p) => {

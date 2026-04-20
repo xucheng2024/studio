@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { PAYMENT_STATUS_FILTER_OPTIONS, RECON_STATUS_FILTER_OPTIONS } from "@/lib/payment-filter-options";
+import { PAYMENT_STATUS_FILTER_OPTIONS } from "@/lib/payment-filter-options";
 import { ui } from "@/lib/ui";
 
 export function OpsFilters({
@@ -12,7 +12,6 @@ export function OpsFilters({
   dateFrom,
   dateTo,
   status,
-  reconStatus,
   query,
 }: {
   studios: { id: string; name: string }[];
@@ -22,7 +21,6 @@ export function OpsFilters({
   dateFrom: string;
   dateTo: string;
   status: string;
-  reconStatus: string;
   query: string;
 }) {
   const pathname = usePathname();
@@ -107,21 +105,6 @@ export function OpsFilters({
         >
           <option value="">All</option>
           {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className={ui.label}>Review status</span>
-        <select
-          className={ui.select}
-          value={reconStatus}
-          onChange={(e) => update({ recon_status: e.target.value || null })}
-        >
-          <option value="">All</option>
-          {RECON_STATUS_FILTER_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
