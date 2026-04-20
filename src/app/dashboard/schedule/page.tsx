@@ -185,7 +185,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             Packages
           </DashboardAppLink>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className={`${ui.statCard} flex items-center gap-3`}>
             <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
               <CalendarCheck2 size={16} />
@@ -426,7 +426,7 @@ export default async function SchedulePage({ searchParams }: Props) {
 
       <div>
         <h2 className={ui.h2}>Sessions</h2>
-        <form method="get" className={`${ui.card} mt-4 grid gap-3 sm:grid-cols-3`}>
+        <form method="get" className={`${ui.card} mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
           {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
           <label className="flex flex-col gap-1.5">
@@ -451,7 +451,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             <input type="date" name="date_to" className={ui.input}
               defaultValue={sp.date_to ?? defaultTo.toISOString().slice(0, 10)} />
           </label>
-          <div className="flex items-end gap-2 sm:col-span-2">
+          <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
             <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
               Apply
             </SubmitButton>
@@ -505,7 +505,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                     </div>
                   </div>
                   {/* Action buttons: right side on desktop, below on mobile */}
-                  <div className="flex shrink-0 flex-wrap gap-2">
+                  <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
                     <SessionShareButton sessionId={s.id} />
                     <CancelSessionButton
                       sessionId={s.id}
@@ -544,10 +544,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                           ? (b.users?.email ?? b.client_id)
                           : `${b.guest_name ?? "Guest"}${b.guest_email ? ` · ${b.guest_email}` : ""}`;
                         return (
-                          <li
-                            key={b.id}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-stone-50/70 px-2.5 py-1.5 dark:bg-stone-800/40"
-                          >
+                          <li key={b.id} className="rounded-lg bg-stone-50/70 px-2.5 py-2 dark:bg-stone-800/40">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
                               <span className="truncate text-sm text-stone-800 dark:text-stone-200">
                                 {memberLabel}
@@ -557,7 +554,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                               </span>
                             </div>
                             {b.status === "booked" ? (
-                              <div className="flex shrink-0 gap-1.5">
+                              <div className="mt-2 flex shrink-0 flex-wrap gap-1.5 sm:mt-0">
                                 <MarkAttendedButton bookingId={b.id} />
                                 <CancelBookingButton bookingId={b.id} />
                               </div>

@@ -17,7 +17,7 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
     return (
       <button
         type="button"
-        className={`text-xs ${ui.linkMuted}`}
+        className={ui.btnGhost}
         onClick={() => setStep("confirm")}
       >
         Cancel
@@ -27,11 +27,11 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
 
   if (step === "confirm") {
     return (
-      <span className="flex items-center gap-2 text-xs">
-        <span className="text-stone-500 dark:text-stone-400">Cancel this booking?</span>
+      <span className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="w-full text-stone-500 dark:text-stone-400 sm:w-auto">Cancel this booking?</span>
         <button
           type="button"
-          className="font-medium text-red-600 hover:underline dark:text-red-400"
+          className={ui.btnDangerSm}
           onClick={async () => {
             setStep("busy");
             const res = await fetch("/api/book/cancel", {
@@ -53,7 +53,7 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
         </button>
         <button
           type="button"
-          className={`${ui.linkMuted}`}
+          className={ui.btnGhost}
           onClick={() => setStep("idle")}
         >
           <X size={11} />

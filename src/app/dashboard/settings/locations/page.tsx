@@ -90,12 +90,12 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
 
   return (
     <div className="flex max-w-4xl flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className={ui.h1}>Locations</h1>
           <p className={ui.muted}>Manage branches/venues for {studio.name}.</p>
         </div>
-        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId, selectedLocationId)} className={ui.btnSecondarySm}>
+        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId, selectedLocationId)} className={`${ui.btnSecondarySm} w-full sm:w-auto`}>
           Back to settings
         </DashboardAppLink>
       </div>
@@ -119,7 +119,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
             <input name="phone" type="tel" inputMode="tel" className={ui.input} placeholder="+65 9123 4567" />
           </label>
           <div className="md:col-span-2">
-            <SubmitButton className={ui.btnPrimary} pendingText="Creating...">
+            <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
               Add location
             </SubmitButton>
           </div>
@@ -153,9 +153,9 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
                     <input type="hidden" name="location_id" value={loc.id} />
                     <input name="name" required defaultValue={loc.name} className={ui.input} />
                     <input name="address" defaultValue={loc.address ?? ""} className={ui.input} placeholder="Address" />
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <input name="phone" type="tel" inputMode="tel" defaultValue={loc.phone ?? ""} className={ui.input} placeholder="+65 9123 4567" />
-                      <SubmitButton className={ui.btnSecondarySm} pendingText="Saving...">
+                      <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
                         Save
                       </SubmitButton>
                     </div>
@@ -170,7 +170,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
                   <form action={toggleLocationActive} className="mt-2">
                     <input type="hidden" name="location_id" value={loc.id} />
                     <input type="hidden" name="next_active" value={loc.is_active ? "false" : "true"} />
-                    <SubmitButton className={loc.is_active ? ui.btnGhost : ui.btnSecondarySm} pendingText="Updating...">
+                    <SubmitButton className={`${loc.is_active ? ui.btnGhost : ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Updating...">
                       {loc.is_active ? "Disable" : "Enable"}
                     </SubmitButton>
                   </form>
@@ -183,4 +183,3 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
     </div>
   );
 }
-

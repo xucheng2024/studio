@@ -12,7 +12,7 @@ export function CheckInApiButton({ bookingId, onDone }: { bookingId: string; onD
     <button
       type="button"
       disabled={loading}
-      className={`text-xs ${ui.linkMuted} disabled:opacity-50`}
+      className={`${ui.btnSecondarySm} disabled:opacity-50`}
       onClick={async () => {
         setLoading(true);
         const res = await fetch("/api/checkin", {

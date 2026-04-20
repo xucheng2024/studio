@@ -15,7 +15,7 @@ export function MarkAttendedButton({ bookingId }: { bookingId: string }) {
     <button
       type="button"
       disabled={loading}
-      className={`inline-flex items-center gap-1 text-xs ${ui.linkMuted} disabled:opacity-50`}
+      className={`${ui.btnSecondarySm} disabled:opacity-50`}
       onClick={async () => {
         setLoading(true);
         await markAttended(bookingId);

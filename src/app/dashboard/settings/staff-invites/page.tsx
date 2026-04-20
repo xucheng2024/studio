@@ -95,7 +95,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
           </select>
         </label>
         <div className="md:col-span-2">
-          <SubmitButton className={ui.btnPrimary} pendingText="Sending...">
+          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Sending...">
             Send invite
           </SubmitButton>
         </div>
@@ -108,7 +108,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         {!(invites as unknown[]).length ? (
           <p className={`text-sm ${ui.muted}`}>No invites sent yet.</p>
         ) : (
-          <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+          <ul className="space-y-2">
             {(invites as Array<{ id: string; email: string; role: string; status: string; token: string; expires_at: string }>).map(
               (invite) => {
                 const statusBg = invite.status === "pending"
@@ -117,7 +117,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
                     ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
                     : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400";
                 return (
-                  <li key={invite.id} className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <li key={invite.id} className="rounded-xl border border-stone-100 px-3 py-3 dark:border-stone-800">
                     <div className="flex min-w-0 flex-col gap-1.5">
                       <span className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{invite.email}</span>
                       <div className="flex flex-wrap items-center gap-2">
@@ -132,11 +132,11 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
                         Open invite link →
                       </Link>
                     </div>
-                    <div className="shrink-0">
+                    <div className="mt-2 shrink-0">
                       {invite.status === "pending" ? (
                         <form action={revokeStaffInvite}>
                           <input type="hidden" name="invite_id" value={invite.id} />
-                          <SubmitButton className={ui.btnGhost} pendingText="Revoking...">
+                          <SubmitButton className={`${ui.btnGhost} w-full sm:w-auto`} pendingText="Revoking...">
                             Revoke
                           </SubmitButton>
                         </form>

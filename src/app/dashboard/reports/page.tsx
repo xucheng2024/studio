@@ -319,10 +319,10 @@ export default async function ReportsPage({ searchParams }: Props) {
           })}
         </div>
         {/* Custom range */}
-        <form method="get" className="flex flex-wrap items-end gap-3">
+        <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
           {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>From</span>
               <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
@@ -332,7 +332,7 @@ export default async function ReportsPage({ searchParams }: Props) {
               <input type="date" name="date_to" defaultValue={dateTo} className={`${ui.input} whitespace-nowrap`} />
             </label>
           </div>
-          <button type="submit" className={ui.btnPrimarySm}>Apply</button>
+          <button type="submit" className={`${ui.btnPrimarySm} w-full sm:w-auto`}>Apply</button>
         </form>
       </div>
 
@@ -343,7 +343,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           </span>
           <div>
             <p className={`text-xs font-medium ${ui.muted}`}>Gross revenue</p>
-            <p className="mt-0.5 text-2xl font-bold tabular-nums text-teal-700 dark:text-teal-300">
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-teal-700 dark:text-teal-300 sm:text-2xl">
               ${summary.gross.toFixed(2)}
             </p>
           </div>
@@ -354,7 +354,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           </span>
           <div>
             <p className={`text-xs font-medium ${ui.muted}`}>Refunds</p>
-            <p className="mt-0.5 text-2xl font-bold tabular-nums text-blue-800 dark:text-blue-200">
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-blue-800 dark:text-blue-200 sm:text-2xl">
               ${summary.refunds.toFixed(2)}
             </p>
           </div>
@@ -365,7 +365,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           </span>
           <div>
             <p className={`text-xs font-medium ${ui.muted}`}>Net revenue</p>
-            <p className="mt-0.5 text-2xl font-bold tabular-nums text-stone-900 dark:text-stone-100">
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
               ${summary.net.toFixed(2)}
             </p>
           </div>
@@ -399,20 +399,20 @@ export default async function ReportsPage({ searchParams }: Props) {
       <div className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className={`${ui.h2} text-base`}>Attendance by class</h2>
-          <form method="get" className="flex flex-wrap items-end gap-2">
+          <form method="get" className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
             {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
             {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
             <input type="hidden" name="date_from" value={dateFrom} />
             <input type="hidden" name="date_to" value={dateTo} />
-            <label className="flex items-center gap-1 text-xs">
+            <label className="flex items-center justify-between gap-1 text-xs sm:justify-start">
               <span className={ui.muted}>Sort</span>
-              <select name="class_sort" defaultValue={classSort} className={`${ui.select} h-9 py-1 text-xs`}>
+              <select name="class_sort" defaultValue={classSort} className={`${ui.select} h-9 py-1 text-xs sm:w-auto`}>
                 <option value="attended">Attended</option>
                 <option value="booked">Booked</option>
                 <option value="rate">Rate</option>
               </select>
             </label>
-            <label className="flex items-center gap-1 text-xs">
+            <label className="flex items-center justify-between gap-1 text-xs sm:justify-start">
               <span className={ui.muted}>Top</span>
               <input
                 name="class_top_n"
@@ -420,10 +420,10 @@ export default async function ReportsPage({ searchParams }: Props) {
                 min={1}
                 max={200}
                 defaultValue={classTopNSafe}
-                className={`${ui.input} h-9 w-20 py-1 text-xs`}
+                className={`${ui.input} h-9 w-24 py-1 text-xs`}
               />
             </label>
-            <button type="submit" className={ui.btnSecondarySm}>Apply</button>
+            <button type="submit" className={`${ui.btnSecondarySm} w-full sm:w-auto`}>Apply</button>
           </form>
         </div>
         <ul className="mt-3 divide-y divide-stone-100 text-sm dark:divide-stone-800">

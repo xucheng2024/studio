@@ -76,7 +76,7 @@ export function PaymentMarkButton({
 
   if (busy) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-stone-400">
+      <span className="inline-flex min-h-10 items-center gap-1.5 text-xs text-stone-400">
         <Loader2 size={12} className="animate-spin" />
         {label}…
       </span>
@@ -110,7 +110,7 @@ export function PaymentMarkButton({
         <div className="flex gap-1.5">
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700 active:scale-[0.98]"
+            className={ui.btnPrimarySm}
             onClick={() => void execute()}
           >
             <Check size={11} />
@@ -131,11 +131,11 @@ export function PaymentMarkButton({
   /* Non-paid statuses with optional inline confirmation */
   if (cfg.confirm && confirming) {
     return (
-      <span className="inline-flex items-center gap-1.5">
-        <span className="text-xs text-stone-600 dark:text-stone-400">Sure?</span>
+      <span className="inline-flex flex-wrap items-center gap-1.5">
+        <span className="w-full text-xs text-stone-600 dark:text-stone-400 sm:w-auto">Sure?</span>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700 active:scale-[0.98]"
+          className={ui.btnDangerSm}
           onClick={() => void execute()}
         >
           <Check size={11} />

@@ -395,7 +395,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             ))}
           </div>
           <a
-            className={`${ui.linkMuted} ml-auto inline-flex items-center gap-1.5`}
+            className={`${ui.linkMuted} w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0 inline-flex items-center gap-1.5`}
             href={`/api/payments/export?${exportParams.toString()}`}
           >
             <Download size={13} />
@@ -405,7 +405,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       </div>
 
       {/* ── Stats grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className={ui.statCard}>
           <p className={`text-xs ${ui.muted}`}>Today received</p>
           <p className="mt-1 text-xl font-semibold">${scopedStats.todayReceived.toFixed(2)}</p>
@@ -429,7 +429,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className={ui.statCard}>
           <p className={`text-xs ${ui.muted}`}>Transactions (filtered)</p>
           <p className="mt-1 text-xl font-semibold">{scopedStats.txCount}</p>
@@ -462,7 +462,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             Export today
           </a>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className={ui.statCard}>
             <p className={`text-xs ${ui.muted}`}>Transactions</p>
             <p className="mt-1 text-xl font-semibold">{dailyTxCount}</p>
@@ -564,7 +564,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </details>
 
         {/* ── Apply / Reset ─────────────────────────────────── */}
-        <div className="flex gap-2">
+        <div className={`${ui.mobileActionBar} flex flex-col gap-2 sm:flex-row`}>
           <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
             Apply filters
           </SubmitButton>
@@ -647,32 +647,32 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               {/* ── Key fields grid ───────────────────────────────── */}
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
                 <div className="flex gap-2">
-                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Member</dt>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Member</dt>
                   <dd className="min-w-0 break-all font-medium text-stone-700 dark:text-stone-300">{clientLabelWithPhone}</dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Method</dt>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
                   <dd className="text-stone-700 dark:text-stone-300">{p.payment_method ?? "-"}</dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Ref</dt>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Ref</dt>
                   <dd><span className={ui.code}>{p.reference_code ?? "-"}</span></dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Location</dt>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Location</dt>
                   <dd className="text-stone-700 dark:text-stone-300">
                     {p.location_id ? (locationMap.get(p.location_id) ?? "Unknown") : "Unassigned"}
                   </dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Created</dt>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Created</dt>
                   <dd className="text-stone-600 dark:text-stone-400">
                     {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
                   </dd>
                 </div>
                 {p.verified_at ? (
                   <div className="flex gap-2 sm:col-span-2">
-                    <dt className="w-16 shrink-0 text-stone-400 dark:text-stone-500">Verified</dt>
+                    <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Verified</dt>
                     <dd className="text-stone-600 dark:text-stone-400">
                       {new Date(p.verified_at).toLocaleString()} · {p.verified_by ?? "-"}
                     </dd>

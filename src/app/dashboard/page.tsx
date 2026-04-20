@@ -12,7 +12,6 @@ type Props = {
     status?: string;
     payment_method?: string;
     invoice_status?: string;
-    recon_status?: string;
     q?: string;
   }>;
 };
@@ -48,7 +47,6 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (sp.status) params.set("status", sp.status);
   if (sp.payment_method) params.set("payment_method", sp.payment_method);
   if (sp.invoice_status) params.set("invoice_status", sp.invoice_status);
-  if (sp.recon_status) params.set("recon_status", sp.recon_status);
   if (sp.q) params.set("q", sp.q);
   const q = params.toString();
   if (studioIds.length === 0 && access.ctx.isSuperAdmin) {

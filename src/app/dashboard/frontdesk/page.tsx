@@ -120,13 +120,16 @@ export default async function FrontdeskPage({ searchParams }: Props) {
               const userObj = Array.isArray(r.users) ? r.users[0] : r.users;
               const booking = getUnifiedStatusBadges({ booking_status: r.status }).booking;
               return (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-100 px-3 py-2.5 dark:border-stone-800">
+                <li key={r.id} className="rounded-xl border border-stone-100 px-3 py-2.5 dark:border-stone-800">
                   <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
                     {userObj?.email ?? `${r.guest_name ?? "Guest"}${r.guest_email ? ` · ${r.guest_email}` : ""}${r.guest_phone ? ` · ${r.guest_phone}` : ""}`}
                   </p>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${badgeToneClass(booking.tone)}`}>
-                    {booking.text}
-                  </span>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(booking.tone)}`}>
+                      {booking.text}
+                    </span>
+                    <span className={`text-xs ${ui.muted}`}>Booking #{r.id.slice(0, 8)}</span>
+                  </div>
                 </li>
               );
             })}

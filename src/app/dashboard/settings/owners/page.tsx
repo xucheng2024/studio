@@ -195,11 +195,11 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
       {errorMsg ? <p className={ui.error}>{errorMsg}</p> : null}
 
       <form method="get" className={`${ui.card} flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end`}>
-        <label className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+        <label className="flex w-full min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[200px]">
           <span className={ui.label}>Search owner email</span>
           <input name="q" type="search" className={ui.input} placeholder="contains…" defaultValue={sp.q ?? ""} />
         </label>
-        <label className="flex min-w-[160px] flex-col gap-1.5">
+        <label className="flex w-full min-w-0 flex-col gap-1.5 sm:min-w-[160px]">
           <span className={ui.label}>Grant status</span>
           <select name="grant" className={ui.select} defaultValue={grantFilter}>
             <option value="all">All</option>
@@ -207,7 +207,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
             <option value="inactive">Grant inactive</option>
           </select>
         </label>
-        <label className="flex min-w-[180px] flex-col gap-1.5">
+        <label className="flex w-full min-w-0 flex-col gap-1.5 sm:min-w-[180px]">
           <span className={ui.label}>Studios in list</span>
           <select name="studio_contract" className={ui.select} defaultValue={studioContractFilter}>
             <option value="all">All</option>
@@ -309,7 +309,8 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                     {visibleStudios.length === 0 ? (
                       <p className={`mt-2 text-sm ${ui.muted}`}>No studios match the studio contract filter.</p>
                     ) : (
-                      <div className="mt-3 overflow-x-auto">
+                      <>
+                        <div className="mt-3 hidden overflow-x-auto md:block">
                         <table className="min-w-[720px] w-full text-sm">
                           <thead>
                             <tr className="border-b border-stone-200 text-left text-stone-500 dark:border-stone-800">
@@ -387,7 +388,74 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                             ))}
                           </tbody>
                         </table>
-                      </div>
+                        </div>
+                        <ul className="mt-3 grid gap-2 md:hidden">
+                        {visibleStudios.map((s) => (
+                          <li
+                            key={`${s.id}-mobile`}
+                            className="rounded-xl border border-stone-200/80 bg-white/80 p-3 dark:border-stone-800 dark:bg-stone-950/50"
+                          >
+                            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{s.name}</p>
+                            <p className="mt-0.5 break-all font-mono text-[11px] text-stone-500">{s.id}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                              <span className={ui.badgeNeutral}>Slug: {s.public_slug}</span>
+                              <span
+                                className={
+                                  s.contract_status === "active"
+                                    ? "rounded-md bg-teal-100/80 px-2 py-0.5 font-medium text-teal-900 dark:bg-teal-950/50 dark:text-teal-100"
+                                    : "rounded-md bg-amber-100/80 px-2 py-0.5 font-medium text-amber-950 dark:bg-amber-950/40 dark:text-amber-100"
+                                }
+                              >
+                                {s.contract_status}
+                              </span>
+                            </div>
+                            <p className={`mt-2 text-xs ${ui.muted}`}>
+                              Ends:{" "}
+                              {s.contract_ends_at
+                                ? new Date(s.contract_ends_at).toLocaleString(undefined, {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  })
+                                : "—"}
+                            </p>
+                            <div className="mt-3">
+                              {s.contract_status === "active" ? (
+                                <ConfirmForm
+                                  action={suspendStudio}
+                                  confirmMessage="Suspend this studio? Staff and owner lose back-office access for this venue until resumed."
+                                  className="inline"
+                                >
+                                  <input type="hidden" name="studio_id" value={s.id} />
+                                  <SubmitButton className={ui.btnSecondarySm} pendingText="Suspending…">
+                                    Suspend
+                                  </SubmitButton>
+                                </ConfirmForm>
+                              ) : (
+                                <ConfirmForm
+                                  action={resumeStudio}
+                                  confirmMessage="Resume this studio (contract active)? Back-office access returns if other checks pass."
+                                  className="flex flex-col items-start gap-2"
+                                >
+                                  <input type="hidden" name="studio_id" value={s.id} />
+                                  <label className="flex w-full min-w-0 flex-col gap-1">
+                                    <span className={`text-xs ${ui.muted}`}>Set contract ends (optional)</span>
+                                    <input
+                                      type="datetime-local"
+                                      name="contract_ends_at"
+                                      className={ui.input}
+                                      defaultValue={formatDatetimeLocal(s.contract_ends_at)}
+                                    />
+                                  </label>
+                                  <SubmitButton className={ui.btnPrimarySm} pendingText="Resuming…">
+                                    Resume
+                                  </SubmitButton>
+                                </ConfirmForm>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                        </ul>
+                      </>
                     )}
                   </details>
                 </div>
@@ -403,7 +471,8 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
         {(auditRows ?? []).length === 0 ? (
           <p className={ui.muted}>No audit rows yet for these actions.</p>
         ) : (
-          <div className={`${ui.card} overflow-x-auto`}>
+          <>
+            <div className={`${ui.card} hidden overflow-x-auto md:block`}>
             <table className="min-w-[880px] w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-200 text-left text-stone-500 dark:border-stone-800">
@@ -443,7 +512,29 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                 )}
               </tbody>
             </table>
-          </div>
+            </div>
+            <ul className="grid gap-2 md:hidden">
+            {(auditRows as { id: string; action: string; target_type: string; target_id: string | null; actor_id: string | null; before_state: unknown; after_state: unknown; created_at: string }[]).map(
+              (a) => (
+                <li key={`${a.id}-mobile`} className="rounded-xl border border-stone-200/80 bg-white/80 p-3 dark:border-stone-800 dark:bg-stone-950/50">
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    {new Date(a.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-stone-800 dark:text-stone-200">{a.action}</p>
+                  <p className={`mt-1 text-xs ${ui.muted}`}>
+                    {a.target_type} · {a.target_id ?? "—"}
+                  </p>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-teal-700 dark:text-teal-400">before / after</summary>
+                    <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-stone-100 p-2 text-[10px] text-stone-800 dark:bg-stone-900 dark:text-stone-200">
+                      {JSON.stringify({ before: a.before_state, after: a.after_state }, null, 2)}
+                    </pre>
+                  </details>
+                </li>
+              ),
+            )}
+            </ul>
+          </>
         )}
       </div>
     </div>
