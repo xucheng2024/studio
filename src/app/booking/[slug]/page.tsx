@@ -19,15 +19,15 @@ export default async function StudioBookingPage({ params }: Props) {
   if (!slug) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: studio, error: stErr } = await supabase
-    .from("studios")
-    .select("id, name, public_slug, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
-    .eq("public_slug", slug)
-    .maybeSingle();
+  const [{ data: { user } }, studioRes] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("studios")
+      .select("id, name, public_slug, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
+      .eq("public_slug", slug)
+      .maybeSingle(),
+  ]);
+  const { data: studio, error: stErr } = studioRes;
   if (stErr || !studio) notFound();
 
   const paynow = getPaynowSummary({

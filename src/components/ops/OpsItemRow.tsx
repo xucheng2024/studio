@@ -35,7 +35,6 @@ export function OpsItemRow({
   secondary,
   bookingStatus,
   paymentStatus,
-  reconStatus,
   exceptionCode,
   waitMinutes,
   overdue,
@@ -47,7 +46,6 @@ export function OpsItemRow({
   secondary: string;
   bookingStatus?: string | null;
   paymentStatus?: string | null;
-  reconStatus?: string | null;
   exceptionCode?: string | null;
   waitMinutes?: number;
   overdue?: boolean;
@@ -58,7 +56,6 @@ export function OpsItemRow({
   const badges = getUnifiedStatusBadges({
     booking_status: bookingStatus,
     payment_status: paymentStatus,
-    recon_status: reconStatus,
   });
   const primaryActions = actions.slice(0, 2);
   const moreActions = actions.slice(2);
@@ -78,11 +75,6 @@ export function OpsItemRow({
         {paymentStatus ? (
           <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.payment.tone)}`}>
             {badges.payment.text}
-          </span>
-        ) : null}
-        {reconStatus ? (
-          <span className={`rounded-full px-2 py-0.5 text-xs ${badgeToneClass(badges.recon.tone)}`}>
-            Review: {badges.recon.text}
           </span>
         ) : null}
         {reasonText ? (

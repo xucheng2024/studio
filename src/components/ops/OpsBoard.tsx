@@ -13,7 +13,6 @@ type QueueItem = {
   secondary_label: string;
   booking_status?: string | null;
   payment_status?: string | null;
-  recon_status?: string | null;
   exception_code?: string | null;
   wait_minutes?: number;
   sla_overdue?: boolean;
@@ -133,7 +132,6 @@ export function OpsBoard({
                 primary={item.primary_label}
                 secondary={toBusinessCopy(item.secondary_label)}
                 paymentStatus={item.payment_status ?? "pending"}
-                reconStatus={item.recon_status ?? null}
                 exceptionCode={item.exception_code ?? null}
                 waitMinutes={item.wait_minutes}
                 overdue={item.sla_overdue}

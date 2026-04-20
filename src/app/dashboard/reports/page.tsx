@@ -252,14 +252,6 @@ export default async function ReportsPage({ searchParams }: Props) {
     });
   const classRowsTop = classAttendanceRows.slice(0, classTopNSafe);
 
-  const reportParams = new URLSearchParams();
-  if (selectedStudioId) reportParams.set("studio_id", selectedStudioId);
-  if (selectedLocationId) reportParams.set("location_id", selectedLocationId);
-  reportParams.set("date_from", dateFrom);
-  reportParams.set("date_to", dateTo);
-  if (classSort !== "attended") reportParams.set("class_sort", classSort);
-  if (classTopNSafe !== 20) reportParams.set("class_top_n", String(classTopNSafe));
-
   const exportParams = new URLSearchParams();
   if (selectedStudioId) exportParams.set("studio_id", selectedStudioId);
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);

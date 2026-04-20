@@ -51,7 +51,6 @@ export async function GET(req: Request) {
   const locationIdInput = url.searchParams.get("location_id");
   const keyword = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const statusInput = url.searchParams.get("status");
-  const reconStatusInput = url.searchParams.get("recon_status");
   const { startIso, endIso } = normalizeDateRange(
     url.searchParams.get("date_from"),
     url.searchParams.get("date_to"),
@@ -95,7 +94,6 @@ export async function GET(req: Request) {
   if (dateFromInput) inherited.set("date_from", dateFromInput);
   if (dateToInput) inherited.set("date_to", dateToInput);
   if (statusInput) inherited.set("status", statusInput);
-  if (reconStatusInput) inherited.set("recon_status", reconStatusInput);
   if (keyword) inherited.set("q", keyword);
   const inheritedQuery = inherited.toString();
 
@@ -125,22 +123,18 @@ export async function GET(req: Request) {
     status: string;
     reference_code: string | null;
     created_at: string | null;
-    recon_status: string | null;
-    paid_amount: number | null;
-    recon_note: string | null;
     verified_at: string | null;
   }> = await (async () => {
     let paymentsQuery = admin
       .from("payments")
       .select(
-        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, guest_phone, amount, currency, status, reference_code, created_at, recon_status, paid_amount, recon_note, verified_at",
+        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, guest_phone, amount, currency, status, reference_code, created_at, verified_at",
       )
       .in("studio_id", studioIds)
       .order("created_at", { ascending: false })
       .limit(300);
     if (locationId) paymentsQuery = paymentsQuery.eq("location_id", locationId);
     if (statusInput) paymentsQuery = paymentsQuery.eq("status", statusInput);
-    if (reconStatusInput) paymentsQuery = paymentsQuery.eq("recon_status", reconStatusInput);
     paymentsQuery = paymentsQuery.gte("created_at", startIso).lt("created_at", endIso);
     const { data } = await paymentsQuery;
     return (data ?? []) as typeof payments;
@@ -251,7 +245,6 @@ export async function GET(req: Request) {
           submitted ? new Date(submitted).toLocaleString() : "-"
         }`,
         payment_status: p.status,
-        recon_status: p.recon_status,
         exception_code: slaOverdue ? "verification_sla_overdue" : null,
         wait_minutes: waitMinutes,
         sla_overdue: Boolean(slaOverdue),

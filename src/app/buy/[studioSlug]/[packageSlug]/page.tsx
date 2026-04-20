@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import { BuyPackageButton } from "@/components/BuyButtons";
 import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import { getPaynowSummary } from "@/lib/paynow";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
-import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,35 +19,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicPackageBuyPage({ params }: Props) {
   const { studioSlug: rawStudio, packageSlug: rawPkg } = await params;
-  const studioSlug = normalizeStudioSlug(rawStudio ?? "");
-  const pkgSlug = String(rawPkg ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(pkgSlug)) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: studio } = await supabase
-    .from("studios")
-    .select(
-      "id, name, public_slug, contract_status, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name",
-    )
-    .eq("public_slug", studioSlug)
-    .maybeSingle();
-  if (!studio || studio.contract_status === "suspended") notFound();
-
-  const { data: pkg } = await supabase
-    .from("packages")
-    .select("id, name, credits, price, expiry_days, location_id, is_active, image_url, locations ( name )")
-    .eq("studio_id", studio.id)
-    .eq("share_slug", pkgSlug)
-    .maybeSingle();
-  if (!pkg || pkg.is_active === false) notFound();
+  const [{ data: { user } }, ctx] = await Promise.all([
+    supabase.auth.getUser(),
+    getCachedPackageShareContext(rawStudio ?? "", rawPkg ?? ""),
+  ]);
+  if (!ctx) notFound();
+  const { studio, pkg } = ctx;
+  const signInNext = `/buy/${studio.public_slug}/${pkg.share_slug ?? ""}`;
 
   const paynow = getPaynowSummary({
     paynow_enabled: Boolean(studio.paynow_enabled),
@@ -58,7 +38,6 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   });
   const loc = pkg.locations as { name?: string } | { name?: string }[] | null;
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
-  const signInNext = `/buy/${studioSlug}/${pkgSlug}`;
 
   const coverSrc = (pkg as { image_url?: string | null }).image_url ?? null;
 

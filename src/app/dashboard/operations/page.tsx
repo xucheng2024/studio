@@ -157,7 +157,7 @@ export default async function OperationsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Today&apos;s front desk</h1>
         <p className={ui.muted}>One queue for payment checks, arrivals, and urgent follow-ups.</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <DashboardAppLink href={`/dashboard/payments?view=recon&${filterParams.toString()}`} className={ui.btnSecondarySm}>
+          <DashboardAppLink href={`/dashboard/payments?${filterParams.toString()}`} className={ui.btnSecondarySm}>
             <CreditCard size={13} />
             Payment records
           </DashboardAppLink>
