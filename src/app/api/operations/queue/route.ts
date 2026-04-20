@@ -184,36 +184,8 @@ export async function GET(req: Request) {
   // SLA threshold: payment pending for too long without staff verification
   const nowMs = new Date().getTime();
 
-  function getExceptionCode(p: {
-    studio_id: string;
-    location_id: string | null;
-    amount: number | null;
-    paid_amount: number | null;
-    reference_code: string | null;
-    recon_status: string | null;
-    created_at: string | null;
-    verified_at: string | null;
-  }) {
-    const expected = Number(p.amount ?? 0);
-    const paid = Number(p.paid_amount ?? expected);
-    if (paid !== expected) return "amount_mismatch" as const;
-    if (!p.reference_code) return "missing_reference" as const;
-    if (p.recon_status === "manual_review") return "manual_review" as const;
-    if (p.recon_status === "mismatch") return "amount_mismatch" as const;
-    const slaMin = getSlaMin(p.studio_id, p.location_id ?? null);
-    if (
-      p.created_at &&
-      !p.verified_at &&
-      nowMs - new Date(p.created_at).getTime() > slaMin * 60 * 1000
-    ) {
-      return "verification_sla_overdue" as const;
-    }
-    return null;
-  }
-
   const pendingVerifications = (payments ?? [])
     .filter((p) => p.status === "pending")
-    .filter((p) => getExceptionCode(p) == null)
     .filter((p) => {
       if (!keyword) return true;
       const b = (p.booking_id ? bookingMap.get(p.booking_id) : null) as
@@ -420,75 +392,9 @@ export async function GET(req: Request) {
     });
   }
 
-  const paymentExceptions = (payments ?? [])
-    .filter((p) => getExceptionCode(p) != null)
-    .filter((p) => {
-      if (!keyword) return true;
-      return [p.reference_code, p.recon_note]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(keyword));
-    })
-    .map((p) => {
-      const expected = Number(p.amount ?? 0);
-      const paid = Number(p.paid_amount ?? expected);
-      const delta = paid - expected;
-      const reviewReason = getExceptionCode(p) ?? "needs_review";
-      const excBooking = (p.booking_id ? bookingMap.get(p.booking_id) : null) as
-        | { guest_name?: string | null; guest_email?: string | null; guest_phone?: string | null }
-        | undefined;
-      const excClientEmail = p.client_id ? clientMap.get(p.client_id) : null;
-      const excClientPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
-      const excName = p.guest_name ?? excBooking?.guest_name ?? null;
-      const excEmail = p.guest_email ?? excBooking?.guest_email ?? excClientEmail ?? null;
-      const excPhone = p.guest_phone ?? excBooking?.guest_phone ?? excClientPhone ?? null;
-      const excPerson = excName
-        ? excEmail ? `${excName} <${excEmail}>` : excName
-        : excEmail
-          ? `${p.client_id ? "Member" : "Guest"}: ${excEmail}`
-          : p.client_id ? `Member · ${p.client_id}` : null;
-      const excPersonWithPhone = excPhone && excPerson ? `${excPerson} · ${excPhone}` : (excPerson ?? "-");
-      return {
-        id: p.id,
-        type: "payment_exception",
-        primary_label: `Expected ${p.currency} ${expected.toFixed(2)} · Paid ${paid.toFixed(2)} · Δ ${delta.toFixed(2)}`,
-        secondary_label: `${excPersonWithPhone} · Ref ${p.reference_code ?? "-"} · ${reviewReason}`,
-        exception_code: reviewReason,
-        payment_status: p.status,
-        recon_status: p.recon_status,
-        actions: [
-          { kind: "open_match", label: "Match payment", href: `/dashboard/payments?view=queue&${inheritedQuery}` },
-          { kind: "more_link", label: "Open payment", href: `/dashboard/payments?${inheritedQuery}&payment_id=${p.id}` },
-        ],
-      };
-    });
-
-  const unmatchedPayments = (payments ?? [])
-    .filter((p) => !p.booking_id)
-    .filter((p) => {
-      if (!keyword) return true;
-      return [p.reference_code, p.recon_note]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(keyword));
-    })
-    .map((p) => ({
-      id: p.id,
-      type: "unmatched_payment",
-      primary_label: `${p.currency} ${Number(p.amount ?? 0).toFixed(2)} · ${p.reference_code ?? "-"}`,
-      secondary_label: `No booking attached${p.recon_note ? ` · ${p.recon_note}` : ""}`,
-      payment_status: p.status,
-      recon_status: p.recon_status,
-      exception_code: "unmatched_payment",
-      actions: [
-        { kind: "open_match", label: "Match payment", href: `/dashboard/payments?view=queue&${inheritedQuery}` },
-        { kind: "more_link", label: "Open payment", href: `/dashboard/payments?${inheritedQuery}&payment_id=${p.id}` },
-      ],
-    }));
-
   return NextResponse.json({
     pending_verifications: pendingVerifications,
-    payment_exceptions: paymentExceptions,
     starting_soon: startingSoon,
     starting_soon_grouped: startingSoonGrouped,
-    unmatched_payments: unmatchedPayments,
   });
 }

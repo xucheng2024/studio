@@ -52,8 +52,8 @@ export function OpsItemRow({
   waitMinutes?: number;
   overdue?: boolean;
   actions: Action[];
-  sectionKey: "pending_verifications" | "starting_soon" | "payment_exceptions" | "unmatched_payments";
-  onActionDone?: (section: "pending_verifications" | "starting_soon" | "payment_exceptions" | "unmatched_payments") => void;
+  sectionKey: "pending_verifications" | "starting_soon";
+  onActionDone?: (section: "pending_verifications" | "starting_soon") => void;
 }) {
   const badges = getUnifiedStatusBadges({
     booking_status: bookingStatus,

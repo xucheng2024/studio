@@ -26,20 +26,12 @@ type QueueItem = {
 
 type QueuePayload = {
   pending_verifications: QueueItem[];
-  payment_exceptions: QueueItem[];
   starting_soon: QueueItem[];
   starting_soon_grouped: StartingSoonSessionGroup[];
-  unmatched_payments: QueueItem[];
 };
 
 function toBusinessCopy(text: string) {
-  return text
-    .replace("Recon ", "Review ")
-    .replace("amount_mismatch", "amount mismatch")
-    .replace("missing_reference", "missing transfer reference")
-    .replace("verification_sla_overdue", "confirmation overdue")
-    .replace("needs_review", "needs manual review")
-    .replace("No booking attached", "No booking linked yet");
+  return text.replace("verification_sla_overdue", "confirmation overdue");
 }
 
 export function OpsBoard({
@@ -63,12 +55,9 @@ export function OpsBoard({
   const [refreshingSection, setRefreshingSection] = useState<string | null>(null);
   const [data, setData] = useState<QueuePayload>({
     pending_verifications: [],
-    payment_exceptions: [],
     starting_soon: [],
     starting_soon_grouped: [],
-    unmatched_payments: [],
   });
-  const [reviewFilter, setReviewFilter] = useState<"all" | "amount_mismatch" | "missing_reference" | "manual_review">("all");
 
   const qs = useMemo(() => {
     const p = new URLSearchParams();
@@ -90,10 +79,8 @@ export function OpsBoard({
         if (!mounted) return;
         setData({
           pending_verifications: json.pending_verifications ?? [],
-          payment_exceptions: json.payment_exceptions ?? [],
           starting_soon: json.starting_soon ?? [],
           starting_soon_grouped: json.starting_soon_grouped ?? [],
-          unmatched_payments: json.unmatched_payments ?? [],
         });
       })
       .finally(() => {
@@ -106,7 +93,7 @@ export function OpsBoard({
   }, [qs]);
 
   const refreshSection = async (
-    section: "pending_verifications" | "starting_soon" | "payment_exceptions" | "unmatched_payments",
+    section: "pending_verifications" | "starting_soon",
   ) => {
     setRefreshingSection(section);
     const json = await fetch(`/api/operations/queue?${qs}`, { cache: "no-store" }).then((r) => r.json());
@@ -187,56 +174,6 @@ export function OpsBoard({
         ) : null}
       </OpsSection>
 
-      <OpsSection
-        title="Payment Exceptions"
-        description="Payments with amount mismatch, missing reference, or manual check flags."
-        emptyText="No payments to review."
-      >
-        <div className="mb-2 flex flex-wrap gap-2">
-          {[
-            { key: "all", label: "All" },
-            { key: "amount_mismatch", label: "Amount mismatch" },
-            { key: "missing_reference", label: "Missing reference" },
-            { key: "manual_review", label: "Manual review" },
-          ].map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              className={
-                reviewFilter === opt.key
-                  ? ui.btnPrimarySm
-                  : ui.btnSecondarySm
-              }
-              onClick={() => setReviewFilter(opt.key as typeof reviewFilter)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        {data.payment_exceptions.length ? (
-          <div className="grid gap-2">
-            {data.payment_exceptions
-              .filter((item) => reviewFilter === "all" || item.exception_code === reviewFilter)
-              .map((item) => (
-              <OpsItemRow
-                key={item.id}
-                primary={item.primary_label}
-                secondary={toBusinessCopy(item.secondary_label)}
-                exceptionCode={item.exception_code ?? null}
-                reconStatus={item.recon_status ?? "manual_review"}
-                actions={item.actions}
-                sectionKey="payment_exceptions"
-                onActionDone={refreshSection}
-              />
-            ))}
-          </div>
-        ) : null}
-        {refreshingSection === "payment_exceptions" ? (
-          <p className={`mt-2 text-xs ${ui.muted}`}>Refreshing section...</p>
-        ) : null}
-      </OpsSection>
-
-      {/* Hidden for current flow: package payments naturally have no booking_id and create noise here. */}
     </div>
   );
 }
