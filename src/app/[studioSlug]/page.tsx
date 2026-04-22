@@ -91,6 +91,17 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     numberE164: studio.whatsapp_number_e164,
     prefillText: studio.whatsapp_prefill_text,
   });
+  const buildServiceWaLink = (serviceTitle: string) => {
+    if (!waLink) return null;
+    try {
+      const url = new URL(waLink);
+      const current = url.searchParams.get("text") ?? "Hi, I’m interested in your services.";
+      url.searchParams.set("text", `${current}\n\nService: ${serviceTitle}`);
+      return url.toString();
+    } catch {
+      return waLink;
+    }
+  };
   const studioVideoPreview = getVideoPreview(studio.public_video_url);
 
   return (
@@ -177,23 +188,24 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <div className="mt-4 grid gap-4">
             {services.map((svc) => {
               const serviceVideoPreview = getVideoPreview(svc.video_url);
+              const serviceWaLink = buildServiceWaLink(svc.title);
               return (
                 <article key={svc.id} className={ui.card}>
                   <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
-                    <div>
+                    <div className="relative">
                       {svc.cover_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={svc.cover_image_url} alt={svc.title} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
                       ) : (
                         <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                       )}
+                      <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                        {svc.currency} {Number(svc.price ?? 0).toFixed(2)}
+                      </span>
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{svc.title}</h3>
-                        <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
-                          {svc.currency} {Number(svc.price ?? 0).toFixed(2)}
-                        </span>
                       </div>
                       {svc.summary ? <p className={`mt-2 text-sm ${ui.muted}`}>{svc.summary}</p> : null}
                       {svc.description ? (
@@ -244,6 +256,19 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           )}
                         </div>
                       ) : null}
+                      {serviceWaLink ? (
+                        <div className="mt-4">
+                          <a
+                            href={serviceWaLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={ui.btnSecondarySm}
+                          >
+                            <MessageCircle size={14} />
+                            Book
+                          </a>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </article>
@@ -260,7 +285,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <p className={ui.muted}>No upcoming classes yet.</p>
           </div>
         ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
             {classes.map((s) => {
               const dt = new Date(s.start_time);
               const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
@@ -271,8 +296,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 ? `/class/${studio.public_slug}/${classSlug}?session_id=${s.id}`
                 : `/booking/${studio.public_slug}`;
               return (
-                <Link key={s.id} href={href} className={`${ui.card} block transition-shadow hover:shadow-md`}>
-                  <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
+                <Link
+                  key={s.id}
+                  href={href}
+                  className={`${ui.card} block transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}
+                >
+                  <div className="grid gap-4 sm:grid-cols-[200px_1fr] sm:items-center">
                     <div>
                       {cls?.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -287,15 +316,21 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      <p className="text-base font-semibold text-stone-900 dark:text-stone-100">
                         {cls?.title ?? "Class"}
                       </p>
                       <p className={`mt-1 text-sm ${ui.muted}`}>{dateLabel} · {timeLabel}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                         <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
                           SGD {Number(s.guest_price ?? 0).toFixed(2)}
                         </span>
-                        <span className="rounded-full bg-teal-50 px-2 py-0.5 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
+                        <span
+                          className={`rounded-full px-2 py-0.5 ${
+                            Number(s.spots_left ?? 0) <= 3
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                              : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                          }`}
+                        >
                           {Number(s.spots_left ?? 0)} spots left
                         </span>
                       </div>
