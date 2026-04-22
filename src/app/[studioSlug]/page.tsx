@@ -34,7 +34,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
   const nowIso = new Date().toISOString();
   const { data: classes } = await admin
     .from("class_sessions")
-    .select("id, start_time, spots_left, guest_price, classes!inner(title, share_slug, image_url, studio_id, is_active)")
+    .select("id, start_time, spots_left, capacity, guest_price, classes!inner(title, description, share_slug, image_url, studio_id, is_active, capacity)")
     .eq("classes.studio_id", studio.id)
     .eq("classes.is_active", true)
     .eq("status", "scheduled")
@@ -291,6 +291,15 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
               const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
               const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
+              const classDescription = cls?.description?.trim() ?? "";
+              const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
+              const spotsLeft = Number(s.spots_left ?? 0);
+              const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
+              const spotsText = spotsLeft === 0
+                ? sessionCapacity > 0 ? `Full · max ${sessionCapacity}` : "Full"
+                : sessionCapacity > 0
+                  ? `${spotsLeft} left · max ${sessionCapacity}`
+                  : spotsLow ? `${spotsLeft} left` : `${spotsLeft} spots`;
               const classSlug = cls?.share_slug;
               const href = classSlug
                 ? `/class/${studio.public_slug}/${classSlug}?session_id=${s.id}`
@@ -320,23 +329,24 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                         SGD {Number(s.guest_price ?? 0).toFixed(2)}
                       </span>
+                      <span className={`absolute bottom-2 right-2 rounded-full px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm ${
+                        spotsLeft === 0
+                          ? "bg-red-600/85"
+                          : spotsLow
+                            ? "bg-amber-500/85"
+                            : "bg-teal-600/85"
+                      }`}>
+                        {spotsText}
+                      </span>
                     </div>
                     <div>
                       <p className="text-base font-semibold text-stone-900 dark:text-stone-100">
                         {cls?.title ?? "Class"}
                       </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs ${
-                            Number(s.spots_left ?? 0) <= 3
-                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                              : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                          }`}
-                        >
-                          {Number(s.spots_left ?? 0)} spots left
-                        </span>
-                      </div>
-                      <span className={`${ui.btnPrimarySm} mt-3 inline-flex`}>Book</span>
+                      {classDescription ? (
+                        <p className={`mt-1 line-clamp-2 text-xs ${ui.muted}`}>{classDescription}</p>
+                      ) : null}
+                      <span className={`${ui.btnPrimary} mt-3 inline-flex`}>Book now</span>
                     </div>
                   </div>
                 </Link>
