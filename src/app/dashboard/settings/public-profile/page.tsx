@@ -1,7 +1,7 @@
 import { updateStudioPublicProfile } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { CoverUrlField, GalleryJsonField } from "@/components/dashboard/PublicMediaFields";
+import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -14,11 +14,6 @@ function scopedHref(path: string, studioId: string | null, locationId: string | 
   if (studioId) p.set("studio_id", studioId);
   if (locationId) p.set("location_id", locationId);
   return p.toString() ? `${path}?${p.toString()}` : path;
-}
-
-function toStringArray(v: unknown): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
 }
 
 export default async function StudioPublicProfilePage({ searchParams }: Props) {
@@ -47,7 +42,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, public_intro, public_cover_image_url, public_gallery_images, public_video_url, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, public_intro, public_cover_image_url, public_video_url, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -73,14 +68,6 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
           name="public_cover_image_url"
           label="Studio cover image"
           defaultValue={studio.public_cover_image_url}
-        />
-        <GalleryJsonField
-          studioId={studio.id}
-          folder="studios"
-          entityId="gallery"
-          name="public_gallery_images"
-          label="Studio gallery images"
-          defaultValue={toStringArray(studio.public_gallery_images)}
         />
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Intro</span>

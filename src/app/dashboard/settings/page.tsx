@@ -111,17 +111,10 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
       <div className="grid gap-3 sm:grid-cols-2">
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/overview", selectedStudioId, selectedLocationId)}
+          href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, selectedLocationId)}
           icon={Building2}
           title="Studio profile"
-          desc="Name, slug, public info, and branding"
-        />
-        <SettingCard
-          as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, selectedLocationId)}
-          icon={Globe}
-          title="Studio public profile"
-          desc="Landing page intro, media, and WhatsApp contact button"
+          desc="Edit public intro, media, WhatsApp contact, and profile details"
         />
         <SettingCard
           as={DashboardAppLink}

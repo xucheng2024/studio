@@ -1,7 +1,7 @@
 import { createStudioService, deleteStudioService, updateStudioService } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { CoverUrlField, GalleryJsonField } from "@/components/dashboard/PublicMediaFields";
+import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -14,11 +14,6 @@ function scopedHref(path: string, studioId: string | null, locationId: string | 
   if (studioId) p.set("studio_id", studioId);
   if (locationId) p.set("location_id", locationId);
   return p.toString() ? `${path}?${p.toString()}` : path;
-}
-
-function toStringArray(v: unknown): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
 }
 
 export default async function DashboardServicesPage({ searchParams }: Props) {
@@ -49,7 +44,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
     supabase.from("studios").select("id, name, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("studio_services")
-      .select("id, title, summary, description, price, currency, cover_image_url, gallery_images, video_url, is_active, sort_order")
+      .select("id, title, summary, description, price, currency, cover_image_url, video_url, is_active, sort_order")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -104,14 +99,6 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
           name="cover_image_url"
           label="Cover image"
           defaultValue={null}
-        />
-        <GalleryJsonField
-          studioId={studio.id}
-          folder="services"
-          entityId={`new-gallery-${Date.now()}`}
-          name="gallery_images"
-          label="Gallery images"
-          defaultValue={[]}
         />
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Video URL</span>
@@ -171,14 +158,6 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
               name="cover_image_url"
               label="Cover image"
               defaultValue={svc.cover_image_url}
-            />
-            <GalleryJsonField
-              studioId={studio.id}
-              folder="services"
-              entityId={`${svc.id}-gallery`}
-              name="gallery_images"
-              label="Gallery images"
-              defaultValue={toStringArray(svc.gallery_images)}
             />
             <div className="flex flex-wrap gap-2">
               <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">

@@ -6,7 +6,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Calendar,
-  BriefcaseBusiness,
   Users,
   BarChart2,
   Settings,
@@ -19,7 +18,6 @@ type NavLink = { href: string; label: string; icon: LucideIcon };
 const links: NavLink[] = [
   { href: "/dashboard/operations", label: "Operations", icon: LayoutDashboard },
   { href: "/dashboard/schedule",   label: "Schedule",   icon: Calendar },
-  { href: "/dashboard/services",   label: "Services",   icon: BriefcaseBusiness },
   { href: "/dashboard/clients",    label: "Members",    icon: Users },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },

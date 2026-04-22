@@ -31,8 +31,3 @@ export function studioWhatsappLink(params: {
   const text = (params.prefillText ?? "").trim() || "Hi, I’m interested in your services.";
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }
-
-export function toStringArrayJson(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-}

@@ -184,20 +184,6 @@ export async function updateStudioPaynowSettings(formData: FormData): Promise<vo
   if (studio.public_slug) revalidatePath(`/booking/${studio.public_slug}`);
 }
 
-function parseJsonStringArray(raw: string): { valid: boolean; value: string[] } {
-  if (!raw.trim()) return { valid: true, value: [] };
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return { valid: false, value: [] };
-    return {
-      valid: true,
-      value: parsed.filter((v): v is string => typeof v === "string" && v.trim().length > 0),
-    };
-  } catch {
-    return { valid: false, value: [] };
-  }
-}
-
 function normalizeE164(raw: string): string | null {
   const v = raw.trim();
   if (!v) return null;
@@ -237,19 +223,15 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const rawWhatsapp = String(formData.get("whatsapp_number_e164") ?? "");
   const whatsapp_number_e164 = normalizeE164(rawWhatsapp);
   const whatsapp_prefill_text = String(formData.get("whatsapp_prefill_text") ?? "").trim() || null;
-  const galleryRaw = String(formData.get("public_gallery_images") ?? "");
-  const gallery = parseJsonStringArray(galleryRaw);
 
   if (rawVideo.trim() && !public_video_url) return;
   if (rawWhatsapp.trim() && !whatsapp_number_e164) return;
-  if (!gallery.valid) return;
 
   const { error } = await supabase
     .from("studios")
     .update({
       public_intro,
       public_cover_image_url,
-      public_gallery_images: gallery.value.length ? gallery.value : null,
       public_video_url,
       whatsapp_enabled,
       whatsapp_number_e164,
@@ -282,9 +264,7 @@ export async function createStudioService(formData: FormData): Promise<void> {
   const rawVideo = String(formData.get("video_url") ?? "");
   const video_url = sanitizeVideoUrl(rawVideo);
   const sort_order = Number(formData.get("sort_order") ?? 100);
-  const gallery = parseJsonStringArray(String(formData.get("gallery_images") ?? ""));
   if (rawVideo.trim() && !video_url) return;
-  if (!gallery.valid) return;
 
   const { error } = await supabase.from("studio_services").insert({
     studio_id: studio.id,
@@ -294,7 +274,6 @@ export async function createStudioService(formData: FormData): Promise<void> {
     price,
     currency,
     cover_image_url,
-    gallery_images: gallery.value.length ? gallery.value : null,
     video_url,
     is_active: true,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
@@ -328,9 +307,7 @@ export async function updateStudioService(formData: FormData): Promise<void> {
   const video_url = sanitizeVideoUrl(rawVideo);
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
-  const gallery = parseJsonStringArray(String(formData.get("gallery_images") ?? ""));
   if (rawVideo.trim() && !video_url) return;
-  if (!gallery.valid) return;
 
   const { error } = await supabase
     .from("studio_services")
@@ -341,7 +318,6 @@ export async function updateStudioService(formData: FormData): Promise<void> {
       price,
       currency,
       cover_image_url,
-      gallery_images: gallery.value.length ? gallery.value : null,
       video_url,
       is_active,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
