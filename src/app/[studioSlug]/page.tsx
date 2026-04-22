@@ -96,47 +96,46 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   return (
     <main className={ui.page}>
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-        {cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt={studio.name} className="aspect-video w-full rounded-2xl border border-stone-200 object-cover shadow-sm dark:border-stone-800" />
-        ) : (
-          <div className="aspect-video w-full rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900" />
-        )}
-        <div className={ui.card}>
-          <div className="grid gap-4 sm:grid-cols-[140px_1fr] sm:items-start">
+        <div className={`${ui.card} bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
+          <div className="grid gap-5 sm:grid-cols-[168px_1fr] sm:items-start">
             <div className="w-full">
               {cover ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={cover}
                   alt={`${studio.name} portrait`}
-                  className="aspect-square w-full rounded-xl border border-stone-200 object-cover dark:border-stone-700"
+                  className="aspect-square w-full rounded-2xl border border-stone-200 object-cover shadow-sm dark:border-stone-700"
                   loading="lazy"
                 />
               ) : (
-                <div className="aspect-square w-full rounded-xl bg-stone-100 dark:bg-stone-900" />
+                <div className="aspect-square w-full rounded-2xl bg-stone-100 dark:bg-stone-900" />
               )}
             </div>
             <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400">
+                About me
+              </p>
               {studio.public_intro?.trim() ? (
                 <details className="group">
-                  <summary className={`cursor-pointer list-none ${ui.lead}`}>
+                  <summary className={`mt-2 cursor-pointer list-none text-[1.05rem] leading-relaxed text-stone-700 dark:text-stone-300`}>
                     <span className="line-clamp-4 whitespace-pre-wrap">
                       {studio.public_intro.trim()}
                     </span>
-                    <span className="mt-2 inline-flex text-sm font-medium text-teal-700 group-open:hidden dark:text-teal-400">
+                    <span className="mt-3 inline-flex text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
                       Read more
                     </span>
-                    <span className="mt-2 hidden text-sm font-medium text-teal-700 group-open:inline-flex dark:text-teal-400">
+                    <span className="mt-3 hidden text-sm font-semibold text-teal-700 group-open:inline-flex dark:text-teal-400">
                       Show less
                     </span>
                   </summary>
-                  <p className={`mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300`}>
+                  <p className="mt-3 whitespace-pre-wrap text-[1.02rem] leading-relaxed text-stone-700 dark:text-stone-300">
                     {studio.public_intro.trim()}
                   </p>
                 </details>
               ) : (
-                <p className={ui.lead}>Welcome to our studio. Explore services and get in touch.</p>
+                <p className="mt-2 text-[1.02rem] leading-relaxed text-stone-700 dark:text-stone-300">
+                  Welcome to our studio. Explore services and get in touch.
+                </p>
               )}
             </div>
           </div>
