@@ -1,0 +1,129 @@
+import { updateStudioPublicProfile } from "@/app/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { SubmitButton } from "@/components/SubmitButton";
+import { CoverUrlField, GalleryJsonField } from "@/components/dashboard/PublicMediaFields";
+import { getDashboardScope } from "@/lib/dashboard";
+import { bestRole } from "@/lib/rbac";
+import { ui } from "@/lib/ui";
+import { createClient } from "@/lib/supabase/server";
+
+type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
+
+function scopedHref(path: string, studioId: string | null, locationId: string | null) {
+  const p = new URLSearchParams();
+  if (studioId) p.set("studio_id", studioId);
+  if (locationId) p.set("location_id", locationId);
+  return p.toString() ? `${path}?${p.toString()}` : path;
+}
+
+function toStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+}
+
+export default async function StudioPublicProfilePage({ searchParams }: Props) {
+  const sp = await searchParams;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+    userId: user.id,
+    email: user.email,
+    studioId: sp.studio_id ?? null,
+    locationId: sp.location_id ?? null,
+  });
+  if (!selectedStudioId && studioIds.length > 1) {
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
+  }
+  const role = bestRole(ctx);
+  if (!["owner", "manager"].includes(role)) {
+    return <p className={ui.muted}>You do not have access to this page.</p>;
+  }
+  const studioId = selectedStudioId ?? studioIds[0] ?? null;
+  if (!studioId) return <p className={ui.muted}>Create a studio first.</p>;
+
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, name, public_slug, public_intro, public_cover_image_url, public_gallery_images, public_video_url, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .eq("id", studioId)
+    .maybeSingle();
+  if (!studio) return <p className={ui.muted}>Studio not found.</p>;
+
+  return (
+    <div className="flex max-w-4xl flex-col gap-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className={ui.h1}>Studio Public Profile</h1>
+          <p className={ui.muted}>Edit the public landing page content shown at /{studio.public_slug}.</p>
+        </div>
+        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId, selectedLocationId)} className={ui.btnSecondarySm}>
+          Back to settings
+        </DashboardAppLink>
+      </div>
+
+      <form action={updateStudioPublicProfile} className={`${ui.card} grid gap-4`}>
+        <input type="hidden" name="studio_id" value={studio.id} />
+        <CoverUrlField
+          studioId={studio.id}
+          folder="studios"
+          entityId="cover"
+          name="public_cover_image_url"
+          label="Studio cover image"
+          defaultValue={studio.public_cover_image_url}
+        />
+        <GalleryJsonField
+          studioId={studio.id}
+          folder="studios"
+          entityId="gallery"
+          name="public_gallery_images"
+          label="Studio gallery images"
+          defaultValue={toStringArray(studio.public_gallery_images)}
+        />
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Intro</span>
+          <textarea
+            name="public_intro"
+            rows={5}
+            className={`${ui.input} min-h-32`}
+            defaultValue={studio.public_intro ?? ""}
+            placeholder="Tell visitors about your studio."
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Promo video URL (YouTube/Vimeo)</span>
+          <input name="public_video_url" className={ui.input} defaultValue={studio.public_video_url ?? ""} placeholder="https://..." />
+        </label>
+
+        <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">WhatsApp contact</h2>
+          <label className="mt-2 flex items-center gap-2 text-sm">
+            <input type="checkbox" name="whatsapp_enabled" defaultChecked={Boolean(studio.whatsapp_enabled)} />
+            Enable WhatsApp button
+          </label>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>WhatsApp number (E.164)</span>
+              <input name="whatsapp_number_e164" className={ui.input} defaultValue={studio.whatsapp_number_e164 ?? ""} placeholder="+6591234567" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Prefill message</span>
+              <input
+                name="whatsapp_prefill_text"
+                className={ui.input}
+                defaultValue={studio.whatsapp_prefill_text ?? ""}
+                placeholder="Hi, I'm interested in your services."
+              />
+            </label>
+          </div>
+        </div>
+
+        <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Saving...">
+          Save public profile
+        </SubmitButton>
+      </form>
+    </div>
+  );
+}

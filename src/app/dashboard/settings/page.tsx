@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Users, MapPin, QrCode, ShieldCheck,
+  Building2, CreditCard, Users, MapPin, QrCode, ShieldCheck, Globe, BriefcaseBusiness,
   type LucideIcon,
 } from "lucide-react";
 
@@ -115,6 +115,20 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           icon={Building2}
           title="Studio profile"
           desc="Name, slug, public info, and branding"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, selectedLocationId)}
+          icon={Globe}
+          title="Studio public profile"
+          desc="Landing page intro, media, and WhatsApp contact button"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/services", selectedStudioId, selectedLocationId)}
+          icon={BriefcaseBusiness}
+          title="Services management"
+          desc="Create, edit, sort, and publish services with media and prices"
         />
         <SettingCard
           as={DashboardAppLink}
