@@ -1,4 +1,4 @@
-import { updateStudioPublicProfile, updateStudioSlug } from "@/app/dashboard/actions";
+import { updateStudioBasics, updateStudioPublicProfile } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
@@ -59,13 +59,19 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         </DashboardAppLink>
       </div>
 
-      <form action={updateStudioSlug} className={`${ui.card} grid gap-3`}>
+      <form action={updateStudioBasics} className={`${ui.card} grid gap-3`}>
         <input type="hidden" name="studio_id" value={studio.id} />
         <h2 className={ui.h2}>Basic profile</h2>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Studio name</span>
-          <input className={ui.input} value={studio.name ?? ""} disabled />
-          <span className={`text-xs ${ui.muted}`}>Studio name is currently managed from the existing studio setup flow.</span>
+          <input
+            name="name"
+            required
+            minLength={2}
+            maxLength={120}
+            className={ui.input}
+            defaultValue={studio.name ?? ""}
+          />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Public slug</span>
@@ -81,7 +87,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
           <p className={`text-xs ${ui.muted}`}>Public page: /{studio.public_slug ?? "your-slug"}</p>
         </label>
         <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
-          Save slug
+          Save basics
         </SubmitButton>
       </form>
 

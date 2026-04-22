@@ -103,35 +103,49 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <div className="aspect-video w-full rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900" />
         )}
         <div className={ui.card}>
-          <p className={ui.badge}>Studio</p>
-          <h1 className={`${ui.h1} mt-3`}>{studio.name}</h1>
-          {studio.public_intro?.trim() ? (
-            <details className="mt-3 group">
-              <summary className={`cursor-pointer list-none ${ui.lead}`}>
-                <span className="line-clamp-4 whitespace-pre-wrap">
-                  {studio.public_intro.trim()}
-                </span>
-                <span className="mt-2 inline-flex text-sm font-medium text-teal-700 group-open:hidden dark:text-teal-400">
-                  Read more
-                </span>
-                <span className="mt-2 hidden text-sm font-medium text-teal-700 group-open:inline-flex dark:text-teal-400">
-                  Show less
-                </span>
-              </summary>
-              <p className={`mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300`}>
-                {studio.public_intro.trim()}
-              </p>
-            </details>
-          ) : (
-            <p className={`mt-3 ${ui.lead}`}>Welcome to our studio. Explore services and get in touch.</p>
-          )}
+          <div className="grid gap-4 sm:grid-cols-[140px_1fr] sm:items-start">
+            <div className="w-full">
+              {cover ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={cover}
+                  alt={`${studio.name} portrait`}
+                  className="aspect-square w-full rounded-xl border border-stone-200 object-cover dark:border-stone-700"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="aspect-square w-full rounded-xl bg-stone-100 dark:bg-stone-900" />
+              )}
+            </div>
+            <div>
+              {studio.public_intro?.trim() ? (
+                <details className="group">
+                  <summary className={`cursor-pointer list-none ${ui.lead}`}>
+                    <span className="line-clamp-4 whitespace-pre-wrap">
+                      {studio.public_intro.trim()}
+                    </span>
+                    <span className="mt-2 inline-flex text-sm font-medium text-teal-700 group-open:hidden dark:text-teal-400">
+                      Read more
+                    </span>
+                    <span className="mt-2 hidden text-sm font-medium text-teal-700 group-open:inline-flex dark:text-teal-400">
+                      Show less
+                    </span>
+                  </summary>
+                  <p className={`mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300`}>
+                    {studio.public_intro.trim()}
+                  </p>
+                </details>
+              ) : (
+                <p className={ui.lead}>Welcome to our studio. Explore services and get in touch.</p>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
       {studio.public_video_url ? (
         <section className="mx-auto mt-10 w-full max-w-5xl">
-          <h2 className={ui.h2}>Promo video</h2>
-          <div className={`${ui.card} mt-3`}>
+          <div className={ui.card}>
             {studioVideoPreview.embedUrl ? (
               <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
                 <iframe
@@ -259,7 +273,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 : `/booking/${studio.public_slug}`;
               return (
                 <Link key={s.id} href={href} className={`${ui.card} block transition-shadow hover:shadow-md`}>
-                  <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
+                  <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
                     <div>
                       {cls?.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element

@@ -144,6 +144,36 @@ export async function updateStudioSlug(formData: FormData): Promise<void> {
   revalidatePath(`/booking/${studio.public_slug}`);
 }
 
+export async function updateStudioBasics(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
+
+  const name = String(formData.get("name") ?? "").trim();
+  const slugRaw = String(formData.get("public_slug") ?? "");
+  const public_slug = normalizeStudioSlug(slugRaw);
+  if (!name || !public_slug) return;
+
+  const { error } = await supabase
+    .from("studios")
+    .update({ name, public_slug })
+    .eq("id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/overview");
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/settings/public-profile");
+  revalidatePath(`/booking/${public_slug}`);
+  revalidatePath(`/booking/${studio.public_slug}`);
+  revalidatePath(`/${public_slug}`);
+  revalidatePath(`/${studio.public_slug}`);
+}
+
 export async function updateStudioPaynowSettings(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
