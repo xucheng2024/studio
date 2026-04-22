@@ -34,7 +34,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
   const nowIso = new Date().toISOString();
   const { data: classes } = await admin
     .from("class_sessions")
-    .select("id, start_time, spots_left, guest_price, classes!inner(title, share_slug, studio_id, is_active)")
+    .select("id, start_time, spots_left, guest_price, classes!inner(title, share_slug, image_url, studio_id, is_active)")
     .eq("classes.studio_id", studio.id)
     .eq("classes.is_active", true)
     .eq("status", "scheduled")
@@ -105,44 +105,50 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         <div className={ui.card}>
           <p className={ui.badge}>Studio</p>
           <h1 className={`${ui.h1} mt-3`}>{studio.name}</h1>
-          <p className={`mt-3 whitespace-pre-wrap ${ui.lead}`}>
-            {studio.public_intro?.trim() || "Welcome to our studio. Explore services and get in touch."}
-          </p>
+          {studio.public_intro?.trim() ? (
+            <details className="mt-3 group">
+              <summary className={`cursor-pointer list-none ${ui.lead}`}>
+                <span className="line-clamp-4 whitespace-pre-wrap">
+                  {studio.public_intro.trim()}
+                </span>
+                <span className="mt-2 inline-flex text-sm font-medium text-teal-700 group-open:hidden dark:text-teal-400">
+                  Read more
+                </span>
+                <span className="mt-2 hidden text-sm font-medium text-teal-700 group-open:inline-flex dark:text-teal-400">
+                  Show less
+                </span>
+              </summary>
+              <p className={`mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300`}>
+                {studio.public_intro.trim()}
+              </p>
+            </details>
+          ) : (
+            <p className={`mt-3 ${ui.lead}`}>Welcome to our studio. Explore services and get in touch.</p>
+          )}
         </div>
       </section>
 
       {studio.public_video_url ? (
         <section className="mx-auto mt-10 w-full max-w-5xl">
           <h2 className={ui.h2}>Promo video</h2>
-          <a
-            href={studio.public_video_url}
-            target="_blank"
-            rel="noreferrer"
-            className={`${ui.card} mt-3 block transition-shadow hover:shadow-md`}
-          >
-            {studioVideoPreview.thumbnailUrl ? (
-              <div className="relative overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={studioVideoPreview.thumbnailUrl}
-                  alt="Studio video cover"
-                  className="aspect-video w-full object-cover"
-                  loading="lazy"
+          <div className={`${ui.card} mt-3`}>
+            {studioVideoPreview.embedUrl ? (
+              <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
+                <iframe
+                  src={studioVideoPreview.embedUrl}
+                  title="Studio promo video"
+                  className="aspect-video w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
                 />
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
-                    <PlayCircle size={16} />
-                    Watch video
-                  </span>
-                </span>
               </div>
             ) : (
-              <div className={`${ui.link} gap-1.5`}>
+              <a href={studio.public_video_url} target="_blank" rel="noreferrer" className={`${ui.link} gap-1.5`}>
                 <PlayCircle size={15} />
                 Watch studio video
-              </div>
+              </a>
             )}
-          </a>
+          </div>
         </section>
       ) : null}
 
@@ -182,35 +188,47 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       ) : null}
                       {svc.video_url ? (
                         <div className="mt-3">
-                          <a
-                            href={svc.video_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="group block overflow-hidden rounded-lg border border-stone-200 transition-shadow hover:shadow-sm dark:border-stone-700"
-                          >
-                            {serviceVideoPreview.thumbnailUrl ? (
-                              <div className="relative">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={serviceVideoPreview.thumbnailUrl}
-                                  alt={`${svc.title} video cover`}
-                                  className="aspect-video w-full object-cover"
-                                  loading="lazy"
-                                />
-                                <span className="absolute inset-0 flex items-center justify-center">
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                                    <PlayCircle size={13} />
-                                    Watch
+                          {serviceVideoPreview.embedUrl ? (
+                            <div className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
+                              <iframe
+                                src={serviceVideoPreview.embedUrl}
+                                title={`${svc.title} video`}
+                                className="aspect-video w-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                              />
+                            </div>
+                          ) : (
+                            <a
+                              href={svc.video_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="group block overflow-hidden rounded-lg border border-stone-200 transition-shadow hover:shadow-sm dark:border-stone-700"
+                            >
+                              {serviceVideoPreview.thumbnailUrl ? (
+                                <div className="relative">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={serviceVideoPreview.thumbnailUrl}
+                                    alt={`${svc.title} video cover`}
+                                    className="aspect-video w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                  <span className="absolute inset-0 flex items-center justify-center">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                                      <PlayCircle size={13} />
+                                      Watch
+                                    </span>
                                   </span>
+                                </div>
+                              ) : (
+                                <span className={`px-3 py-2.5 text-sm ${ui.link}`}>
+                                  <PlayCircle size={14} />
+                                  Watch service video
                                 </span>
-                              </div>
-                            ) : (
-                              <span className={`px-3 py-2.5 text-sm ${ui.link}`}>
-                                <PlayCircle size={14} />
-                                Watch service video
-                              </span>
-                            )}
-                          </a>
+                              )}
+                            </a>
+                          )}
                         </div>
                       ) : null}
                     </div>
@@ -241,17 +259,34 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 : `/booking/${studio.public_slug}`;
               return (
                 <Link key={s.id} href={href} className={`${ui.card} block transition-shadow hover:shadow-md`}>
-                  <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                    {cls?.title ?? "Class"}
-                  </p>
-                  <p className={`mt-1 text-sm ${ui.muted}`}>{dateLabel} · {timeLabel}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
-                      SGD {Number(s.guest_price ?? 0).toFixed(2)}
-                    </span>
-                    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
-                      {Number(s.spots_left ?? 0)} spots left
-                    </span>
+                  <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
+                    <div>
+                      {cls?.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={cls.image_url}
+                          alt={cls?.title ?? "Class cover"}
+                          className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                        {cls?.title ?? "Class"}
+                      </p>
+                      <p className={`mt-1 text-sm ${ui.muted}`}>{dateLabel} · {timeLabel}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                          SGD {Number(s.guest_price ?? 0).toFixed(2)}
+                        </span>
+                        <span className="rounded-full bg-teal-50 px-2 py-0.5 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
+                          {Number(s.spots_left ?? 0)} spots left
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </Link>
               );
