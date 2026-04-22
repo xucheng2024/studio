@@ -30,7 +30,7 @@ export function BookButton({
     <button
       type="button"
       disabled={loading}
-      className={`${ui.btnSecondarySm} disabled:opacity-50`}
+      className={`${ui.btnPrimary} w-full sm:w-auto disabled:opacity-50`}
       onClick={async () => {
           setLoading(true);
           const res = await fetch("/api/book/create", {
@@ -50,9 +50,9 @@ export function BookButton({
         }}
       >
         {loading ? (
-        <><Loader2 size={12} className="animate-spin" /> Processing…</>
+        <><Loader2 size={15} className="animate-spin" /> Booking…</>
       ) : (
-        <><CreditCard size={12} /> Pay by transfer</>
+        <><CreditCard size={15} /> Book now</>
       )}
     </button>
   );

@@ -63,6 +63,7 @@ export default async function BookingPage() {
       classes (
         studio_id,
         title,
+        description,
         image_url,
         capacity,
         studios ( name, public_slug, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name )
@@ -129,6 +130,7 @@ export default async function BookingPage() {
         {(sessions ?? []).map((s) => {
           const cls = s.classes as {
             title?: string;
+            description?: string | null;
             studio_id?: string;
             image_url?: string | null;
             capacity?: number | null;
@@ -138,6 +140,7 @@ export default async function BookingPage() {
           } | null;
           const studioRow = Array.isArray(cls?.studios) ? cls?.studios[0] : cls?.studios;
           const title = cls?.title ?? "Class";
+          const classDescription = cls?.description?.trim() ?? "";
           const studioName = studioRow?.name ?? null;
           const imageUrl = (cls as { image_url?: string | null } | null)?.image_url ?? null;
           const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
@@ -169,9 +172,9 @@ export default async function BookingPage() {
           const spotsLeft = Number(s.spots_left ?? 0);
           const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
           const spotsText = spotsLeft === 0
-            ? sessionCapacity > 0 ? `Full · 0 / ${sessionCapacity}` : "Full"
+            ? sessionCapacity > 0 ? `Full · max ${sessionCapacity}` : "Full"
             : sessionCapacity > 0
-              ? `${spotsLeft} / ${sessionCapacity} left`
+              ? `${spotsLeft} left · max ${sessionCapacity}`
               : spotsLow ? `${spotsLeft} left` : `${spotsLeft} spots`;
 
           return (
@@ -187,7 +190,7 @@ export default async function BookingPage() {
                     sizes="(max-width: 640px) 100vw, 672px"
                   />
                   {/* Spots badge overlaid on image */}
-                  <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${
+                  <span className={`absolute bottom-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${
                     spotsLeft === 0
                       ? "bg-red-600/85 text-white"
                       : spotsLow
@@ -218,6 +221,9 @@ export default async function BookingPage() {
                     {/* Title + time + price */}
                     <div className="min-w-0">
                       <p className="font-semibold text-stone-900 dark:text-stone-50 truncate">{title}</p>
+                      {classDescription ? (
+                        <p className={`mt-0.5 line-clamp-2 text-xs ${ui.muted}`}>{classDescription}</p>
+                      ) : null}
                       {studioName ? (
                         <p className={`text-xs ${ui.muted} truncate`}>{studioName}</p>
                       ) : null}

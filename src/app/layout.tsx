@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ConditionalSiteHeader } from "@/components/ConditionalSiteHeader";
 import { site } from "@/lib/brand";
 import { getAppOriginForOg } from "@/lib/coverMedia";
 import "./globals.css";
@@ -43,7 +44,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <SiteHeader />
+        <ConditionalSiteHeader>
+          <SiteHeader />
+        </ConditionalSiteHeader>
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         <Toaster richColors position="bottom-right" closeButton />
       </body>
