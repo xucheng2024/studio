@@ -7,6 +7,7 @@ import {
   toQrDataUrl,
   validatePaynowConfig,
 } from "@/lib/paynow";
+import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 
@@ -84,6 +85,16 @@ export async function POST(req: Request) {
   }
   if ((session.spots_left ?? 0) <= 0) {
     return NextResponse.json({ error: "full" }, { status: 409 });
+  }
+  if (user) {
+    const studioAccess = await verifyMemberStudioAccess(admin, {
+      userId: user.id,
+      studioId,
+      bootstrapIfMissing: true,
+    });
+    if (!studioAccess.ok) {
+      return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
+    }
   }
 
   const studioRaw = cls?.studios;

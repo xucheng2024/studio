@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ACTIVE_MEMBER_STUDIO_COOKIE, parseStudioSlugFromPath } from "@/lib/member-studio-shared";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 function isSuperAdminEmail(email: string | null | undefined) {
@@ -14,6 +15,21 @@ function isSuperAdminEmail(email: string | null | undefined) {
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const studioSlug = parseStudioSlugFromPath(request.nextUrl.pathname);
+  const studioCookie = studioSlug
+    ? {
+        name: ACTIVE_MEMBER_STUDIO_COOKIE,
+        value: studioSlug,
+        options: {
+          path: "/",
+          sameSite: "lax" as const,
+          httpOnly: false,
+          secure: request.nextUrl.protocol === "https:",
+          maxAge: 60 * 60 * 24 * 30,
+        },
+      }
+    : null;
+  if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
 
   const url = getSupabaseUrl();
   const anon = getSupabaseAnonKey();
@@ -30,6 +46,7 @@ export async function proxy(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
       },
     },
   });
@@ -50,6 +67,7 @@ export async function proxy(request: NextRequest) {
     url.search = "";
     return NextResponse.redirect(url);
   }
+  if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
   return response;
 }
 

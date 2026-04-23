@@ -14,14 +14,16 @@ export function AuthPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const isMemberAuth = pathname.startsWith("/member/auth");
+  const memberScopedMatch = pathname.match(/^\/m\/([a-z0-9-]{3,60})\/auth(?:\/|$)/i);
+  const memberScopedSlug = memberScopedMatch?.[1]?.toLowerCase() ?? null;
+  const isMemberAuth = pathname.startsWith("/member/auth") || Boolean(memberScopedSlug);
   const inviteToken = searchParams.get("invite_token") ?? "";
   const nextRaw = searchParams.get("next");
   const safeNext =
     nextRaw && nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : null;
 
   const postAuthPath = isMemberAuth
-    ? safeNext ?? "/booking"
+    ? safeNext ?? (memberScopedSlug ? `/booking/${memberScopedSlug}` : "/booking")
     : inviteToken
       ? `/post-auth?invite_token=${encodeURIComponent(inviteToken)}&staff_portal=1`
       : safeNext ?? "/post-auth?staff_portal=1";
@@ -98,7 +100,7 @@ export function AuthPageInner() {
           ) : null}
           <p className={`mt-5 text-sm ${ui.muted}`}>
             Want to look around first?{" "}
-            <Link href="/booking" className={ui.link}>
+            <Link href={memberScopedSlug ? `/booking/${memberScopedSlug}` : "/booking"} className={ui.link}>
               Browse the class schedule →
             </Link>
           </p>

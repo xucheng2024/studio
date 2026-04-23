@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { MessageCircle, PlayCircle } from "lucide-react";
+import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
@@ -104,6 +105,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     }
   };
   const studioVideoPreview = getVideoPreview(studio.public_video_url);
+  const studioSlugValue = studio.public_slug ?? studioSlug;
+  const bookingHref = `/booking/${studioSlugValue}`;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
@@ -149,6 +152,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   Welcome to our studio. Explore services and get in touch.
                 </p>
               )}
+              <div id="member-access" className="mt-5 flex flex-wrap items-start gap-2.5">
+                <InlineSignInPanel />
+                <Link href={bookingHref} className={ui.btnSecondarySm}>
+                  View classes
+                </Link>
+              </div>
+              <p className={`mt-2 text-xs ${ui.muted}`}>Private member access for {studio.name}.</p>
             </div>
           </div>
         </div>
@@ -280,7 +290,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       </section>
 
       <section className="mx-auto mt-10 w-full max-w-5xl pb-4">
-        <h2 className={ui.h2}>Upcoming classes</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className={ui.h2}>Upcoming classes</h2>
+          <a href="#member-access" className={ui.btnSecondarySm}>
+            Login / Register
+          </a>
+        </div>
         {classes.length === 0 ? (
           <div className={`mt-4 ${ui.emptyState}`}>
             <p className={ui.muted}>No upcoming classes yet.</p>

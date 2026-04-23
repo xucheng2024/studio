@@ -135,7 +135,7 @@ export default async function StudioBookingPage({ params }: Props) {
             </>
           ) : (
             <p className={`text-sm ${ui.muted}`}>
-              <Link href="/member/auth" className={ui.link}>Sign in</Link>{" "}
+              <Link href={`/m/${slug}/auth?next=${encodeURIComponent(`/booking/${slug}`)}`} className={ui.link}>Sign in</Link>{" "}
               to book with credits, or book as a guest below.
             </p>
           )}

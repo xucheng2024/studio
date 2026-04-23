@@ -6,6 +6,7 @@ import {
   toQrDataUrl,
   validatePaynowConfig,
 } from "@/lib/paynow";
+import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -28,29 +29,14 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  let purchaserId = user?.id ?? null;
-  const guestName = parsed.data.guest_name?.trim();
-  const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
-  const guestPhone = parsed.data.guest_phone?.trim() || null;
-  if (!user && (!guestName || !guestEmail)) {
-    return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
+  if (!user) {
+    return NextResponse.json(
+      { error: "sign_in_required_for_package", message: "Please sign in before purchasing a package." },
+      { status: 401 },
+    );
   }
 
   const admin = createAdminClient();
-  if (!purchaserId && guestEmail) {
-    const { data: existingUser } = await admin
-      .from("users")
-      .select("id")
-      .eq("email", guestEmail)
-      .maybeSingle();
-    purchaserId = existingUser?.id ?? null;
-  }
-  if (!purchaserId) {
-    return NextResponse.json(
-      { error: "sign_in_required_for_package", message: "Please sign in before purchasing a package." },
-      { status: 409 },
-    );
-  }
 
   const { data: pkg, error: pkgErr } = await admin
     .from("packages")
@@ -67,6 +53,14 @@ export async function POST(req: Request) {
 
   const blockedPkg = await respondIfStudioContractSuspended(admin, pkg.studio_id);
   if (blockedPkg) return blockedPkg;
+  const studioAccess = await verifyMemberStudioAccess(admin, {
+    userId: user.id,
+    studioId: pkg.studio_id,
+    bootstrapIfMissing: true,
+  });
+  if (!studioAccess.ok) {
+    return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
+  }
 
   const { data: studioPaynow } = await admin
     .from("studios")
@@ -103,10 +97,10 @@ export async function POST(req: Request) {
       booking_id: null,
       package_id: pkg.id,
       studio_id: pkg.studio_id,
-      client_id: purchaserId,
-      guest_name: user ? null : guestName ?? null,
-      guest_email: user ? null : guestEmail ?? null,
-      guest_phone: user ? null : guestPhone,
+      client_id: user.id,
+      guest_name: null,
+      guest_email: null,
+      guest_phone: null,
       amount: pkg.price,
       currency: "SGD",
       payment_method: "paynow",

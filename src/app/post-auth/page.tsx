@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { resolveAccessContext } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -86,5 +89,13 @@ export default async function PostAuthPage({ searchParams }: Props) {
   if (access.bestRole === "instructor") {
     redirect("/instructor/sessions");
   }
-  redirect(access.hasBackofficeAccess ? "/dashboard/operations" : "/booking");
+  if (access.hasBackofficeAccess) {
+    redirect("/dashboard/operations");
+  }
+  const c = await cookies();
+  const studioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
+  if (studioSlug) {
+    redirect(`/booking/${studioSlug}`);
+  }
+  redirect("/");
 }

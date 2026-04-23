@@ -14,10 +14,10 @@ export async function GET() {
     !access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess
       ? "/account/suspended"
       : access.bestRole === "instructor"
-      ? "/instructor/sessions"
-      : access.hasBackofficeAccess
-        ? "/dashboard/operations"
-        : "/booking";
+        ? "/instructor/sessions"
+        : access.hasBackofficeAccess
+          ? "/dashboard/operations"
+          : "/";
 
   return NextResponse.json({
     destination,
