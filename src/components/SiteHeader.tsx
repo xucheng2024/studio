@@ -17,7 +17,7 @@ export async function SiteHeader() {
           </Link>
           <nav className="flex items-center gap-1">
             <Link href="/booking" className={ui.linkHeaderNav}>Classes</Link>
-            <Link href="/auth" className={`${ui.btnPrimarySm} py-1!`}>Sign in</Link>
+            <Link href="/member/auth" className={`${ui.btnPrimarySm} py-1!`}>Sign in</Link>
           </nav>
         </div>
       </header>
@@ -82,7 +82,7 @@ export async function SiteHeader() {
               </div>
             </details>
           ) : (
-            <Link href="/auth" className={`${ui.btnPrimarySm} ml-1 py-1!`}>
+            <Link href="/member/auth" className={`${ui.btnPrimarySm} ml-1 py-1!`}>
               Sign in
             </Link>
           )}

@@ -59,7 +59,7 @@ export default async function Home({ searchParams }: Props) {
             </span>
           </Link>
 
-          <Link href="/auth" className={`${ui.cardInteractive} group flex gap-4`}>
+          <Link href="/member/auth" className={`${ui.cardInteractive} group flex gap-4`}>
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition-colors group-hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:group-hover:bg-emerald-900/60">
               <RefreshCw size={19} />
             </span>
@@ -86,7 +86,7 @@ export default async function Home({ searchParams }: Props) {
           Studios get a shareable booking link at{" "}
           <code className={ui.code}>/booking/your-slug</code>{" "}
           — QR code printable directly from the dashboard.{" "}
-          <Link href="/auth" className={ui.link}>Sign in →</Link>
+          <Link href="/member/auth" className={ui.link}>Sign in →</Link>
         </p>
       </div>
     </main>

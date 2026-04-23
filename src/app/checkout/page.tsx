@@ -45,7 +45,7 @@ export default async function CheckoutPage() {
         </p>
         {!user ? (
           <p className={`mt-3 text-sm ${ui.muted}`}>
-            <Link href="/auth" className={ui.link}>Sign in</Link>
+            <Link href="/member/auth" className={ui.link}>Sign in</Link>
             {" "}to track purchases and bookings in one place.
           </p>
         ) : null}
@@ -144,7 +144,7 @@ export default async function CheckoutPage() {
                     {user ? (
                       <BuyPackageButton packageId={p.id} disabled={!paynow.configured} />
                     ) : (
-                      <Link href={`/auth?next=/checkout`} className={ui.btnPrimarySm}>
+                      <Link href={`/member/auth?next=/checkout`} className={ui.btnPrimarySm}>
                         Sign in to buy
                       </Link>
                     )}

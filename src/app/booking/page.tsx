@@ -118,7 +118,7 @@ export default async function BookingPage() {
             </>
           ) : (
             <p className={`text-sm ${ui.muted}`}>
-              <Link href="/auth" className={ui.link}>Sign in</Link>{" "}
+              <Link href="/member/auth" className={ui.link}>Sign in</Link>{" "}
               to book with credits, or book as a guest below.
             </p>
           )}

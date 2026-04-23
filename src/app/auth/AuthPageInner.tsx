@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { site } from "@/lib/brand";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
@@ -12,15 +12,19 @@ type OtpStep = "request" | "verify";
 
 export function AuthPageInner() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isMemberAuth = pathname.startsWith("/member/auth");
   const inviteToken = searchParams.get("invite_token") ?? "";
   const nextRaw = searchParams.get("next");
   const safeNext =
     nextRaw && nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : null;
 
-  const postAuthPath = inviteToken
-    ? `/post-auth?invite_token=${encodeURIComponent(inviteToken)}`
-    : safeNext ?? "/post-auth";
+  const postAuthPath = isMemberAuth
+    ? safeNext ?? "/booking"
+    : inviteToken
+      ? `/post-auth?invite_token=${encodeURIComponent(inviteToken)}&staff_portal=1`
+      : safeNext ?? "/post-auth?staff_portal=1";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -60,11 +64,41 @@ export function AuthPageInner() {
     <main className={`${ui.page} max-w-5xl`}>
       <div className="grid gap-6 md:grid-cols-5 md:items-stretch">
         <section className={`${ui.card} h-full md:col-span-3 md:order-1 order-2`}>
-          <p className={ui.badge}>Members &amp; staff</p>
-          <h1 className={`${ui.h1} mt-3`}>Your classes and payments — all in one place</h1>
-          <p className={`mt-2 ${ui.lead}`}>{site.marketing.memberIntro}</p>
+          <div className="mb-2 inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1 dark:border-stone-700 dark:bg-stone-900">
+            <Link
+              href="/member/auth"
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                isMemberAuth
+                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
+                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
+              }`}
+            >
+              Member login
+            </Link>
+            <Link
+              href="/auth"
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                !isMemberAuth
+                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
+                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
+              }`}
+            >
+              Staff login
+            </Link>
+          </div>
+          <p className={ui.badge}>{isMemberAuth ? "Members" : "Staff portal"}</p>
+          <h1 className={`${ui.h1} mt-3`}>
+            {isMemberAuth ? "Your classes and payments — all in one place" : "Staff access only"}
+          </h1>
+          <p className={`mt-2 ${ui.lead}`}>
+            {isMemberAuth ? site.marketing.memberIntro : "Sign in with an invited work email to access studio operations and reporting."}
+          </p>
           <ul className="mt-5 flex flex-col gap-2.5 text-sm">
-            {site.marketing.memberHighlights.map((item) => (
+            {(isMemberAuth ? site.marketing.memberHighlights : [
+              "Owner and manager access is invitation only.",
+              "Use the same email that received your staff invite.",
+              "Uninvited emails cannot access the backoffice.",
+            ]).map((item) => (
               <li
                 key={item}
                 className="flex items-start gap-2.5 rounded-xl border border-stone-100 bg-stone-50/70 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40"
@@ -74,9 +108,11 @@ export function AuthPageInner() {
               </li>
             ))}
           </ul>
-          <p className={`mt-5 text-sm ${ui.muted}`}>
-            {site.marketing.paymentFlowNote} {site.marketing.mergeNote}
-          </p>
+          {isMemberAuth ? (
+            <p className={`mt-5 text-sm ${ui.muted}`}>
+              {site.marketing.paymentFlowNote} {site.marketing.mergeNote}
+            </p>
+          ) : null}
           <p className={`mt-5 text-sm ${ui.muted}`}>
             Want to look around first?{" "}
             <Link href="/booking" className={ui.link}>
@@ -86,6 +122,28 @@ export function AuthPageInner() {
         </section>
 
         <section className={`${ui.card} mx-auto w-full max-w-md md:col-span-2 md:order-2 order-1`}>
+          <div className="mb-3 inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1 dark:border-stone-700 dark:bg-stone-900">
+            <Link
+              href="/member/auth"
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                isMemberAuth
+                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
+                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
+              }`}
+            >
+              Member
+            </Link>
+            <Link
+              href="/auth"
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                !isMemberAuth
+                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
+                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
+              }`}
+            >
+              Staff
+            </Link>
+          </div>
           {inApp.isInApp ? (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/30">
               <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
@@ -115,14 +173,16 @@ export function AuthPageInner() {
           <div className="mt-2 flex flex-col gap-4">
             <div className="space-y-1">
               <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">
-                {step === "verify" ? "Check your email" : "Sign in or create account"}
+                {step === "verify" ? "Check your email" : isMemberAuth ? "Sign in or create account" : "Staff sign in"}
               </h2>
               <p className={`text-xs ${ui.muted}`}>
                 {step === "verify"
                   ? "Enter the 6-digit code we sent you."
                   : inApp.isInApp
                     ? "Use your email to receive a one-time sign-in code."
-                    : "Continue with Google, or use your email to receive a one-time code."}
+                    : isMemberAuth
+                      ? "Continue with Google, or use your email to receive a one-time code."
+                      : "Continue with Google or email OTP using your invited staff email."}
               </p>
             </div>
             {!inApp.isInApp ? (
@@ -298,7 +358,7 @@ export function AuthPageInner() {
                   </button>
                 </div>
               ) : null}
-              <p className={`text-xs ${ui.muted}`}>Workspace access is by invitation only.</p>
+              {!isMemberAuth ? <p className={`text-xs ${ui.muted}`}>Workspace access is by invitation only.</p> : null}
             </form>
           </div>
         </section>

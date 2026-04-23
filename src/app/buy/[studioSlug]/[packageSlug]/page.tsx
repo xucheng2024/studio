@@ -77,7 +77,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
               <GuestBuyPackagePanel packageId={pkg.id} disabled={!paynow.configured} />
               <p className={`text-xs ${ui.muted}`}>
                 Already have an account?{" "}
-                <Link href={`/auth?next=${encodeURIComponent(signInNext)}`} className={ui.link}>
+                <Link href={`/member/auth?next=${encodeURIComponent(signInNext)}`} className={ui.link}>
                   Sign in
                 </Link>
               </p>

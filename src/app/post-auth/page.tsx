@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
-  searchParams: Promise<{ invite_token?: string }>;
+  searchParams: Promise<{ invite_token?: string; staff_portal?: string }>;
 };
 
 function normalizeEmail(value: string | null | undefined) {
@@ -63,6 +63,7 @@ async function acceptInviteIfNeeded(userId: string, email: string | null | undef
 
 export default async function PostAuthPage({ searchParams }: Props) {
   const sp = await searchParams;
+  const fromStaffPortal = sp.staff_portal === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -78,6 +79,9 @@ export default async function PostAuthPage({ searchParams }: Props) {
   }
   if (!access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess) {
     redirect("/account/suspended");
+  }
+  if (fromStaffPortal && !access.hasBackofficeAccess) {
+    redirect("/account/access-required");
   }
   if (access.bestRole === "instructor") {
     redirect("/instructor/sessions");
