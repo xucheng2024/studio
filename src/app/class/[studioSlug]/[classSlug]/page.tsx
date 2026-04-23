@@ -124,10 +124,30 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
   const coverSrc = (cls as { image_url?: string | null }).image_url ?? null;
 
+  const classSlugPath = (cls as { share_slug?: string | null }).share_slug ?? rawClass;
+  let sessionQuery = "";
+  if (requestedSessionId) {
+    sessionQuery = `?session_id=${requestedSessionId}`;
+  } else if (sp.session && /^[a-z0-9-]{6,80}$/.test(sp.session)) {
+    sessionQuery = `?session=${encodeURIComponent(sp.session)}`;
+  }
+  const classSharePath = `/class/${studioPublicSlug}/${classSlugPath}${sessionQuery}`;
+
+  const isSessionShareView = Boolean(requestedSessionId);
+  const listSessions = isSessionShareView
+    ? orderedSessions.filter((s) => s.id === requestedSessionId)
+    : orderedSessions;
+
   return (
     <main className={ui.page}>
       {/* ── Hero cover (full-bleed within page padding) ── */}
-      <ShareCoverImage src={coverSrc} alt={cls.title} />
+      <ShareCoverImage
+        src={coverSrc}
+        alt={cls.title}
+        sharePath={classSharePath}
+        shareTitle={cls.title}
+        shareText={`Book ${cls.title} at ${studio.name}`}
+      />
 
       {/* ── Class header ── */}
       <div className="max-w-2xl">
@@ -156,10 +176,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
         ) : null}
       </div>
 
-      {/* ── Sessions ── */}
-      <h2 className={`${ui.h2} mt-10`}>Upcoming sessions</h2>
-      <ul className="mt-4 flex max-w-2xl flex-col gap-3">
-        {orderedSessions.map((s) => {
+      {/* ── Sessions (full list only when this URL is not tied to one session) ── */}
+      {!isSessionShareView ? (
+        <h2 className={`${ui.h2} mt-10`}>Upcoming sessions</h2>
+      ) : null}
+      <ul className={`flex max-w-2xl flex-col gap-3 ${isSessionShareView ? "mt-8" : "mt-4"}`}>
+        {listSessions.map((s) => {
           const dt = new Date(s.start_time);
           const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
           const monthLabel = dt.toLocaleDateString("en-SG", { month: "short" });
@@ -267,9 +289,13 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
           );
         })}
       </ul>
-      {!orderedSessions.length ? (
+      {!listSessions.length ? (
         <div className={`mt-6 max-w-2xl ${ui.emptyState}`}>
-          <p className={`text-sm ${ui.muted}`}>No upcoming sessions yet. Check back soon.</p>
+          <p className={`text-sm ${ui.muted}`}>
+            {isSessionShareView
+              ? "This session is not available for booking anymore."
+              : "No upcoming sessions yet. Check back soon."}
+          </p>
         </div>
       ) : null}
     </main>

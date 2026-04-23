@@ -1,10 +1,15 @@
 import Image from "next/image";
+import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 
 type Props = {
   src: string | null | undefined;
   alt: string;
   /** Set false only for below-the-fold covers. Default true = eager, high priority. */
   priority?: boolean;
+  /** Bottom-right share control (native share or copy link). */
+  sharePath?: string;
+  shareTitle?: string;
+  shareText?: string;
 };
 
 /**
@@ -13,11 +18,23 @@ type Props = {
  * - Priority=true (default) so the hero image is LCP-optimised on mobile.
  * - Falls back to a gradient skeleton when no image is set.
  */
-export function ShareCoverImage({ src, alt, priority = true }: Props) {
+export function ShareCoverImage({
+  src,
+  alt,
+  priority = true,
+  sharePath,
+  shareTitle,
+  shareText,
+}: Props) {
   if (!src?.trim()) {
     return (
-      <div className="mb-6 w-full overflow-hidden rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
+      <div className="relative mb-6 w-full overflow-hidden rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
         <div className="aspect-video w-full" aria-hidden="true" />
+        {sharePath ? (
+          <div className="absolute bottom-2 right-2 z-20">
+            <SessionShareLinkButton sharePath={sharePath} title={shareTitle ?? alt} text={shareText} />
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -34,6 +51,11 @@ export function ShareCoverImage({ src, alt, priority = true }: Props) {
           priority={priority}
         />
       </div>
+      {sharePath ? (
+        <div className="absolute bottom-2 right-2 z-20">
+          <SessionShareLinkButton sharePath={sharePath} title={shareTitle ?? alt} text={shareText} />
+        </div>
+      ) : null}
     </div>
   );
 }

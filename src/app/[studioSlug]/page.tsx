@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { MessageCircle, PlayCircle } from "lucide-react";
+import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -325,6 +326,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                           SGD {Number(s.guest_price ?? 0).toFixed(2)}
                         </span>
+                        <div className="absolute bottom-2 right-2 z-20">
+                          <SessionShareLinkButton
+                            sharePath={href}
+                            title={`${cls?.title ?? "Class"} · ${studio.name}`}
+                            text={`Book this session: ${cls?.title ?? "Class"}`}
+                          />
+                        </div>
                       </div>
                       <div className="flex min-w-0 flex-col">
                         <p className={`text-sm ${ui.muted}`}>
