@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { BookButton } from "@/components/BookButton";
 import { PackageBookButton } from "@/components/PackageBookButton";
+import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
@@ -120,9 +122,6 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     paynow_payee_name: studio.paynow_payee_name ?? null,
   });
 
-  const loc = cls.locations as { name?: string } | { name?: string }[] | null;
-  const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
-
   const coverSrc = (cls as { image_url?: string | null }).image_url ?? null;
 
   return (
@@ -132,26 +131,24 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
       {/* ── Class header ── */}
       <div className="max-w-2xl">
-        <p className={ui.badge}>Shared class</p>
-        <h1 className={`${ui.h1} mt-3`}>{cls.title}</h1>
+        <h1 className={ui.h1}>{cls.title}</h1>
         {cls.description ? (
           <p className={`mt-3 whitespace-pre-wrap text-stone-700 dark:text-stone-300`}>{cls.description}</p>
         ) : null}
-        <p className={`mt-3 text-sm ${ui.muted}`}>
-          {studio.name}{locName ? ` · ${locName}` : ""}
-        </p>
-
         {/* Credits / sign-in nudge */}
         {user ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className={ui.badge}>{packCredits} credit{packCredits !== 1 ? "s" : ""} available</span>
-            <Link href="/checkout" className={`text-sm ${ui.link}`}>Buy more →</Link>
+            <Link href="/checkout" className={`text-sm ${ui.link}`}>Buy more</Link>
           </div>
         ) : (
-          <p className={`mt-3 text-sm ${ui.muted}`}>
-            <Link href="/auth" className={ui.link}>Sign in</Link>{" "}
-            to book with credits, or book as a guest below.
-          </p>
+          <Suspense
+            fallback={
+              <div className="mt-3 h-10 w-24 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
+            }
+          >
+            <InlineSignInPanel />
+          </Suspense>
         )}
 
         {!paynow.configured ? (
@@ -205,12 +202,20 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     </span>
                   </div>
                   {/* Time + price */}
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
-                    <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-stone-500 dark:text-stone-400">
-                      <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
-                      <span>·</span>
-                      <span>{creditsRequired} credit{creditsRequired !== 1 ? "s" : ""} member</span>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-baseline gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1.5 dark:border-teal-800/80 dark:bg-teal-950/50">
+                        <span className="text-base font-bold tabular-nums text-teal-950 dark:text-teal-50">
+                          ${Number(s.guest_price ?? 0).toFixed(2)}
+                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-teal-800 dark:text-teal-200">
+                          Guest
+                        </span>
+                      </span>
+                      <span className="inline-flex items-center rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
+                        Members: {creditsRequired} class pass
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -249,7 +254,13 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     ) : null}
                   </div>
                 ) : (
-                  <QuickBookPanel slug={studioPublicSlug} sessionId={s.id} disabled={!paynow.configured} />
+                  <QuickBookPanel
+                    slug={studioPublicSlug}
+                    sessionId={s.id}
+                    disabled={!paynow.configured}
+                    triggerClassName={ui.btnSecondarySm}
+                    triggerLabel="Book as guest"
+                  />
                 )}
               </div>
             </li>

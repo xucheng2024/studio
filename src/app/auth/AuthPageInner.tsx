@@ -4,22 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { site } from "@/lib/brand";
+import { detectInAppBrowser } from "@/lib/inAppBrowser";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
-
-function detectInAppBrowser(): { isInApp: boolean; name: string } {
-  if (typeof navigator === "undefined") return { isInApp: false, name: "" };
-  const ua = navigator.userAgent;
-  if (/MicroMessenger/i.test(ua)) return { isInApp: true, name: "WeChat" };
-  if (/FBAV|FBAN/i.test(ua)) return { isInApp: true, name: "Facebook" };
-  if (/Instagram/i.test(ua)) return { isInApp: true, name: "Instagram" };
-  if (/Line\//i.test(ua)) return { isInApp: true, name: "Line" };
-  if (/TikTok/i.test(ua)) return { isInApp: true, name: "TikTok" };
-  if (/Twitter/i.test(ua)) return { isInApp: true, name: "Twitter" };
-  // Generic Android WebView
-  if (/wv\)/i.test(ua) && /Android/i.test(ua)) return { isInApp: true, name: "in-app browser" };
-  return { isInApp: false, name: "" };
-}
 
 type OtpStep = "request" | "verify";
 
@@ -41,7 +28,7 @@ export function AuthPageInner() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<OtpStep>("request");
   const [otpCode, setOtpCode] = useState("");
-  const [inApp] = useState<{ isInApp: boolean; name: string }>(() => detectInAppBrowser());
+  const [inApp] = useState(() => detectInAppBrowser());
   const [copied, setCopied] = useState(false);
 
   const oauthNext = encodeURIComponent(postAuthPath);

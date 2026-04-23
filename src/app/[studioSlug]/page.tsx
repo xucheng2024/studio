@@ -105,7 +105,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const studioVideoPreview = getVideoPreview(studio.public_video_url);
 
   return (
-    <main className={ui.page}>
+    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
         <div className={`${ui.card} bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
           <div className="grid gap-5 sm:grid-cols-[168px_1fr] sm:items-start">
@@ -191,7 +191,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const serviceWaLink = buildServiceWaLink(svc.title);
               return (
                 <article key={svc.id} className={ui.card}>
-                  <div className="grid gap-4 sm:grid-cols-[220px_1fr] lg:grid-cols-[260px_1fr]">
+                  <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
                     <div className="relative">
                       {svc.cover_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -285,7 +285,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <p className={ui.muted}>No upcoming classes yet.</p>
           </div>
         ) : (
-          <div className="mt-4 grid gap-3">
+          <div className="mt-4 grid w-full gap-4">
             {classes.map((s) => {
               const dt = new Date(s.start_time);
               const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
@@ -304,49 +304,48 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 ? `/class/${studio.public_slug}/${classSlug}?session_id=${s.id}`
                 : `/booking/${studio.public_slug}`;
               return (
-                <Link
+                <article
                   key={s.id}
-                  href={href}
-                  className={`${ui.card} block transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}
+                  className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}
                 >
-                  <div className="grid gap-4 sm:grid-cols-[220px_1fr] sm:items-stretch lg:grid-cols-[260px_1fr]">
-                    <div className="relative">
-                      {cls?.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={cls.image_url}
-                          alt={cls?.title ?? "Class cover"}
-                          className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
-                      )}
-                      <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2">
-                        <span className="max-w-[65%] truncate rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
-                          {dateLabel} · {timeLabel}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+                  <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
+                    <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                      <div className="relative shrink-0">
+                        {cls?.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={cls.image_url}
+                            alt={cls?.title ?? "Class cover"}
+                            className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                        )}
+                        <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                           SGD {Number(s.guest_price ?? 0).toFixed(2)}
                         </span>
                       </div>
-                    </div>
-                    <div className="flex min-w-0 flex-col">
-                      <p className="text-base font-semibold text-stone-900 dark:text-stone-100">
-                        {cls?.title ?? "Class"}
-                      </p>
-                      {classDescription ? (
-                        <p className={`mt-1 line-clamp-2 text-xs ${ui.muted}`}>{classDescription}</p>
-                      ) : null}
-                      <div className="mt-4 flex items-center justify-between gap-3">
-                        <span className={`text-xs ${ui.muted}`}>{spotsText}</span>
-                        <span className="inline-flex shrink-0 items-center rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500 dark:bg-teal-500 dark:hover:bg-teal-400">
-                          Book now
-                        </span>
+                      <div className="flex min-w-0 flex-col">
+                        <p className={`text-sm ${ui.muted}`}>
+                          {dateLabel} · {timeLabel}
+                        </p>
+                        <h3 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
+                          {cls?.title ?? "Class"}
+                        </h3>
+                        {classDescription ? (
+                          <p className="mt-2 line-clamp-4 text-sm text-stone-700 dark:text-stone-300">
+                            {classDescription}
+                          </p>
+                        ) : null}
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                          <span className={`text-sm ${ui.muted}`}>{spotsText}</span>
+                          <span className={ui.btnPrimarySm}>Book now</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </article>
               );
             })}
           </div>

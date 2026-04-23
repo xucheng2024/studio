@@ -2,16 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Loader2, X, AlertCircle } from "lucide-react";
+import { Loader2, X, AlertCircle } from "lucide-react";
 import { ui } from "@/lib/ui";
 
 type Props = {
   slug: string;
   sessionId: string;
   disabled?: boolean;
+  triggerClassName?: string;
+  triggerLabel?: string;
 };
 
-export function QuickBookPanel({ slug, sessionId, disabled }: Props) {
+export function QuickBookPanel({
+  slug,
+  sessionId,
+  disabled,
+  triggerClassName,
+  triggerLabel = "Book as guest",
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -34,11 +42,10 @@ export function QuickBookPanel({ slug, sessionId, disabled }: Props) {
     return (
       <button
         type="button"
-        className={ui.btnPrimarySm}
+        className={triggerClassName ?? ui.btnPrimarySm}
         onClick={() => { setOpen(true); setError(null); }}
       >
-        <ArrowRight size={13} />
-        Book as guest
+        {triggerLabel}
       </button>
     );
   }
@@ -142,7 +149,7 @@ export function QuickBookPanel({ slug, sessionId, disabled }: Props) {
           {loading ? (
             <><Loader2 size={15} className="animate-spin" /> Processing…</>
           ) : (
-            <><ArrowRight size={15} /> Continue to pay</>
+            <>Continue to pay</>
           )}
         </button>
       </div>
