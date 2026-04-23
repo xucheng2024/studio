@@ -76,7 +76,7 @@ export function MobileMenu({
             <>
               <div className={`my-1.5 ${ui.divider}`} />
               <Link
-                href="/member/auth"
+                href="/auth"
                 className={`${ui.btnPrimary} w-full`}
                 onClick={() => setOpen(false)}
               >

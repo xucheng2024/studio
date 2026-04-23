@@ -64,28 +64,11 @@ export function AuthPageInner() {
     <main className={`${ui.page} max-w-5xl`}>
       <div className="grid gap-6 md:grid-cols-5 md:items-stretch">
         <section className={`${ui.card} h-full md:col-span-3 md:order-1 order-2`}>
-          <div className="mb-2 inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1 dark:border-stone-700 dark:bg-stone-900">
-            <Link
-              href="/member/auth"
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                isMemberAuth
-                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
-                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
-              }`}
-            >
+          {isMemberAuth ? (
+            <div className="mb-2 inline-flex rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-teal-700 dark:border-stone-700 dark:bg-stone-900 dark:text-teal-300">
               Member login
-            </Link>
-            <Link
-              href="/auth"
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                !isMemberAuth
-                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
-                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
-              }`}
-            >
-              Staff login
-            </Link>
-          </div>
+            </div>
+          ) : null}
           <p className={ui.badge}>{isMemberAuth ? "Members" : "Staff portal"}</p>
           <h1 className={`${ui.h1} mt-3`}>
             {isMemberAuth ? "Your classes and payments — all in one place" : "Staff access only"}
@@ -122,28 +105,11 @@ export function AuthPageInner() {
         </section>
 
         <section className={`${ui.card} mx-auto w-full max-w-md md:col-span-2 md:order-2 order-1`}>
-          <div className="mb-3 inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1 dark:border-stone-700 dark:bg-stone-900">
-            <Link
-              href="/member/auth"
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                isMemberAuth
-                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
-                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
-              }`}
-            >
-              Member
-            </Link>
-            <Link
-              href="/auth"
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                !isMemberAuth
-                  ? "bg-white text-teal-700 shadow-sm dark:bg-stone-800 dark:text-teal-300"
-                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
-              }`}
-            >
-              Staff
-            </Link>
-          </div>
+          {isMemberAuth ? (
+            <div className="mb-3 inline-flex rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-teal-700 dark:border-stone-700 dark:bg-stone-900 dark:text-teal-300">
+              Member portal
+            </div>
+          ) : null}
           {inApp.isInApp ? (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/30">
               <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
