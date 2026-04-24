@@ -52,13 +52,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const studioId = url.searchParams.get("studio_id");
   const locationId = url.searchParams.get("location_id");
-  const status = url.searchParams.get("status");
   const paymentMethod = url.searchParams.get("payment_method");
-  const invoiceStatus = url.searchParams.get("invoice_status");
-  const reconStatus = url.searchParams.get("recon_status");
-  const amountMin = url.searchParams.get("amount_min");
-  const amountMax = url.searchParams.get("amount_max");
-  const reference = url.searchParams.get("reference");
   const dateFromParam = url.searchParams.get("date_from");
   const dateToParam = url.searchParams.get("date_to");
 
@@ -73,7 +67,6 @@ export async function GET(req: Request) {
   const to = dateToParam
     ? dayRangeEnd(dateToParam)
     : fallbackTo.toISOString();
-  const view = url.searchParams.get("view") ?? ""; // queue | recon | review | "" (all)
   const keyword = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
   const supabase = await createClient();
@@ -110,15 +103,7 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: false })
     .limit(5000); // Hard cap: export larger datasets via date-range pagination
   if (locationId) q = q.eq("location_id", locationId);
-  if (status) q = q.eq("status", status);
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
-  if (invoiceStatus) q = q.eq("invoice_status", invoiceStatus);
-  if (reconStatus) q = q.eq("recon_status", reconStatus);
-  const parsedAmountMin = amountMin ? Number(amountMin) : NaN;
-  const parsedAmountMax = amountMax ? Number(amountMax) : NaN;
-  if (!Number.isNaN(parsedAmountMin)) q = q.gte("amount", parsedAmountMin);
-  if (!Number.isNaN(parsedAmountMax)) q = q.lte("amount", parsedAmountMax);
-  if (reference) q = q.ilike("reference_code", `%${reference}%`);
   if (from) q = q.gte("created_at", from);
   if (to) q = q.lt("created_at", to);
   const { data: payments } = await q;
@@ -159,21 +144,6 @@ export async function GET(req: Request) {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(keyword));
     });
-  }
-
-  // Apply view (tab) filter (mirrors payments page logic)
-  if (view === "queue") {
-    rows = rows.filter((p) => p.status === "pending");
-  } else if (view === "recon") {
-    rows = rows.filter(
-      (p) =>
-        p.recon_status === "mismatch" ||
-        p.recon_status === "manual_review" ||
-        !p.reference_code ||
-        Number(p.paid_amount ?? p.amount ?? 0) !== Number(p.amount ?? 0),
-    );
-  } else if (view === "review") {
-    rows = rows.filter((p) => p.status !== "pending" || p.verified_at != null);
   }
 
   const headers = [

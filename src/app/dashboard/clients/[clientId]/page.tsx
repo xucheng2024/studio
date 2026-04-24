@@ -1,13 +1,15 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { updateMemberProfile } from "@/app/dashboard/actions";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<{ location_id?: string; studio_id?: string }>;
+  searchParams: Promise<{ location_id?: string; studio_id?: string; member_saved?: string; member_error?: string }>;
 };
 
 export default async function ClientLedgerPage({ params, searchParams }: Props) {
@@ -34,6 +36,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     return <p className={ui.muted}>Select a studio in the left sidebar to view this member&apos;s ledger.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const admin = createAdminClient();
 
   const { data: clientUser } = await supabase
     .from("users")
@@ -41,6 +44,11 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     .eq("id", clientId)
     .maybeSingle();
   if (!clientUser) return <p className={ui.muted}>Member not found.</p>;
+  const { data: profile } = await admin
+    .from("user_profiles")
+    .select("full_name, phone, notes")
+    .eq("id", clientId)
+    .maybeSingle();
 
   const { data: packRowsRaw } = await supabase
     .from("client_packages")
@@ -109,6 +117,54 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           <span className={`text-xs ${ui.muted}`}>credits available</span>
         </div>
       </div>
+
+      <section className={ui.card}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={ui.h2}>Member profile</h2>
+          {sp.member_saved === "1" ? <p className={ui.success}>Saved.</p> : null}
+          {sp.member_error ? <p className={ui.error}>Save failed: {sp.member_error}</p> : null}
+        </div>
+        <form action={updateMemberProfile} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="studio_id" value={activeStudioId} />
+          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+          <input type="hidden" name="client_id" value={clientId} />
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Full name</span>
+            <input
+              name="full_name"
+              type="text"
+              defaultValue={(profile as { full_name?: string | null } | null)?.full_name ?? ""}
+              className={ui.input}
+              placeholder="Member name"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Phone</span>
+            <input
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              defaultValue={(profile as { phone?: string | null } | null)?.phone ?? ""}
+              className={ui.input}
+              placeholder="+65 9123 4567"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Notes</span>
+            <textarea
+              name="notes"
+              defaultValue={(profile as { notes?: string | null } | null)?.notes ?? ""}
+              className={ui.input}
+              rows={4}
+              placeholder="Internal notes for operations (e.g. injury, preference, follow-up)."
+              maxLength={1000}
+            />
+          </label>
+          <div className="sm:col-span-2">
+            <button type="submit" className={ui.btnPrimarySm}>Save profile</button>
+          </div>
+        </form>
+      </section>
 
       {/* ── Current packages ────────────────────────────────────── */}
       <section>

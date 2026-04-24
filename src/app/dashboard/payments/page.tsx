@@ -151,23 +151,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       .some((v) => String(v).toLowerCase().includes(keyword));
   });
   const visible = filtered;
-  const summary = filtered.reduce(
-    (acc, p) => {
-      const amount = Number(p.amount ?? 0);
-      if (p.status === "paid") {
-        acc.net += amount;
-        acc.paidCount += 1;
-        if ((p.payment_method ?? "").toLowerCase() === "hitpay") acc.hitpayNet += amount;
-        if ((p.payment_method ?? "").toLowerCase() === "cash") acc.cashNet += amount;
-      } else if (p.status === "refunded") {
-        acc.net -= amount;
-        if ((p.payment_method ?? "").toLowerCase() === "hitpay") acc.hitpayNet -= amount;
-        if ((p.payment_method ?? "").toLowerCase() === "cash") acc.cashNet -= amount;
-      }
-      return acc;
-    },
-    { net: 0, hitpayNet: 0, cashNet: 0, paidCount: 0 },
-  );
 
   const ids = visible.map((p) => p.id);
   const { data: audits } =
@@ -222,19 +205,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       </div>
 
       <form method="get" className={`${ui.card} flex flex-col gap-4`}>
-        {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
+        {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
+        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
 
         {/* ── Always-visible quick filters ─────────────────────── */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Location</span>
-            <select name="location_id" className={ui.select} defaultValue={selectedLocationId ?? ""}>
-              <option value="">All locations</option>
-              {(locations ?? []).map((l) => (
-                <option key={l.id} value={l.id}>{l.name ?? "Unnamed location"}</option>
-              ))}
-            </select>
-          </label>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Date from</span>
             <input type="date" name="date_from" defaultValue={sp.date_from ?? ""} className={ui.input} />
@@ -271,24 +246,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </DashboardAppLink>
         </div>
       </form>
-
-      <section className={ui.card}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Net received (paid - refunded)</p>
-            <p className="mt-1 text-xl font-semibold">${summary.net.toFixed(2)}</p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>Paid transactions: {summary.paidCount}</p>
-          </div>
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>HitPay net</p>
-            <p className="mt-1 text-xl font-semibold">${summary.hitpayNet.toFixed(2)}</p>
-          </div>
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Cash net</p>
-            <p className="mt-1 text-xl font-semibold">${summary.cashNet.toFixed(2)}</p>
-          </div>
-        </div>
-      </section>
 
       <ul className="flex flex-col gap-3">
         {visible.map((p) => {

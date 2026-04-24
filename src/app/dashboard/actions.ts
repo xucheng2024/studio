@@ -549,6 +549,58 @@ export async function toggleLocationActive(formData: FormData): Promise<void> {
   redirect("/dashboard/settings/locations?loc_success=status_updated");
 }
 
+export async function updateMemberProfile(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const fullNameRaw = String(formData.get("full_name") ?? "").trim();
+  const phoneRaw = String(formData.get("phone") ?? "").trim();
+  const notesRaw = String(formData.get("notes") ?? "").trim();
+  const full_name = fullNameRaw || null;
+  const phone = phoneRaw || null;
+  const notes = notesRaw || null;
+
+  if (!studioId || !clientId) {
+    redirect("/dashboard/clients?member_error=invalid_input");
+  }
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) {
+    redirect("/dashboard/clients?member_error=studio_not_found");
+  }
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager", "frontdesk"])) {
+    redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=forbidden`);
+  }
+
+  // Only allow editing members that belong to this studio scope.
+  const admin = createAdminClient();
+  const { data: inScopePayment } = await admin
+    .from("payments")
+    .select("id")
+    .eq("studio_id", studio.id)
+    .eq("client_id", clientId)
+    .limit(1)
+    .maybeSingle();
+  if (!inScopePayment) {
+    redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=out_of_scope`);
+  }
+
+  const { error } = await admin
+    .from("user_profiles")
+    .upsert({
+      id: clientId,
+      full_name,
+      phone,
+      notes,
+    });
+  if (error) {
+    redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=save_failed`);
+  }
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath(`/dashboard/clients/${clientId}`);
+  redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_saved=1`);
+}
+
 export async function createInstructor(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const locationId = String(formData.get("location_id") ?? "").trim() || null;

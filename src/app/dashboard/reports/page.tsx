@@ -53,9 +53,6 @@ export default async function ReportsPage({ searchParams }: Props) {
     locationId: sp.location_id ?? null,
   });
   if (studioIds.length === 0) return <p className={ui.muted}>Create your first studio in Overview.</p>;
-  if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
-  }
   if (!["owner", "manager"].includes(bestRole(ctx))) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
@@ -66,13 +63,6 @@ export default async function ReportsPage({ searchParams }: Props) {
   const dateTo = sp.date_to ?? bounds.to;
   const fromIso = dayRangeStart(dateFrom);
   const toIso = dayRangeEnd(dateTo);
-
-  const { data: locations } = await supabase
-    .from("locations")
-    .select("id, name")
-    .eq("studio_id", activeStudioId)
-    .eq("is_active", true)
-    .order("name");
 
   let revenueQuery = supabase
     .from("payments")
@@ -139,7 +129,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           ].map(({ label, from, to }) => {
             const isActive = dateFrom === from && dateTo === to;
             const params = new URLSearchParams();
-            if (selectedStudioId) params.set("studio_id", selectedStudioId);
+            if (activeStudioId) params.set("studio_id", activeStudioId);
             if (selectedLocationId) params.set("location_id", selectedLocationId);
             params.set("date_from", from);
             params.set("date_to", to);
@@ -160,19 +150,9 @@ export default async function ReportsPage({ searchParams }: Props) {
         </div>
 
         <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
-          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-3">
-            <label className="flex flex-col gap-1.5">
-              <span className={`${ui.label} whitespace-nowrap`}>Location</span>
-              <select name="location_id" defaultValue={selectedLocationId ?? ""} className={ui.select}>
-                <option value="">All locations</option>
-                {(locations ?? []).map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name ?? "Unnamed location"}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
+          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>From</span>
               <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
