@@ -1,21 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowLeft, Clock, ExternalLink, ShieldCheck, XCircle } from "lucide-react";
 import { CopyRefButton } from "@/components/CopyRefButton";
-import { QrDownloadButton } from "@/components/QrDownloadButton";
 import { PaymentStatusPoller } from "@/components/PaymentStatusPoller";
-import { toQrDataUrl } from "@/lib/paynow";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Props = { params: Promise<{ payment_id: string }> };
-
-function maskTail(value: string | null | undefined, visible = 4) {
-  if (!value) return "-";
-  const raw = String(value);
-  if (raw.length <= visible) return raw;
-  return `${"*".repeat(Math.max(0, raw.length - visible))}${raw.slice(-visible)}`;
-}
 
 export default async function PaymentCheckoutPage({ params }: Props) {
   const { payment_id } = await params;
@@ -27,15 +18,12 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       id,
       amount,
       currency,
+      payment_method,
       status,
       reference_code,
       expires_at,
       verified_at,
-      qr_payload,
-      paynow_proxy_type_snapshot,
-      paynow_uen_snapshot,
-      paynow_mobile_snapshot,
-      paynow_payee_name_snapshot,
+      gateway_checkout_url,
       booking_id
     `,
     )
@@ -43,7 +31,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
     .single();
 
   if (error || !payment) notFound();
-  const qrDataUrl = payment.qr_payload ? await toQrDataUrl(payment.qr_payload) : null;
+  const isHitpay = (payment.payment_method ?? "").toLowerCase() === "hitpay" || Boolean(payment.gateway_checkout_url);
 
   let ruleLine: string | null = null;
   if (payment.booking_id) {
@@ -78,13 +66,6 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       }
     }
   }
-
-  const payeeProxy =
-    payment.paynow_proxy_type_snapshot === "mobile"
-      ? `Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
-      : payment.paynow_proxy_type_snapshot === "uen_mobile"
-        ? `UEN ${maskTail(payment.paynow_uen_snapshot)} · Mobile ${maskTail(payment.paynow_mobile_snapshot)}`
-        : `UEN ${maskTail(payment.paynow_uen_snapshot)}`;
 
   const isPaid = payment.status === "paid";
   const isFailed =
@@ -128,9 +109,12 @@ export default async function PaymentCheckoutPage({ params }: Props) {
             {payment.currency} {Number(payment.amount).toFixed(2)}
           </p>
           <p className="mt-2 text-sm text-teal-200">
-            Pay to: <span className="font-semibold">{payment.paynow_payee_name_snapshot ?? "Studio"}</span>
+            Pay to:{" "}
+            <span className="font-semibold">
+              {isHitpay ? "HitPay Checkout" : "Studio"}
+            </span>
           </p>
-          <p className="text-xs text-teal-300">{payeeProxy}</p>
+          <p className="text-xs text-teal-300">Secure hosted payment page</p>
         </div>
 
         {/* ── Terminal: paid ── */}
@@ -168,25 +152,25 @@ export default async function PaymentCheckoutPage({ params }: Props) {
         {/* ── Pending: payment instructions ── */}
         {isPending ? (
           <>
-            {/* Step 1 – Scan QR */}
-            {qrDataUrl ? (
-              <div className={`${ui.card} flex flex-col items-center gap-3`}>
+            {/* Step 1 – Start payment */}
+            {payment.gateway_checkout_url ? (
+              <div className={`${ui.card} flex flex-col gap-3`}>
                 <div className="flex w-full items-center gap-2">
                   <StepBadge n={1} />
-                  <p className="font-semibold text-stone-800 dark:text-stone-100">Scan with your banking app</p>
+                  <p className="font-semibold text-stone-800 dark:text-stone-100">Open secure payment page</p>
                 </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrDataUrl}
-                  alt={`PayNow QR — ${payment.currency} ${Number(payment.amount).toFixed(2)}`}
-                  width={240}
-                  height={240}
-                  className="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm dark:border-stone-700"
-                />
-                <QrDownloadButton
-                  dataUrl={qrDataUrl}
-                  amount={`${payment.currency} ${Number(payment.amount).toFixed(2)}`}
-                />
+                <a
+                  href={payment.gateway_checkout_url}
+                  className={`${ui.btnPrimary} inline-flex w-fit items-center gap-2`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Continue to HitPay
+                  <ExternalLink size={14} />
+                </a>
+                <p className={`text-xs ${ui.muted}`}>
+                  Complete payment there and return here; this page auto-refreshes payment status.
+                </p>
               </div>
             ) : null}
 
@@ -194,7 +178,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
             <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 dark:border-amber-800/50 dark:bg-amber-950/20">
               <div className="mb-3 flex items-center gap-2">
                 <StepBadge n={2} amber />
-                <p className="font-semibold text-amber-900 dark:text-amber-200">Include this transfer reference</p>
+                <p className="font-semibold text-amber-900 dark:text-amber-200">Payment reference</p>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <code className="text-2xl font-bold tracking-widest text-stone-900 dark:text-stone-100">
@@ -203,7 +187,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                 {payment.reference_code ? <CopyRefButton reference={payment.reference_code} /> : null}
               </div>
               <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                Add this to your transfer note so staff can match your payment instantly.
+                Keep this reference for support and reconciliation.
               </p>
             </div>
 

@@ -174,33 +174,25 @@ export async function updateStudioBasics(formData: FormData): Promise<void> {
   revalidatePath(`/${studio.public_slug}`);
 }
 
-export async function updateStudioPaynowSettings(formData: FormData): Promise<void> {
+export async function updateStudioHitpaySettings(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
 
-  const enabled = formData.get("paynow_enabled") === "on";
-  const proxyType = String(formData.get("paynow_proxy_type") ?? "uen").trim();
-  const paynowUen = String(formData.get("paynow_uen") ?? "").trim() || null;
-  const paynowMobile = String(formData.get("paynow_mobile") ?? "").trim() || null;
-  const payeeName = String(formData.get("paynow_payee_name") ?? "").trim() || null;
-
-  if (!["uen", "mobile", "uen_mobile"].includes(proxyType)) return;
-  if (enabled) {
-    if (proxyType === "uen" && !paynowUen) return;
-    if (proxyType === "mobile" && !paynowMobile) return;
-    if (proxyType === "uen_mobile" && (!paynowUen || !paynowMobile)) return;
-  }
+  const enabled = formData.get("hitpay_enabled") === "on";
+  const businessName = String(formData.get("hitpay_business_name") ?? "").trim() || null;
+  const apiKey = String(formData.get("hitpay_api_key") ?? "").trim() || null;
+  const webhookSalt = String(formData.get("hitpay_webhook_salt") ?? "").trim() || null;
+  if (enabled && (!apiKey || !webhookSalt)) return;
 
   const { error } = await supabase
     .from("studios")
     .update({
-      paynow_enabled: enabled,
-      paynow_proxy_type: proxyType,
-      paynow_uen: paynowUen,
-      paynow_mobile: paynowMobile,
-      paynow_payee_name: payeeName,
+      hitpay_enabled: enabled,
+      hitpay_business_name: businessName,
+      hitpay_api_key: apiKey,
+      hitpay_webhook_salt: webhookSalt,
     })
     .eq("id", studio.id);
   if (error) {
@@ -837,61 +829,6 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
       }
     }
     d.setDate(d.getDate() + 1);
-  }
-
-  revalidatePath("/dashboard/schedule");
-}
-
-export async function saveBookingRules(formData: FormData): Promise<void> {
-  const studioId = String(formData.get("studio_id") ?? "");
-  const locationRaw = String(formData.get("location_id") ?? "").trim();
-  const locationId = locationRaw || null;
-  const cancelCutoff = Number(formData.get("cancel_cutoff_hours") ?? 12);
-  const noShowBuffer = Number(formData.get("no_show_buffer_min") ?? 15);
-  const maxActiveBookings = Number(formData.get("max_active_bookings_per_client") ?? 3);
-  const maxWeeklyLate = Number(formData.get("max_weekly_late_cancel") ?? 2);
-  const paymentVerificationSlaMin = Number(formData.get("payment_verification_sla_min") ?? 30);
-  const lateCancelDeductCredit = formData.get("late_cancel_deduct_credit") === "on";
-  const noShowDeductCredit = formData.get("no_show_deduct_credit") === "on";
-  const allowWaitlist = formData.get("allow_waitlist") === "on";
-
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
-
-  const scopeQuery = supabase
-    .from("booking_rules")
-    .select("id")
-    .eq("studio_id", studio.id)
-    .limit(1);
-  const { data: existing } = locationId
-    ? await scopeQuery.eq("location_id", locationId).maybeSingle()
-    : await scopeQuery.is("location_id", null).maybeSingle();
-
-  const payload = {
-    studio_id: studio.id,
-    location_id: locationId,
-    cancel_cutoff_hours: Number.isFinite(cancelCutoff) ? Math.max(cancelCutoff, 0) : 12,
-    no_show_buffer_min: Number.isFinite(noShowBuffer) ? Math.max(noShowBuffer, 0) : 15,
-    max_active_bookings_per_client: Number.isFinite(maxActiveBookings)
-      ? Math.max(maxActiveBookings, 1)
-      : 3,
-    max_weekly_late_cancel: Number.isFinite(maxWeeklyLate) ? Math.max(maxWeeklyLate, 0) : 2,
-    payment_verification_sla_min: Number.isFinite(paymentVerificationSlaMin)
-      ? Math.min(1440, Math.max(paymentVerificationSlaMin, 1))
-      : 30,
-    late_cancel_deduct_credit: lateCancelDeductCredit,
-    no_show_deduct_credit: noShowDeductCredit,
-    allow_waitlist: allowWaitlist,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (existing?.id) {
-    await supabase.from("booking_rules").update(payload).eq("id", existing.id);
-  } else {
-    await supabase.from("booking_rules").insert(payload);
   }
 
   revalidatePath("/dashboard/schedule");

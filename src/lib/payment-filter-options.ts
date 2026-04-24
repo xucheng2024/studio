@@ -8,7 +8,7 @@ export const PAYMENT_STATUS_FILTER_OPTIONS: { value: string; label: string }[] =
 ];
 
 export const PAYMENT_METHOD_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "paynow", label: "PayNow" },
+  { value: "hitpay", label: "HitPay" },
   { value: "cash", label: "Cash" },
 ];
 

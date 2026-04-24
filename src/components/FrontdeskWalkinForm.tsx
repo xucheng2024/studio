@@ -75,7 +75,7 @@ export function FrontdeskWalkinForm({
       <input name="amount" type="number" step="0.01" min={0} defaultValue={0} className={ui.input} required />
       <select name="payment_method" className={ui.select}>
         <option value="cash">cash</option>
-        <option value="paynow">paynow</option>
+        <option value="hitpay">hitpay</option>
       </select>
       <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
         <Toggle name="mark_checkin" aria-label="Check-in immediately" />

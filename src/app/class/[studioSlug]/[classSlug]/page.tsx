@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
-import { getPaynowSummary } from "@/lib/paynow";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -68,13 +67,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     return 0;
   });
 
-  const paynow = getPaynowSummary({
-    paynow_enabled: Boolean(studio.paynow_enabled),
-    paynow_proxy_type: studio.paynow_proxy_type ?? null,
-    paynow_uen: studio.paynow_uen ?? null,
-    paynow_mobile: studio.paynow_mobile ?? null,
-    paynow_payee_name: studio.paynow_payee_name ?? null,
-  });
+  const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
 
   const coverSrc = (cls as { image_url?: string | null }).image_url ?? null;
 
@@ -109,10 +102,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
         {cls.description ? (
           <p className={`mt-3 whitespace-pre-wrap text-stone-700 dark:text-stone-300`}>{cls.description}</p>
         ) : null}
-        <p className={`mt-3 text-sm ${ui.muted}`}>Book your spot and continue to PayNow below.</p>
+        <p className={`mt-3 text-sm ${ui.muted}`}>Book your spot and continue to secure checkout below.</p>
 
-        {!paynow.configured ? (
-          <p className={`mt-2 flex items-center gap-1 text-xs ${ui.error}`}>{paynow.line}</p>
+        {!paymentReady ? (
+          <p className={`mt-2 flex items-center gap-1 text-xs ${ui.error}`}>
+            Online payment is not configured for this deployment.
+          </p>
         ) : null}
       </div>
 
@@ -169,7 +164,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                         </span>
                       </span>
                       <span className="inline-flex items-center rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
-                        PayNow checkout
+                        Online checkout
                       </span>
                     </div>
                   </div>
@@ -202,7 +197,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   <QuickBookPanel
                     slug={studioPublicSlug}
                     sessionId={s.id}
-                    disabled={!paynow.configured}
+                    disabled={!paymentReady}
                     defaultOpen
                     hideClose
                   />

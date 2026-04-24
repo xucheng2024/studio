@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import {
-  buildPaynowPayload,
-  generatePaynowReference,
-  toQrDataUrl,
-  validatePaynowConfig,
-} from "@/lib/paynow";
+import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
+import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -61,33 +57,16 @@ export async function POST(req: Request) {
   if (!studioAccess.ok) {
     return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
   }
-
-  const { data: studioPaynow } = await admin
+  const { data: studioHitpay } = await admin
     .from("studios")
-    .select("paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
+    .select("hitpay_enabled, hitpay_api_key")
     .eq("id", pkg.studio_id)
     .maybeSingle();
-  const paynow = validatePaynowConfig({
-    paynow_enabled: Boolean(studioPaynow?.paynow_enabled),
-    paynow_proxy_type: studioPaynow?.paynow_proxy_type ?? null,
-    paynow_uen: studioPaynow?.paynow_uen ?? null,
-    paynow_mobile: studioPaynow?.paynow_mobile ?? null,
-    paynow_payee_name: studioPaynow?.paynow_payee_name ?? null,
-  });
-  if (!paynow.ok) {
-    return NextResponse.json({ error: paynow.error, message: paynow.message }, { status: 409 });
+  if (!studioHitpay?.hitpay_enabled || !studioHitpay.hitpay_api_key) {
+    return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
   }
 
-  const reference = generatePaynowReference();
-  const qrPayload = buildPaynowPayload({
-    proxyType: paynow.proxyType,
-    uen: paynow.uen,
-    mobile: paynow.mobile,
-    payeeName: paynow.payeeName,
-    amount: Number(pkg.price),
-    reference,
-  });
-  const qrCodeUrl = await toQrDataUrl(qrPayload);
+  const reference = generatePaymentReference();
   // Package payments have no class start time, so give staff 24 h to confirm.
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -103,13 +82,8 @@ export async function POST(req: Request) {
       guest_phone: null,
       amount: pkg.price,
       currency: "SGD",
-      payment_method: "paynow",
+      payment_method: "hitpay",
       reference_code: reference,
-      qr_payload: qrPayload,
-      paynow_proxy_type_snapshot: paynow.proxyType,
-      paynow_uen_snapshot: paynow.uen,
-      paynow_mobile_snapshot: paynow.mobile,
-      paynow_payee_name_snapshot: paynow.payeeName,
       expires_at: expiresAt,
       type: "package",
       status: "pending",
@@ -122,12 +96,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: pErr?.message ?? "payment_create_failed" }, { status: 500 });
   }
 
-  return NextResponse.json({
-    payment_id: payment.id,
-    amount: payment.amount,
-    reference_code: reference,
-    qr_code_url: qrCodeUrl,
-    expires_at: expiresAt,
-    checkout_url: `/checkout/${payment.id}`,
-  });
+  const baseUrl = getAppBaseUrlFromRequest(req);
+  if (!baseUrl) {
+    return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
+  }
+  const returnUrl = `${baseUrl}/checkout/${payment.id}`;
+  const webhookUrl = `${baseUrl}/api/payment/hitpay/webhook`;
+
+  try {
+    const hitpay = await createHitpayPaymentRequest({
+      apiKey: studioHitpay.hitpay_api_key,
+      amount: Number(pkg.price).toFixed(2),
+      currency: "SGD",
+      reference_number: reference,
+      redirect_url: returnUrl,
+      webhook: webhookUrl,
+      purpose: `Package ${pkg.name}`,
+    });
+    await admin
+      .from("payments")
+      .update({
+        gateway_payment_id: hitpay.providerPaymentId,
+        gateway_checkout_url: hitpay.checkoutUrl,
+        gateway_status: hitpay.providerStatus,
+      })
+      .eq("id", payment.id);
+
+    return NextResponse.json({
+      payment_id: payment.id,
+      amount: payment.amount,
+      reference_code: reference,
+      expires_at: expiresAt,
+      checkout_url: hitpay.checkoutUrl,
+    });
+  } catch (e) {
+    await admin.rpc("cancel_pending_payment", {
+      p_payment_id: payment.id,
+      p_new_status: "failed",
+    });
+    const message = e instanceof Error ? e.message : "hitpay_create_failed";
+    const status = message === "hitpay_not_configured" ? 409 : 502;
+    return NextResponse.json(
+      { error: message },
+      { status },
+    );
+  }
 }

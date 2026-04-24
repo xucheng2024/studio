@@ -7,11 +7,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import {
-  INVOICE_STATUS_FILTER_OPTIONS,
   PAYMENT_METHOD_FILTER_OPTIONS,
-  PAYMENT_STATUS_FILTER_OPTIONS,
 } from "@/lib/payment-filter-options";
-import { resolvePaymentVerificationSlaMin } from "@/lib/payment-verification-sla";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -21,15 +18,9 @@ type Props = {
   searchParams: Promise<{
     location_id?: string;
     studio_id?: string;
-    view?: "queue" | "review";
-    status?: string;
     payment_method?: string;
-    invoice_status?: string;
     date_from?: string;
     date_to?: string;
-    amount_min?: string;
-    amount_max?: string;
-    reference?: string;
     q?: string;
   }>;
 };
@@ -49,79 +40,6 @@ function dayRangeEnd(d?: string) {
   return dt.toISOString();
 }
 
-function toDateInputValue(date: Date) {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function buildPaymentStats(
-  rows: Array<{
-    studio_id: string;
-    location_id: string | null;
-    status: string;
-    payment_method: string | null;
-    amount: number | null;
-    created_at: string | null;
-    verified_at: string | null;
-  }>,
-  getSlaMin: (studioId: string, locationId: string | null) => number,
-) {
-  const nowMs = new Date().getTime();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayMs = todayStart.getTime();
-
-  const todayReceived = rows
-    .filter((p) => p.created_at && new Date(p.created_at).getTime() >= todayMs)
-    .reduce((a, p) => a + Number(p.amount ?? 0), 0);
-  const todayVerified = rows
-    .filter((p) => p.verified_at && new Date(p.verified_at).getTime() >= todayMs)
-    .reduce((a, p) => a + Number(p.amount ?? 0), 0);
-  const slaOverdueCount = rows.filter(
-    (p) =>
-      p.status === "pending" &&
-      p.created_at &&
-      !p.verified_at &&
-      nowMs - new Date(p.created_at).getTime() > getSlaMin(p.studio_id, p.location_id) * 60 * 1000,
-  ).length;
-  const txCount = rows.length;
-  const settledRows = rows.filter((p) => p.status === "paid" || p.status === "refunded");
-  const paidAmount = settledRows
-    .filter((p) => p.status === "paid")
-    .reduce((a, p) => a + Number(p.amount ?? 0), 0);
-  const refundedAmount = settledRows
-    .filter((p) => p.status === "refunded")
-    .reduce((a, p) => a + Number(p.amount ?? 0), 0);
-  const netAmount = paidAmount - refundedAmount;
-  const byMethod = {
-    paynow: {
-      count: settledRows.filter((p) => (p.payment_method ?? "").toLowerCase() === "paynow").length,
-      amount: settledRows
-        .filter((p) => (p.payment_method ?? "").toLowerCase() === "paynow")
-        .reduce((a, p) => a + Number(p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0),
-    },
-    cash: {
-      count: settledRows.filter((p) => (p.payment_method ?? "").toLowerCase() === "cash").length,
-      amount: settledRows
-        .filter((p) => (p.payment_method ?? "").toLowerCase() === "cash")
-        .reduce((a, p) => a + Number(p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0),
-    },
-  };
-
-  return {
-    todayReceived,
-    todayVerified,
-    slaOverdueCount,
-    txCount,
-    paidAmount,
-    refundedAmount,
-    netAmount,
-    byMethod,
-  };
-}
-
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -135,7 +53,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
   });
-  const view: "queue" | "review" = sp.view === "review" ? "review" : "queue";
   if (studioIds.length === 0) return <p className={ui.muted}>Create your first studio in Overview.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
@@ -144,7 +61,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
-  const todayKey = toDateInputValue(new Date());
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -152,56 +68,17 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .eq("is_active", true)
     .order("name");
   const locationMap = new Map((locations ?? []).map((l) => [l.id, l.name ?? "Unnamed location"]));
-  const { data: bookingRuleRows } = await supabase
-    .from("booking_rules")
-    .select("studio_id, location_id, payment_verification_sla_min")
-    .in("studio_id", [activeStudioId]);
-  const slaRules = (bookingRuleRows ?? []) as Array<{
-    studio_id: string;
-    location_id: string | null;
-    payment_verification_sla_min: number | null;
-  }>;
-  const getSlaMin = (studioId: string, locationId: string | null) =>
-    resolvePaymentVerificationSlaMin(slaRules, studioId, locationId);
-  let dailyQ = supabase
-    .from("payments")
-    .select("id, status, payment_method, amount")
-    .eq("studio_id", activeStudioId)
-    .gte("created_at", dayRangeStart(todayKey) ?? new Date().toISOString())
-    .lt("created_at", dayRangeEnd(todayKey) ?? new Date().toISOString());
-  if (selectedLocationId) dailyQ = dailyQ.eq("location_id", selectedLocationId);
-  const { data: dailyRowsRaw } = await dailyQ;
-  const dailyRows = dailyRowsRaw ?? [];
-  const dailyTxCount = dailyRows.length;
-  const dailyPaid = dailyRows
-    .filter((p) => p.status === "paid")
-    .reduce((a, p) => a + Number(p.amount ?? 0), 0);
-  const dailyRefunded = dailyRows
-    .filter((p) => p.status === "refunded")
-    .reduce((a, p) => a + Number(p.amount ?? 0), 0);
-  const dailyNet = dailyPaid - dailyRefunded;
-  const dailyPaynowAmount = dailyRows
-    .filter((p) => (p.payment_method ?? "").toLowerCase() === "paynow")
-    .reduce((a, p) => a + Number(p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0);
-  const dailyCashAmount = dailyRows
-    .filter((p) => (p.payment_method ?? "").toLowerCase() === "cash")
-    .reduce((a, p) => a + Number(p.amount ?? 0) * (p.status === "refunded" ? -1 : 1), 0);
 
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, manual_refund_reference, manual_refund_recorded_at",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
     .limit(300);
   if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
-  if (sp.status) q = q.eq("status", sp.status);
   if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
-  if (sp.invoice_status) q = q.eq("invoice_status", sp.invoice_status);
-  if (sp.reference) q = q.ilike("reference_code", `%${sp.reference}%`);
-  if (sp.amount_min) q = q.gte("amount", Number(sp.amount_min));
-  if (sp.amount_max) q = q.lte("amount", Number(sp.amount_max));
   const from = dayRangeStart(sp.date_from);
   if (from) q = q.gte("created_at", from);
   const to = dayRangeEnd(sp.date_to);
@@ -214,25 +91,49 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
   const [{ data: bookings }, { data: clients }, { data: clientProfiles }] = await Promise.all([
     bookingIds.length > 0
-      ? supabase.from("bookings").select("id, guest_name, guest_email, guest_phone").in("id", bookingIds)
+      ? supabase
+          .from("bookings")
+          .select("id, guest_name, guest_email, guest_phone, class_sessions(start_time, classes(title))")
+          .in("id", bookingIds)
       : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
       ? supabase.from("users").select("id, email").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
-      ? supabase.from("user_profiles").select("id, phone").in("id", clientIds)
+      ? supabase.from("user_profiles").select("id, phone, full_name").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
   ]);
   const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
   const clientMap = new Map((clients ?? []).map((u) => [u.id, u.email]));
-  const clientPhoneMap = new Map((clientProfiles ?? []).map((u) => [u.id, u.phone]));
+  const clientProfileMap = new Map(
+    (clientProfiles ?? []).map((u) => [
+      u.id,
+      {
+        phone: u.phone ?? null,
+        full_name: (u as { full_name?: string | null }).full_name ?? null,
+      },
+    ]),
+  );
 
   const keyword = (sp.q ?? "").trim().toLowerCase();
   const filtered = payments.filter((p) => {
     if (!keyword) return true;
     const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
     const c = p.client_id ? clientMap.get(p.client_id) : null;
-    const cPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
+    const cProfile = p.client_id ? clientProfileMap.get(p.client_id) : null;
+    const cPhone = cProfile?.phone ?? null;
+    const cName = cProfile?.full_name ?? null;
+    const sessionObj = booking
+      ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
+          ? (booking as { class_sessions?: unknown[] }).class_sessions?.[0]
+          : (booking as { class_sessions?: unknown }).class_sessions) as
+          | {
+              classes?: { title?: string | null } | { title?: string | null }[] | null;
+            }
+          | null)
+      : null;
+    const sessionClass = Array.isArray(sessionObj?.classes) ? sessionObj?.classes[0] : sessionObj?.classes;
+    const sessionTitle = sessionClass?.title ?? null;
     return [
       p.reference_code,
       p.guest_email,
@@ -243,84 +144,30 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       (booking as { guest_phone?: string | null } | null)?.guest_phone ?? null,
       c,
       cPhone,
+      cName,
+      sessionTitle,
     ]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(keyword));
   });
-  let allLocationFiltered = filtered;
-  if (selectedLocationId) {
-    let allQ = supabase
-      .from("payments")
-      .select(
-        "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
-      )
-      .in("studio_id", [activeStudioId])
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    if (sp.status) allQ = allQ.eq("status", sp.status);
-    if (sp.payment_method) allQ = allQ.eq("payment_method", sp.payment_method);
-    if (sp.invoice_status) allQ = allQ.eq("invoice_status", sp.invoice_status);
-    if (sp.reference) allQ = allQ.ilike("reference_code", `%${sp.reference}%`);
-    if (sp.amount_min) allQ = allQ.gte("amount", Number(sp.amount_min));
-    if (sp.amount_max) allQ = allQ.lte("amount", Number(sp.amount_max));
-    const allFrom = dayRangeStart(sp.date_from);
-    if (allFrom) allQ = allQ.gte("created_at", allFrom);
-    const allTo = dayRangeEnd(sp.date_to);
-    if (allTo) allQ = allQ.lt("created_at", allTo);
-    const { data: rawAllPayments } = await allQ;
-    const allPayments = rawAllPayments ?? [];
-    const allBookingIds = [...new Set(allPayments.map((p) => p.booking_id).filter(Boolean))];
-    const allClientIds = [...new Set(allPayments.map((p) => p.client_id).filter(Boolean))];
-    const [{ data: allBookings }, { data: allClients }, { data: allClientProfiles }] = await Promise.all([
-      allBookingIds.length > 0
-        ? supabase.from("bookings").select("id, guest_name, guest_email, guest_phone").in("id", allBookingIds)
-        : Promise.resolve({ data: [] as const }),
-      allClientIds.length > 0
-        ? supabase.from("users").select("id, email").in("id", allClientIds)
-        : Promise.resolve({ data: [] as const }),
-      allClientIds.length > 0
-        ? supabase.from("user_profiles").select("id, phone").in("id", allClientIds)
-        : Promise.resolve({ data: [] as const }),
-    ]);
-    const allBookingMap = new Map((allBookings ?? []).map((b) => [b.id, b]));
-    const allClientMap = new Map((allClients ?? []).map((u) => [u.id, u.email]));
-    const allClientPhoneMap = new Map((allClientProfiles ?? []).map((u) => [u.id, u.phone]));
-    allLocationFiltered = allPayments.filter((p) => {
-      if (!keyword) return true;
-      const booking = p.booking_id ? allBookingMap.get(p.booking_id) : null;
-      const c = p.client_id ? allClientMap.get(p.client_id) : null;
-      const cPhone = p.client_id ? allClientPhoneMap.get(p.client_id) : null;
-    return [
-      p.reference_code,
-      p.guest_email,
-      p.guest_name,
-      (p as { guest_phone?: string | null }).guest_phone ?? null,
-      booking?.guest_email,
-      booking?.guest_name,
-      (booking as { guest_phone?: string | null } | null)?.guest_phone ?? null,
-      c,
-      cPhone,
-    ]
-      .filter(Boolean)
-      .some((v) => String(v).toLowerCase().includes(keyword));
-  });
-  }
-
-  const nowMs = new Date().getTime();
-  // Show pending AND recently-expired payments (within 24 h) so staff can
-  // force-confirm payments that expired before they were processed.
-  const queueRows = filtered.filter(
-    (p) =>
-      p.status === "pending" ||
-      (p.status === "expired" &&
-        p.created_at != null &&
-        nowMs - new Date(p.created_at).getTime() < 24 * 60 * 60 * 1000),
+  const visible = filtered;
+  const summary = filtered.reduce(
+    (acc, p) => {
+      const amount = Number(p.amount ?? 0);
+      if (p.status === "paid") {
+        acc.net += amount;
+        acc.paidCount += 1;
+        if ((p.payment_method ?? "").toLowerCase() === "hitpay") acc.hitpayNet += amount;
+        if ((p.payment_method ?? "").toLowerCase() === "cash") acc.cashNet += amount;
+      } else if (p.status === "refunded") {
+        acc.net -= amount;
+        if ((p.payment_method ?? "").toLowerCase() === "hitpay") acc.hitpayNet -= amount;
+        if ((p.payment_method ?? "").toLowerCase() === "cash") acc.cashNet -= amount;
+      }
+      return acc;
+    },
+    { net: 0, hitpayNet: 0, cashNet: 0, paidCount: 0 },
   );
-  const reviewRows = filtered.filter((p) => p.status !== "pending" || p.verified_at != null);
-  const visible = view === "review" ? reviewRows : queueRows;
-
-  const scopedStats = buildPaymentStats(filtered, getSlaMin);
-  const allLocationStats = selectedLocationId ? buildPaymentStats(allLocationFiltered, getSlaMin) : scopedStats;
 
   const ids = visible.map((p) => p.id);
   const { data: audits } =
@@ -351,21 +198,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const exportParams = new URLSearchParams();
   exportParams.set("studio_id", activeStudioId);
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
-  exportParams.set("view", view);
-  if (sp.status) exportParams.set("status", sp.status);
   if (sp.payment_method) exportParams.set("payment_method", sp.payment_method);
-  if (sp.invoice_status) exportParams.set("invoice_status", sp.invoice_status);
   if (sp.date_from) exportParams.set("date_from", sp.date_from);
   if (sp.date_to) exportParams.set("date_to", sp.date_to);
-  if (sp.amount_min) exportParams.set("amount_min", sp.amount_min);
-  if (sp.amount_max) exportParams.set("amount_max", sp.amount_max);
-  if (sp.reference) exportParams.set("reference", sp.reference);
   if (sp.q) exportParams.set("q", sp.q);
-  const tabHref = (targetView: "queue" | "review") => {
-    const p = new URLSearchParams(exportParams.toString());
-    p.set("view", targetView);
-    return `/dashboard/payments?${p.toString()}`;
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -374,26 +210,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Payment records</h1>
         <p className={`mt-1 ${ui.muted}`}>Check incoming payments, export records, and view action history.</p>
 
-        {/* Tab bar + actions */}
         <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
-          <DashboardAppLink href={`/dashboard/operations`} className={ui.btnSecondarySm}>
-            ← Operations
-          </DashboardAppLink>
-          <div className="flex items-center rounded-xl border border-stone-200 bg-stone-50 p-0.5 dark:border-stone-700 dark:bg-stone-900">
-            {(["queue", "review"] as const).map((v) => (
-              <DashboardAppLink
-                key={v}
-                href={tabHref(v)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  view === v
-                    ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-100"
-                    : "text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-                }`}
-              >
-                {v === "queue" ? "Pending" : "Processed"}
-              </DashboardAppLink>
-            ))}
-          </div>
           <a
             className={`${ui.linkMuted} w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0 inline-flex items-center gap-1.5`}
             href={`/api/payments/export?${exportParams.toString()}`}
@@ -404,88 +221,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* ── Stats grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className={ui.statCard}>
-          <p className={`text-xs ${ui.muted}`}>Today received</p>
-          <p className="mt-1 text-xl font-semibold">${scopedStats.todayReceived.toFixed(2)}</p>
-          {selectedLocationId ? (
-            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: ${allLocationStats.todayReceived.toFixed(2)}</p>
-          ) : null}
-        </div>
-        <div className={ui.statCard}>
-          <p className={`text-xs ${ui.muted}`}>Confirmed today</p>
-          <p className="mt-1 text-xl font-semibold">${scopedStats.todayVerified.toFixed(2)}</p>
-          {selectedLocationId ? (
-            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: ${allLocationStats.todayVerified.toFixed(2)}</p>
-          ) : null}
-        </div>
-        <div className={ui.statCard}>
-          <p className={`text-xs ${ui.muted}`}>Overdue</p>
-          <p className="mt-1 text-xl font-semibold">{scopedStats.slaOverdueCount}</p>
-          {selectedLocationId ? (
-            <p className={`mt-1 text-xs ${ui.muted}`}>All locations: {allLocationStats.slaOverdueCount}</p>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className={ui.statCard}>
-          <p className={`text-xs ${ui.muted}`}>Transactions (filtered)</p>
-          <p className="mt-1 text-xl font-semibold">{scopedStats.txCount}</p>
-          <p className={`mt-1 text-xs ${ui.muted}`}>Paid ${scopedStats.paidAmount.toFixed(2)} · Ref ${scopedStats.refundedAmount.toFixed(2)}</p>
-        </div>
-        <div className={ui.statCard}>
-          <p className={`text-xs ${ui.muted}`}>Net (paid - refunded)</p>
-          <p className="mt-1 text-xl font-semibold">${scopedStats.netAmount.toFixed(2)}</p>
-          {selectedLocationId ? <p className={`mt-1 text-xs ${ui.muted}`}>All locations: ${allLocationStats.netAmount.toFixed(2)}</p> : null}
-        </div>
-        <div className={ui.statCard}>
-          <p className={`text-xs ${ui.muted}`}>Method split (net)</p>
-          <p className={`mt-1 text-sm ${ui.muted}`}>
-            PayNow: {scopedStats.byMethod.paynow.count} · ${scopedStats.byMethod.paynow.amount.toFixed(2)}
-          </p>
-          <p className={`text-sm ${ui.muted}`}>
-            Cash: {scopedStats.byMethod.cash.count} · ${scopedStats.byMethod.cash.amount.toFixed(2)}
-          </p>
-        </div>
-      </div>
-
-      <section className={ui.card}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className={ui.h2}>Daily close ({todayKey})</h2>
-          <a
-            className={`${ui.linkMuted} inline-flex items-center gap-1.5`}
-            href={`/api/payments/export?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&date_from=${todayKey}&date_to=${todayKey}`}
-          >
-            <Download size={13} />
-            Export today
-          </a>
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Transactions</p>
-            <p className="mt-1 text-xl font-semibold">{dailyTxCount}</p>
-          </div>
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Net</p>
-            <p className="mt-1 text-xl font-semibold">${dailyNet.toFixed(2)}</p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>Paid ${dailyPaid.toFixed(2)} · Ref ${dailyRefunded.toFixed(2)}</p>
-          </div>
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>PayNow net</p>
-            <p className="mt-1 text-xl font-semibold">${dailyPaynowAmount.toFixed(2)}</p>
-          </div>
-          <div className={ui.statCard}>
-            <p className={`text-xs ${ui.muted}`}>Cash net</p>
-            <p className="mt-1 text-xl font-semibold">${dailyCashAmount.toFixed(2)}</p>
-          </div>
-        </div>
-      </section>
-
       <form method="get" className={`${ui.card} flex flex-col gap-4`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
-        <input type="hidden" name="view" value={view} />
 
         {/* ── Always-visible quick filters ─────────────────────── */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -507,61 +244,19 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             <input type="date" name="date_to" defaultValue={sp.date_to ?? ""} className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Search member / ref</span>
-            <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="email, name, ref…" />
+            <span className={ui.label}>Payment method</span>
+            <select name="payment_method" className={ui.select} defaultValue={sp.payment_method ?? ""}>
+              <option value="">All</option>
+              {PAYMENT_METHOD_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </label>
         </div>
-
-        {/* ── Advanced filters (collapsed) ─────────────────────── */}
-        <details className="chevron rounded-lg border border-stone-200 dark:border-stone-700">
-          <summary className={`cursor-pointer px-3 py-2 text-sm font-medium ${ui.muted} hover:text-stone-800 dark:hover:text-stone-200`}>
-            Advanced filters
-            {[sp.status, sp.payment_method, sp.invoice_status, sp.amount_min, sp.amount_max, sp.reference].some(Boolean)
-              ? <span className="ml-2 rounded-full bg-teal-100 px-1.5 py-0.5 text-xs text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">active</span>
-              : null}
-          </summary>
-          <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Payment status</span>
-              <select name="status" className={ui.select} defaultValue={sp.status ?? ""}>
-                <option value="">All</option>
-                {PAYMENT_STATUS_FILTER_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Payment method</span>
-              <select name="payment_method" className={ui.select} defaultValue={sp.payment_method ?? ""}>
-                <option value="">All</option>
-                {PAYMENT_METHOD_FILTER_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Invoice status</span>
-              <select name="invoice_status" className={ui.select} defaultValue={sp.invoice_status ?? ""}>
-                <option value="">All</option>
-                {INVOICE_STATUS_FILTER_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Min amount</span>
-              <input type="number" step="0.01" name="amount_min" defaultValue={sp.amount_min ?? ""} className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Max amount</span>
-              <input type="number" step="0.01" name="amount_max" defaultValue={sp.amount_max ?? ""} className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Reference code</span>
-              <input name="reference" defaultValue={sp.reference ?? ""} className={ui.input} placeholder="Reference code" />
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Search member / session / ref</span>
+          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="member name, session title, email, ref…" />
         </label>
-          </div>
-        </details>
 
         {/* ── Apply / Reset ─────────────────────────────────── */}
         <div className={`${ui.mobileActionBar} flex flex-col gap-2 sm:flex-row`}>
@@ -569,7 +264,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             Apply filters
           </SubmitButton>
           <DashboardAppLink
-            href={`/dashboard/payments?view=${view}&studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            href={`/dashboard/payments?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
             className={ui.btnGhost}
           >
             Clear filters
@@ -577,19 +272,50 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </form>
 
+      <section className={ui.card}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Net received (paid - refunded)</p>
+            <p className="mt-1 text-xl font-semibold">${summary.net.toFixed(2)}</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Paid transactions: {summary.paidCount}</p>
+          </div>
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>HitPay net</p>
+            <p className="mt-1 text-xl font-semibold">${summary.hitpayNet.toFixed(2)}</p>
+          </div>
+          <div className={ui.statCard}>
+            <p className={`text-xs ${ui.muted}`}>Cash net</p>
+            <p className="mt-1 text-xl font-semibold">${summary.cashNet.toFixed(2)}</p>
+          </div>
+        </div>
+      </section>
+
       <ul className="flex flex-col gap-3">
         {visible.map((p) => {
           const badges = getUnifiedStatusBadges({ payment_status: p.status });
           const needsReview = p.status === "pending" && p.verified_at == null;
-          const rowSlaMin = getSlaMin(p.studio_id, p.location_id ?? null);
-          const slaOverdue =
-            needsReview &&
-            p.created_at != null &&
-            nowMs - new Date(p.created_at).getTime() > rowSlaMin * 60 * 1000;
           const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+          const sessionObj = booking
+            ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
+                ? (booking as { class_sessions?: unknown[] }).class_sessions?.[0]
+                : (booking as { class_sessions?: unknown }).class_sessions) as
+                | {
+                    start_time?: string | null;
+                    classes?: { title?: string | null } | { title?: string | null }[] | null;
+                  }
+                | null)
+            : null;
+          const sessionClass = Array.isArray(sessionObj?.classes) ? sessionObj?.classes[0] : sessionObj?.classes;
+          const sessionTitle = sessionClass?.title?.trim() || null;
+          const sessionStart = sessionObj?.start_time ? new Date(sessionObj.start_time) : null;
+          const sessionLabel = sessionTitle
+            ? `${sessionTitle}${sessionStart && !Number.isNaN(sessionStart.getTime()) ? ` · ${sessionStart.toLocaleString()}` : ""}`
+            : "-";
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
-          const clientPhone = p.client_id ? clientPhoneMap.get(p.client_id) : null;
-          const displayName = p.guest_name ?? booking?.guest_name ?? null;
+          const clientProfile = p.client_id ? clientProfileMap.get(p.client_id) : null;
+          const clientPhone = clientProfile?.phone ?? null;
+          const clientFullName = clientProfile?.full_name ?? null;
+          const displayName = p.guest_name ?? booking?.guest_name ?? clientFullName ?? null;
           const displayEmail = p.guest_email ?? booking?.guest_email ?? clientEmail ?? null;
           const displayPhone =
             (p as { guest_phone?: string | null }).guest_phone ??
@@ -611,9 +337,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             <li
               key={p.id}
               className={`${ui.card} ${
-                slaOverdue
-                  ? "border-red-300 dark:border-red-800/60"
-                  : needsReview
+                needsReview
                     ? "border-amber-300 bg-amber-50/40 dark:border-amber-700/60 dark:bg-amber-950/20"
                     : ""
               }`}
@@ -628,11 +352,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badges.payment.tone)}`}>
                       {badges.payment.text}
                     </span>
-                    {slaOverdue ? (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/60 dark:text-red-300">
-                        Overdue &gt;{rowSlaMin}m
-                      </span>
-                    ) : null}
                     {p.invoice_status === "void" ? (
                       <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-700 dark:text-stone-300">
                         Invoice voided
@@ -647,8 +366,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               {/* ── Key fields grid ───────────────────────────────── */}
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
                 <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Member</dt>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">User</dt>
                   <dd className="min-w-0 break-all font-medium text-stone-700 dark:text-stone-300">{clientLabelWithPhone}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Session</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{sessionLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
@@ -706,6 +429,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   </p>
                 </div>
               ) : null}
+              {p.status === "refunded" && p.manual_refund_reference ? (
+                <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-800/30">
+                  <p className="text-xs text-stone-600 dark:text-stone-400">
+                    Manual refund ref <span className={ui.code}>{p.manual_refund_reference}</span>
+                    {p.manual_refund_recorded_at ? ` · recorded ${new Date(p.manual_refund_recorded_at).toLocaleString()}` : ""}
+                  </p>
+                </div>
+              ) : null}
 
               {/* ── Audit timeline (collapsed) ────────────────────── */}
               {timeline.length ? (
@@ -725,18 +456,15 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
               {/* ── Action buttons ────────────────────────────────── */}
               <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
-                {p.status === "pending" ? (
-                  <>
-                    <PaymentMarkButton paymentId={p.id} status="paid" label="Mark paid" />
-                    <PaymentMarkButton paymentId={p.id} status="failed" label="Mark failed" />
-                    <PaymentMarkButton paymentId={p.id} status="expired" label="Mark expired" />
-                  </>
-                ) : null}
-                {p.status === "expired" ? (
-                  <PaymentMarkButton paymentId={p.id} status="paid" label="Mark paid (override)" />
-                ) : null}
                 {p.status === "paid" && p.invoice_status !== "void" ? <InvoiceSendButton paymentId={p.id} /> : null}
-                {p.status === "paid" ? <PaymentMarkButton paymentId={p.id} status="refunded" label="Mark refunded" /> : null}
+                {p.status === "paid" ? (
+                  <PaymentMarkButton
+                    paymentId={p.id}
+                    paymentMethod={p.payment_method}
+                    status="refunded"
+                    label={(p.payment_method ?? "").toLowerCase() === "paynow" ? "Record manual refund" : "Mark refunded"}
+                  />
+                ) : null}
                 {!p.booking_id ? <PaymentMatchForm paymentId={p.id} /> : null}
               </div>
             </li>

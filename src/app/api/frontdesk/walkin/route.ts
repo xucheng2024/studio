@@ -11,7 +11,7 @@ const bodySchema = z.object({
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional(),
   amount: z.number().nonnegative(),
-  payment_method: z.enum(["paynow", "cash"]),
+  payment_method: z.enum(["hitpay", "cash"]),
   mark_checkin: z.boolean().optional(),
 });
 

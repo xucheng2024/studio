@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
  */
 export function PaymentStatusPoller({
   stop = false,
-  intervalMs = 20000,
+  intervalMs = 5000,
 }: {
   stop?: boolean;
   intervalMs?: number;

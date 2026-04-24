@@ -1,9 +1,8 @@
-import { updateStudioPaynowSettings } from "@/app/dashboard/actions";
+import { updateStudioHitpaySettings } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Toggle } from "@/components/ui/Toggle";
 import { getDashboardScope } from "@/lib/dashboard";
-import { getPaynowSummary, validatePaynowConfig } from "@/lib/paynow";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -34,22 +33,12 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
   const studioId = selectedStudioId ?? studioIds[0];
   const { data: studio } = await supabase
     .from("studios")
-    .select(
-      "id, name, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name",
-    )
+    .select("id, name, hitpay_enabled, hitpay_business_name, hitpay_api_key, hitpay_webhook_salt")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
-
-  const config = {
-    paynow_enabled: Boolean(studio.paynow_enabled),
-    paynow_proxy_type: studio.paynow_proxy_type ?? "uen",
-    paynow_uen: studio.paynow_uen ?? null,
-    paynow_mobile: studio.paynow_mobile ?? null,
-    paynow_payee_name: studio.paynow_payee_name ?? null,
-  };
-  const status = validatePaynowConfig(config);
-  const summary = getPaynowSummary(config);
+  const hasApiKey = Boolean(studio.hitpay_api_key);
+  const hasWebhookSalt = Boolean(studio.hitpay_webhook_salt);
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -58,72 +47,58 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
           ← Settings
         </DashboardAppLink>
         <h1 className={ui.h1}>Payment settings</h1>
-        <p className={`mt-1 ${ui.muted}`}>Configure PayNow for {studio.name}.</p>
+        <p className={`mt-1 ${ui.muted}`}>Configure {studio.name} own HitPay merchant credentials.</p>
       </div>
 
-      <form action={updateStudioPaynowSettings} className={`${ui.card} grid gap-4`}>
+      <form action={updateStudioHitpaySettings} className={`${ui.card} grid gap-4`}>
         <input type="hidden" name="studio_id" value={studio.id} />
         <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
-          <Toggle name="paynow_enabled" defaultChecked={Boolean(studio.paynow_enabled)} />
-          Enable PayNow
+          <Toggle name="hitpay_enabled" defaultChecked={Boolean(studio.hitpay_enabled)} />
+          Enable HitPay for this studio
         </label>
-
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Proxy type</span>
-          <select
-            name="paynow_proxy_type"
-            defaultValue={studio.paynow_proxy_type ?? "uen"}
-            className={ui.select}
-          >
-            <option value="uen">UEN</option>
-            <option value="mobile">Mobile</option>
-            <option value="uen_mobile">UEN + mobile</option>
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>UEN</span>
+          <span className={ui.label}>Business name</span>
           <input
-            name="paynow_uen"
-            defaultValue={studio.paynow_uen ?? ""}
-            placeholder="201234567K"
+            name="hitpay_business_name"
+            defaultValue={studio.hitpay_business_name ?? ""}
+            placeholder="ACME Fitness Pte Ltd"
             className={ui.input}
           />
         </label>
-
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Mobile</span>
+          <span className={ui.label}>HitPay API key</span>
           <input
-            name="paynow_mobile"
-            defaultValue={studio.paynow_mobile ?? ""}
-            placeholder="+6591234567"
+            name="hitpay_api_key"
+            defaultValue={studio.hitpay_api_key ?? ""}
+            placeholder="business-api-key"
             className={ui.input}
           />
         </label>
-
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Payee name</span>
+          <span className={ui.label}>Webhook salt</span>
           <input
-            name="paynow_payee_name"
-            defaultValue={studio.paynow_payee_name ?? ""}
-            placeholder="Studio Pte Ltd"
+            name="hitpay_webhook_salt"
+            defaultValue={studio.hitpay_webhook_salt ?? ""}
+            placeholder="webhook-salt"
             className={ui.input}
           />
         </label>
-
         <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Saving...">
           Save settings
         </SubmitButton>
       </form>
 
       <section className={ui.card}>
-        <h2 className={ui.h2}>Preview</h2>
-        <p className={`mt-2 text-sm ${ui.muted}`}>{summary.line}</p>
-        {!status.ok ? (
-          <p className="mt-2 text-sm text-red-600 dark:text-red-400">Validation: {status.message}</p>
-        ) : (
-          <p className={`mt-2 text-sm ${ui.success}`}>Configuration is valid.</p>
-        )}
+        <h2 className={ui.h2}>Configuration status</h2>
+        <p className={`mt-2 text-sm ${ui.muted}`}>
+          Each studio can bring its own HitPay account and keys. Credentials are used only for this studio payment
+          creation and webhook validation.
+        </p>
+        <ul className="mt-3 space-y-2 text-sm text-stone-700 dark:text-stone-300">
+          <li>`hitpay_enabled`: {studio.hitpay_enabled ? "enabled" : "disabled"}</li>
+          <li>`hitpay_api_key`: {hasApiKey ? "configured" : "missing"}</li>
+          <li>`hitpay_webhook_salt`: {hasWebhookSalt ? "configured" : "missing"}</li>
+        </ul>
       </section>
     </div>
   );

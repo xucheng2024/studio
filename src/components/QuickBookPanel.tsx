@@ -35,8 +35,8 @@ export function QuickBookPanel({
   const toFriendly = (code: string) => {
     if (code === "full") return "This class is full. Please choose another session.";
     if (code === "already_has_booking") return "You already have a booking for this session.";
-    if (code === "PAYNOW_NOT_CONFIGURED")
-      return "This studio has not configured PayNow yet. Please contact the front desk.";
+    if (code === "hitpay_not_configured")
+      return "This studio has not configured online payment yet. Please contact the front desk.";
     return "Could not continue. Please check your details and try again.";
   };
 
@@ -156,7 +156,7 @@ export function QuickBookPanel({
             {loading ? (
               <><Loader2 size={15} className="animate-spin" /> Processing…</>
             ) : (
-              <>Continue to PayNow</>
+              <>Continue to payment</>
             )}
           </button>
         </div>

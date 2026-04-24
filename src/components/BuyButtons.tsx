@@ -30,8 +30,8 @@ export function BuyPackageButton({
         const body = await res.json().catch(() => ({}));
         setLoading(false);
         if (!res.ok) {
-          if (body.error === "PAYNOW_NOT_CONFIGURED") {
-            toast.error("PayNow is not configured for this studio yet.");
+          if (body.error === "hitpay_not_configured") {
+            toast.error("Online payment is not configured for this studio yet.");
           } else {
             toast.error(body.error ?? "Purchase failed");
           }
@@ -42,7 +42,7 @@ export function BuyPackageButton({
         }
       }}
     >
-      {loading ? "…" : disabled ? "PayNow unavailable" : "Buy pack"}
+      {loading ? "…" : disabled ? "Online payment unavailable" : "Buy pack"}
     </button>
   );
 }

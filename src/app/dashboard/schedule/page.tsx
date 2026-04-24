@@ -1,20 +1,16 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
-import { createRecurringRule, createSession, saveBookingRules } from "@/app/dashboard/actions";
-import { CancelBookingButton } from "@/components/CancelBookingButton";
+import { createRecurringRule, createSession } from "@/app/dashboard/actions";
 import { CancelSessionButton } from "@/components/CancelSessionButton";
-import { MarkAttendedButton } from "@/components/MarkAttendedButton";
 import { SessionEditPanel } from "@/components/SessionEditPanel";
 import { SessionShareButton } from "@/components/SessionShareButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DefaultDatetimeInput } from "@/components/ui/DefaultDatetimeInput";
-import { Toggle } from "@/components/ui/Toggle";
 import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { getDashboardScope } from "@/lib/dashboard";
-import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { CalendarCheck2, CalendarX2, Users, BookOpen, Package } from "lucide-react";
+import { CalendarCheck2, BookOpen, Package, ChevronRight } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
@@ -23,7 +19,6 @@ type Props = {
     session_status?: "all" | "scheduled" | "cancelled";
     date_from?: string;
     date_to?: string;
-    q?: string;
   }>;
 };
 
@@ -121,199 +116,38 @@ export default async function SchedulePage({ searchParams }: Props) {
     .order("start_time", { ascending: true })
     .limit(300);
   if (selectedLocationId) sessionQuery = sessionQuery.eq("location_id", selectedLocationId);
-  const rulesQuery = supabase
-    .from("booking_rules")
-    .select(
-      "id, cancel_cutoff_hours, no_show_buffer_min, max_active_bookings_per_client, max_weekly_late_cancel, payment_verification_sla_min, late_cancel_deduct_credit, no_show_deduct_credit, allow_waitlist",
-    )
-    .eq("studio_id", activeStudioId)
-    .limit(1);
-  const finalRulesQuery = selectedLocationId
-    ? rulesQuery.eq("location_id", selectedLocationId).maybeSingle()
-    : rulesQuery.is("location_id", null).maybeSingle();
-
-  // sessions and booking rules are independent — fetch in parallel
-  const [{ data: sessions }, { data: activeRules }] = await Promise.all([
-    sessionQuery,
-    finalRulesQuery,
-  ]);
+  const { data: sessions } = await sessionQuery;
   const sessionStatusFilter = sp.session_status ?? "all";
-  const keyword = (sp.q ?? "").trim().toLowerCase();
   const sessionRows = sessions ?? [];
   const filteredSessions = sessionRows.filter((s) => {
     const status = (s as { status?: string | null }).status ?? "scheduled";
     if (sessionStatusFilter !== "all" && status !== sessionStatusFilter) return false;
-    if (!keyword) return true;
-    const cls = s.classes as { title?: string } | null;
-    const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
-    const locationName = Array.isArray(loc) ? loc[0]?.name ?? "" : loc?.name ?? "";
-    const bookings = (s.bookings ?? []) as Array<{
-      guest_name?: string | null;
-      guest_email?: string | null;
-      users?: { email?: string | null } | null;
-    }>;
-    const bookingFields = bookings.flatMap((b) => [b.guest_name, b.guest_email, b.users?.email]);
-    return [cls?.title, locationName, ...bookingFields]
-      .filter(Boolean)
-      .some((v) => String(v).toLowerCase().includes(keyword));
+    return true;
   });
-  const scheduledCount = sessionRows.filter((s) => ((s as { status?: string }).status ?? "scheduled") === "scheduled").length;
-  const cancelledCount = sessionRows.filter((s) => ((s as { status?: string }).status ?? "scheduled") === "cancelled").length;
-  const bookingCount = sessionRows.reduce((acc, s) => {
-    const bookings = (s.bookings ?? []) as Array<{ status?: string | null }>;
-    return (
-      acc +
-      bookings.filter((b) => {
-        const st = b.status ?? "";
-        return st === "booked" || st === "pending";
-      }).length
-    );
-  }, 0);
-
   return (
     <div className="flex flex-col gap-10">
       <div>
         <h1 className={ui.h1}>Schedule</h1>
         <p className={`mt-1 ${ui.muted}`}>Add sessions from your class templates.</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <DashboardAppLink href={`/dashboard/classes?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
-            <BookOpen size={13} />
-            Classes
-          </DashboardAppLink>
-          <DashboardAppLink href={`/dashboard/packages?${scopeParams.toString()}`} className={ui.btnSecondarySm}>
-            <Package size={13} />
-            Packages
+        <div className="mt-6">
+          <DashboardAppLink
+            href={`/dashboard/classes?${scopeParams.toString()}`}
+            className={`${ui.card} chevron flex w-full max-w-xl items-center justify-between px-5 py-6 text-base font-semibold text-stone-900 dark:text-stone-100`}
+          >
+            <span className="inline-flex items-center gap-2.5">
+              <BookOpen size={18} />
+              Create class template
+            </span>
+            <span className={`inline-flex items-center gap-1 text-xs font-normal ${ui.muted}`}>
+              Open
+              <ChevronRight size={14} />
+            </span>
           </DashboardAppLink>
         </div>
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className={`${ui.statCard} flex items-center gap-3`}>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
-              <CalendarCheck2 size={16} />
-            </div>
-            <div>
-              <p className={`text-xs ${ui.muted}`}>In window</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums">{sessionRows.length}</p>
-            </div>
-          </div>
-          <div className={`${ui.statCard} flex items-center gap-3`}>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400">
-              <CalendarCheck2 size={16} />
-            </div>
-            <div>
-              <p className={`text-xs ${ui.muted}`}>Scheduled</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums">
-                {scheduledCount}
-                {cancelledCount > 0 && (
-                  <span className="ml-1.5 text-sm font-normal text-stone-400">
-                    / {cancelledCount} <CalendarX2 size={11} className="inline" />
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <div className={`${ui.statCard} flex items-center gap-3`}>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
-              <Users size={16} />
-            </div>
-            <div>
-              <p className={`text-xs ${ui.muted}`}>Active bookings</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums">{bookingCount}</p>
-            </div>
-          </div>
-        </div>
-        <details className={`chevron ${ui.card} mt-8 max-w-xl`} id="booking-rules">
-          <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
-            <span>Booking rules</span>
-            <span className={`text-xs font-normal ${ui.muted}`}>Expand settings</span>
-          </summary>
-          <p className={`mt-1 text-xs ${ui.muted}`}>Low-frequency settings. Open only when updating policy.</p>
-          <form action={saveBookingRules} className="mt-4 grid gap-4 md:grid-cols-2">
-            <input type="hidden" name="studio_id" value={activeStudioId} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Free cancellation window (hours before class)</span>
-              <input
-                type="number"
-                min={0}
-                name="cancel_cutoff_hours"
-                defaultValue={activeRules?.cancel_cutoff_hours ?? 12}
-                className={ui.input}
-              />
-              <span className={`text-xs ${ui.muted}`}>If cancelled inside this window, it counts as late cancel.</span>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>No-show grace period (minutes after class starts)</span>
-              <input
-                type="number"
-                min={0}
-                name="no_show_buffer_min"
-                defaultValue={activeRules?.no_show_buffer_min ?? 15}
-                className={ui.input}
-              />
-              <span className={`text-xs ${ui.muted}`}>After this, un-checked-in bookings can be marked as no-show.</span>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Max active bookings per member</span>
-              <input
-                type="number"
-                min={1}
-                name="max_active_bookings_per_client"
-                defaultValue={activeRules?.max_active_bookings_per_client ?? 3}
-                className={ui.input}
-              />
-              <span className={`text-xs ${ui.muted}`}>Blocks over-booking by the same member.</span>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Max weekly late cancel / no-show before block</span>
-              <input
-                type="number"
-                min={0}
-                name="max_weekly_late_cancel"
-                defaultValue={activeRules?.max_weekly_late_cancel ?? 2}
-                className={ui.input}
-              />
-              <span className={`text-xs ${ui.muted}`}>Member can be blocked from new bookings after reaching this limit.</span>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Payment verification SLA (minutes)</span>
-              <input
-                type="number"
-                min={1}
-                max={1440}
-                name="payment_verification_sla_min"
-                defaultValue={activeRules?.payment_verification_sla_min ?? 30}
-                className={ui.input}
-              />
-              <span className={`text-xs ${ui.muted}`}>Pending payments older than this are flagged as overdue.</span>
-            </label>
-            <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
-              <Toggle
-                name="late_cancel_deduct_credit"
-                defaultChecked={activeRules?.late_cancel_deduct_credit ?? true}
-              />
-              Deduct 1 credit for late cancel
-            </label>
-            <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
-              <Toggle
-                name="no_show_deduct_credit"
-                defaultChecked={activeRules?.no_show_deduct_credit ?? true}
-              />
-              Deduct 1 credit for no-show
-            </label>
-            <div className="md:col-span-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-300">
-              Example: Class starts at 7:00 PM. With 12h cancellation window, cancelling at 10:00 AM is free; cancelling at
-              6:00 PM is late cancel.
-            </div>
-            <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Saving...">
-              Save booking rules
-            </SubmitButton>
-          </form>
-        </details>
-
-        <details className={`chevron ${ui.card} mt-8 max-w-md`} id="create-session">
+        <details className={`chevron ${ui.card} mt-8 max-w-xl`} id="create-session">
           <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
             <span>+ Create session</span>
-            <span className={`text-xs font-normal ${ui.muted}`}>Expand to add</span>
+            <span className={`text-xs font-normal ${ui.muted}`}>Expand options</span>
           </summary>
           {(classes ?? []).length === 0 ? (
             <p className={`mt-4 text-sm ${ui.muted}`}>
@@ -322,106 +156,117 @@ export default async function SchedulePage({ searchParams }: Props) {
               first, then come back to schedule sessions.
             </p>
           ) : (
-          <form action={createSession} className="mt-4 flex flex-col gap-4">
-            <input type="hidden" name="studio_id" value={activeStudioId} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Class</span>
-              <select name="class_id" required className={ui.select}>
-                <option value="">Select…</option>
-                {(classes ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Start</span>
-              <DefaultDatetimeInput name="start_time" required className={ui.input} />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Guest price</span>
-                <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} required className={ui.input} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Credits required</span>
-                <input name="credits_required" type="number" min={1} step="1" defaultValue={1} required className={ui.input} />
-              </label>
-            </div>
-            <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
-              Create session
-            </SubmitButton>
-          </form>
-          )}
-        </details>
+            <>
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">One-time session</p>
+                <form action={createSession} className="mt-3 flex flex-col gap-4">
+                  <input type="hidden" name="studio_id" value={activeStudioId} />
+                  <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Class</span>
+                    <select name="class_id" required className={ui.select}>
+                      <option value="">Select…</option>
+                      {(classes ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Start</span>
+                    <DefaultDatetimeInput name="start_time" required className={ui.input} />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Guest price</span>
+                      <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} required className={ui.input} />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Credits required</span>
+                      <input name="credits_required" type="number" min={1} step="1" defaultValue={1} required className={ui.input} />
+                    </label>
+                  </div>
+                  <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
+                    Create session
+                  </SubmitButton>
+                </form>
+              </div>
 
-        <details className={`chevron ${ui.card} mt-8 max-w-xl`} id="recurring-schedule">
-          <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
-            <span>Recurring weekly schedule</span>
-            <span className={`text-xs font-normal ${ui.muted}`}>Expand advanced</span>
-          </summary>
-          <p className={`mt-1 text-xs ${ui.muted}`}>Advanced setup. Use when you need auto-generated sessions.</p>
-          {(classes ?? []).length === 0 ? (
-            <p className={`mt-4 text-sm ${ui.muted}`}>
-              No class templates yet.{" "}
-              <a href="/dashboard/classes" className={ui.link}>Create a class</a>{" "}
-              first, then set up recurring rules.
-            </p>
-          ) : (
-          <form action={createRecurringRule} className="mt-4 grid gap-4 md:grid-cols-2">
-            <input type="hidden" name="studio_id" value={activeStudioId} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Class</span>
-              <select name="class_id" required className={ui.select}>
-                <option value="">Select…</option>
-                {(classes ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Weekdays</span>
-              <WeekdayPicker name="by_weekday" defaultValue="mon,wed" />
-            </div>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Start date</span>
-              <input type="date" name="start_date" required className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>End date (optional)</span>
-              <input type="date" name="end_date" className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Start time</span>
-              <input type="time" name="start_time" required className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Duration</span>
-              <input type="number" name="duration_min" defaultValue={60} min={15} className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Capacity</span>
-              <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Guest price (single visit)</span>
-              <input type="number" name="guest_price" defaultValue={25} min={0} step="0.01" className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Credits required</span>
-              <input type="number" name="credits_required" defaultValue={1} min={1} step="1" className={ui.input} />
-            </label>
-            <SubmitButton className={`${ui.btnSecondary} md:col-span-2 w-fit`} pendingText="Creating...">
-              Create recurring rule (8 weeks)
-            </SubmitButton>
-          </form>
+              <div className="my-6 border-t border-stone-200 dark:border-stone-800" />
+
+              <div>
+                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Recurring weekly schedule</p>
+                <p className={`mt-1 text-xs ${ui.muted}`}>Advanced setup. Use when you need auto-generated sessions.</p>
+                <form action={createRecurringRule} className="mt-3 grid gap-4 md:grid-cols-2">
+                  <input type="hidden" name="studio_id" value={activeStudioId} />
+                  <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+                  <label className="flex flex-col gap-1.5 md:col-span-2">
+                    <span className={ui.label}>Class</span>
+                    <select name="class_id" required className={ui.select}>
+                      <option value="">Select…</option>
+                      {(classes ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex flex-col gap-1.5 md:col-span-2">
+                    <span className={ui.label}>Weekdays</span>
+                    <WeekdayPicker name="by_weekday" defaultValue="mon,wed" />
+                  </div>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Start date</span>
+                    <input type="date" name="start_date" required className={ui.input} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>End date (optional)</span>
+                    <input type="date" name="end_date" className={ui.input} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Start time</span>
+                    <input type="time" name="start_time" required className={ui.input} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Duration</span>
+                    <input type="number" name="duration_min" defaultValue={60} min={15} className={ui.input} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Capacity</span>
+                    <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Guest price (single visit)</span>
+                    <input type="number" name="guest_price" defaultValue={25} min={0} step="0.01" className={ui.input} />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Credits required</span>
+                    <input type="number" name="credits_required" defaultValue={1} min={1} step="1" className={ui.input} />
+                  </label>
+                  <SubmitButton className={`${ui.btnPrimary} md:col-span-2 w-full sm:w-auto`} pendingText="Creating...">
+                    Create recurring rule (8 weeks)
+                  </SubmitButton>
+                </form>
+              </div>
+            </>
           )}
         </details>
+        <div className="mt-6">
+          <DashboardAppLink
+            href={`/dashboard/packages?${scopeParams.toString()}`}
+            className={`${ui.card} chevron flex w-full max-w-xl items-center justify-between px-5 py-6 text-base font-semibold text-stone-900 dark:text-stone-100`}
+          >
+            <span className="inline-flex items-center gap-2.5">
+              <Package size={18} />
+              Create package
+            </span>
+            <span className={`inline-flex items-center gap-1 text-xs font-normal ${ui.muted}`}>
+              Open
+              <ChevronRight size={14} />
+            </span>
+          </DashboardAppLink>
+        </div>
       </div>
 
       <div>
@@ -436,10 +281,6 @@ export default async function SchedulePage({ searchParams }: Props) {
               <option value="scheduled">Scheduled</option>
               <option value="cancelled">Cancelled</option>
             </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Search class / member / location</span>
-            <input name="q" className={ui.input} defaultValue={sp.q ?? ""} placeholder="Yoga Flow, alice@mail..." />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>From date</span>
@@ -534,38 +375,10 @@ export default async function SchedulePage({ searchParams }: Props) {
                   />
                 </div>
 
-                {/* ── Booking roster ──────────────────────────── */}
-                <div className="mt-4 border-t border-stone-100 pt-3 dark:border-stone-800">
-                  {bookings.length > 0 ? (
-                    <ul className="flex flex-col gap-1.5">
-                      {bookings.map((b) => {
-                        const badge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
-                        const memberLabel = b.client_id
-                          ? (b.users?.email ?? b.client_id)
-                          : `${b.guest_name ?? "Guest"}${b.guest_email ? ` · ${b.guest_email}` : ""}`;
-                        return (
-                          <li key={b.id} className="rounded-lg bg-stone-50/70 px-2.5 py-2 dark:bg-stone-800/40">
-                            <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <span className="truncate text-sm text-stone-800 dark:text-stone-200">
-                                {memberLabel}
-                              </span>
-                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badge.tone)}`}>
-                                {badge.text}
-                              </span>
-                            </div>
-                            {b.status === "booked" ? (
-                              <div className="mt-2 flex shrink-0 flex-wrap gap-1.5 sm:mt-0">
-                                <MarkAttendedButton bookingId={b.id} />
-                                <CancelBookingButton bookingId={b.id} />
-                              </div>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className={`text-xs ${ui.muted}`}>No bookings yet.</p>
-                  )}
+                <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
+                  <p className={`text-xs ${ui.muted}`}>
+                    Attendee actions and payment/check-in operations are managed in Operations.
+                  </p>
                 </div>
               </li>
             );

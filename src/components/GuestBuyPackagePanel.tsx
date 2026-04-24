@@ -36,8 +36,8 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
             setMsg("Please enter your name and email.");
           } else if (body.error === "sign_in_required_for_package") {
             setMsg("Please sign in before purchasing a package.");
-          } else if (body.error === "PAYNOW_NOT_CONFIGURED") {
-            setMsg("PayNow is not configured for this studio yet.");
+          } else if (body.error === "hitpay_not_configured") {
+            setMsg("Online payment is not configured for this studio yet.");
           } else {
             setMsg(body.error ?? "Failed");
           }
@@ -81,7 +81,7 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
         />
       </div>
       <button type="submit" disabled={busy || disabled} className={`${ui.btnPrimary} disabled:opacity-50`}>
-        {busy ? "Creating..." : disabled ? "PayNow unavailable" : "Buy as guest"}
+        {busy ? "Creating..." : disabled ? "Online payment unavailable" : "Buy as guest"}
       </button>
       {msg ? <p className={`text-xs ${ui.muted}`}>{msg}</p> : null}
     </form>

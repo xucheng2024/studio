@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  buildPaynowPayload,
-  generatePaynowReference,
-  toQrDataUrl,
-  validatePaynowConfig,
-} from "@/lib/paynow";
+import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -106,36 +102,19 @@ export async function POST(req: Request) {
   }
 
   const amount = Number(session.guest_price ?? 0);
-  const { data: studioPaynow } = await admin
+  const { data: studioContract } = await admin
     .from("studios")
-    .select(
-      "paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name, contract_status",
-    )
+    .select("contract_status, hitpay_enabled, hitpay_api_key")
     .eq("id", studioId)
     .maybeSingle();
-  if (studioPaynow?.contract_status === "suspended") {
+  if (studioContract?.contract_status === "suspended") {
     return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
   }
-  const paynow = validatePaynowConfig({
-    paynow_enabled: Boolean(studioPaynow?.paynow_enabled),
-    paynow_proxy_type: studioPaynow?.paynow_proxy_type ?? null,
-    paynow_uen: studioPaynow?.paynow_uen ?? null,
-    paynow_mobile: studioPaynow?.paynow_mobile ?? null,
-    paynow_payee_name: studioPaynow?.paynow_payee_name ?? null,
-  });
-  if (!paynow.ok) {
-    return NextResponse.json({ error: paynow.error, message: paynow.message }, { status: 409 });
+  if (!studioContract?.hitpay_enabled || !studioContract.hitpay_api_key) {
+    return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
   }
-  const reference = generatePaynowReference();
-  const qrPayload = buildPaynowPayload({
-    proxyType: paynow.proxyType,
-    uen: paynow.uen,
-    mobile: paynow.mobile,
-    payeeName: paynow.payeeName,
-    amount,
-    reference,
-  });
-  const qrCodeUrl = await toQrDataUrl(qrPayload);
+
+  const reference = generatePaymentReference();
   // Expire before class start so reserved seats are not held too long.
   // Target: 2 hours before class. Clamp to [now+1m, now+24h], and never after class-5m.
   const classStart = session.start_time ? new Date(session.start_time as string).getTime() : null;
@@ -182,14 +161,9 @@ export async function POST(req: Request) {
       client_id: user?.id ?? null,
       amount,
       currency: "SGD",
-      payment_method: "paynow",
+      payment_method: "hitpay",
       status: "pending",
       reference_code: reference,
-      qr_payload: qrPayload,
-      paynow_proxy_type_snapshot: paynow.proxyType,
-      paynow_uen_snapshot: paynow.uen,
-      paynow_mobile_snapshot: paynow.mobile,
-      paynow_payee_name_snapshot: paynow.payeeName,
       expires_at: expiresAt,
       type: "single",
       remaining_uses: 0,
@@ -204,14 +178,55 @@ export async function POST(req: Request) {
 
   await admin.from("bookings").update({ payment_id: payment.id }).eq("id", bookingResult.booking_id);
 
-  return NextResponse.json({
-    booking_id: bookingResult.booking_id,
-    payment_id: payment.id,
-    qr_code_url: qrCodeUrl,
-    amount,
-    reference_code: reference,
-    expires_at: expiresAt,
-    checkout_url: `/checkout/${payment.id}`,
-    credits_required: Number(bookingResult.credits_required ?? session.credits_required ?? 1),
-  });
+  const baseUrl = getAppBaseUrlFromRequest(req);
+  if (!baseUrl) {
+    return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
+  }
+  const returnUrl = `${baseUrl}/checkout/${payment.id}`;
+  const webhookUrl = `${baseUrl}/api/payment/hitpay/webhook`;
+  const guestDisplayName = user ? null : guestName ?? null;
+  const guestDisplayEmail = user ? null : guestEmail ?? null;
+
+  try {
+    const hitpay = await createHitpayPaymentRequest({
+      apiKey: studioContract.hitpay_api_key,
+      amount: amount.toFixed(2),
+      currency: "SGD",
+      email: guestDisplayEmail,
+      name: guestDisplayName,
+      reference_number: reference,
+      redirect_url: returnUrl,
+      webhook: webhookUrl,
+      purpose: `Booking ${session.id}`,
+    });
+    await admin
+      .from("payments")
+      .update({
+        gateway_payment_id: hitpay.providerPaymentId,
+        gateway_checkout_url: hitpay.checkoutUrl,
+        gateway_status: hitpay.providerStatus,
+      })
+      .eq("id", payment.id);
+
+    return NextResponse.json({
+      booking_id: bookingResult.booking_id,
+      payment_id: payment.id,
+      amount,
+      reference_code: reference,
+      expires_at: expiresAt,
+      checkout_url: hitpay.checkoutUrl,
+      credits_required: Number(bookingResult.credits_required ?? session.credits_required ?? 1),
+    });
+  } catch (e) {
+    await admin.rpc("cancel_pending_payment", {
+      p_payment_id: payment.id,
+      p_new_status: "failed",
+    });
+    const message = e instanceof Error ? e.message : "hitpay_create_failed";
+    const status = message === "hitpay_not_configured" ? 409 : 502;
+    return NextResponse.json(
+      { error: message },
+      { status },
+    );
+  }
 }

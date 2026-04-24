@@ -21,9 +21,7 @@ export const getCachedClassShareContext = cache(async (studioSlugRaw: string, cl
   const supabase = await createClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select(
-      "id, name, public_slug, contract_status, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name",
-    )
+    .select("id, name, public_slug, contract_status, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -51,9 +49,7 @@ export const getCachedPackageShareContext = cache(async (studioSlugRaw: string, 
   const supabase = await createClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select(
-      "id, name, public_slug, contract_status, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name",
-    )
+    .select("id, name, public_slug, contract_status, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;

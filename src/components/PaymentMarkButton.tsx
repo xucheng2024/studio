@@ -20,11 +20,13 @@ type Status = keyof typeof statusConfig;
 
 export function PaymentMarkButton({
   paymentId,
+  paymentMethod,
   status,
   label,
   onDone,
 }: {
   paymentId: string;
+  paymentMethod?: string | null;
   status: Status;
   label: string;
   onDone?: () => void;
@@ -33,6 +35,8 @@ export function PaymentMarkButton({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refundReason, setRefundReason] = useState("");
+  const [manualRefundReference, setManualRefundReference] = useState("");
+  const requiresManualRefund = status === "refunded" && (paymentMethod ?? "").toLowerCase() === "paynow";
 
   const cfg = statusConfig[status];
   const Icon = cfg.icon;
@@ -44,6 +48,12 @@ export function PaymentMarkButton({
     if (status === "refunded" && refundReason.trim()) {
       body.refund_reason = refundReason.trim();
     }
+    if (status === "refunded" && manualRefundReference.trim()) {
+      body.manual_refund_reference = manualRefundReference.trim();
+    }
+    if (requiresManualRefund) {
+      body.manual_refund_done = true;
+    }
     const res = await fetch("/api/payment/mark", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -52,17 +62,20 @@ export function PaymentMarkButton({
     setBusy(false);
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
-      toast.error(errBody.error ?? "Action failed");
+      toast.error(errBody.message ?? errBody.error ?? "Action failed");
       return;
     }
     const successMessages: Record<string, string> = {
       paid: "Payment confirmed",
       failed: "Marked as failed",
       expired: "Marked as expired",
-      refunded: "Refund recorded",
+      refunded: requiresManualRefund ? "Manual refund recorded" : "Refund recorded",
     };
     toast.success(successMessages[status] ?? "Done");
-    if (status === "refunded") setRefundReason("");
+    if (status === "refunded") {
+      setRefundReason("");
+      setManualRefundReference("");
+    }
     if (onDone) onDone();
     else router.refresh();
   };
@@ -97,8 +110,13 @@ export function PaymentMarkButton({
       <div className="flex min-w-48 max-w-xs flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-2.5 dark:border-amber-800/50 dark:bg-amber-950/20">
         <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
           <AlertTriangle size={12} />
-          Confirm refund?
+          {requiresManualRefund ? "Confirm manual refund?" : "Confirm refund?"}
         </p>
+        {requiresManualRefund ? (
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            This is a PayNow payment. Complete bank transfer refund first, then record the reference below.
+          </p>
+        ) : null}
         <textarea
           className={`${ui.input} min-h-10 resize-y text-sm`}
           placeholder="Refund note (optional)"
@@ -107,19 +125,31 @@ export function PaymentMarkButton({
           value={refundReason}
           onChange={(e) => setRefundReason(e.target.value)}
         />
+        <input
+          className={`${ui.input} text-sm`}
+          placeholder={requiresManualRefund ? "Manual refund transfer reference (required)" : "Refund reference (optional)"}
+          maxLength={120}
+          value={manualRefundReference}
+          onChange={(e) => setManualRefundReference(e.target.value)}
+        />
         <div className="flex gap-1.5">
           <button
             type="button"
             className={ui.btnPrimarySm}
+            disabled={requiresManualRefund && !manualRefundReference.trim()}
             onClick={() => void execute()}
           >
             <Check size={11} />
-            Refund
+            {requiresManualRefund ? "Record manual refund" : "Refund"}
           </button>
           <button
             type="button"
             className={ui.btnGhost}
-            onClick={() => { setConfirming(false); setRefundReason(""); }}
+            onClick={() => {
+              setConfirming(false);
+              setRefundReason("");
+              setManualRefundReference("");
+            }}
           >
             <X size={11} />
           </button>

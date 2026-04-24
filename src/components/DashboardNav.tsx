@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Calendar,
   Users,
+  CreditCard,
   BarChart2,
   Settings,
   type LucideIcon,
@@ -17,6 +18,7 @@ type NavLink = { href: string; label: string; icon: LucideIcon };
 
 const links: NavLink[] = [
   { href: "/dashboard/operations", label: "Operations", icon: LayoutDashboard },
+  { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
   { href: "/dashboard/schedule",   label: "Schedule",   icon: Calendar },
   { href: "/dashboard/clients",    label: "Members",    icon: Users },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
@@ -26,7 +28,7 @@ const links: NavLink[] = [
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk", string[]> = {
   owner:     links.map((l) => l.href),
   manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/schedule", "/dashboard/clients"],
+  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/clients"],
 };
 
 function useVisibleLinks(

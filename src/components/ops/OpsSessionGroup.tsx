@@ -1,7 +1,5 @@
 "use client";
 
-import { CheckInApiButton } from "@/components/CheckInApiButton";
-import { BulkCheckInButton } from "@/components/ops/BulkCheckInButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ui } from "@/lib/ui";
 
@@ -16,18 +14,16 @@ export type StartingSoonSessionGroup = {
     booking_id: string;
     label: string;
     guest_email: string | null;
-    status: "booked";
+    status: "booked" | "attended";
   }>;
 };
 
 export function OpsSessionGroup({
   group,
-  scheduleHref,
-  onCheckInDone,
+  detailHref,
 }: {
   group: StartingSoonSessionGroup;
-  scheduleHref: string;
-  onCheckInDone: () => void;
+  detailHref: string;
 }) {
   const startLabel = group.start_time
     ? `${new Date(group.start_time).toLocaleDateString(undefined, {
@@ -41,7 +37,7 @@ export function OpsSessionGroup({
     : "—";
 
   return (
-    <div className={`${ui.card} flex flex-col gap-3`}>
+    <DashboardAppLink href={detailHref} className={`${ui.card} block transition-shadow hover:shadow-md`}>
       <div className="flex flex-col gap-2 border-b border-stone-200/80 pb-3 dark:border-stone-800/80 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{group.class_title}</h3>
@@ -54,31 +50,9 @@ export function OpsSessionGroup({
           </p>
         </div>
         <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-          <BulkCheckInButton
-            bookingIds={group.attendees.map((a) => a.booking_id)}
-            onDone={onCheckInDone}
-          />
-          <DashboardAppLink href={scheduleHref} className={ui.btnSecondarySm}>
-            Open schedule
-          </DashboardAppLink>
+          <span className={ui.btnSecondarySm}>Open details</span>
         </div>
       </div>
-      <ul className="flex flex-col gap-2">
-        {group.attendees.map((a) => (
-          <li
-            key={a.booking_id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-100 bg-stone-50/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/40"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-stone-900 dark:text-stone-100">{a.label}</p>
-              {a.guest_email && a.guest_email !== a.label ? (
-                <p className={`text-xs ${ui.muted}`}>{a.guest_email}</p>
-              ) : null}
-            </div>
-            <CheckInApiButton bookingId={a.booking_id} onDone={onCheckInDone} />
-          </li>
-        ))}
-      </ul>
-    </div>
+    </DashboardAppLink>
   );
 }

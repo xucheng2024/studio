@@ -4,15 +4,15 @@ export const site = {
   name: "Studio",
   title: "Studio — Bookings Made Simple",
   description:
-    "PayNow booking, automatic payment tracking, and a front desk dashboard for Singapore fitness studios.",
+    "Hosted checkout booking, automatic payment tracking, and a front desk dashboard for Singapore fitness studios.",
   badge: "For gyms, yoga & wellness studios · Singapore",
   homeHeadline: "Run your studio without the admin pile",
   homeLead:
-    "PayNow booking links, automatic payment tracking, and a front desk dashboard — built for Singapore studios. No more WhatsApp to confirm a transfer.",
+    "Hosted booking links, automatic payment tracking, and a front desk dashboard — built for Singapore studios. No more manual transfer matching.",
   marketing: {
     memberHighlights: [
       "Pick any class and book in under a minute with real-time availability.",
-      "Pay via PayNow; we’ll confirm shortly after the transfer is received.",
+      "Pay online with hosted checkout and instant status updates.",
       "Cancellation windows and credit rules are shown clearly before you book.",
       "Booked as a guest before? Sign in with the same email to sync your history.",
     ],
@@ -26,7 +26,7 @@ export const site = {
     ownerIntro:
       "Fewer manual steps, better visibility — across sessions, locations, and payment methods.",
     paymentFlowNote:
-      "PayNow payments are verified by the studio after transfer receipt.",
+      "Online payments are reconciled through gateway callbacks.",
     mergeNote:
       "Use the same email as your guest bookings to merge records automatically.",
   },

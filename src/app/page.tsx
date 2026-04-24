@@ -45,7 +45,7 @@ export default async function Home({ searchParams }: Props) {
             </span>
             <span className="flex flex-col justify-center gap-0.5">
               <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">Book a class</span>
-              <span className={`text-xs ${ui.muted}`}>Pick a slot, pay via PayNow — seat held instantly</span>
+              <span className={`text-xs ${ui.muted}`}>Pick a slot, pay online — seat held instantly</span>
             </span>
           </Link>
 

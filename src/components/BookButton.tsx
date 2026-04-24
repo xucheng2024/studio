@@ -20,7 +20,7 @@ export function BookButton({
     if (code === "full") return "This class is full. Please pick another time.";
     if (code === "active_booking_limit_exceeded") return "You already have several active bookings.";
     if (code === "late_cancel_limit_exceeded") return "Please contact front desk before booking again.";
-    if (code === "PAYNOW_NOT_CONFIGURED") return "PayNow is not configured for this studio yet.";
+    if (code === "hitpay_not_configured") return "Online payment is not configured for this studio yet.";
     return "Could not create booking. Please try again.";
   };
 

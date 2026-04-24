@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
-import { getPaynowSummary } from "@/lib/paynow";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
 
@@ -21,13 +20,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   if (!ctx) notFound();
   const { studio, pkg } = ctx;
 
-  const paynow = getPaynowSummary({
-    paynow_enabled: Boolean(studio.paynow_enabled),
-    paynow_proxy_type: studio.paynow_proxy_type ?? null,
-    paynow_uen: studio.paynow_uen ?? null,
-    paynow_mobile: studio.paynow_mobile ?? null,
-    paynow_payee_name: studio.paynow_payee_name ?? null,
-  });
+  const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
   const loc = pkg.locations as { name?: string } | { name?: string }[] | null;
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
@@ -59,7 +52,11 @@ export default async function PublicPackageBuyPage({ params }: Props) {
             {pkg.location_id ? (locName ?? "Selected branch") : "All locations"}
           </span>
         </div>
-        <p className={`mt-3 text-sm ${paynow.configured ? ui.muted : ui.error}`}>{paynow.line}</p>
+        <p className={`mt-3 text-sm ${paymentReady ? ui.muted : ui.error}`}>
+          {paymentReady
+            ? "Online checkout is available from package purchase pages."
+            : "Online payment is not configured for this deployment."}
+        </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
           <p className={`text-sm ${ui.muted}`}>

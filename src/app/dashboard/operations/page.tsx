@@ -1,7 +1,5 @@
-import { CreditCard, UserCheck } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { OpsBoard } from "@/components/ops/OpsBoard";
-import { OpsFilters } from "@/components/ops/OpsFilters";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -13,8 +11,7 @@ type Props = {
     location_id?: string;
     date_from?: string;
     date_to?: string;
-    status?: string;
-    q?: string;
+    session_status?: "all" | "scheduled" | "cancelled";
   }>;
 };
 
@@ -112,12 +109,6 @@ export default async function OperationsPage({ searchParams }: Props) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
-  const { data: studios } = await supabase
-    .from("studios")
-    .select("id, name")
-    .in("id", studioIds)
-    .order("name");
-
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const { data: opContract } = await supabase
     .from("studios")
@@ -125,19 +116,10 @@ export default async function OperationsPage({ searchParams }: Props) {
     .eq("id", activeStudioId)
     .maybeSingle();
   const studioSuspended = opContract?.contract_status === "suspended";
-  const { data: locations } = await supabase
-    .from("locations")
-    .select("id, name, studio_id")
-    .in("studio_id", studioIds)
-    .eq("is_active", true)
-    .order("name");
-  const filterParams = new URLSearchParams();
-  filterParams.set("studio_id", activeStudioId);
-  if (selectedLocationId) filterParams.set("location_id", selectedLocationId);
-  if (sp.date_from) filterParams.set("date_from", sp.date_from);
-  if (sp.date_to) filterParams.set("date_to", sp.date_to);
-  if (sp.status) filterParams.set("status", sp.status);
-  if (sp.q) filterParams.set("q", sp.q);
+  const defaultDate = todayISODate();
+  const dateFrom = sp.date_from ?? defaultDate;
+  const dateTo = sp.date_to ?? defaultDate;
+  const sessionStatus = sp.session_status ?? "all";
 
   return (
     <div className="flex flex-col gap-4">
@@ -155,35 +137,43 @@ export default async function OperationsPage({ searchParams }: Props) {
       ) : null}
       <div>
         <h1 className={ui.h1}>Today&apos;s front desk</h1>
-        <p className={ui.muted}>One queue for payment checks, arrivals, and urgent follow-ups.</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <DashboardAppLink href={`/dashboard/payments?${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            <CreditCard size={13} />
-            Payment records
-          </DashboardAppLink>
-          <DashboardAppLink href={`/dashboard/frontdesk?${filterParams.toString()}`} className={ui.btnSecondarySm}>
-            <UserCheck size={13} />
-            Walk-in & check-in
+        <p className={ui.muted}>Daily session execution and attendance.</p>
+      </div>
+      <form method="get" className={`${ui.card} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
+        <input type="hidden" name="studio_id" value={activeStudioId} />
+        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Session status</span>
+          <select name="session_status" className={ui.select} defaultValue={sessionStatus}>
+            <option value="all">All</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>From date</span>
+          <input type="date" name="date_from" className={ui.input} defaultValue={dateFrom} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>To date</span>
+          <input type="date" name="date_to" className={ui.input} defaultValue={dateTo} />
+        </label>
+        <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
+          <button type="submit" className={ui.btnPrimarySm}>Apply</button>
+          <DashboardAppLink
+            href={`/dashboard/operations?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            className={ui.btnGhost}
+          >
+            Reset
           </DashboardAppLink>
         </div>
-      </div>
-      <OpsFilters
-        studios={(studios ?? []).map((s) => ({ id: s.id, name: s.name }))}
-        locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name, studio_id: l.studio_id }))}
-        selectedStudioId={activeStudioId}
-        selectedLocationId={selectedLocationId}
-        dateFrom={sp.date_from ?? todayISODate()}
-        dateTo={sp.date_to ?? todayISODate()}
-        status={sp.status ?? ""}
-        query={sp.q ?? ""}
-      />
+      </form>
       <OpsBoard
         studioId={activeStudioId}
         locationId={selectedLocationId}
-        dateFrom={sp.date_from ?? todayISODate()}
-        dateTo={sp.date_to ?? todayISODate()}
-        status={sp.status ?? ""}
-        q={sp.q ?? ""}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        sessionStatus={sessionStatus}
       />
     </div>
   );

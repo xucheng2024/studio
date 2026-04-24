@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
-import { getPaynowSummary } from "@/lib/paynow";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -16,19 +15,12 @@ export default async function StudioBookingPage({ params }: Props) {
   const supabase = await createClient();
   const studioRes = await supabase
     .from("studios")
-    .select("id, name, public_slug, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
+    .select("id, name, public_slug, hitpay_enabled")
     .eq("public_slug", slug)
     .maybeSingle();
   const { data: studio, error: stErr } = studioRes;
   if (stErr || !studio) notFound();
-
-  const paynow = getPaynowSummary({
-    paynow_enabled: Boolean(studio.paynow_enabled),
-    paynow_proxy_type: studio.paynow_proxy_type ?? null,
-    paynow_uen: studio.paynow_uen ?? null,
-    paynow_mobile: studio.paynow_mobile ?? null,
-    paynow_payee_name: studio.paynow_payee_name ?? null,
-  });
+  const paymentReady = Boolean(studio.hitpay_enabled);
 
   const { data: classes } = await supabase
     .from("classes")
@@ -67,7 +59,7 @@ export default async function StudioBookingPage({ params }: Props) {
         <p className={ui.badge}>{studio.name}</p>
         <h1 className={`${ui.h1} mt-3`}>Book a class</h1>
         <p className={`mt-2 ${ui.lead}`}>
-          Pick a session, pay via PayNow — seat held instantly.
+          Pick a session and continue to secure checkout.
         </p>
 
         {/* Policy summary */}
@@ -79,9 +71,8 @@ export default async function StudioBookingPage({ params }: Props) {
           </p>
         ) : null}
 
-        {/* PayNow status */}
-        {!paynow.configured ? (
-          <p className={`mt-2 text-xs ${ui.error}`}>{paynow.line}</p>
+        {!paymentReady ? (
+          <p className={`mt-2 text-xs ${ui.error}`}>Online payment is not configured for this deployment.</p>
         ) : null}
 
       </header>
@@ -177,7 +168,7 @@ export default async function StudioBookingPage({ params }: Props) {
                   {spotsLeft === 0 ? (
                     <span className={`text-sm ${ui.muted}`}>This class is full</span>
                   ) : (
-                    <QuickBookPanel slug={slug} sessionId={s.id} disabled={!paynow.configured} />
+                    <QuickBookPanel slug={slug} sessionId={s.id} disabled={!paymentReady} />
                   )}
                 </div>
               </div>
