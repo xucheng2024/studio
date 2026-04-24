@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { QuickBookPanel } from "@/components/QuickBookPanel";
+import { SessionBookingActions } from "@/components/SessionBookingActions";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
@@ -24,6 +24,10 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   const sp = await searchParams;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isSignedIn = Boolean(user);
   const ctx = await getCachedClassShareContext(rawStudio ?? "", rawClass ?? "");
   if (!ctx) notFound();
   const { studio, cls } = ctx;
@@ -187,19 +191,13 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                 {isFull ? (
                   <p className={`text-sm ${ui.muted}`}>This class is full. Please check back for other sessions.</p>
                 ) : (
-                  <>
-                    <p className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
-                      Your details
-                    </p>
-                    <QuickBookPanel
-                      slug={studioPublicSlug}
-                      sessionId={s.id}
-                      disabled={!paymentReady}
-                      defaultOpen
-                      hideClose
-                      embedded
-                    />
-                  </>
+                  <SessionBookingActions
+                    slug={studioPublicSlug}
+                    sessionId={s.id}
+                    guestPrice={Number(s.guest_price ?? 0)}
+                    paymentReady={paymentReady}
+                    isSignedIn={isSignedIn}
+                  />
                 )}
               </div>
             </div>
@@ -300,10 +298,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                 {spotsLeft === 0 ? (
                   <span className={`text-sm ${ui.muted}`}>This class is full</span>
                 ) : (
-                  <QuickBookPanel
+                  <SessionBookingActions
                     slug={studioPublicSlug}
                     sessionId={s.id}
-                    disabled={!paymentReady}
+                    guestPrice={Number(s.guest_price ?? 0)}
+                    paymentReady={paymentReady}
+                    isSignedIn={isSignedIn}
                   />
                 )}
               </div>
