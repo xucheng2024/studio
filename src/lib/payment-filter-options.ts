@@ -18,11 +18,3 @@ export const INVOICE_STATUS_FILTER_OPTIONS: { value: string; label: string }[] =
   { value: "void", label: "Void" },
 ];
 
-/** Matches `payments_recon_status_check` (migration 015). */
-export const RECON_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "awaiting_verification", label: "Awaiting verification" },
-  { value: "matched", label: "Matched" },
-  { value: "mismatch", label: "Mismatch" },
-  { value: "needs_review", label: "Needs review" },
-  { value: "manual_review", label: "Manual review" },
-];

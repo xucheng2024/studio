@@ -4,6 +4,8 @@ import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
 
 type HitpayWebhookPayload = {
   payment_request_id?: string;
+  payment_id?: string;
+  charge_id?: string;
   status?: string;
   reference_number?: string;
   currency?: string;
@@ -17,6 +19,8 @@ function parseWebhookPayload(rawBody: string): HitpayWebhookPayload {
     const form = new URLSearchParams(rawBody);
     return {
       payment_request_id: form.get("payment_request_id") ?? undefined,
+      payment_id: form.get("payment_id") ?? undefined,
+      charge_id: form.get("charge_id") ?? undefined,
       status: form.get("status") ?? undefined,
       reference_number: form.get("reference_number") ?? undefined,
       currency: form.get("currency") ?? undefined,
@@ -30,6 +34,7 @@ export async function POST(req: Request) {
   const signature = req.headers.get("x-hitpay-signature");
   const payload = parseWebhookPayload(rawBody);
   const providerId = payload.payment_request_id?.trim() || null;
+  const providerPaymentId = payload.payment_id?.trim() || payload.charge_id?.trim() || null;
   const referenceCode = payload.reference_number?.trim() || null;
   const providerStatus = (payload.status ?? "").trim().toLowerCase();
   if (!providerId && !referenceCode) {
@@ -39,7 +44,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   let query = admin
     .from("payments")
-    .select("id, status, reference_code, gateway_payment_id, studio_id, studios(owner_id, hitpay_webhook_salt)")
+    .select("id, status, reference_code, gateway_payment_id, studio_id, studios(owner_id)")
     .limit(1);
   if (providerId) {
     query = query.eq("gateway_payment_id", providerId);
@@ -51,11 +56,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
   const studios = payment.studios as
-    | { owner_id?: string | null; hitpay_webhook_salt?: string | null }
-    | { owner_id?: string | null; hitpay_webhook_salt?: string | null }[]
+    | { owner_id?: string | null }
+    | { owner_id?: string | null }[]
     | null;
   const studio = Array.isArray(studios) ? studios[0] : studios;
-  const verified = verifyHitpayWebhookSignature(rawBody, signature, studio?.hitpay_webhook_salt ?? null);
+  const { data: secrets } = await admin
+    .from("studio_payment_secrets")
+    .select("hitpay_webhook_salt")
+    .eq("studio_id", payment.studio_id)
+    .maybeSingle();
+  const verified = verifyHitpayWebhookSignature(rawBody, signature, secrets?.hitpay_webhook_salt ?? null);
   if (!verified) {
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
@@ -65,6 +75,7 @@ export async function POST(req: Request) {
     .update({
       gateway_status: providerStatus || null,
       gateway_payload: rawBody,
+      gateway_refund_payment_id: providerPaymentId,
     })
     .eq("id", payment.id);
 

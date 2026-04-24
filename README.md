@@ -7,6 +7,11 @@ Next.js (App Router) + Supabase (Auth, Postgres, RLS) + optional Resend emails. 
 1. Create a Supabase project and run migrations in order: `001_initial.sql` through the latest migration file (SQL editor or Supabase CLI).
 2. In Supabase **Authentication → Providers**, enable Email (password). Confirm signups in development if email confirmation is on.
 3. Copy `.env.example` to `.env.local`. In **Project Settings → API**, set `NEXT_PUBLIC_SUPABASE_URL`, then either **`anon` `public`** (JWT) as `NEXT_PUBLIC_SUPABASE_ANON_KEY` **or** the **publishable** key as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. You must also set **`service_role`** (server-only) as `SUPABASE_SERVICE_ROLE_KEY` for booking APIs and RPCs — never expose it in the browser.
+4. Configure each studio's HitPay credentials in **Dashboard → Settings → Payment settings** (`hitpay_enabled`, API key, webhook salt).
+5. In each studio's HitPay dashboard, register webhook endpoint:
+   - URL: `https://<your-domain>/api/payment/hitpay/webhook`
+   - Events: payment completed/failed/expired and refund updates
+   - Keep the webhook salt in your studio payment settings.
 
 ## Local dev
 
@@ -42,6 +47,7 @@ If the homepage loads but other routes fail, the public Supabase keys are usuall
 - **Booking settlement**: a booking is considered successful only after settlement: HitPay callback confirms payment, or package credits are deducted successfully at booking time.
 - **Check-in**: check-in/uncheck is attendance tracking only; it does not deduct credits or trigger refunds.
 - **Owner verification**: `/dashboard/payments` lists pending/paid/expired, includes pending-review filter/SLA, and actions to mark paid/failed/expired.
+- **Refunds**: HitPay refunds attempt automatic gateway refund first; if provider/channel rejects refund, process manually and record the reference in dashboard.
 - **Notifications**: payment submitted notifies owner/frontdesk recipients; payment verdict notifies client/guest. Class reminders/no-show outcome notifications are manual-mode only.
 
 API routes use the service role and Postgres RPCs (for example `confirm_payment`) for payment state transitions.

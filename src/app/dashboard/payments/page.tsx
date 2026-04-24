@@ -72,7 +72,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, manual_refund_reference, manual_refund_recorded_at",
+      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -429,14 +429,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   </p>
                 </div>
               ) : null}
-              {p.status === "refunded" && p.manual_refund_reference ? (
-                <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-800/30">
-                  <p className="text-xs text-stone-600 dark:text-stone-400">
-                    Manual refund ref <span className={ui.code}>{p.manual_refund_reference}</span>
-                    {p.manual_refund_recorded_at ? ` · recorded ${new Date(p.manual_refund_recorded_at).toLocaleString()}` : ""}
-                  </p>
-                </div>
-              ) : null}
 
               {/* ── Audit timeline (collapsed) ────────────────────── */}
               {timeline.length ? (
@@ -460,9 +452,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 {p.status === "paid" ? (
                   <PaymentMarkButton
                     paymentId={p.id}
-                    paymentMethod={p.payment_method}
                     status="refunded"
-                    label={(p.payment_method ?? "").toLowerCase() === "paynow" ? "Record manual refund" : "Mark refunded"}
+                    label="Mark refunded"
                   />
                 ) : null}
                 {!p.booking_id ? <PaymentMatchForm paymentId={p.id} /> : null}

@@ -43,31 +43,13 @@ function bookingStatusBadge(status: string | null | undefined): OrderBadge {
   }
 }
 
-function reconStatusBadge(status: string | null | undefined): OrderBadge {
-  switch (status) {
-    case "matched":
-      return { text: "Matched", tone: "teal" };
-    case "mismatch":
-      return { text: "Mismatch", tone: "red" };
-    case "manual_review":
-    case "needs_review":
-      return { text: "Manual review", tone: "amber" };
-    case "awaiting_verification":
-      return { text: "Awaiting verification", tone: "amber" };
-    default:
-      return { text: "No recon status", tone: "stone" };
-  }
-}
-
 export function getUnifiedStatusBadges(input: {
   booking_status?: string | null;
   payment_status?: string | null;
-  recon_status?: string | null;
 }) {
   return {
     booking: bookingStatusBadge(input.booking_status),
     payment: paymentStatusBadge(input.payment_status),
-    recon: reconStatusBadge(input.recon_status),
   };
 }
 

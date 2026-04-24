@@ -49,7 +49,7 @@ function useNavState() {
   const keep = new URLSearchParams();
   for (const key of [
     "studio_id", "location_id", "date_from", "date_to",
-    "status", "payment_method", "invoice_status", "recon_status", "q",
+    "payment_method", "q",
   ]) {
     const v = search.get(key);
     if (v) keep.set(key, v);

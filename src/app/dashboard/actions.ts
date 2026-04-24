@@ -182,21 +182,39 @@ export async function updateStudioHitpaySettings(formData: FormData): Promise<vo
 
   const enabled = formData.get("hitpay_enabled") === "on";
   const businessName = String(formData.get("hitpay_business_name") ?? "").trim() || null;
-  const apiKey = String(formData.get("hitpay_api_key") ?? "").trim() || null;
-  const webhookSalt = String(formData.get("hitpay_webhook_salt") ?? "").trim() || null;
-  if (enabled && (!apiKey || !webhookSalt)) return;
+  const apiKeyInput = String(formData.get("hitpay_api_key") ?? "").trim();
+  const webhookSaltInput = String(formData.get("hitpay_webhook_salt") ?? "").trim();
+  const admin = createAdminClient();
+  const { data: existingSecrets } = await admin
+    .from("studio_payment_secrets")
+    .select("hitpay_api_key, hitpay_webhook_salt")
+    .eq("studio_id", studio.id)
+    .maybeSingle();
+  const nextApiKey = apiKeyInput || existingSecrets?.hitpay_api_key || null;
+  const nextWebhookSalt = webhookSaltInput || existingSecrets?.hitpay_webhook_salt || null;
+  if (enabled && (!nextApiKey || !nextWebhookSalt)) return;
 
   const { error } = await supabase
     .from("studios")
     .update({
       hitpay_enabled: enabled,
       hitpay_business_name: businessName,
-      hitpay_api_key: apiKey,
-      hitpay_webhook_salt: webhookSalt,
     })
     .eq("id", studio.id);
   if (error) {
     console.error(error.message);
+    return;
+  }
+  const { error: secretErr } = await admin
+    .from("studio_payment_secrets")
+    .upsert({
+      studio_id: studio.id,
+      hitpay_api_key: nextApiKey,
+      hitpay_webhook_salt: nextWebhookSalt,
+      updated_at: new Date().toISOString(),
+    });
+  if (secretErr) {
+    console.error(secretErr.message);
     return;
   }
 

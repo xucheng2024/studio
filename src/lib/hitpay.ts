@@ -10,7 +10,6 @@ type HitpayPaymentRequest = {
   name?: string | null;
   reference_number: string;
   redirect_url: string;
-  webhook?: string;
   purpose?: string;
 };
 
@@ -55,7 +54,6 @@ export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
   body.set("currency", input.currency);
   body.set("reference_number", input.reference_number);
   body.set("redirect_url", input.redirect_url);
-  if (input.webhook) body.set("webhook", input.webhook);
   if (input.email) body.set("email", input.email);
   if (input.name) body.set("name", input.name);
   if (input.purpose) body.set("purpose", input.purpose);

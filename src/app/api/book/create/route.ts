@@ -104,13 +104,18 @@ export async function POST(req: Request) {
   const amount = Number(session.guest_price ?? 0);
   const { data: studioContract } = await admin
     .from("studios")
-    .select("contract_status, hitpay_enabled, hitpay_api_key")
+    .select("contract_status, hitpay_enabled")
     .eq("id", studioId)
+    .maybeSingle();
+  const { data: studioSecrets } = await admin
+    .from("studio_payment_secrets")
+    .select("hitpay_api_key")
+    .eq("studio_id", studioId)
     .maybeSingle();
   if (studioContract?.contract_status === "suspended") {
     return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
   }
-  if (!studioContract?.hitpay_enabled || !studioContract.hitpay_api_key) {
+  if (!studioContract?.hitpay_enabled || !studioSecrets?.hitpay_api_key) {
     return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
   }
 
@@ -183,20 +188,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
   const returnUrl = `${baseUrl}/checkout/${payment.id}`;
-  const webhookUrl = `${baseUrl}/api/payment/hitpay/webhook`;
   const guestDisplayName = user ? null : guestName ?? null;
   const guestDisplayEmail = user ? null : guestEmail ?? null;
 
   try {
     const hitpay = await createHitpayPaymentRequest({
-      apiKey: studioContract.hitpay_api_key,
+      apiKey: studioSecrets.hitpay_api_key,
       amount: amount.toFixed(2),
       currency: "SGD",
       email: guestDisplayEmail,
       name: guestDisplayName,
       reference_number: reference,
       redirect_url: returnUrl,
-      webhook: webhookUrl,
       purpose: `Booking ${session.id}`,
     });
     await admin

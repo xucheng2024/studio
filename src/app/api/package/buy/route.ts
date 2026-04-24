@@ -59,10 +59,15 @@ export async function POST(req: Request) {
   }
   const { data: studioHitpay } = await admin
     .from("studios")
-    .select("hitpay_enabled, hitpay_api_key")
+    .select("hitpay_enabled")
     .eq("id", pkg.studio_id)
     .maybeSingle();
-  if (!studioHitpay?.hitpay_enabled || !studioHitpay.hitpay_api_key) {
+  const { data: studioSecrets } = await admin
+    .from("studio_payment_secrets")
+    .select("hitpay_api_key")
+    .eq("studio_id", pkg.studio_id)
+    .maybeSingle();
+  if (!studioHitpay?.hitpay_enabled || !studioSecrets?.hitpay_api_key) {
     return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
   }
 
@@ -101,16 +106,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
   const returnUrl = `${baseUrl}/checkout/${payment.id}`;
-  const webhookUrl = `${baseUrl}/api/payment/hitpay/webhook`;
-
   try {
     const hitpay = await createHitpayPaymentRequest({
-      apiKey: studioHitpay.hitpay_api_key,
+      apiKey: studioSecrets.hitpay_api_key,
       amount: Number(pkg.price).toFixed(2),
       currency: "SGD",
       reference_number: reference,
       redirect_url: returnUrl,
-      webhook: webhookUrl,
       purpose: `Package ${pkg.name}`,
     });
     await admin

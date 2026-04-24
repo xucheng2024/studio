@@ -4,6 +4,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Toggle } from "@/components/ui/Toggle";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,12 +34,18 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
   const studioId = selectedStudioId ?? studioIds[0];
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, hitpay_enabled, hitpay_business_name, hitpay_api_key, hitpay_webhook_salt")
+    .select("id, name, hitpay_enabled, hitpay_business_name")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
-  const hasApiKey = Boolean(studio.hitpay_api_key);
-  const hasWebhookSalt = Boolean(studio.hitpay_webhook_salt);
+  const admin = createAdminClient();
+  const { data: secrets } = await admin
+    .from("studio_payment_secrets")
+    .select("hitpay_api_key, hitpay_webhook_salt")
+    .eq("studio_id", studio.id)
+    .maybeSingle();
+  const hasApiKey = Boolean(secrets?.hitpay_api_key);
+  const hasWebhookSalt = Boolean(secrets?.hitpay_webhook_salt);
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -69,8 +76,9 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
           <span className={ui.label}>HitPay API key</span>
           <input
             name="hitpay_api_key"
-            defaultValue={studio.hitpay_api_key ?? ""}
-            placeholder="business-api-key"
+            type="password"
+            defaultValue=""
+            placeholder={hasApiKey ? "Configured (enter new key to rotate)" : "business-api-key"}
             className={ui.input}
           />
         </label>
@@ -78,8 +86,9 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
           <span className={ui.label}>Webhook salt</span>
           <input
             name="hitpay_webhook_salt"
-            defaultValue={studio.hitpay_webhook_salt ?? ""}
-            placeholder="webhook-salt"
+            type="password"
+            defaultValue=""
+            placeholder={hasWebhookSalt ? "Configured (enter new salt to rotate)" : "webhook-salt"}
             className={ui.input}
           />
         </label>

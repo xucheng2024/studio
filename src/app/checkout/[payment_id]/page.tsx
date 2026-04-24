@@ -83,7 +83,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
-      {/* Auto-refresh every 20 s while payment is still pending */}
+      {/* Auto-refresh every 5 s while payment is still pending */}
       <PaymentStatusPoller stop={!isPending} />
 
       <div className="flex flex-col gap-5">
