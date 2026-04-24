@@ -45,7 +45,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
 
   const { data: packages } = await admin
     .from("packages")
-    .select("id, name, description, price, credits, expiry_days, location_id, image_url, share_slug")
+    .select("id, name, price, credits, expiry_days, location_id, image_url, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .order("price", { ascending: true });
@@ -423,9 +423,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         <span className={`text-sm ${ui.muted}`}>· No expiry</span>
                       )}
                     </div>
-                    {pkg.description ? (
-                      <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">{pkg.description}</p>
-                    ) : null}
                     <div className="mt-auto flex items-center justify-between pt-4">
                       <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
                         SGD {Number(pkg.price ?? 0).toFixed(2)}
