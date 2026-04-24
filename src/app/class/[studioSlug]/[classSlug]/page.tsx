@@ -204,6 +204,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     guestPrice={Number(s.guest_price ?? 0)}
                     paymentReady={paymentReady}
                     isSignedIn={isSignedIn}
+                    creditsRequired={Number(s.credits_required ?? 0)}
                   />
                 )}
               </div>
@@ -311,6 +312,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     guestPrice={Number(s.guest_price ?? 0)}
                     paymentReady={paymentReady}
                     isSignedIn={isSignedIn}
+                    creditsRequired={Number(s.credits_required ?? 0)}
                   />
                 )}
               </div>

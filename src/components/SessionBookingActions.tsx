@@ -16,17 +16,20 @@ export function SessionBookingActions({
   guestPrice,
   paymentReady,
   isSignedIn,
+  creditsRequired = 0,
 }: {
   slug: string;
   sessionId: string;
   guestPrice: number;
   paymentReady: boolean;
   isSignedIn: boolean;
+  creditsRequired?: number;
 }) {
   const router = useRouter();
   const [busyPass, setBusyPass] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
   const [showPayForm, setShowPayForm] = useState(false);
+  const [passError, setPassError] = useState<string | null>(null);
 
   const toFriendly = (code: string) => {
     if (code === "full") return "This class is full. Please pick another session.";
@@ -48,9 +51,12 @@ export function SessionBookingActions({
     const body = await res.json().catch(() => ({}));
     setBusyPass(false);
     if (!res.ok) {
-      toast.error(toFriendly(String(body.error ?? "")));
+      const msg = toFriendly(String(body.error ?? ""));
+      setPassError(msg);
+      toast.error(msg);
       return false;
     }
+    setPassError(null);
     toast.success("Booked with class pass");
     router.refresh();
     return true;
@@ -66,6 +72,33 @@ export function SessionBookingActions({
     });
   }, [isSignedIn, sessionId, bookWithPass]);
 
+  // Session doesn't accept class passes — show pay form directly
+  if (creditsRequired === 0) {
+    return (
+      <>
+        <div className="flex flex-col gap-3">
+          {showPayForm ? (
+            <>
+              <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your details</p>
+              <QuickBookPanel slug={slug} sessionId={sessionId} disabled={!paymentReady} defaultOpen hideClose embedded />
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={!paymentReady}
+              className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+              onClick={() => setShowPayForm(true)}
+            >
+              <ChevronDown size={15} />
+              Pay ${guestPrice.toFixed(2)}
+            </button>
+          )}
+        </div>
+        {showSignIn ? <SignInOverlay onClose={() => setShowSignIn(false)} /> : null}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="flex w-full flex-col gap-3">
@@ -75,6 +108,7 @@ export function SessionBookingActions({
           disabled={busyPass || !paymentReady}
           className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
           onClick={async () => {
+            setPassError(null);
             if (!isSignedIn) {
               if (typeof window !== "undefined") {
                 window.sessionStorage.setItem(PENDING_PASS_SESSION_KEY, sessionId);
@@ -92,10 +126,18 @@ export function SessionBookingActions({
           )}
         </button>
 
+        {/* Inline pass error */}
+        {passError ? (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300">
+            <span className="mt-0.5 shrink-0 text-base leading-none">⚠</span>
+            <span>{passError}</span>
+          </div>
+        ) : null}
+
         {/* ── Divider ── */}
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
-          <span className="text-xs text-stone-400 dark:text-stone-500">or</span>
+          <span className="text-xs text-stone-400 dark:text-stone-500">or pay online</span>
           <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
         </div>
 
@@ -125,22 +167,26 @@ export function SessionBookingActions({
         )}
       </div>
 
-      {showSignIn ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="relative w-full max-w-md">
-            <button
-              type="button"
-              aria-label="Close sign-in"
-              className={`${ui.btnGhost} absolute -top-10 right-0 border border-white/30 bg-black/30 text-white hover:bg-black/50`}
-              onClick={() => setShowSignIn(false)}
-            >
-              <X size={14} />
-              Close
-            </button>
-            <InlineSignInPanel defaultOpen hideTrigger />
-          </div>
-        </div>
-      ) : null}
+      {showSignIn ? <SignInOverlay onClose={() => setShowSignIn(false)} /> : null}
     </>
+  );
+}
+
+function SignInOverlay({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="relative w-full max-w-md">
+        <button
+          type="button"
+          aria-label="Close sign-in"
+          className={`${ui.btnGhost} absolute -top-10 right-0 border border-white/30 bg-black/30 text-white hover:bg-black/50`}
+          onClick={onClose}
+        >
+          <X size={14} />
+          Close
+        </button>
+        <InlineSignInPanel defaultOpen hideTrigger />
+      </div>
+    </div>
   );
 }
