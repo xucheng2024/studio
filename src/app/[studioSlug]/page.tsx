@@ -154,11 +154,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               <div className="mt-5 flex flex-wrap items-start gap-2.5">
                 <a href="#services" className={lightAnchorBtn}>
                   <ConciergeBell size={15} />
-                  General services
+                  Services
                 </a>
                 <a href="#upcoming-classes" className={lightAnchorBtn}>
                   <CalendarDays size={15} />
-                  Upcoming classes
+                  Classes
                 </a>
               </div>
             </div>
