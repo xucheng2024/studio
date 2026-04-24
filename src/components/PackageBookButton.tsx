@@ -48,7 +48,7 @@ export function PackageBookButton({
     }
     if (code === "active_booking_limit_exceeded") return "You already have several active bookings.";
     if (code === "late_cancel_limit_exceeded") return "Please contact frontdesk before booking again.";
-    if (code === "insufficient_credits") return "Not enough credits for this class.";
+    if (code === "insufficient_credits") return "Not enough class passes for this class.";
     return "Could not complete booking.";
   };
 
@@ -57,7 +57,7 @@ export function PackageBookButton({
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
       <p className={`text-xs ${ui.muted} max-w-xs text-right`}>
-        Auto-apply credits (earliest expiry first)
+        Auto-apply class passes (earliest expiry first)
       </p>
       <button
         type="button"
@@ -76,14 +76,14 @@ export function PackageBookButton({
             toast.error(toFriendly(String(body.error ?? "")));
             return;
           }
-          toast.success("Booked with credits");
+          toast.success("Booked with class pass");
           router.refresh();
         }}
       >
         {busy ? (
           <><Loader2 size={12} className="animate-spin" /> Booking…</>
         ) : (
-          <><Zap size={12} /> Book with credits</>
+          <><Zap size={12} /> Book with class pass</>
         )}
       </button>
 

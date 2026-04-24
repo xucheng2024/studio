@@ -55,7 +55,7 @@ export default async function Home({ searchParams }: Props) {
             </span>
             <span className="flex flex-col justify-center gap-0.5">
               <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">Buy a class pack</span>
-              <span className={`text-xs ${ui.muted}`}>Credits ready when you are — book any class in seconds</span>
+              <span className={`text-xs ${ui.muted}`}>Class passes ready when you are — book any class in seconds</span>
             </span>
           </Link>
 
@@ -66,7 +66,7 @@ export default async function Home({ searchParams }: Props) {
             <span className="flex flex-col justify-center gap-0.5">
               <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">One account, full history</span>
               <span className={`text-xs ${ui.muted}`}>
-                Sign in with your guest email to link all past bookings, payments, and credits automatically
+                Sign in with your guest email to link all past bookings, payments, and class passes automatically
               </span>
             </span>
           </Link>

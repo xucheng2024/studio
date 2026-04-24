@@ -65,7 +65,7 @@ export default async function PackagesPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Packages</h1>
         <p className={`mt-2 ${ui.lead}`}>
-          Create and share credit packs. Single-visit pricing is set per session in Schedule.
+          Create and share class pass packs. Single-visit pricing is set per session in Schedule.
         </p>
         <div className="mt-3">
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
@@ -86,7 +86,7 @@ export default async function PackagesPage({ searchParams }: Props) {
                 <input name="name" required className={ui.input} placeholder="10 Class Pack" />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Credits</span>
+                <span className={ui.label}>Class passes</span>
                 <input name="credits" type="number" min={1} defaultValue={10} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -110,7 +110,7 @@ export default async function PackagesPage({ searchParams }: Props) {
           <p className={`text-sm ${ui.muted}`}>No packages yet.</p>
           {canEdit ? (
             <p className={`mt-1 text-xs ${ui.muted}`}>
-              Expand &ldquo;+ New package&rdquo; above to create your first credit pack.
+              Expand &ldquo;+ New package&rdquo; above to create your first class pass pack.
             </p>
           ) : null}
         </div>
@@ -124,7 +124,7 @@ export default async function PackagesPage({ searchParams }: Props) {
             <li key={p.id} className={ui.card}>
               <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
               <p className={`mt-0.5 text-sm ${ui.muted}`}>
-                {p.credits} credits · ${Number(p.price).toFixed(2)}
+                {p.credits} class passes · ${Number(p.price).toFixed(2)}
                 {p.is_active === false ? " · Stopped" : ""}
               </p>
               <div className="mt-2">

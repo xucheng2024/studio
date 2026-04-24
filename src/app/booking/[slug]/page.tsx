@@ -66,8 +66,8 @@ export default async function StudioBookingPage({ params }: Props) {
         {rules ? (
           <p className={`mt-2 text-xs ${ui.muted}`}>
             Free cancellation ≥{rules.cancel_cutoff_hours ?? 12}h before class ·
-            Late cancel {rules.late_cancel_deduct_credit ? "uses" : "does not use"} a credit ·
-            No-show after {rules.no_show_buffer_min ?? 15} min {rules.no_show_deduct_credit ? "uses" : "does not use"} a credit
+            Late cancel {rules.late_cancel_deduct_credit ? "uses" : "does not use"} a class pass ·
+            No-show after {rules.no_show_buffer_min ?? 15} min {rules.no_show_deduct_credit ? "uses" : "does not use"} a class pass
           </p>
         ) : null}
 
@@ -145,7 +145,7 @@ export default async function StudioBookingPage({ params }: Props) {
                       <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-stone-500 dark:text-stone-400">
                         <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
                         <span>·</span>
-                        <span>{creditsRequired} credit{creditsRequired !== 1 ? "s" : ""} member</span>
+                        <span>{creditsRequired} class pass{creditsRequired !== 1 ? "s" : ""} member</span>
                       </div>
                     </div>
                   </div>

@@ -244,7 +244,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                 <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
                   <p className={ui.muted}>Paid txns: <span className="font-semibold text-stone-800 dark:text-stone-200">{paidCount}</span></p>
                   <p className={ui.muted}>Net paid: <span className="font-semibold text-stone-800 dark:text-stone-200">${netAmount.toFixed(2)}</span></p>
-                  <p className={ui.muted}>Active credits: <span className="font-semibold text-stone-800 dark:text-stone-200">{activeCredits}</span></p>
+                  <p className={ui.muted}>Active class passes: <span className="font-semibold text-stone-800 dark:text-stone-200">{activeCredits}</span></p>
                   <p className={ui.muted}>
                     Last paid:{" "}
                     <span className="font-semibold text-stone-800 dark:text-stone-200">
@@ -254,7 +254,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                 </div>
                 {activeRows.length ? (
                   <ul className="mt-3 border-t border-stone-100 pt-2 text-xs dark:border-stone-800">
-                    <li className={`pb-1 ${ui.muted}`}>Nearest credit expiry: {nearestExpiryLabel}</li>
+                    <li className={`pb-1 ${ui.muted}`}>Nearest class pass expiry: {nearestExpiryLabel}</li>
                     {activeRows.slice(0, 3).map((p) => (
                       <li key={p.id} className={ui.muted}>
                         {p.name} · {p.credits_left} left · {p.expiry_date ? `exp ${new Date(p.expiry_date).toLocaleDateString()}` : "no expiry"}

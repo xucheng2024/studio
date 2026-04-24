@@ -16,14 +16,20 @@ function safeReturnPath(pathname: string, search: string) {
   return full;
 }
 
-export function InlineSignInPanel() {
+export function InlineSignInPanel({
+  defaultOpen = false,
+  hideTrigger = false,
+}: {
+  defaultOpen?: boolean;
+  hideTrigger?: boolean;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const returnTo = safeReturnPath(pathname, search);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -57,6 +63,7 @@ export function InlineSignInPanel() {
   }, [afterSignedIn]);
 
   if (!open) {
+    if (hideTrigger) return null;
     return (
       <div className="mt-3">
         <button
@@ -70,7 +77,7 @@ export function InlineSignInPanel() {
           Sign in
         </button>
         <p className={`mt-1.5 text-xs ${ui.muted}`}>
-          Stay on this page — use credits after you sign in. You can still book as a guest on each session below.
+          Stay on this page — use class passes after you sign in. You can still book as a guest on each session below.
         </p>
       </div>
     );

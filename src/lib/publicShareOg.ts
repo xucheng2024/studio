@@ -40,7 +40,7 @@ export async function buildPackageShareMetadata(
   const { studio, pkg } = ctx;
 
   const img = pkg.image_url && isTrustedCoverImageUrl(pkg.image_url) ? pkg.image_url : absolutePlaceholderCoverUrl();
-  const desc = `${studio.name} · ${pkg.credits} credits · $${pkg.price}`;
+  const desc = `${studio.name} · ${pkg.credits} class passes · $${pkg.price}`;
 
   return {
     title: `${pkg.name} · ${studio.name}`,

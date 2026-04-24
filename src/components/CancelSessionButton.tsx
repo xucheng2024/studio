@@ -83,7 +83,7 @@ export function CancelSessionButton({
               {locationName ? ` · ${locationName}` : ""}
             </p>
             <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-              All active bookings will be cancelled. Refunds and credits apply automatically.
+              All active bookings will be cancelled. Refunds and class passes apply automatically.
             </p>
           </div>
         </div>
@@ -147,7 +147,7 @@ export function CancelSessionButton({
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-teal-700 dark:text-teal-400">
           <span>{result.affected} booking{result.affected !== 1 ? "s" : ""} cancelled</span>
           {result.refunds > 0 && <span>{result.refunds} payment{result.refunds !== 1 ? "s" : ""} refunded</span>}
-          {result.credits > 0 && <span>{result.credits} credit{result.credits !== 1 ? "s" : ""} returned</span>}
+          {result.credits > 0 && <span>{result.credits} class pass{result.credits !== 1 ? "es" : ""} returned</span>}
         </div>
       </div>
     );

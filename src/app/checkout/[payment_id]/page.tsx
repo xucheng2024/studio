@@ -61,9 +61,9 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       if (r) {
         ruleLine = `Cancel ≥${r.cancel_cutoff_hours ?? 12}h before class · Late-cancel ${
           r.late_cancel_deduct_credit ? "deducts" : "returns"
-        } a credit · No-show after ${r.no_show_buffer_min ?? 15}m ${
+        } a class pass · No-show after ${r.no_show_buffer_min ?? 15}m ${
           r.no_show_deduct_credit ? "deducts" : "returns"
-        } a credit`;
+        } a class pass`;
       }
     }
   }

@@ -13,11 +13,11 @@ export const site = {
     memberHighlights: [
       "Pick any class and book in under a minute with real-time availability.",
       "Pay online with hosted checkout and instant status updates.",
-      "Cancellation windows and credit rules are shown clearly before you book.",
+      "Cancellation windows and class pass rules are shown clearly before you book.",
       "Booked as a guest before? Sign in with the same email to sync your history.",
     ],
     memberIntro:
-      "Sign in to track bookings, package credits, and payments without back-and-forth messages.",
+      "Sign in to track bookings, class passes, and payments without back-and-forth messages.",
     ownerHighlights: [
       "Today's pending payments, arrivals, and exceptions — one front desk view",
       "Filter, search, and export payment records with a full audit trail",

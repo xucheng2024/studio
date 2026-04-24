@@ -41,7 +41,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
           <span className="flex items-center gap-1.5">
             <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-            {pkg.credits} credits
+            {pkg.credits} class passes
           </span>
           <span className="flex items-center gap-1.5">
             <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>

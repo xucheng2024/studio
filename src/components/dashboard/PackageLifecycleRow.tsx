@@ -185,7 +185,7 @@ export function PackageLifecycleRow({
                 <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />
               </label>
               <label className="flex flex-col gap-1">
-                <span className={ui.label}>Credits</span>
+                <span className={ui.label}>Class passes</span>
                 <input
                   className={ui.input}
                   type="number"

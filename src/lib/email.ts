@@ -98,7 +98,7 @@ export async function sendSessionCancelledNotice(params: {
     `Time: ${params.startTime}`,
     params.locationName ? `Location: ${params.locationName}` : null,
     "",
-    "Where this applies to your booking, we have automatically processed refunds for paid fees and returned package credits if you had already checked in with a package.",
+    "Where this applies to your booking, we have automatically processed refunds for paid fees and returned class passes if you had already checked in with a package.",
   ].filter(Boolean);
   return sendEmail({
     to: params.to,
@@ -114,7 +114,7 @@ export async function sendBookingOutcomeNotice(params: {
   creditReturned: boolean;
 }) {
   const statusText = params.status === "late_cancel" ? "Late cancellation" : "No-show";
-  const creditText = params.creditReturned ? "Credit was returned." : "Credit was deducted.";
+  const creditText = params.creditReturned ? "Class pass was returned." : "Class pass was deducted.";
   return sendEmail({
     to: params.to,
     subject: `${statusText} update: ${params.sessionTitle}`,

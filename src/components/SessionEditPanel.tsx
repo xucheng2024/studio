@@ -61,7 +61,7 @@ export function SessionEditPanel({
           <input className={ui.input} type="number" min={0} step="0.01" value={guestPrice} onChange={(e) => setGuestPrice(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className={ui.label}>Credits required</span>
+          <span className={ui.label}>Passes required</span>
           <input className={ui.input} type="number" min={1} step="1" value={creditsRequired} onChange={(e) => setCreditsRequired(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1">
@@ -92,7 +92,7 @@ export function SessionEditPanel({
               return;
             }
             if (!Number.isFinite(parsedCredits) || parsedCredits < 1) {
-              setValidationMsg("Credits required must be a positive number");
+              setValidationMsg("Passes required must be a positive number");
               return;
             }
             setBusy(true);

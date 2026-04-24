@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { createRecurringRule, createSession } from "@/app/dashboard/actions";
 import { CancelSessionButton } from "@/components/CancelSessionButton";
@@ -152,7 +153,7 @@ export default async function SchedulePage({ searchParams }: Props) {
           {(classes ?? []).length === 0 ? (
             <p className={`mt-4 text-sm ${ui.muted}`}>
               No class templates yet.{" "}
-              <a href="/dashboard/classes" className={ui.link}>Create a class</a>{" "}
+              <Link href="/dashboard/classes" className={ui.link}>Create a class</Link>{" "}
               first, then come back to schedule sessions.
             </p>
           ) : (
@@ -183,7 +184,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                       <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} required className={ui.input} />
                     </label>
                     <label className="flex flex-col gap-1.5">
-                      <span className={ui.label}>Credits required</span>
+                      <span className={ui.label}>Passes required</span>
                       <input name="credits_required" type="number" min={1} step="1" defaultValue={1} required className={ui.input} />
                     </label>
                   </div>
@@ -241,7 +242,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                     <input type="number" name="guest_price" defaultValue={25} min={0} step="0.01" className={ui.input} />
                   </label>
                   <label className="flex flex-col gap-1.5">
-                    <span className={ui.label}>Credits required</span>
+                    <span className={ui.label}>Passes required</span>
                     <input type="number" name="credits_required" defaultValue={1} min={1} step="1" className={ui.input} />
                   </label>
                   <SubmitButton className={`${ui.btnPrimary} md:col-span-2 w-full sm:w-auto`} pendingText="Creating...">
@@ -342,7 +343,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                       <span>{s.spots_left} spots left</span>
                       <span>{activeBookingCount} active bookings</span>
                       <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
-                      <span>{Number(s.credits_required ?? 1)} credit{Number(s.credits_required ?? 1) !== 1 ? "s" : ""}</span>
+                      <span>{Number(s.credits_required ?? 1)} class pass{Number(s.credits_required ?? 1) !== 1 ? "s" : ""}</span>
                     </div>
                   </div>
                   {/* Action buttons: right side on desktop, below on mobile */}

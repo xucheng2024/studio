@@ -114,7 +114,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         <p className={`mt-1 ${ui.muted}`}>{clientUser.email ?? clientUser.id}</p>
         <div className={`mt-3 inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 py-1.5 dark:border-teal-800/60 dark:bg-teal-950/40`}>
           <span className="text-sm font-semibold text-teal-800 dark:text-teal-200">{balanceTotal}</span>
-          <span className={`text-xs ${ui.muted}`}>credits available</span>
+          <span className={`text-xs ${ui.muted}`}>class passes available</span>
         </div>
       </div>
 
@@ -238,9 +238,9 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         ) : null}
       </section>
 
-      {/* ── Credit usage ─────────────────────────────────────────── */}
+      {/* ── Class pass usage ─────────────────────────────────────────── */}
       <section>
-        <h2 className={ui.h2}>Credit usage</h2>
+        <h2 className={ui.h2}>Class pass usage</h2>
         <ul className="mt-3 flex flex-col gap-2">
           {usageRows.map((b) => {
             const sessionObj = Array.isArray(b.class_sessions) ? b.class_sessions[0] : b.class_sessions;
@@ -277,7 +277,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                     {creditUsed
                       ? <CheckCircle2 size={11} className="text-teal-500" />
                       : <Circle size={11} className="text-stone-400" />}
-                    {creditUsed ? "Credit used" : "Credit pending"}
+                    {creditUsed ? "Class pass used" : "Class pass pending"}
                   </span>
                 </div>
               </li>

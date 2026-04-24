@@ -54,7 +54,7 @@ export default async function MyBookingsPage() {
             <p className={`mt-1 ${ui.muted}`}>Your class bookings and payment history.</p>
           </div>
           <Link href="/checkout" className={`${ui.btnSecondary} shrink-0 self-start`}>
-            Buy credits
+            Buy class passes
           </Link>
         </div>
 
