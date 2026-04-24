@@ -1,7 +1,5 @@
 "use client";
 
-import { toast } from "sonner";
-
 type Props = {
   /** Path starting with `/` (e.g. `/class/...?session_id=`) */
   sharePath: string;
@@ -16,26 +14,6 @@ function toAbsoluteUrl(path: string) {
   return new URL(normalized, window.location.origin).href;
 }
 
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
 
 /** WhatsApp logo SVG (official brand colours). */
 function WhatsAppIcon() {
@@ -46,7 +24,7 @@ function WhatsAppIcon() {
   );
 }
 
-export function SessionShareLinkButton({ sharePath, title, text }: Props) {
+export function SessionShareLinkButton({ sharePath, title: _title, text }: Props) {
   return (
     <button
       type="button"
@@ -56,23 +34,8 @@ export function SessionShareLinkButton({ sharePath, title, text }: Props) {
         e.stopPropagation();
         const url = toAbsoluteUrl(sharePath);
         const body = text?.trim() ? `${text.trim()}\n${url}` : url;
-
-        void (async () => {
-          // Mobile: native share sheet (lets user pick WhatsApp or any app)
-          if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-            try {
-              await navigator.share({ title, text: text?.trim() ?? "", url });
-              return;
-            } catch (err: unknown) {
-              const name =
-                err && typeof err === "object" && "name" in err ? String((err as { name: string }).name) : "";
-              if (name === "AbortError") return;
-            }
-          }
-          // Desktop: open WhatsApp web directly
-          const waUrl = `https://wa.me/?text=${encodeURIComponent(body)}`;
-          window.open(waUrl, "_blank", "noopener,noreferrer");
-        })();
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(body)}`;
+        window.open(waUrl, "_blank", "noopener,noreferrer");
       }}
       className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/20 transition hover:bg-[#20bd5a] active:scale-[0.95] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
     >
