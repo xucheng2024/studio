@@ -1,6 +1,5 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { getDashboardScope } from "@/lib/dashboard";
-import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import {
   filterPacksForDashboard,
   nearestExpiryDate,
@@ -9,9 +8,9 @@ import {
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { Package, CalendarX } from "lucide-react";
+import { Users } from "lucide-react";
 
-type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
+type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string; q?: string }> };
 
 export default async function ClientsPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -35,44 +34,48 @@ export default async function ClientsPage({ searchParams }: Props) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
-  let classQuery = supabase
-    .from("classes")
-    .select("id, location_id")
-    .in("studio_id", studioIds);
-  if (selectedLocationId) classQuery = classQuery.eq("location_id", selectedLocationId);
-  const { data: classRows } = await classQuery;
-  const classIds = (classRows ?? []).map((c) => c.id);
+  const keyword = (sp.q ?? "").trim().toLowerCase();
 
-  let sessionIds: string[] = [];
-  if (classIds.length) {
-    const { data: sess } = await supabase
-      .from("class_sessions")
-      .select("id")
-      .in("class_id", classIds)
-      .limit(400);
-    sessionIds = (sess ?? []).map((s) => s.id);
+  let paymentsQuery = supabase
+    .from("payments")
+    .select("client_id, amount, status, created_at, location_id")
+    .in("studio_id", studioIds)
+    .not("client_id", "is", null)
+    .in("status", ["paid", "refunded"])
+    .order("created_at", { ascending: false })
+    .limit(2000);
+  if (selectedLocationId) paymentsQuery = paymentsQuery.eq("location_id", selectedLocationId);
+  const { data: payments } = await paymentsQuery;
+
+  const paidByClient = new Map<string, { paidCount: number; netAmount: number; lastPaidAt: string | null }>();
+  for (const p of payments ?? []) {
+    const clientId = p.client_id ?? null;
+    if (!clientId) continue;
+    const row = paidByClient.get(clientId) ?? { paidCount: 0, netAmount: 0, lastPaidAt: null };
+    const amount = Number(p.amount ?? 0);
+    if (p.status === "paid") {
+      row.paidCount += 1;
+      row.netAmount += amount;
+      if (!row.lastPaidAt || new Date(p.created_at).getTime() > new Date(row.lastPaidAt).getTime()) {
+        row.lastPaidAt = p.created_at;
+      }
+    } else if (p.status === "refunded") {
+      row.netAmount -= amount;
+    }
+    paidByClient.set(clientId, row);
   }
 
-  const { data: bookings } =
-    sessionIds.length > 0
-      ? await supabase
-          .from("bookings")
-          .select(
-            `
-          id,
-          client_id,
-          status,
-          created_at,
-          guest_name,
-          guest_email,
-          users ( email ),
-          class_sessions ( start_time, classes ( title ) )
-        `,
-          )
-          .in("session_id", sessionIds)
-          .order("created_at", { ascending: false })
-          .limit(500)
-      : { data: [] as const };
+  const paidClientIds = [...paidByClient.keys()];
+  const [{ data: users }, { data: profiles }] = await Promise.all([
+    paidClientIds.length > 0
+      ? supabase.from("users").select("id, email").in("id", paidClientIds)
+      : Promise.resolve({ data: [] as const }),
+    paidClientIds.length > 0
+      ? supabase.from("user_profiles").select("id, full_name, phone").in("id", paidClientIds)
+      : Promise.resolve({ data: [] as const }),
+  ]);
+  const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
   const { data: packsRaw } = await supabase
     .from("client_packages")
@@ -111,138 +114,175 @@ export default async function ClientsPage({ searchParams }: Props) {
 
   const packs = filterPacksForDashboard(packRows, studioIds, selectedLocationId ?? null);
 
-  const byClient = new Map<string, MemberPackageForCredits[]>();
+  const activePacksByClient = new Map<string, MemberPackageForCredits[]>();
   for (const row of packs) {
     const cid = row.client_id;
     if (!cid) continue;
-    const arr = byClient.get(cid) ?? [];
+    const arr = activePacksByClient.get(cid) ?? [];
     arr.push(row);
-    byClient.set(cid, arr);
+    activePacksByClient.set(cid, arr);
   }
 
-  const clientIdsForEmail = [...byClient.keys()];
-  const { data: clientUsers } =
-    clientIdsForEmail.length > 0
-      ? await supabase.from("users").select("id, email").in("id", clientIdsForEmail)
-      : { data: [] as const };
-  const emailById = new Map((clientUsers ?? []).map((u) => [u.id, u.email ?? ""]));
+  let bookingsQuery = supabase
+    .from("bookings")
+    .select("id, client_id, status, created_at, session_id, class_sessions(start_time, classes(title, studio_id), location_id)")
+    .in("client_id", paidClientIds)
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  if (selectedLocationId) {
+    bookingsQuery = bookingsQuery.eq("location_id", selectedLocationId);
+  }
+  const { data: bookingsRaw } = paidClientIds.length > 0 ? await bookingsQuery : { data: [] as const };
 
-  const memberSummaries = [...byClient.entries()]
-    .map(([clientId, rows]) => {
-      const total = rows.reduce((a, r) => a + r.credits_left, 0);
-      const nearest = nearestExpiryDate(rows);
+  const bookingByClient = new Map<
+    string,
+    Array<{ id: string; status: string | null; startTime: string | null; classTitle: string }>
+  >();
+  for (const b of bookingsRaw ?? []) {
+    const clientId = b.client_id ?? null;
+    if (!clientId) continue;
+    const cs = b.class_sessions as
+      | {
+          start_time?: string | null;
+          location_id?: string | null;
+          classes?: { title?: string | null; studio_id?: string | null } | null;
+        }
+      | null;
+    const studioId = cs?.classes?.studio_id ?? null;
+    if (!studioId || !studioIds.includes(studioId)) continue;
+    const arr = bookingByClient.get(clientId) ?? [];
+    arr.push({
+      id: b.id,
+      status: b.status ?? null,
+      startTime: cs?.start_time ?? null,
+      classTitle: cs?.classes?.title ?? "Class",
+    });
+    bookingByClient.set(clientId, arr);
+  }
+
+  const memberRows = paidClientIds
+    .map((clientId) => {
+      const userRow = userMap.get(clientId);
+      const profile = profileMap.get(clientId);
+      const activeRows = activePacksByClient.get(clientId) ?? [];
+      const activeCredits = activeRows.reduce((a, r) => a + r.credits_left, 0);
+      const nearest = nearestExpiryDate(activeRows);
+      const paid = paidByClient.get(clientId) ?? { paidCount: 0, netAmount: 0, lastPaidAt: null };
+      const history = bookingByClient.get(clientId) ?? [];
+      const name = (profile as { full_name?: string | null } | undefined)?.full_name ?? null;
+      const phone = (profile as { phone?: string | null } | undefined)?.phone ?? null;
+      const email = userRow?.email ?? "";
+      const searchable = `${name ?? ""} ${phone ?? ""} ${email}`.toLowerCase();
+      if (keyword && !searchable.includes(keyword)) return null;
       return {
         clientId,
-        email: emailById.get(clientId) ?? clientId,
-        rows,
-        total,
+        name,
+        email,
+        phone,
+        activeRows,
+        activeCredits,
         nearestExpiryLabel: nearest ? new Date(nearest).toLocaleDateString() : "—",
+        paidCount: paid.paidCount,
+        netAmount: paid.netAmount,
+        lastPaidAt: paid.lastPaidAt,
+        recentBookings: history.slice(0, 3),
       };
     })
+    .filter((x): x is NonNullable<typeof x> => Boolean(x))
     .sort((a, b) => a.email.localeCompare(b.email));
 
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h1 className={ui.h1}>Member records</h1>
-        <p className={`mt-1 ${ui.muted}`}>Active credit balances and booking history for your studio members.</p>
+        <p className={`mt-1 ${ui.muted}`}>Paid members with profile, active credits, and recent booking activity.</p>
       </div>
 
+      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-3`}>
+        {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
+        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+        <label className="sm:col-span-2">
+          <span className={ui.label}>Search member (name / phone / email)</span>
+          <input
+            name="q"
+            className={`${ui.input} mt-1`}
+            placeholder="e.g. Chloe / +65 / user@email.com"
+            defaultValue={sp.q ?? ""}
+          />
+        </label>
+        <div className="flex items-end gap-2">
+          <button className={ui.btnPrimarySm} type="submit">Search</button>
+          <DashboardAppLink
+            href={`/dashboard/clients?studio_id=${selectedStudioId ?? studioIds[0]}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            className={ui.btnGhost}
+          >
+            Clear
+          </DashboardAppLink>
+        </div>
+      </form>
+
       <div>
-        <h2 className={ui.h2}>Active credits</h2>
-        <p className={`mt-1 max-w-2xl text-sm ${ui.muted}`}>
-          Same rules as member booking: studio scope, location-specific packages only when they match the
-          selected location filter, credits left &gt; 0, not expired. Booking uses auto-apply credits (earliest
-          expiry first).
-        </p>
-        <ul className="mt-4 flex flex-col gap-3 text-sm">
-          {memberSummaries.map(({ clientId, email, rows, total, nearestExpiryLabel }) => (
+        <ul className="mt-1 flex flex-col gap-3 text-sm">
+          {memberRows.map(({ clientId, name, email, phone, activeRows, activeCredits, nearestExpiryLabel, paidCount, netAmount, lastPaidAt, recentBookings }) => (
             <li key={clientId}>
-              <details className="chevron rounded-lg border border-stone-200 dark:border-stone-700">
-                <summary className="cursor-pointer px-3 py-2">
-                  <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
-                    <span className="font-medium text-stone-900 dark:text-stone-100">{email}</span>
-                    <span className={`text-xs ${ui.muted}`}>
-                      Total credits: <span className="font-semibold text-stone-800 dark:text-stone-200">{total}</span>
-                      {" · "}
-                      Nearest expiry: {nearestExpiryLabel}
-                    </span>
+              <div className={`${ui.card}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      {name ?? "Unnamed member"}
+                    </p>
+                    <p className={`truncate text-xs ${ui.muted}`}>{email || clientId}</p>
+                    <p className={`truncate text-xs ${ui.muted}`}>{phone ?? "No phone"}</p>
                   </div>
-                </summary>
-                <ul className="border-t border-stone-100 px-3 py-2 text-xs dark:border-stone-800">
-                  <li className="pb-2">
-                    <DashboardAppLink
-                      href={`/dashboard/clients/${clientId}?studio_id=${selectedStudioId ?? studioIds[0]}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
-                      className={ui.btnSecondarySm}
-                    >
-                      Open package ledger
-                    </DashboardAppLink>
-                  </li>
-                  {rows.map((p) => (
-                    <li key={p.id} className="py-1">
-                      <span className="text-stone-800 dark:text-stone-200">{p.name}</span>
-                      {" · "}
-                      {p.credits_left} left
-                      {" · "}
-                      {p.expiry_date ? `exp ${new Date(p.expiry_date).toLocaleDateString()}` : "no expiry"}
-                      {" · "}
-                      {p.location_id ? "One location (see package setup)" : "All locations"}
-                    </li>
-                  ))}
-                </ul>
-              </details>
+                  <DashboardAppLink
+                    href={`/dashboard/clients/${clientId}?studio_id=${selectedStudioId ?? studioIds[0]}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+                    className={ui.btnSecondarySm}
+                  >
+                    Open member
+                  </DashboardAppLink>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                  <p className={ui.muted}>Paid txns: <span className="font-semibold text-stone-800 dark:text-stone-200">{paidCount}</span></p>
+                  <p className={ui.muted}>Net paid: <span className="font-semibold text-stone-800 dark:text-stone-200">${netAmount.toFixed(2)}</span></p>
+                  <p className={ui.muted}>Active credits: <span className="font-semibold text-stone-800 dark:text-stone-200">{activeCredits}</span></p>
+                  <p className={ui.muted}>
+                    Last paid:{" "}
+                    <span className="font-semibold text-stone-800 dark:text-stone-200">
+                      {lastPaidAt ? new Date(lastPaidAt).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" }) : "—"}
+                    </span>
+                  </p>
+                </div>
+                {activeRows.length ? (
+                  <ul className="mt-3 border-t border-stone-100 pt-2 text-xs dark:border-stone-800">
+                    <li className={`pb-1 ${ui.muted}`}>Nearest credit expiry: {nearestExpiryLabel}</li>
+                    {activeRows.slice(0, 3).map((p) => (
+                      <li key={p.id} className={ui.muted}>
+                        {p.name} · {p.credits_left} left · {p.expiry_date ? `exp ${new Date(p.expiry_date).toLocaleDateString()}` : "no expiry"}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {recentBookings.length ? (
+                  <ul className="mt-3 border-t border-stone-100 pt-2 text-xs dark:border-stone-800">
+                    <li className={`pb-1 ${ui.muted}`}>Recent booking / attendance</li>
+                    {recentBookings.map((b) => (
+                      <li key={b.id} className={ui.muted}>
+                        {b.classTitle} · {b.status ?? "unknown"} ·{" "}
+                        {b.startTime
+                          ? new Date(b.startTime).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
+                          : "time pending"}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>
-        {!memberSummaries.length ? (
+        {!memberRows.length ? (
           <div className={`mt-4 ${ui.emptyState}`}>
-            <div className={ui.emptyStateIcon}><Package size={18} /></div>
-            <p className={`text-sm ${ui.muted}`}>No active package credits yet.</p>
-          </div>
-        ) : null}
-      </div>
-
-      <div>
-        <h2 className={ui.h2}>Booking and attendance history</h2>
-        <ul className="mt-3 flex flex-col gap-2">
-          {(bookings ?? []).map((b) => {
-            const u = b.users as { email?: string | null } | null;
-            const cs = b.class_sessions as {
-              start_time?: string;
-              classes?: { title?: string } | null;
-            } | null;
-            const memberLabel =
-              b.client_id != null
-                ? (u?.email ?? b.client_id)
-                : `${b.guest_name ?? "Guest"}${b.guest_email ? ` · ${b.guest_email}` : ""}`;
-            const badge = getUnifiedStatusBadges({ booking_status: b.status }).booking;
-            return (
-              <li
-                key={b.id}
-                className="rounded-xl border border-stone-100 bg-white/70 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40"
-              >
-                {/* Row 1: member + status badge */}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-stone-800 dark:text-stone-200">
-                    {memberLabel}
-                  </span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badge.tone)}`}>
-                    {badge.text}
-                  </span>
-                </div>
-                {/* Row 2: class + time */}
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                  <span>{cs?.classes?.title ?? "Class"}</span>
-                  {cs?.start_time ? <span>{new Date(cs.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span> : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        {!bookings?.length ? (
-          <div className={`mt-3 ${ui.emptyState}`}>
-            <div className={ui.emptyStateIcon}><CalendarX size={18} /></div>
-            <p className={`text-sm ${ui.muted}`}>No bookings yet.</p>
+            <div className={ui.emptyStateIcon}><Users size={18} /></div>
+            <p className={`text-sm ${ui.muted}`}>No paid members found in this scope.</p>
           </div>
         ) : null}
       </div>

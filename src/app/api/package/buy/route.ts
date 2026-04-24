@@ -25,11 +25,11 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json(
-      { error: "sign_in_required_for_package", message: "Please sign in before purchasing a package." },
-      { status: 401 },
-    );
+  const guestName = parsed.data.guest_name?.trim();
+  const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
+  const guestPhone = parsed.data.guest_phone?.trim() || null;
+  if (!user && (!guestName || !guestEmail)) {
+    return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -49,13 +49,15 @@ export async function POST(req: Request) {
 
   const blockedPkg = await respondIfStudioContractSuspended(admin, pkg.studio_id);
   if (blockedPkg) return blockedPkg;
-  const studioAccess = await verifyMemberStudioAccess(admin, {
-    userId: user.id,
-    studioId: pkg.studio_id,
-    bootstrapIfMissing: true,
-  });
-  if (!studioAccess.ok) {
-    return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
+  if (user) {
+    const studioAccess = await verifyMemberStudioAccess(admin, {
+      userId: user.id,
+      studioId: pkg.studio_id,
+      bootstrapIfMissing: true,
+    });
+    if (!studioAccess.ok) {
+      return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
+    }
   }
   const { data: studioHitpay } = await admin
     .from("studios")
@@ -81,10 +83,10 @@ export async function POST(req: Request) {
       booking_id: null,
       package_id: pkg.id,
       studio_id: pkg.studio_id,
-      client_id: user.id,
-      guest_name: null,
-      guest_email: null,
-      guest_phone: null,
+      client_id: user?.id ?? null,
+      guest_name: user ? null : guestName ?? null,
+      guest_email: user ? null : guestEmail ?? null,
+      guest_phone: user ? null : guestPhone,
       amount: pkg.price,
       currency: "SGD",
       payment_method: "hitpay",
@@ -111,6 +113,8 @@ export async function POST(req: Request) {
       apiKey: studioSecrets.hitpay_api_key,
       amount: Number(pkg.price).toFixed(2),
       currency: "SGD",
+      email: guestEmail ?? user?.email ?? null,
+      name: guestName ?? null,
       reference_number: reference,
       redirect_url: returnUrl,
       purpose: `Package ${pkg.name}`,

@@ -164,6 +164,9 @@ export async function POST(req: Request) {
       studio_id: studioId,
       location_id: session.location_id ?? null,
       client_id: user?.id ?? null,
+      guest_name: user ? null : guestName ?? null,
+      guest_email: user ? null : guestEmail ?? null,
+      guest_phone: user ? null : guestPhone,
       amount,
       currency: "SGD",
       payment_method: "hitpay",
@@ -188,8 +191,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
   const returnUrl = `${baseUrl}/checkout/${payment.id}`;
-  const guestDisplayName = user ? null : guestName ?? null;
-  const guestDisplayEmail = user ? null : guestEmail ?? null;
+  const guestDisplayName = guestName ?? null;
+  const guestDisplayEmail = guestEmail ?? user?.email ?? null;
 
   try {
     const hitpay = await createHitpayPaymentRequest({

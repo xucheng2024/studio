@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
+import { ensurePaymentClientId } from "@/lib/resolveClientId";
 
 type HitpayWebhookPayload = {
   payment_request_id?: string;
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
     .eq("id", payment.id);
 
   if (providerStatus === "completed" || providerStatus === "succeeded") {
+    await ensurePaymentClientId(admin, payment.id);
     const ownerId = studio?.owner_id ?? null;
     if (ownerId) {
       await admin.rpc("confirm_payment_with_invoice", {

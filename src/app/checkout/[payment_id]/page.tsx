@@ -24,6 +24,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       expires_at,
       verified_at,
       gateway_checkout_url,
+      gateway_status,
       booking_id
     `,
     )
@@ -73,6 +74,11 @@ export default async function PaymentCheckoutPage({ params }: Props) {
     payment.status === "expired" ||
     payment.status === "refunded";
   const isPending = !isPaid && !isFailed;
+  const gatewayStatus = (payment.gateway_status ?? "").toLowerCase();
+  const isGatewayReceived =
+    gatewayStatus === "completed" ||
+    gatewayStatus === "succeeded" ||
+    gatewayStatus === "paid";
 
   // Expiry display
   const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
@@ -204,6 +210,11 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   <p className={`mt-0.5 text-xs ${ui.muted}`}>
                     Please complete your transfer. We&apos;ll confirm it shortly after receiving the payment.
                   </p>
+                  {isGatewayReceived ? (
+                    <p className="mt-1 text-xs font-medium text-teal-700 dark:text-teal-300">
+                      Payment received. We&apos;re confirming your booking now...
+                    </p>
+                  ) : null}
                 </div>
               </div>
               {expiryLabel ? (

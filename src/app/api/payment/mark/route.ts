@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { writeOperationAudit } from "@/lib/audit";
 import { sendPaymentResultNotice } from "@/lib/email";
 import { refundHitpayPayment } from "@/lib/hitpay";
+import { ensurePaymentClientId } from "@/lib/resolveClientId";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
   }
 
   if (parsed.data.status === "paid") {
+    await ensurePaymentClientId(admin, parsed.data.payment_id);
     const { data: result, error } = await admin.rpc("confirm_payment_with_invoice", {
       p_payment_id: parsed.data.payment_id,
       p_verified_by: user.id,
