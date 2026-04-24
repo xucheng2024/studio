@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import { MessageCircle, PlayCircle } from "lucide-react";
-import { InlineSignInPanel } from "@/components/InlineSignInPanel";
+import { CalendarDays, ConciergeBell, MessageCircle, PlayCircle } from "lucide-react";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
@@ -105,8 +104,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     }
   };
   const studioVideoPreview = getVideoPreview(studio.public_video_url);
-  const studioSlugValue = studio.public_slug ?? studioSlug;
-  const bookingHref = `/booking/${studioSlugValue}`;
+  const lightAnchorBtn =
+    "inline-flex items-center rounded-xl border border-stone-200 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition-colors hover:bg-white hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-stone-100";
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
@@ -152,13 +151,16 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   Welcome to our studio. Explore services and get in touch.
                 </p>
               )}
-              <div id="member-access" className="mt-5 flex flex-wrap items-start gap-2.5">
-                <InlineSignInPanel />
-                <Link href={bookingHref} className={ui.btnSecondarySm}>
-                  View classes
-                </Link>
+              <div className="mt-5 flex flex-wrap items-start gap-2.5">
+                <a href="#services" className={lightAnchorBtn}>
+                  <ConciergeBell size={15} />
+                  General services
+                </a>
+                <a href="#upcoming-classes" className={lightAnchorBtn}>
+                  <CalendarDays size={15} />
+                  Upcoming classes
+                </a>
               </div>
-              <p className={`mt-2 text-xs ${ui.muted}`}>Private member access for {studio.name}.</p>
             </div>
           </div>
         </div>
@@ -187,9 +189,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         </section>
       ) : null}
 
-      <section className="mx-auto mt-10 w-full max-w-5xl">
+      <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className={ui.h2}>Services</h2>
+          <h2 className={ui.h2}>General services</h2>
         </div>
         {services.length === 0 ? (
           <div className={`mt-4 ${ui.emptyState}`}>
@@ -289,13 +291,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         )}
       </section>
 
-      <section className="mx-auto mt-10 w-full max-w-5xl pb-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className={ui.h2}>Upcoming classes</h2>
-          <a href="#member-access" className={ui.btnSecondarySm}>
-            Login / Register
-          </a>
-        </div>
+      <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <h2 className={ui.h2}>Upcoming classes</h2>
         {classes.length === 0 ? (
           <div className={`mt-4 ${ui.emptyState}`}>
             <p className={ui.muted}>No upcoming classes yet.</p>
@@ -361,9 +358,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             {classDescription}
                           </p>
                         ) : null}
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                          <span className={`text-sm ${ui.muted}`}>{spotsText}</span>
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
                           <span className={ui.btnPrimarySm}>Book now</span>
+                          <span className={`text-sm ${ui.muted}`}>{spotsText}</span>
                         </div>
                       </div>
                     </div>

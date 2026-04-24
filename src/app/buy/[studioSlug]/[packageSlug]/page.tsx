@@ -1,14 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BuyPackageButton } from "@/components/BuyButtons";
-import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import { getPaynowSummary } from "@/lib/paynow";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
-import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ studioSlug: string; packageSlug: string }> };
 
@@ -20,14 +17,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PublicPackageBuyPage({ params }: Props) {
   const { studioSlug: rawStudio, packageSlug: rawPkg } = await params;
 
-  const supabase = await createClient();
-  const [{ data: { user } }, ctx] = await Promise.all([
-    supabase.auth.getUser(),
-    getCachedPackageShareContext(rawStudio ?? "", rawPkg ?? ""),
-  ]);
+  const ctx = await getCachedPackageShareContext(rawStudio ?? "", rawPkg ?? "");
   if (!ctx) notFound();
   const { studio, pkg } = ctx;
-  const signInNext = `/buy/${studio.public_slug}/${pkg.share_slug ?? ""}`;
 
   const paynow = getPaynowSummary({
     paynow_enabled: Boolean(studio.paynow_enabled),
@@ -70,21 +62,11 @@ export default async function PublicPackageBuyPage({ params }: Props) {
         <p className={`mt-3 text-sm ${paynow.configured ? ui.muted : ui.error}`}>{paynow.line}</p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          {user ? (
-            <BuyPackageButton packageId={pkg.id} disabled={!paynow.configured} />
-          ) : (
-            <div className="flex max-w-md flex-col gap-2">
-              <GuestBuyPackagePanel packageId={pkg.id} disabled={!paynow.configured} />
-              <p className={`text-xs ${ui.muted}`}>
-                Already have an account?{" "}
-                <Link href={`/m/${studio.public_slug}/auth?next=${encodeURIComponent(signInNext)}`} className={ui.link}>
-                  Sign in
-                </Link>
-              </p>
-            </div>
-          )}
-          <Link href="/booking" className={ui.btnSecondary}>
-            Browse all classes
+          <p className={`text-sm ${ui.muted}`}>
+            Package purchase is temporarily unavailable on this public page.
+          </p>
+          <Link href={`/booking/${studio.public_slug}`} className={ui.btnSecondary}>
+            Browse classes
           </Link>
         </div>
       </div>

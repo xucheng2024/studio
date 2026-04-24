@@ -1,11 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookButton } from "@/components/BookButton";
-import { PackageBookButton } from "@/components/PackageBookButton";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
-import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
-import { hasEligiblePackageForSession, sumCreditsInStudio, type MemberPackageForCredits } from "@/lib/memberCredits";
 import { getPaynowSummary } from "@/lib/paynow";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -19,14 +14,11 @@ export default async function StudioBookingPage({ params }: Props) {
   if (!slug) notFound();
 
   const supabase = await createClient();
-  const [{ data: { user } }, studioRes] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
-      .from("studios")
-      .select("id, name, public_slug, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
-      .eq("public_slug", slug)
-      .maybeSingle(),
-  ]);
+  const studioRes = await supabase
+    .from("studios")
+    .select("id, name, public_slug, paynow_enabled, paynow_proxy_type, paynow_uen, paynow_mobile, paynow_payee_name")
+    .eq("public_slug", slug)
+    .maybeSingle();
   const { data: studio, error: stErr } = studioRes;
   if (stErr || !studio) notFound();
 
@@ -37,36 +29,6 @@ export default async function StudioBookingPage({ params }: Props) {
     paynow_mobile: studio.paynow_mobile ?? null,
     paynow_payee_name: studio.paynow_payee_name ?? null,
   });
-
-  let packCredits = 0;
-  let userPacks: MemberPackageForCredits[] = [];
-  if (user) {
-    await mergeGuestRecordsForUser(user.id, user.email);
-    const { data: packs } = await supabase
-      .from("client_packages")
-      .select("id, credits_left, expiry_date, packages!inner(name, studio_id, location_id)")
-      .eq("client_id", user.id)
-      .eq("packages.studio_id", studio.id)
-      .gt("credits_left", 0)
-      .or(`expiry_date.is.null,expiry_date.gt.${new Date().toISOString()}`);
-    userPacks = ((packs ?? []) as {
-      id: string;
-      credits_left: number;
-      expiry_date: string | null;
-      packages?: { name?: string; studio_id?: string; location_id?: string | null } | null;
-    }[]).map((p) => {
-      const pkg = Array.isArray(p.packages) ? p.packages[0] : p.packages;
-      return {
-        id: p.id,
-        name: pkg?.name ?? "Package",
-        credits_left: p.credits_left,
-        expiry_date: p.expiry_date,
-        studio_id: pkg?.studio_id ?? studio.id,
-        location_id: pkg?.location_id ?? null,
-      };
-    });
-    packCredits = sumCreditsInStudio(userPacks, studio.id);
-  }
 
   const { data: classes } = await supabase
     .from("classes")
@@ -122,24 +84,6 @@ export default async function StudioBookingPage({ params }: Props) {
           <p className={`mt-2 text-xs ${ui.error}`}>{paynow.line}</p>
         ) : null}
 
-        {/* Credits / sign-in */}
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          {user ? (
-            <>
-              <span className={ui.badge}>
-                {packCredits} credit{packCredits !== 1 ? "s" : ""} available
-              </span>
-              <Link href="/checkout" className={`text-sm ${ui.link}`}>
-                Buy more →
-              </Link>
-            </>
-          ) : (
-            <p className={`text-sm ${ui.muted}`}>
-              <Link href={`/m/${slug}/auth?next=${encodeURIComponent(`/booking/${slug}`)}`} className={ui.link}>Sign in</Link>{" "}
-              to book with credits, or book as a guest below.
-            </p>
-          )}
-        </div>
       </header>
 
       {/* ── Session list ── */}
@@ -155,12 +99,6 @@ export default async function StudioBookingPage({ params }: Props) {
           const dayNum = dt.getDate();
           const month = dt.toLocaleDateString("en-SG", { month: "short" });
           const creditsRequired = Number(s.credits_required ?? 1);
-          const sessionCreditCtx = {
-            studio_id: studio.id,
-            location_id: s.location_id ?? null,
-            credits_required: creditsRequired,
-          };
-          const hasEligiblePack = hasEligiblePackageForSession(userPacks, sessionCreditCtx);
           const spotsLeft = Number(s.spots_left ?? 0);
           const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
           const spotsText = spotsLeft === 0
@@ -238,16 +176,6 @@ export default async function StudioBookingPage({ params }: Props) {
                 <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
                   {spotsLeft === 0 ? (
                     <span className={`text-sm ${ui.muted}`}>This class is full</span>
-                  ) : user ? (
-                    <div className="flex flex-wrap gap-2">
-                      <PackageBookButton sessionId={s.id} packages={userPacks} session={sessionCreditCtx} />
-                      <BookButton sessionId={s.id} disabled={!paynow.configured} />
-                      {!hasEligiblePack && userPacks.length > 0 ? (
-                        <span className="text-xs text-amber-700 dark:text-amber-300">
-                          Package not eligible for this class
-                        </span>
-                      ) : null}
-                    </div>
                   ) : (
                     <QuickBookPanel slug={slug} sessionId={s.id} disabled={!paynow.configured} />
                   )}

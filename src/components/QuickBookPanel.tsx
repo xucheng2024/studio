@@ -11,6 +11,8 @@ type Props = {
   disabled?: boolean;
   triggerClassName?: string;
   triggerLabel?: string;
+  defaultOpen?: boolean;
+  hideClose?: boolean;
 };
 
 export function QuickBookPanel({
@@ -19,9 +21,11 @@ export function QuickBookPanel({
   disabled,
   triggerClassName,
   triggerLabel = "Book as guest",
+  defaultOpen = false,
+  hideClose = false,
 }: Props) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -51,17 +55,19 @@ export function QuickBookPanel({
   }
 
   return (
-    <div className="w-full rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-900">
+    <div className="w-full rounded-2xl border border-stone-200 bg-white p-3 shadow-sm dark:border-stone-700 dark:bg-stone-900 sm:p-4">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your details</p>
-        <button
-          type="button"
-          className={`${ui.btnGhost} p-1`}
-          onClick={() => { setOpen(false); setError(null); }}
-          aria-label="Close booking form"
-        >
-          <X size={14} />
-        </button>
+        {hideClose ? null : (
+          <button
+            type="button"
+            className={`${ui.btnGhost} p-1`}
+            onClick={() => { setOpen(false); setError(null); }}
+            aria-label="Close booking form"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -117,41 +123,43 @@ export function QuickBookPanel({
           </p>
         ) : null}
 
-        <button
-          type="button"
-          disabled={loading || !name.trim() || !email.trim()}
-          className={`${ui.btnPrimary} justify-center disabled:opacity-50`}
-          onClick={async () => {
-            setLoading(true);
-            setError(null);
-            const res = await fetch("/api/book/create", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                slug,
-                session_id: sessionId,
-                guest_name: name,
-                guest_email: email,
-                guest_phone: phone.trim() || null,
-              }),
-            });
-            const body = await res.json().catch(() => ({}));
-            setLoading(false);
-            if (!res.ok) {
-              setError(toFriendly(String(body.error ?? "")));
-              return;
-            }
-            if (body.checkout_url) {
-              router.push(body.checkout_url);
-            }
-          }}
-        >
-          {loading ? (
-            <><Loader2 size={15} className="animate-spin" /> Processing…</>
-          ) : (
-            <>Continue to pay</>
-          )}
-        </button>
+        <div className={ui.mobileActionBar}>
+          <button
+            type="button"
+            disabled={loading || !name.trim() || !email.trim()}
+            className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+            onClick={async () => {
+              setLoading(true);
+              setError(null);
+              const res = await fetch("/api/book/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  slug,
+                  session_id: sessionId,
+                  guest_name: name,
+                  guest_email: email,
+                  guest_phone: phone.trim() || null,
+                }),
+              });
+              const body = await res.json().catch(() => ({}));
+              setLoading(false);
+              if (!res.ok) {
+                setError(toFriendly(String(body.error ?? "")));
+                return;
+              }
+              if (body.checkout_url) {
+                router.push(body.checkout_url);
+              }
+            }}
+          >
+            {loading ? (
+              <><Loader2 size={15} className="animate-spin" /> Processing…</>
+            ) : (
+              <>Continue to PayNow</>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

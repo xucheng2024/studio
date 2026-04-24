@@ -1,18 +1,7 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { BookButton } from "@/components/BookButton";
-import { PackageBookButton } from "@/components/PackageBookButton";
-import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
-import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
-import {
-  hasEligiblePackageForSession,
-  sumCreditsInStudio,
-  type MemberPackageForCredits,
-} from "@/lib/memberCredits";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
 import { getPaynowSummary } from "@/lib/paynow";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
@@ -36,10 +25,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   const sp = await searchParams;
 
   const supabase = await createClient();
-  const [{ data: { user } }, ctx] = await Promise.all([
-    supabase.auth.getUser(),
-    getCachedClassShareContext(rawStudio ?? "", rawClass ?? ""),
-  ]);
+  const ctx = await getCachedClassShareContext(rawStudio ?? "", rawClass ?? "");
   if (!ctx) notFound();
   const { studio, cls } = ctx;
   const studioPublicSlug = studio.public_slug ?? normalizeStudioSlug(rawStudio ?? "");
@@ -67,46 +53,14 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     .gte("start_time", new Date().toISOString())
     .order("start_time", { ascending: true });
 
-  const packsPromise = user
-    ? (async () => {
-        await mergeGuestRecordsForUser(user.id, user.email);
-        const { data: packs } = await supabase
-          .from("client_packages")
-          .select("id, credits_left, expiry_date, packages!inner(name, studio_id, location_id)")
-          .eq("client_id", user.id)
-          .eq("packages.studio_id", studio.id)
-          .gt("credits_left", 0)
-          .or(`expiry_date.is.null,expiry_date.gt.${new Date().toISOString()}`);
-        const userPacks = ((packs ?? []) as {
-          id: string;
-          credits_left: number;
-          expiry_date: string | null;
-          packages?: { name?: string; studio_id?: string; location_id?: string | null } | null;
-        }[]).map((p) => {
-          const pkg = Array.isArray(p.packages) ? p.packages[0] : p.packages;
-          return {
-            id: p.id,
-            name: pkg?.name ?? "Package",
-            credits_left: p.credits_left,
-            expiry_date: p.expiry_date,
-            studio_id: pkg?.studio_id ?? studio.id,
-            location_id: pkg?.location_id ?? null,
-          };
-        });
-        return { userPacks, packCredits: sumCreditsInStudio(userPacks, studio.id) };
-      })()
-    : Promise.resolve({ userPacks: [] as MemberPackageForCredits[], packCredits: 0 });
-
-  const [{ data: sessions }, slugRes, packResult] = await Promise.all([
+  const [{ data: sessions }, slugRes] = await Promise.all([
     sessionsPromise,
     slugLookup ?? Promise.resolve({ data: null as { id: string } | null }),
-    packsPromise,
   ]);
 
   let requestedSessionId: string | null = requestedUuid;
   if (!requestedSessionId && slugRes.data?.id) requestedSessionId = slugRes.data.id;
 
-  const { userPacks, packCredits } = packResult;
   const orderedSessions = [...(sessions ?? [])].sort((a, b) => {
     if (!requestedSessionId) return 0;
     if (a.id === requestedSessionId) return -1;
@@ -155,21 +109,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
         {cls.description ? (
           <p className={`mt-3 whitespace-pre-wrap text-stone-700 dark:text-stone-300`}>{cls.description}</p>
         ) : null}
-        {/* Credits / sign-in nudge */}
-        {user ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className={ui.badge}>{packCredits} credit{packCredits !== 1 ? "s" : ""} available</span>
-            <Link href="/checkout" className={`text-sm ${ui.link}`}>Buy more</Link>
-          </div>
-        ) : (
-          <Suspense
-            fallback={
-              <div className="mt-3 h-10 w-24 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
-            }
-          >
-            <InlineSignInPanel />
-          </Suspense>
-        )}
+        <p className={`mt-3 text-sm ${ui.muted}`}>Book your spot and continue to PayNow below.</p>
 
         {!paynow.configured ? (
           <p className={`mt-2 flex items-center gap-1 text-xs ${ui.error}`}>{paynow.line}</p>
@@ -180,19 +120,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
       {!isSessionShareView ? (
         <h2 className={`${ui.h2} mt-10`}>Upcoming sessions</h2>
       ) : null}
-      <ul className={`flex max-w-2xl flex-col gap-3 ${isSessionShareView ? "mt-8" : "mt-4"}`}>
+      <ul className={`flex max-w-2xl flex-col gap-4 ${isSessionShareView ? "mt-8" : "mt-4"}`}>
         {listSessions.map((s) => {
           const dt = new Date(s.start_time);
           const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
           const monthLabel = dt.toLocaleDateString("en-SG", { month: "short" });
           const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-          const creditsRequired = Number(s.credits_required ?? 1);
-          const sessionCreditCtx = {
-            studio_id: studio.id,
-            location_id: s.location_id ?? null,
-            credits_required: creditsRequired,
-          };
-          const hasEligiblePack = hasEligiblePackageForSession(userPacks, sessionCreditCtx);
           const spotsLeft = Number(s.spots_left ?? 0);
           const sessionCapacity =
             Number(
@@ -208,15 +141,15 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
               className={`${ui.card} transition-shadow ${isHighlighted ? "ring-2 ring-teal-400/70 shadow-md shadow-teal-400/10" : ""}`}
             >
               {/* Date + spots row */}
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 {/* Date block */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   {/* Calendar accent */}
-                  <div className="flex w-12 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1 dark:border-stone-700 dark:bg-stone-800">
+                  <div className="flex w-14 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1.5 dark:border-stone-700 dark:bg-stone-800">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
                       {weekdayLabel}
                     </span>
-                    <span className="text-lg font-bold leading-tight text-stone-900 dark:text-stone-50">
+                    <span className="text-xl font-bold leading-tight text-stone-900 dark:text-stone-50">
                       {dt.getDate()}
                     </span>
                     <span className="text-[10px] text-stone-500 dark:text-stone-400">
@@ -232,17 +165,17 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                           ${Number(s.guest_price ?? 0).toFixed(2)}
                         </span>
                         <span className="text-xs font-semibold uppercase tracking-wide text-teal-800 dark:text-teal-200">
-                          Guest
+                          Per session
                         </span>
                       </span>
                       <span className="inline-flex items-center rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
-                        Members: {creditsRequired} class pass
+                        PayNow checkout
                       </span>
                     </div>
                   </div>
                 </div>
                 {/* Spots badge */}
-                <span className={`mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                <span className={`mt-0.5 inline-flex w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
                   spotsLeft === 0
                     ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
                     : spotsLow
@@ -262,26 +195,16 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
               </div>
 
               {/* Actions */}
-              <div className="mt-4 border-t border-stone-100 pt-3 dark:border-stone-800">
+              <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:mt-4">
                 {spotsLeft === 0 ? (
                   <span className={`text-sm ${ui.muted}`}>This class is full</span>
-                ) : user ? (
-                  <div className="flex flex-wrap gap-2">
-                    <PackageBookButton sessionId={s.id} packages={userPacks} session={sessionCreditCtx} />
-                    <BookButton sessionId={s.id} disabled={!paynow.configured} />
-                    {!hasEligiblePack && userPacks.length > 0 ? (
-                      <span className="text-xs text-amber-700 dark:text-amber-300">
-                        Package not eligible for this class
-                      </span>
-                    ) : null}
-                  </div>
                 ) : (
                   <QuickBookPanel
                     slug={studioPublicSlug}
                     sessionId={s.id}
                     disabled={!paynow.configured}
-                    triggerClassName={ui.btnSecondarySm}
-                    triggerLabel="Book as guest"
+                    defaultOpen
+                    hideClose
                   />
                 )}
               </div>
