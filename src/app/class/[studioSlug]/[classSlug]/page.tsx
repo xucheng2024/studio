@@ -160,9 +160,16 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
               <div className="flex items-center justify-between border-t border-stone-100 py-3.5 dark:border-stone-800">
                 <span className="text-sm text-stone-500 dark:text-stone-400">Per session</span>
-                <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
-                  ${price}
-                </span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                    ${price}
+                  </span>
+                  {Number(s.credits_required ?? 0) > 0 ? (
+                    <span className="text-xs text-stone-400 dark:text-stone-500">
+                      or {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "es" : ""}
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               <div className="flex items-center justify-between border-t border-stone-100 py-3.5 dark:border-stone-800">
