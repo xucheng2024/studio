@@ -13,6 +13,8 @@ type Props = {
   triggerLabel?: string;
   defaultOpen?: boolean;
   hideClose?: boolean;
+  /** Render only the form fields with no outer card wrapper or header. */
+  embedded?: boolean;
 };
 
 export function QuickBookPanel({
@@ -20,9 +22,10 @@ export function QuickBookPanel({
   sessionId,
   disabled,
   triggerClassName,
-  triggerLabel = "Book as guest",
+  triggerLabel = "Book now",
   defaultOpen = false,
   hideClose = false,
+  embedded = false,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
@@ -43,6 +46,7 @@ export function QuickBookPanel({
   if (disabled) return null;
 
   if (!open) {
+    if (embedded) return null;
     return (
       <button
         type="button"
@@ -53,6 +57,104 @@ export function QuickBookPanel({
       </button>
     );
   }
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+    const res = await fetch("/api/book/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug,
+        session_id: sessionId,
+        guest_name: name,
+        guest_email: email,
+        guest_phone: phone.trim() || null,
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setLoading(false);
+    if (!res.ok) {
+      setError(toFriendly(String(body.error ?? "")));
+      return;
+    }
+    if (body.checkout_url) {
+      router.push(body.checkout_url);
+    }
+  };
+
+  const formFields = (
+    <div className="flex flex-col gap-3">
+      <label className="flex flex-col gap-1">
+        <span className={ui.label}>Name</span>
+        <input
+          className={ui.input}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your full name"
+          autoComplete="name"
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={ui.label}>Email</span>
+        <input
+          type="email"
+          className={ui.input}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={ui.label}>
+          Phone{" "}
+          <span className={`font-normal ${ui.muted}`}>(optional)</span>
+        </span>
+        <div className="flex items-center overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20 dark:border-stone-700 dark:bg-stone-950">
+          <span className="select-none border-r border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+            +65
+          </span>
+          <input
+            type="tel"
+            inputMode="numeric"
+            className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-stone-400"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+            placeholder="9123 4567"
+            autoComplete="tel-national"
+            maxLength={8}
+          />
+        </div>
+      </label>
+
+      {error ? (
+        <p className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+          <AlertCircle size={14} className="shrink-0" />
+          {error}
+        </p>
+      ) : null}
+
+      <div className={embedded ? "" : ui.mobileActionBar}>
+        <button
+          type="button"
+          disabled={loading || !name.trim() || !email.trim()}
+          className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+          onClick={handleSubmit}
+        >
+          {loading ? (
+            <><Loader2 size={15} className="animate-spin" /> Processing…</>
+          ) : (
+            <>Continue to payment</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (embedded) return formFields;
 
   return (
     <div className="w-full rounded-2xl border border-stone-200 bg-white p-3 shadow-sm dark:border-stone-700 dark:bg-stone-900 sm:p-4">
@@ -69,98 +171,7 @@ export function QuickBookPanel({
           </button>
         )}
       </div>
-
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Name</span>
-          <input
-            className={ui.input}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Alex Kim"
-            autoComplete="name"
-            required
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Email</span>
-          <input
-            type="email"
-            className={ui.input}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="alex@example.com"
-            autoComplete="email"
-            required
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={`${ui.label}`}>
-            Phone{" "}
-            <span className={`font-normal ${ui.muted}`}>(optional)</span>
-          </span>
-          <div className="flex items-center overflow-hidden rounded-lg border border-stone-300 bg-white focus-within:ring-2 focus-within:ring-teal-500 dark:border-stone-700 dark:bg-stone-900">
-            <span className="select-none border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
-              +65
-            </span>
-            <input
-              type="tel"
-              inputMode="numeric"
-              className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-stone-400"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-              placeholder="9123 4567"
-              autoComplete="tel-national"
-              maxLength={8}
-            />
-          </div>
-        </label>
-
-        {error ? (
-          <p className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
-            <AlertCircle size={13} />
-            {error}
-          </p>
-        ) : null}
-
-        <div className={ui.mobileActionBar}>
-          <button
-            type="button"
-            disabled={loading || !name.trim() || !email.trim()}
-            className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
-            onClick={async () => {
-              setLoading(true);
-              setError(null);
-              const res = await fetch("/api/book/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  slug,
-                  session_id: sessionId,
-                  guest_name: name,
-                  guest_email: email,
-                  guest_phone: phone.trim() || null,
-                }),
-              });
-              const body = await res.json().catch(() => ({}));
-              setLoading(false);
-              if (!res.ok) {
-                setError(toFriendly(String(body.error ?? "")));
-                return;
-              }
-              if (body.checkout_url) {
-                router.push(body.checkout_url);
-              }
-            }}
-          >
-            {loading ? (
-              <><Loader2 size={15} className="animate-spin" /> Processing…</>
-            ) : (
-              <>Continue to payment</>
-            )}
-          </button>
-        </div>
-      </div>
+      {formFields}
     </div>
   );
 }

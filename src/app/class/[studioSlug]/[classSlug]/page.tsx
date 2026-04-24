@@ -85,9 +85,133 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     ? orderedSessions.filter((s) => s.id === requestedSessionId)
     : orderedSessions;
 
+  // ── Single-session share view: two-column hero layout ──
+  if (isSessionShareView && listSessions.length === 1) {
+    const s = listSessions[0];
+    const dt = new Date(s.start_time);
+    const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
+    const monthLabel = dt.toLocaleDateString("en-SG", { month: "short" });
+    const dateLabel = dt.toLocaleDateString("en-SG", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+    const price = Number(s.guest_price ?? 0).toFixed(2);
+    const spotsLeft = Number(s.spots_left ?? 0);
+    const sessionCapacity =
+      Number(
+        (s as { capacity?: number | null }).capacity ??
+          (cls as { capacity?: number | null }).capacity ??
+          0,
+      ) || 0;
+    const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
+    const isFull = spotsLeft === 0;
+
+    return (
+      <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:items-start lg:gap-12">
+          {/* ── Left: class info ── */}
+          <div className="min-w-0">
+            <ShareCoverImage
+              src={coverSrc}
+              alt={cls.title}
+              sharePath={classSharePath}
+              shareTitle={cls.title}
+              shareText={`Book ${cls.title} at ${studio.name}`}
+            />
+            <h1 className={ui.h1}>{cls.title}</h1>
+            {cls.description ? (
+              <p className="mt-4 whitespace-pre-wrap leading-relaxed text-stone-700 dark:text-stone-300">
+                {cls.description}
+              </p>
+            ) : null}
+            {!paymentReady ? (
+              <p className={`mt-4 flex items-center gap-1 text-xs ${ui.error}`}>
+                Online payment is not configured for this studio.
+              </p>
+            ) : null}
+          </div>
+
+          {/* ── Right: sticky booking card ── */}
+          <div className="lg:sticky lg:top-8">
+            <div className={`${ui.card} overflow-hidden sm:p-6`}>
+              {/* Session summary */}
+              <div className="flex items-center gap-4 pb-4">
+                <div className="flex w-14 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-2 dark:border-stone-700 dark:bg-stone-800">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                    {weekdayLabel}
+                  </span>
+                  <span className="text-xl font-bold leading-tight text-stone-900 dark:text-stone-50">
+                    {dt.getDate()}
+                  </span>
+                  <span className="text-[10px] text-stone-500 dark:text-stone-400">{monthLabel}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
+                  <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">{dateLabel}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-stone-100 py-3.5 dark:border-stone-800">
+                <span className="text-sm text-stone-500 dark:text-stone-400">Per session</span>
+                <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                  ${price}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-stone-100 py-3.5 dark:border-stone-800">
+                <span className="text-sm text-stone-500 dark:text-stone-400">Availability</span>
+                <span
+                  className={`text-sm font-semibold ${
+                    isFull
+                      ? "text-red-600 dark:text-red-400"
+                      : spotsLow
+                        ? "text-amber-700 dark:text-amber-300"
+                        : "text-teal-700 dark:text-teal-300"
+                  }`}
+                >
+                  {isFull
+                    ? sessionCapacity > 0
+                      ? `Full · 0 / ${sessionCapacity}`
+                      : "Full"
+                    : sessionCapacity > 0
+                      ? `${spotsLeft} / ${sessionCapacity} spots left`
+                      : `${spotsLeft} spots left`}
+                </span>
+              </div>
+
+              {/* Booking form */}
+              <div className="border-t border-stone-100 pt-4 dark:border-stone-800">
+                {isFull ? (
+                  <p className={`text-sm ${ui.muted}`}>This class is full. Please check back for other sessions.</p>
+                ) : (
+                  <>
+                    <p className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      Your details
+                    </p>
+                    <QuickBookPanel
+                      slug={studioPublicSlug}
+                      sessionId={s.id}
+                      disabled={!paymentReady}
+                      defaultOpen
+                      hideClose
+                      embedded
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // ── Multi-session / no-session fallback layout ──
   return (
     <main className={ui.page}>
-      {/* ── Hero cover (full-bleed within page padding) ── */}
       <ShareCoverImage
         src={coverSrc}
         alt={cls.title}
@@ -96,26 +220,25 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
         shareText={`Book ${cls.title} at ${studio.name}`}
       />
 
-      {/* ── Class header ── */}
       <div className="max-w-2xl">
         <h1 className={ui.h1}>{cls.title}</h1>
         {cls.description ? (
-          <p className={`mt-3 whitespace-pre-wrap text-stone-700 dark:text-stone-300`}>{cls.description}</p>
+          <p className="mt-3 whitespace-pre-wrap leading-relaxed text-stone-700 dark:text-stone-300">
+            {cls.description}
+          </p>
         ) : null}
-        <p className={`mt-3 text-sm ${ui.muted}`}>Book your spot and continue to secure checkout below.</p>
-
         {!paymentReady ? (
           <p className={`mt-2 flex items-center gap-1 text-xs ${ui.error}`}>
-            Online payment is not configured for this deployment.
+            Online payment is not configured for this studio.
           </p>
         ) : null}
       </div>
 
-      {/* ── Sessions (full list only when this URL is not tied to one session) ── */}
-      {!isSessionShareView ? (
+      {listSessions.length > 0 ? (
         <h2 className={`${ui.h2} mt-10`}>Upcoming sessions</h2>
       ) : null}
-      <ul className={`flex max-w-2xl flex-col gap-4 ${isSessionShareView ? "mt-8" : "mt-4"}`}>
+
+      <ul className="mt-4 flex max-w-2xl flex-col gap-4">
         {listSessions.map((s) => {
           const dt = new Date(s.start_time);
           const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
@@ -129,17 +252,10 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                 0,
             ) || 0;
           const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
-          const isHighlighted = requestedSessionId === s.id;
           return (
-            <li
-              key={s.id}
-              className={`${ui.card} transition-shadow ${isHighlighted ? "ring-2 ring-teal-400/70 shadow-md shadow-teal-400/10" : ""}`}
-            >
-              {/* Date + spots row */}
+            <li key={s.id} className={ui.card}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                {/* Date block */}
                 <div className="flex items-start gap-3">
-                  {/* Calendar accent */}
                   <div className="flex w-14 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1.5 dark:border-stone-700 dark:bg-stone-800">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
                       {weekdayLabel}
@@ -147,36 +263,27 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     <span className="text-xl font-bold leading-tight text-stone-900 dark:text-stone-50">
                       {dt.getDate()}
                     </span>
-                    <span className="text-[10px] text-stone-500 dark:text-stone-400">
-                      {monthLabel}
-                    </span>
+                    <span className="text-[10px] text-stone-500 dark:text-stone-400">{monthLabel}</span>
                   </div>
-                  {/* Time + price */}
                   <div className="min-w-0">
                     <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-baseline gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1.5 dark:border-teal-800/80 dark:bg-teal-950/50">
-                        <span className="text-base font-bold tabular-nums text-teal-950 dark:text-teal-50">
-                          ${Number(s.guest_price ?? 0).toFixed(2)}
-                        </span>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-teal-800 dark:text-teal-200">
-                          Per session
-                        </span>
+                    <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
+                      <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
+                        ${Number(s.guest_price ?? 0).toFixed(2)}
                       </span>
-                      <span className="inline-flex items-center rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
-                        Online checkout
-                      </span>
+                      <span className={`text-xs ${ui.muted}`}>/ session</span>
                     </div>
                   </div>
                 </div>
-                {/* Spots badge */}
-                <span className={`mt-0.5 inline-flex w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  spotsLeft === 0
-                    ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                    : spotsLow
-                      ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                      : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                }`}>
+                <span
+                  className={`mt-0.5 inline-flex w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    spotsLeft === 0
+                      ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                      : spotsLow
+                        ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                        : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                  }`}
+                >
                   {spotsLeft === 0
                     ? sessionCapacity > 0
                       ? `Full · 0 / ${sessionCapacity}`
@@ -189,7 +296,6 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                 </span>
               </div>
 
-              {/* Actions */}
               <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:mt-4">
                 {spotsLeft === 0 ? (
                   <span className={`text-sm ${ui.muted}`}>This class is full</span>
@@ -198,8 +304,6 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     slug={studioPublicSlug}
                     sessionId={s.id}
                     disabled={!paymentReady}
-                    defaultOpen
-                    hideClose
                   />
                 )}
               </div>
@@ -207,6 +311,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
           );
         })}
       </ul>
+
       {!listSessions.length ? (
         <div className={`mt-6 max-w-2xl ${ui.emptyState}`}>
           <p className={`text-sm ${ui.muted}`}>
