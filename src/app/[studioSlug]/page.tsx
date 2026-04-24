@@ -35,7 +35,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
   const nowIso = new Date().toISOString();
   const { data: classes } = await admin
     .from("class_sessions")
-    .select("id, start_time, spots_left, capacity, guest_price, classes!inner(title, description, share_slug, image_url, studio_id, is_active, capacity)")
+    .select("id, start_time, spots_left, capacity, guest_price, credits_required, classes!inner(title, description, share_slug, image_url, studio_id, is_active, capacity)")
     .eq("classes.studio_id", studio.id)
     .eq("classes.is_active", true)
     .eq("status", "scheduled")
@@ -205,7 +205,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
 
       <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className={ui.h2}>General services</h2>
+          <div className="flex items-center gap-2">
+            <ConciergeBell size={18} className="text-teal-600 dark:text-teal-400" />
+            <h2 className={ui.h2}>General services</h2>
+          </div>
         </div>
         {services.length === 0 ? (
           <div className={`mt-4 ${ui.emptyState}`}>
@@ -306,7 +309,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       </section>
 
       <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
-        <h2 className={ui.h2}>Upcoming classes</h2>
+        <div className="flex items-center gap-2">
+          <CalendarDays size={18} className="text-teal-600 dark:text-teal-400" />
+          <h2 className={ui.h2}>Upcoming classes</h2>
+        </div>
         {classes.length === 0 ? (
           <div className={`mt-4 ${ui.emptyState}`}>
             <p className={ui.muted}>No upcoming classes yet.</p>
@@ -321,6 +327,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const classDescription = cls?.description?.trim() ?? "";
               const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
               const spotsLeft = Number(s.spots_left ?? 0);
+              const creditsRequired = Number(s.credits_required ?? 0);
               const spotsText = spotsLeft === 0
                 ? sessionCapacity > 0 ? `0/${sessionCapacity} spots left` : "Full"
                 : sessionCapacity > 0
@@ -352,6 +359,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                           SGD {Number(s.guest_price ?? 0).toFixed(2)}
                         </span>
+                        {creditsRequired > 0 ? (
+                          <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
+                            {creditsRequired} class pass{creditsRequired !== 1 ? "es" : ""}
+                          </span>
+                        ) : null}
                         <div className="absolute bottom-2 right-2 z-20">
                           <SessionShareLinkButton
                             sharePath={href}

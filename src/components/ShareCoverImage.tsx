@@ -26,9 +26,8 @@ export function ShareCoverImage({
   shareTitle,
   shareText,
 }: Props) {
-  // Floating share button — fixed to viewport bottom-right, always visible.
-  const floatingShare = sharePath ? (
-    <div className="fixed bottom-6 right-4 z-40 sm:bottom-8 sm:right-6">
+  const cornerShare = sharePath ? (
+    <div className="absolute bottom-3 right-3 z-20">
       <SessionShareLinkButton sharePath={sharePath} title={shareTitle ?? alt} text={shareText} />
     </div>
   ) : null;
@@ -38,8 +37,8 @@ export function ShareCoverImage({
       <>
         <div className="relative mb-6 w-full overflow-hidden rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
           <div className="aspect-video w-full" aria-hidden="true" />
+          {cornerShare}
         </div>
-        {floatingShare}
       </>
     );
   }
@@ -57,8 +56,8 @@ export function ShareCoverImage({
             priority={priority}
           />
         </div>
+        {cornerShare}
       </div>
-      {floatingShare}
     </>
   );
 }
