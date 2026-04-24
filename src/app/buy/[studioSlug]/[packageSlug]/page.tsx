@@ -25,11 +25,20 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
   const coverSrc = (pkg as { image_url?: string | null }).image_url ?? null;
+  const studioPublicSlug = studio.public_slug ?? rawStudio;
+  const pkgSlugPath = (pkg as { share_slug?: string | null }).share_slug ?? rawPkg;
+  const packageSharePath = `/buy/${studioPublicSlug}/${pkgSlugPath}`;
 
   return (
     <main className={ui.page}>
       {/* ── Hero cover (full-bleed within page padding) ── */}
-      <ShareCoverImage src={coverSrc} alt={pkg.name} />
+      <ShareCoverImage
+        src={coverSrc}
+        alt={pkg.name}
+        sharePath={packageSharePath}
+        shareTitle={pkg.name}
+        shareText={`${pkg.name} · ${studio.name} · ${pkg.credits} class passes`}
+      />
 
       <div className="max-w-2xl">
         <p className={ui.badge}>Shared package</p>
