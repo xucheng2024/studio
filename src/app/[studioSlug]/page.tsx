@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import { CalendarDays, ConciergeBell, MessageCircle, PlayCircle } from "lucide-react";
+import { CalendarDays, ConciergeBell, MessageCircle, PlayCircle, Tag } from "lucide-react";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
@@ -43,10 +43,18 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     .order("start_time", { ascending: true })
     .limit(8);
 
+  const { data: packages } = await admin
+    .from("packages")
+    .select("id, name, description, price, credits, expiry_days, location_id, image_url, share_slug")
+    .eq("studio_id", studio.id)
+    .eq("is_active", true)
+    .order("price", { ascending: true });
+
   return {
     studio,
     services: services ?? [],
     classes: classes ?? [],
+    packages: packages ?? [],
   };
 });
 
@@ -82,7 +90,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const { studioSlug } = await params;
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
-  const { studio, services, classes } = data;
+  const { studio, services, classes, packages } = data;
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -160,6 +168,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   <CalendarDays size={15} />
                   Classes
                 </a>
+                {packages.length > 0 ? (
+                  <a href="#packages" className={lightAnchorBtn}>
+                    <Tag size={15} />
+                    Packages
+                  </a>
+                ) : null}
               </div>
             </div>
           </div>
@@ -371,6 +385,64 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           </div>
         )}
       </section>
+
+      {packages.length > 0 ? (
+        <section id="packages" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+          <div className="flex items-center gap-2">
+            <Tag size={18} className="text-teal-600 dark:text-teal-400" />
+            <h2 className={ui.h2}>Packages</h2>
+          </div>
+          <p className={`mt-1 text-sm ${ui.muted}`}>
+            Buy a class pass pack and book any upcoming session.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {packages.map((pkg) => {
+              const buyHref = pkg.share_slug
+                ? `/buy/${studio.public_slug}/${pkg.share_slug}`
+                : null;
+              return (
+                <article key={pkg.id} className={`${ui.card} flex flex-col`}>
+                  {(pkg as { image_url?: string | null }).image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={(pkg as { image_url: string }).image_url}
+                      alt={pkg.name}
+                      className="mb-4 aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                      loading="lazy"
+                    />
+                  ) : null}
+                  <div className="flex flex-1 flex-col">
+                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{pkg.name}</h3>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span className={`text-sm ${ui.muted}`}>
+                        {pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}
+                      </span>
+                      {pkg.expiry_days ? (
+                        <span className={`text-sm ${ui.muted}`}>· Expires in {pkg.expiry_days} days</span>
+                      ) : (
+                        <span className={`text-sm ${ui.muted}`}>· No expiry</span>
+                      )}
+                    </div>
+                    {pkg.description ? (
+                      <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">{pkg.description}</p>
+                    ) : null}
+                    <div className="mt-auto flex items-center justify-between pt-4">
+                      <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                        SGD {Number(pkg.price ?? 0).toFixed(2)}
+                      </span>
+                      {buyHref ? (
+                        <Link href={buyHref} className={ui.btnPrimary}>
+                          Buy now
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {waLink ? (
         <a
