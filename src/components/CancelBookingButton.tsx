@@ -8,7 +8,7 @@ import { ui } from "@/lib/ui";
 
 type Step = "idle" | "confirm" | "busy" | "error";
 
-export function CancelBookingButton({ bookingId }: { bookingId: string }) {
+export function CancelBookingButton({ bookingId, label }: { bookingId: string; label?: string }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("idle");
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -17,10 +17,10 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
     return (
       <button
         type="button"
-        className={ui.btnGhost}
+        className={ui.btnDangerSm}
         onClick={() => setStep("confirm")}
       >
-        Cancel
+        Cancel booking
       </button>
     );
   }
@@ -28,7 +28,9 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
   if (step === "confirm") {
     return (
       <span className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="w-full text-stone-500 dark:text-stone-400 sm:w-auto">Cancel this booking?</span>
+        <span className="w-full text-stone-500 dark:text-stone-400 sm:w-auto">
+          {label ? `Cancel booking for ${label}?` : "Cancel this attendee booking?"}
+        </span>
         <button
           type="button"
           className={ui.btnDangerSm}
@@ -49,7 +51,7 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
             }
           }}
         >
-          Yes
+          Confirm cancel
         </button>
         <button
           type="button"

@@ -1,7 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
-import { PaymentMatchForm } from "@/components/PaymentMatchForm";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -10,6 +9,7 @@ import {
   PAYMENT_METHOD_FILTER_OPTIONS,
 } from "@/lib/payment-filter-options";
 import { bestRole } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { Download } from "lucide-react";
@@ -43,6 +43,7 @@ function dayRangeEnd(d?: string) {
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -100,7 +101,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       ? supabase.from("users").select("id, email").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
-      ? supabase.from("user_profiles").select("id, phone, full_name").in("id", clientIds)
+      ? admin.from("user_profiles").select("id, phone, full_name").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
   ]);
   const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
@@ -279,16 +280,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             (booking as { guest_phone?: string | null } | null)?.guest_phone ??
             clientPhone ??
             null;
-          const clientLabel = displayName
-            ? displayEmail
-              ? `${displayName} <${displayEmail}>`
-              : displayName
-            : displayEmail
-              ? `${p.client_id ? "Member" : "Guest"}: ${displayEmail}`
-              : p.client_id
-                ? `Member · ${p.client_id}`
-                : "-";
-          const clientLabelWithPhone = displayPhone ? `${clientLabel} · ${displayPhone}` : clientLabel;
+          const emailLabel = displayEmail ?? (p.client_id ? clientMap.get(p.client_id) : null) ?? "-";
+          const nameLabel = displayName?.trim() || "-";
+          const phoneLabel = displayPhone?.trim() || "-";
           const timeline = (auditMap.get(p.id) ?? []).slice(0, 5);
           return (
             <li
@@ -323,16 +317,24 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               {/* ── Key fields grid ───────────────────────────────── */}
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
                 <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">User</dt>
-                  <dd className="min-w-0 break-all font-medium text-stone-700 dark:text-stone-300">{clientLabelWithPhone}</dd>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Email</dt>
+                  <dd className="min-w-0 break-all font-medium text-stone-700 dark:text-stone-300">{emailLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Session</dt>
                   <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{sessionLabel}</dd>
                 </div>
                 <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Name</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{nameLabel}</dd>
+                </div>
+                <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
                   <dd className="text-stone-700 dark:text-stone-300">{p.payment_method ?? "-"}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Phone</dt>
+                  <dd className="text-stone-700 dark:text-stone-300">{phoneLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Ref</dt>
@@ -413,7 +415,6 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     label="Mark refunded"
                   />
                 ) : null}
-                {!p.booking_id ? <PaymentMatchForm paymentId={p.id} /> : null}
               </div>
             </li>
           );

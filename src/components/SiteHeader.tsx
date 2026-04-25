@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { site } from "@/lib/brand";
 import { SignOutButton } from "@/components/SignOutButton";
 import { MobileMenu } from "@/components/MobileMenu";
+import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { resolveAccessContext } from "@/lib/rbac";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -26,30 +29,37 @@ export async function SiteHeader() {
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
-  let showDashboard = false;
+  const c = await cookies();
+  const activeStudioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
+  const brandHref = activeStudioSlug ? `/${activeStudioSlug}` : "/";
+  let hasBackofficeAccess = false;
   if (user) {
     const access = await resolveAccessContext({ userId: user.id, email: user.email });
-    showDashboard = access.hasBackofficeAccess;
+    hasBackofficeAccess = access.hasBackofficeAccess;
   }
+
   const userInitial =
     user?.email?.trim().charAt(0).toUpperCase() ||
     user?.id?.charAt(0).toUpperCase() ||
     "U";
 
+  const isMemberContext = Boolean(activeStudioSlug);
   const navItems = user
-    ? [
-        { href: "/booking", label: "Classes" },
-        { href: "/me/bookings", label: "My bookings" },
-        ...(showDashboard ? [{ href: "/dashboard", label: "Dashboard" }] : []),
-      ]
+    ? isMemberContext || !hasBackofficeAccess
+      ? [
+          { href: "/me/bookings", label: "My bookings" },
+          { href: "/me/class-passes", label: "My packages" },
+          { href: "/me/orders", label: "My orders" },
+          { href: "/me/profile", label: "Profile" },
+        ]
+      : [{ href: "/dashboard", label: "Dashboard" }]
     : [{ href: "/booking", label: "Classes" }];
 
   return (
     <header className={ui.headerBar}>
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         {/* Brand */}
-        <Link href="/" className={ui.linkHeaderBrand}>
+        <Link href={brandHref} className={ui.linkHeaderBrand}>
           {site.name}
         </Link>
 

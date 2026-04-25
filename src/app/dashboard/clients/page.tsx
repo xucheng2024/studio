@@ -2,10 +2,10 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { getDashboardScope } from "@/lib/dashboard";
 import {
   filterPacksForDashboard,
-  nearestExpiryDate,
   type MemberPackageForCredits,
 } from "@/lib/memberCredits";
 import { bestRole } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { Users } from "lucide-react";
@@ -15,6 +15,7 @@ type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string;
 export default async function ClientsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -71,7 +72,7 @@ export default async function ClientsPage({ searchParams }: Props) {
       ? supabase.from("users").select("id, email").in("id", paidClientIds)
       : Promise.resolve({ data: [] as const }),
     paidClientIds.length > 0
-      ? supabase.from("user_profiles").select("id, full_name, phone").in("id", paidClientIds)
+      ? admin.from("user_profiles").select("id, full_name, phone").in("id", paidClientIds)
       : Promise.resolve({ data: [] as const }),
   ]);
   const userMap = new Map((users ?? []).map((u) => [u.id, u]));
@@ -166,8 +167,6 @@ export default async function ClientsPage({ searchParams }: Props) {
       const profile = profileMap.get(clientId);
       const activeRows = activePacksByClient.get(clientId) ?? [];
       const activeCredits = activeRows.reduce((a, r) => a + r.credits_left, 0);
-      const nearest = nearestExpiryDate(activeRows);
-      const paid = paidByClient.get(clientId) ?? { paidCount: 0, netAmount: 0, lastPaidAt: null };
       const history = bookingByClient.get(clientId) ?? [];
       const name = (profile as { full_name?: string | null } | undefined)?.full_name ?? null;
       const phone = (profile as { phone?: string | null } | undefined)?.phone ?? null;
@@ -179,13 +178,8 @@ export default async function ClientsPage({ searchParams }: Props) {
         name,
         email,
         phone,
-        activeRows,
         activeCredits,
-        nearestExpiryLabel: nearest ? new Date(nearest).toLocaleDateString() : "—",
-        paidCount: paid.paidCount,
-        netAmount: paid.netAmount,
-        lastPaidAt: paid.lastPaidAt,
-        recentBookings: history.slice(0, 3),
+        lastActivity: history[0] ?? null,
       };
     })
     .filter((x): x is NonNullable<typeof x> => Boolean(x))
@@ -195,7 +189,7 @@ export default async function ClientsPage({ searchParams }: Props) {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className={ui.h1}>Member records</h1>
-        <p className={`mt-1 ${ui.muted}`}>Paid members with profile, active credits, and recent booking activity.</p>
+        <p className={`mt-1 ${ui.muted}`}>Paid members with quick contact and class pass status.</p>
       </div>
 
       <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-3`}>
@@ -223,7 +217,7 @@ export default async function ClientsPage({ searchParams }: Props) {
 
       <div>
         <ul className="mt-1 flex flex-col gap-3 text-sm">
-          {memberRows.map(({ clientId, name, email, phone, activeRows, activeCredits, nearestExpiryLabel, paidCount, netAmount, lastPaidAt, recentBookings }) => (
+          {memberRows.map(({ clientId, name, email, phone, activeCredits, lastActivity }) => (
             <li key={clientId}>
               <div className={`${ui.card}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -232,7 +226,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                       {name ?? "Unnamed member"}
                     </p>
                     <p className={`truncate text-xs ${ui.muted}`}>{email || clientId}</p>
-                    <p className={`truncate text-xs ${ui.muted}`}>{phone ?? "No phone"}</p>
+                    <p className={`truncate text-xs ${ui.muted}`}>{phone?.trim() ? phone : "No phone"}</p>
                   </div>
                   <DashboardAppLink
                     href={`/dashboard/clients/${clientId}?studio_id=${selectedStudioId ?? studioIds[0]}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
@@ -241,40 +235,21 @@ export default async function ClientsPage({ searchParams }: Props) {
                     Open member
                   </DashboardAppLink>
                 </div>
-                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-                  <p className={ui.muted}>Paid txns: <span className="font-semibold text-stone-800 dark:text-stone-200">{paidCount}</span></p>
-                  <p className={ui.muted}>Net paid: <span className="font-semibold text-stone-800 dark:text-stone-200">${netAmount.toFixed(2)}</span></p>
-                  <p className={ui.muted}>Active class passes: <span className="font-semibold text-stone-800 dark:text-stone-200">{activeCredits}</span></p>
-                  <p className={ui.muted}>
-                    Last paid:{" "}
-                    <span className="font-semibold text-stone-800 dark:text-stone-200">
-                      {lastPaidAt ? new Date(lastPaidAt).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" }) : "—"}
-                    </span>
-                  </p>
+                <div className="mt-3 border-t border-stone-100 pt-3 text-xs dark:border-stone-800">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <p className={ui.muted}>
+                      Class passes: <span className="font-semibold text-stone-800 dark:text-stone-200">{activeCredits}</span>
+                    </p>
+                    <p className={ui.muted}>
+                      Last activity:{" "}
+                      <span className="font-semibold text-stone-800 dark:text-stone-200">
+                        {lastActivity?.startTime
+                          ? `${lastActivity.classTitle} · ${new Date(lastActivity.startTime).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}`
+                          : "—"}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                {activeRows.length ? (
-                  <ul className="mt-3 border-t border-stone-100 pt-2 text-xs dark:border-stone-800">
-                    <li className={`pb-1 ${ui.muted}`}>Nearest class pass expiry: {nearestExpiryLabel}</li>
-                    {activeRows.slice(0, 3).map((p) => (
-                      <li key={p.id} className={ui.muted}>
-                        {p.name} · {p.credits_left} left · {p.expiry_date ? `exp ${new Date(p.expiry_date).toLocaleDateString()}` : "no expiry"}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {recentBookings.length ? (
-                  <ul className="mt-3 border-t border-stone-100 pt-2 text-xs dark:border-stone-800">
-                    <li className={`pb-1 ${ui.muted}`}>Recent booking / attendance</li>
-                    {recentBookings.map((b) => (
-                      <li key={b.id} className={ui.muted}>
-                        {b.classTitle} · {b.status ?? "unknown"} ·{" "}
-                        {b.startTime
-                          ? new Date(b.startTime).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
-                          : "time pending"}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
               </div>
             </li>
           ))}

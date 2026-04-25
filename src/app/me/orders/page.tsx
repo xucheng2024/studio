@@ -1,0 +1,108 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ui } from "@/lib/ui";
+import { createClient } from "@/lib/supabase/server";
+
+const paymentStatusColor: Record<string, string> = {
+  paid: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/50",
+  pending: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50",
+  failed: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/50",
+  expired: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:border-stone-700",
+  refunded: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:border-stone-700",
+};
+
+export default async function MyOrdersPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("id, amount, currency, status, created_at, reference_code, payment_method, booking_id, package_id")
+    .eq("client_id", user.id)
+    .order("created_at", { ascending: false });
+
+  const bookingIds = Array.from(
+    new Set((payments ?? []).map((p) => p.booking_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
+  );
+  const packageIds = Array.from(
+    new Set((payments ?? []).map((p) => p.package_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
+  );
+
+  const { data: bookingRows } =
+    bookingIds.length > 0
+      ? await supabase
+          .from("bookings")
+          .select("id, class_sessions(start_time, classes(title))")
+          .in("id", bookingIds)
+      : { data: [] };
+  const { data: packageRows } =
+    packageIds.length > 0
+      ? await supabase
+          .from("packages")
+          .select("id, name")
+          .in("id", packageIds)
+      : { data: [] };
+
+  const bookingMap = new Map((bookingRows ?? []).map((r) => [r.id, r]));
+  const packageMap = new Map((packageRows ?? []).map((r) => [r.id, r]));
+
+  return (
+    <main className={ui.page}>
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div>
+          <h1 className={ui.h1}>My orders</h1>
+          <p className={`mt-1 ${ui.muted}`}>Your payment and order records.</p>
+        </div>
+
+        <ul className="flex flex-col gap-2">
+          {(payments ?? []).map((p) => {
+            const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+            const pkg = p.package_id ? packageMap.get(p.package_id) : null;
+            const session = booking && "class_sessions" in booking ? booking.class_sessions : null;
+            const sessionRow = Array.isArray(session) ? session[0] : session;
+            const cls = Array.isArray(sessionRow?.classes) ? sessionRow?.classes[0] : sessionRow?.classes;
+            const sessionTitle = cls?.title ?? null;
+            const sessionTime = sessionRow?.start_time
+              ? new Date(sessionRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
+              : null;
+
+            return (
+              <li key={p.id} className={ui.card}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-stone-900 dark:text-stone-100">
+                    {p.currency} {Number(p.amount).toFixed(2)}
+                  </span>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${paymentStatusColor[p.status ?? ""] ?? paymentStatusColor.pending}`}>
+                    {p.status ?? "Unknown"}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                  {p.payment_method ? <span className="capitalize">{p.payment_method}</span> : null}
+                  {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
+                  {p.created_at ? (
+                    <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span>
+                  ) : null}
+                </div>
+                {sessionTitle ? (
+                  <p className={`mt-2 text-sm ${ui.muted}`}>Session: {sessionTitle}{sessionTime ? ` · ${sessionTime}` : ""}</p>
+                ) : null}
+                {pkg?.name ? <p className={`mt-1 text-sm ${ui.muted}`}>Package: {pkg.name}</p> : null}
+              </li>
+            );
+          })}
+        </ul>
+        {!payments?.length ? (
+          <div className={ui.emptyState}>
+            <p className={`text-sm ${ui.muted}`}>No orders yet.</p>
+            <Link href="/booking" className={`mt-1 text-sm ${ui.link}`}>
+              Browse classes →
+            </Link>
+          </div>
+        ) : null}
+      </div>
+    </main>
+  );
+}

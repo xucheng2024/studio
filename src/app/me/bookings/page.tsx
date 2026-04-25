@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { cookies } from "next/headers";
 import { CancelBookingButton } from "@/components/CancelBookingButton";
+import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,6 +20,9 @@ export default async function MyBookingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const c = await cookies();
+  const activeStudioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
+  const browseClassesHref = activeStudioSlug ? `/${activeStudioSlug}#upcoming-classes` : "/booking";
   await mergeGuestRecordsForUser(user.id, user.email);
 
   const { data: bookings } = await supabase
@@ -37,25 +42,16 @@ export default async function MyBookingsPage() {
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("id, amount, currency, status, created_at, reference_code, payment_method")
-    .eq("client_id", user.id)
-    .order("created_at", { ascending: false });
-
   return (
     <main className={ui.page}>
       <div className="mx-auto max-w-2xl space-y-10">
 
         {/* ── Header ──────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4">
           <div>
             <h1 className={ui.h1}>My bookings</h1>
-            <p className={`mt-1 ${ui.muted}`}>Your class bookings and payment history.</p>
+            <p className={`mt-1 ${ui.muted}`}>Your booked sessions and attendance status.</p>
           </div>
-          <Link href="/checkout" className={`${ui.btnSecondary} shrink-0 self-start`}>
-            Buy class passes
-          </Link>
         </div>
 
         {/* ── Bookings ─────────────────────────────────────────────── */}
@@ -122,41 +118,7 @@ export default async function MyBookingsPage() {
           {!bookings?.length ? (
             <div className={`mt-4 ${ui.emptyState}`}>
               <p className={`text-sm ${ui.muted}`}>No bookings yet.</p>
-              <Link href="/booking" className={ui.link}>Browse classes →</Link>
-            </div>
-          ) : null}
-        </section>
-
-        {/* ── Payments ─────────────────────────────────────────────── */}
-        <section>
-          <h2 className={ui.h2}>My payments</h2>
-          <ul className="mt-4 flex flex-col gap-2">
-            {(payments ?? []).map((p) => (
-              <li key={p.id} className="rounded-xl border border-stone-100 bg-white/70 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-stone-900 dark:text-stone-100">
-                    {p.currency} {Number(p.amount).toFixed(2)}
-                  </span>
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${paymentStatusColor[p.status ?? ""] ?? paymentStatusColor.pending}`}>
-                    {p.status ?? "Unknown"}
-                  </span>
-                </div>
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                  {p.payment_method ? <span className="capitalize">{p.payment_method}</span> : null}
-                  {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
-                  {p.created_at ? (
-                    <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-          {!payments?.length ? (
-            <div className={`mt-4 ${ui.emptyState}`}>
-              <p className={`text-sm ${ui.muted}`}>No payments yet.</p>
-              <Link href="/booking" className={`mt-1 text-sm ${ui.link}`}>
-                Browse classes →
-              </Link>
+              <a href={browseClassesHref} className={ui.link}>Browse classes →</a>
             </div>
           ) : null}
         </section>

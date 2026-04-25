@@ -59,17 +59,29 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
 
   const { data: bookingRows } = await admin
     .from("bookings")
-    .select("id, status, guest_name, guest_email, users(email)")
+    .select("id, client_id, status, guest_name, guest_email, guest_phone, users(email)")
     .eq("session_id", id)
     .in("status", ["booked", "attended"])
     .order("created_at", { ascending: true });
 
+  const clientIds = Array.from(
+    new Set((bookingRows ?? []).map((b) => b.client_id).filter((v): v is string => typeof v === "string" && v.length > 0))
+  );
+  const { data: profileRows } =
+    clientIds.length > 0 ? await admin.from("user_profiles").select("id, full_name, phone").in("id", clientIds) : { data: [] };
+  const profileById = new Map(
+    (profileRows ?? []).map((p) => [p.id, { full_name: p.full_name ?? null, phone: p.phone ?? null }] as const)
+  );
+
   const attendees = (bookingRows ?? []).map((b) => {
     const u = Array.isArray(b.users) ? b.users[0] : b.users;
-    const label = b.guest_name?.trim() || u?.email?.trim() || b.guest_email?.trim() || "Guest";
+    const profile = b.client_id ? profileById.get(b.client_id) : null;
     const email = b.guest_email ?? u?.email ?? null;
+    const name = b.guest_name?.trim() || profile?.full_name?.trim() || null;
+    const phone = b.guest_phone?.trim() || profile?.phone?.trim() || null;
+    const label = name || email?.trim() || "Guest";
     const status = (b.status === "attended" ? "attended" : "booked") as "booked" | "attended";
-    return { id: b.id, label, email, status };
+    return { id: b.id, label, name, email, phone, status };
   });
 
   const checkedInCount = attendees.filter((a) => a.status === "attended").length;
@@ -124,8 +136,9 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{a.label}</p>
-                    <div className="mt-1 flex items-center gap-2">
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
                       {a.email && a.email !== a.label ? <p className={`truncate text-xs ${ui.muted}`}>{a.email}</p> : null}
+                      {a.phone ? <p className={`text-xs ${ui.muted}`}>{a.phone}</p> : null}
                       <span className={a.status === "attended" ? ui.badge : ui.badgeNeutral}>
                         {a.status === "attended" ? "Checked-in" : "Booked"}
                       </span>
@@ -133,7 +146,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
                   </div>
                   <div className="mt-3 flex items-center gap-2">
                     <CheckInToggleButton bookingId={a.id} status={a.status} />
-                    {a.status === "booked" ? <CancelBookingButton bookingId={a.id} /> : null}
+                    {a.status === "booked" ? <CancelBookingButton bookingId={a.id} label={a.label} /> : null}
                   </div>
                 </li>
               ))}

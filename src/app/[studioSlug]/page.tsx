@@ -4,10 +4,12 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { CalendarDays, ConciergeBell, MessageCircle, PlayCircle, Tag } from "lucide-react";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 import { getVideoPreview } from "@/lib/videoPreview";
 
@@ -91,6 +93,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
   const { studio, services, classes, packages } = data;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -116,9 +122,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     "inline-flex items-center rounded-xl border border-stone-200 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition-colors hover:bg-white hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-stone-100";
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 sm:pt-6 lg:px-8">
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
         <div className={`${ui.card} bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
+          <div className="mb-3 flex justify-end">
+            <StudioAccountEntry isSignedIn={Boolean(user)} />
+          </div>
           <div className="grid gap-5 sm:grid-cols-[168px_1fr] sm:items-start">
             <div className="w-full">
               {cover ? (
