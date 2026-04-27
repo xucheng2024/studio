@@ -9,14 +9,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
-const paymentStatusColor: Record<string, string> = {
-  paid: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/50",
-  pending: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50",
-  failed: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/50",
-  expired: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:border-stone-700",
-  refunded: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:border-stone-700",
-};
-
 export default async function MyBookingsPage() {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -90,6 +82,7 @@ export default async function MyBookingsPage() {
               const month = dt ? dt.toLocaleDateString("en-SG", { month: "short" }) : "";
               const studioId = cls?.studio_id ?? null;
               const studio = studioId ? studioMap.get(studioId) : null;
+              const singleBadge = bookingBadge;
               const contactText = [
                 "Hi front desk, I want to cancel this booking.",
                 `Class: ${cls?.title ?? "Class"}`,
@@ -125,17 +118,12 @@ export default async function MyBookingsPage() {
                         <p className="font-semibold text-stone-900 dark:text-stone-100">
                           {cls?.title ?? "Class"}
                         </p>
-                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeToneClass(bookingBadge.tone)}`}>
-                          {bookingBadge.text}
+                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeToneClass(singleBadge.tone)}`}>
+                          {singleBadge.text}
                         </span>
                       </div>
                       {timeLabel ? (
                         <p className={`mt-0.5 text-sm ${ui.muted}`}>{timeLabel}</p>
-                      ) : null}
-                      {b.payment_status ? (
-                        <span className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${paymentStatusColor[b.payment_status] ?? paymentStatusColor.pending}`}>
-                          {b.payment_status.charAt(0).toUpperCase() + b.payment_status.slice(1)}
-                        </span>
                       ) : null}
                     </div>
                   </div>
