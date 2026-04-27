@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
+import { studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,6 +19,7 @@ const paymentStatusColor: Record<string, string> = {
 
 export default async function MyBookingsPage() {
   const supabase = await createClient();
+  const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   const c = await cookies();
@@ -41,6 +43,23 @@ export default async function MyBookingsPage() {
     `)
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
+
+  const studioIds = Array.from(new Set((bookings ?? [])
+    .map((b) => {
+      const session = Array.isArray(b.class_sessions) ? b.class_sessions[0] : b.class_sessions;
+      const cls = Array.isArray(session?.classes) ? session?.classes[0] : session?.classes;
+      return cls?.studio_id ?? null;
+    })
+    .filter((id): id is string => Boolean(id))));
+
+  const { data: studioRows } =
+    studioIds.length > 0
+      ? await admin
+          .from("studios")
+          .select("id, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+          .in("id", studioIds)
+      : { data: [] as const };
+  const studioMap = new Map((studioRows ?? []).map((s) => [s.id, s]));
 
   return (
     <main className={ui.page}>
@@ -69,6 +88,20 @@ export default async function MyBookingsPage() {
               const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short" }) : "";
               const dayNum = dt ? dt.getDate() : "";
               const month = dt ? dt.toLocaleDateString("en-SG", { month: "short" }) : "";
+              const studioId = cls?.studio_id ?? null;
+              const studio = studioId ? studioMap.get(studioId) : null;
+              const contactText = [
+                "Hi front desk, I want to cancel this booking.",
+                `Class: ${cls?.title ?? "Class"}`,
+                `Time: ${dt ? dt.toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" }) : "-"}`,
+                `Booking ID: ${b.id}`,
+                `Member: ${user.email ?? user.id}`,
+              ].join("\n");
+              const contactLink = studioWhatsappLink({
+                enabled: studio?.whatsapp_enabled,
+                numberE164: studio?.whatsapp_number_e164,
+                prefillText: contactText,
+              });
               return (
                 <li key={b.id} className={`${ui.card} ${isPast ? "opacity-70" : ""}`}>
                   <div className="flex items-start gap-3">
@@ -108,7 +141,20 @@ export default async function MyBookingsPage() {
                   </div>
                   {["booked", "pending"].includes(b.status) && !isPast ? (
                     <div className="mt-3 border-t border-stone-100 pt-2.5 dark:border-stone-800">
-                      <CancelBookingButton bookingId={b.id} />
+                      {contactLink ? (
+                        <a
+                          href={contactLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={ui.btnSecondarySm}
+                        >
+                          Request cancellation
+                        </a>
+                      ) : (
+                        <p className={`text-xs ${ui.muted}`}>
+                          Contact front desk to cancel this booking.
+                        </p>
+                      )}
                     </div>
                   ) : null}
                 </li>

@@ -1,59 +1,99 @@
-# Studio — gym & studio bookings (MVP)
+# Studio - Gym & Studio Bookings (MVP)
 
-Next.js (App Router) + Supabase (Auth, Postgres, RLS) + optional Resend emails. Payments use HitPay hosted checkout + webhook confirmation, configured per studio.
+Studio is a booking and operations app for gyms and class-based studios. It includes a public booking flow, dashboard management, check-in, payments, and reporting.
 
-## Setup
+## What exists in this repo
 
-1. Create a Supabase project and run migrations in order: `001_initial.sql` through the latest migration file (SQL editor or Supabase CLI).
-2. In Supabase **Authentication → Providers**, enable Email (password). Confirm signups in development if email confirmation is on.
-3. Copy `.env.example` to `.env.local`. In **Project Settings → API**, set `NEXT_PUBLIC_SUPABASE_URL`, then either **`anon` `public`** (JWT) as `NEXT_PUBLIC_SUPABASE_ANON_KEY` **or** the **publishable** key as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. You must also set **`service_role`** (server-only) as `SUPABASE_SERVICE_ROLE_KEY` for booking APIs and RPCs — never expose it in the browser.
-4. Configure each studio's HitPay credentials in **Dashboard → Settings → Payment settings** (`hitpay_enabled`, API key, webhook salt).
-5. In each studio's HitPay dashboard, register webhook endpoint:
-   - URL: `https://<your-domain>/api/payment/hitpay/webhook`
-   - Events: payment completed/failed/expired and refund updates
-   - Keep the webhook salt in your studio payment settings.
+- Public booking pages (`/booking/[slug]`, `/class/[studioSlug]/[classSlug]`)
+- Checkout pages (`/checkout`, `/checkout/[payment_id]`, `/buy/[studioSlug]/[packageSlug]`)
+- Dashboard modules for classes, sessions, clients, packages, payments, reports, staff, settings
+- API routes for booking, package usage, payment confirmation, check-in, frontdesk walk-in, exports, and invoice sending
+- HitPay webhook endpoint (`/api/payment/hitpay/webhook`)
 
-## Local dev
+## Tech stack
+
+- Next.js 16 (App Router)
+- React 19 + TypeScript
+- Supabase (Auth, Postgres, RLS, RPC)
+- Tailwind CSS v4
+- HitPay integration
+- Optional Resend email support
+
+## Project structure
+
+- `src/app` - App Router pages and API routes
+- `src/components` - UI and feature components
+- `src/lib` - shared domain logic (Supabase, auth helpers, payments, etc.)
+- `supabase/migrations` - SQL migrations (baseline + incremental migrations)
+- `scripts` - utility scripts
+- `docs` - internal project docs
+
+## Environment variables
+
+Copy the example file:
+
+```bash
+cp .env.example .env.local
+```
+
+Required:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-only secret)
+
+Optional (if used by your environment):
+
+- `RESEND_API_KEY`
+- `SUPER_ADMIN_EMAILS`
+- `HITPAY_API_BASE_URL`
+
+## Local setup
+
+1. Create a Supabase project.
+2. Apply migrations from `supabase/migrations`:
+   - For fresh environments, start from the baseline file currently in the folder.
+   - For ongoing development, add new incremental migration files after the baseline.
+3. In Supabase Auth providers, enable Email (password) sign-in.
+4. Install and run:
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Deploy (GitHub → Vercel)
+## Scripts
 
-1. Push this repo to GitHub.
-2. Import the repo in Vercel.
-3. **Required —** in **Vercel → Project → Settings → Environment Variables**, add (same names as local `.env.local`; see `.env.example`):
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+npm run test:revenue
+```
 
-   | Name | Notes |
-   |------|--------|
-   | `NEXT_PUBLIC_SUPABASE_URL` | Project URL from Supabase **API** settings |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` **or** `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public anon / publishable key (not the `service_role` key) |
-   | `SUPABASE_SERVICE_ROLE_KEY` | **Secret** — server-only; required for booking, payments, dashboard data |
+## HitPay setup
 
-   Apply to **Production** (and Preview if you test PRs against a real DB). Redeploy after saving env vars.
+1. Configure per-studio HitPay settings from dashboard payment settings.
+2. In HitPay dashboard, set webhook URL:
+   - `https://<your-domain>/api/payment/hitpay/webhook`
+3. Subscribe to payment/refund updates.
+4. Keep webhook salt aligned with the value configured in the app.
 
-4. Automation cron endpoints are disabled in manual-mode operations. Payment expiry, no-show handling, and reminders should be processed manually in dashboard workflows.
+## Deploy (GitHub -> Vercel)
 
-If the homepage loads but other routes fail, the public Supabase keys are usually missing or only set for one environment (e.g. Development but not Production).
+1. Push repo to GitHub.
+2. Import project in Vercel.
+3. Configure env vars with the same names as `.env.local`.
+4. Redeploy after saving env vars.
 
-## Flow
+## Troubleshooting
 
-- **Owner**: sign up with role `Studio owner`, create a studio (name + **public URL slug**) on `/dashboard`, add classes, schedule sessions, packages. Open **Dashboard → QR code** for the printable link and QR (`/booking/your-slug`).
-- **Client (QR)**: scan QR → `/booking/<slug>` → pick a class → **Book** → enter name + email → `/checkout/<payment_id>` → continue to HitPay hosted checkout.
-- **Guest merge**: when a user account is created/updated with an email, guest bookings/payments with matching normalized email are auto-linked to that user (`merge_guest_records_for_user`).
-- **Client (signed in)**: buy a pack or drop-in on `/checkout`, then either `Book with package` (`/api/book/package`) or create an online payment booking (`/api/book/create`).
-- **Booking settlement**: a booking is considered successful only after settlement: HitPay callback confirms payment, or package credits are deducted successfully at booking time.
-- **Check-in**: check-in/uncheck is attendance tracking only; it does not deduct credits or trigger refunds.
-- **Owner verification**: `/dashboard/payments` lists pending/paid/expired, includes pending-review filter/SLA, and actions to mark paid/failed/expired.
-- **Refunds**: HitPay refunds attempt automatic gateway refund first; if provider/channel rejects refund, process manually and record the reference in dashboard.
-- **Notifications**: payment submitted notifies owner/frontdesk recipients; payment verdict notifies client/guest. Class reminders/no-show outcome notifications are manual-mode only.
+- Routes fail while homepage loads: check missing Supabase public env vars.
+- API permission errors: verify `SUPABASE_SERVICE_ROLE_KEY` is set correctly and used server-side only.
+- HitPay webhook failures: verify URL, subscribed events, and webhook salt.
 
-API routes use the service role and Postgres RPCs (for example `confirm_payment`) for payment state transitions.
+## Security notes
 
-## Rollback Notes
-
-- App code can be rolled back independently.
-- DB migrations are additive; for emergency rollback prefer feature flags / route disable over dropping columns/tables.
-- If needed, disable cron endpoints first, then roll back app deploy.
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` to client-side code.
+- Rotate payment and email secrets periodically.
