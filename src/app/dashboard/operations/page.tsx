@@ -1,5 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { OpsBoard } from "@/components/ops/OpsBoard";
+import { localISODate } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -14,14 +15,6 @@ type Props = {
     session_status?: "all" | "scheduled" | "cancelled";
   }>;
 };
-
-function todayISODate() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 export default async function OperationsPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -116,7 +109,7 @@ export default async function OperationsPage({ searchParams }: Props) {
     .eq("id", activeStudioId)
     .maybeSingle();
   const studioSuspended = opContract?.contract_status === "suspended";
-  const defaultDate = todayISODate();
+  const defaultDate = localISODate();
   const dateFrom = sp.date_from ?? defaultDate;
   const dateTo = sp.date_to ?? defaultDate;
   const sessionStatus = sp.session_status ?? "all";

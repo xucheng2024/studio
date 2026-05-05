@@ -121,29 +121,6 @@ export async function createStudio(formData: FormData): Promise<void> {
   revalidatePath(`/booking/${public_slug}`);
 }
 
-export async function updateStudioSlug(formData: FormData): Promise<void> {
-  const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
-  const slugRaw = String(formData.get("public_slug") ?? "");
-  const public_slug = normalizeStudioSlug(slugRaw);
-  if (!public_slug) return;
-
-  const { error } = await supabase
-    .from("studios")
-    .update({ public_slug })
-    .eq("id", studio.id);
-  if (error) {
-    console.error(error.message);
-    return;
-  }
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/qr");
-  revalidatePath(`/booking/${public_slug}`);
-  revalidatePath(`/booking/${studio.public_slug}`);
-}
-
 export async function updateStudioBasics(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);

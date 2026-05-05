@@ -3,6 +3,7 @@ import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { SubmitButton } from "@/components/SubmitButton";
+import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import {
@@ -24,21 +25,6 @@ type Props = {
     q?: string;
   }>;
 };
-
-function dayRangeStart(d?: string) {
-  if (!d) return null;
-  const dt = new Date(`${d}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return null;
-  return dt.toISOString();
-}
-
-function dayRangeEnd(d?: string) {
-  if (!d) return null;
-  const dt = new Date(`${d}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return null;
-  dt.setDate(dt.getDate() + 1);
-  return dt.toISOString();
-}
 
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -80,9 +66,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .limit(300);
   if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
   if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
-  const from = dayRangeStart(sp.date_from);
+  const defaultDate = localISODate();
+  const dateFrom = sp.date_from ?? defaultDate;
+  const dateTo = sp.date_to ?? defaultDate;
+  const from = dayRangeStartIso(dateFrom);
   if (from) q = q.gte("created_at", from);
-  const to = dayRangeEnd(sp.date_to);
+  const to = dayRangeEndExclusiveIso(dateTo);
   if (to) q = q.lt("created_at", to);
 
   const { data: rawPayments } = await q;
@@ -183,8 +172,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   exportParams.set("studio_id", activeStudioId);
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
   if (sp.payment_method) exportParams.set("payment_method", sp.payment_method);
-  if (sp.date_from) exportParams.set("date_from", sp.date_from);
-  if (sp.date_to) exportParams.set("date_to", sp.date_to);
+  exportParams.set("date_from", dateFrom);
+  exportParams.set("date_to", dateTo);
   if (sp.q) exportParams.set("q", sp.q);
 
   return (
@@ -213,11 +202,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Date from</span>
-            <input type="date" name="date_from" defaultValue={sp.date_from ?? ""} className={ui.input} />
+            <input type="date" name="date_from" defaultValue={dateFrom} className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Date to</span>
-            <input type="date" name="date_to" defaultValue={sp.date_to ?? ""} className={ui.input} />
+            <input type="date" name="date_to" defaultValue={dateTo} className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Payment method</span>

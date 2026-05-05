@@ -1,4 +1,5 @@
 import { getDashboardScope } from "@/lib/dashboard";
+import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { computeRevenueSummary, revenueByDay, type RevenuePaymentRow } from "@/lib/revenue-summary";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -14,28 +15,13 @@ type Props = {
   }>;
 };
 
-function dayRangeStart(d?: string) {
-  if (!d) return null;
-  const dt = new Date(`${d}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return null;
-  return dt.toISOString();
-}
-
-function dayRangeEnd(d?: string) {
-  if (!d) return null;
-  const dt = new Date(`${d}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return null;
-  dt.setDate(dt.getDate() + 1);
-  return dt.toISOString();
-}
-
 function monthBounds() {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return {
-    from: start.toISOString().slice(0, 10),
-    to: end.toISOString().slice(0, 10),
+    from: localISODate(start),
+    to: localISODate(end),
   };
 }
 
@@ -61,8 +47,8 @@ export default async function ReportsPage({ searchParams }: Props) {
   const bounds = monthBounds();
   const dateFrom = sp.date_from ?? bounds.from;
   const dateTo = sp.date_to ?? bounds.to;
-  const fromIso = dayRangeStart(dateFrom);
-  const toIso = dayRangeEnd(dateTo);
+  const fromIso = dayRangeStartIso(dateFrom);
+  const toIso = dayRangeEndExclusiveIso(dateTo);
 
   let revenueQuery = supabase
     .from("payments")
@@ -99,9 +85,9 @@ export default async function ReportsPage({ searchParams }: Props) {
               from: (() => {
                 const d = new Date();
                 d.setDate(d.getDate() - 30);
-                return d.toISOString().slice(0, 10);
+                return localISODate(d);
               })(),
-              to: new Date().toISOString().slice(0, 10),
+              to: localISODate(),
             },
             {
               label: "Last month",
@@ -109,12 +95,12 @@ export default async function ReportsPage({ searchParams }: Props) {
                 const d = new Date();
                 d.setDate(1);
                 d.setMonth(d.getMonth() - 1);
-                return d.toISOString().slice(0, 10);
+                return localISODate(d);
               })(),
               to: (() => {
                 const d = new Date();
                 d.setDate(0);
-                return d.toISOString().slice(0, 10);
+                return localISODate(d);
               })(),
             },
             {
@@ -122,9 +108,9 @@ export default async function ReportsPage({ searchParams }: Props) {
               from: (() => {
                 const d = new Date();
                 d.setDate(d.getDate() - 90);
-                return d.toISOString().slice(0, 10);
+                return localISODate(d);
               })(),
-              to: new Date().toISOString().slice(0, 10),
+              to: localISODate(),
             },
           ].map(({ label, from, to }) => {
             const isActive = dateFrom === from && dateTo === to;

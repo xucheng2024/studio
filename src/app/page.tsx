@@ -85,7 +85,7 @@ export default async function Home({ searchParams }: Props) {
         <p className={`mt-10 text-sm ${ui.muted}`}>
           Studios get a shareable booking link at{" "}
           <code className={ui.code}>/booking/your-slug</code>{" "}
-          — QR code printable directly from the dashboard.{" "}
+          for members to book classes online.{" "}
           <Link href="/member/auth" className={ui.link}>Sign in →</Link>
         </p>
       </div>

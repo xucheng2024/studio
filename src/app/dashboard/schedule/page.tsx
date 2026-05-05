@@ -7,6 +7,7 @@ import { SessionShareButton } from "@/components/SessionShareButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DefaultDatetimeInput } from "@/components/ui/DefaultDatetimeInput";
 import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
+import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -72,19 +73,14 @@ export default async function SchedulePage({ searchParams }: Props) {
   scopeParams.set("studio_id", activeStudioId);
   if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
 
-  // Default window: today → +60 days, preventing unbounded full-table scans.
+  // Default window: today only, preventing unbounded full-table scans.
   // Users can override via the date filter form.
-  const defaultFrom = new Date();
-  defaultFrom.setHours(0, 0, 0, 0);
-  const defaultTo = new Date(defaultFrom);
-  defaultTo.setDate(defaultTo.getDate() + 60);
+  const defaultDate = localISODate();
+  const fallbackDateFrom = dayRangeStartIso(defaultDate)!;
+  const fallbackDateTo = dayRangeEndInclusiveIso(defaultDate)!;
 
-  const dateFrom = sp.date_from
-    ? new Date(`${sp.date_from}T00:00:00`).toISOString()
-    : defaultFrom.toISOString();
-  const dateTo = sp.date_to
-    ? new Date(`${sp.date_to}T23:59:59`).toISOString()
-    : defaultTo.toISOString();
+  const dateFrom = dayRangeStartIso(sp.date_from ?? defaultDate) ?? fallbackDateFrom;
+  const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultDate) ?? fallbackDateTo;
 
   let sessionQuery = supabase
     .from("class_sessions")
@@ -286,12 +282,12 @@ export default async function SchedulePage({ searchParams }: Props) {
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>From date</span>
             <input type="date" name="date_from" className={ui.input}
-              defaultValue={sp.date_from ?? defaultFrom.toISOString().slice(0, 10)} />
+              defaultValue={sp.date_from ?? defaultDate} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>To date</span>
             <input type="date" name="date_to" className={ui.input}
-              defaultValue={sp.date_to ?? defaultTo.toISOString().slice(0, 10)} />
+              defaultValue={sp.date_to ?? defaultDate} />
           </label>
           <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
             <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">

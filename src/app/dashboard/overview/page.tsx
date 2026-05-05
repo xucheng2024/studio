@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { createStudio } from "@/app/dashboard/actions";
-import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { CalendarDays, Users, DollarSign, QrCode } from "lucide-react";
+import { CalendarDays, Users, DollarSign } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{ location_id?: string; studio_id?: string; create_error?: string }>;
@@ -39,7 +38,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
     return (
       <div className="max-w-lg">
         <h1 className={ui.h1}>Create your studio</h1>
-        <p className={`mt-2 ${ui.lead}`}>Name it and pick a URL slug for your QR booking page.</p>
+        <p className={`mt-2 ${ui.lead}`}>Name it and pick a URL slug for your public booking page.</p>
         {createErr ? <p className={`${ui.error} mt-4`}>{createErr}</p> : null}
         <form action={createStudio} className={`${ui.card} mt-8 flex flex-col gap-4`}>
           <label className="flex flex-col gap-1.5">
@@ -52,7 +51,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Public URL slug (QR)</span>
+            <span className={ui.label}>Public URL slug</span>
             <input
               name="public_slug"
               required
@@ -131,10 +130,6 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
           <h1 className={ui.h1}>{studio.name}</h1>
           <p className={`mt-1 ${ui.muted}`}>Today at a glance</p>
         </div>
-        <DashboardAppLink href="/dashboard/qr" className={`${ui.btnSecondarySm} shrink-0 gap-2`}>
-          <QrCode size={14} />
-          QR &amp; link
-        </DashboardAppLink>
       </div>
 
       {/* ── Stat cards ──────────────────────────────────────────── */}

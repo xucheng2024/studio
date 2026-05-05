@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 
@@ -8,21 +9,6 @@ function csvEscape(value: unknown) {
     return `"${s.replaceAll("\"", "\"\"")}"`;
   }
   return s;
-}
-
-function dayRangeStart(d?: string | null) {
-  if (!d) return null;
-  const dt = new Date(`${d}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return null;
-  return dt.toISOString();
-}
-
-function dayRangeEnd(d?: string | null) {
-  if (!d) return null;
-  const dt = new Date(`${d}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return null;
-  dt.setDate(dt.getDate() + 1);
-  return dt.toISOString();
 }
 
 type PaymentRow = {
@@ -62,10 +48,10 @@ export async function GET(req: Request) {
   fallbackFrom.setDate(fallbackFrom.getDate() - 30);
 
   const from = dateFromParam
-    ? dayRangeStart(dateFromParam)
+    ? dayRangeStartIso(dateFromParam)
     : fallbackFrom.toISOString();
   const to = dateToParam
-    ? dayRangeEnd(dateToParam)
+    ? dayRangeEndExclusiveIso(dateToParam)
     : fallbackTo.toISOString();
   const keyword = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
@@ -205,7 +191,7 @@ export async function GET(req: Request) {
   const dateLabel =
     dateFromParam && dateToParam
       ? `${dateFromParam}_${dateToParam}`
-      : `last30d_${new Date().toISOString().slice(0, 10)}`;
+      : `last30d_${localISODate()}`;
   return new NextResponse(csv, {
     headers: {
       "content-type": "text/csv; charset=utf-8",

@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Users, MapPin, QrCode, ShieldCheck, Globe, BriefcaseBusiness,
+  Building2, CreditCard, Users, MapPin, ShieldCheck, BriefcaseBusiness,
   type LucideIcon,
 } from "lucide-react";
 
@@ -145,13 +145,6 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           icon={MapPin}
           title="Locations"
           desc="Add or edit studio locations and addresses"
-        />
-        <SettingCard
-          as={DashboardAppLink}
-          href={scopedHref("/dashboard/qr", selectedStudioId, selectedLocationId)}
-          icon={QrCode}
-          title="QR / share link"
-          desc="Print or share the booking QR code for your studio"
         />
         {isSuperAdmin ? (
           <SettingCard
