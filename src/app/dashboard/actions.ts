@@ -540,7 +540,7 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
   if (!studioId || !clientId) {
     redirect("/dashboard/clients?member_error=invalid_input");
   }
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) {
     redirect("/dashboard/clients?member_error=studio_not_found");
   }

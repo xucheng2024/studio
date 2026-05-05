@@ -10,7 +10,9 @@ import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
+import { generateShareSlugSegment, isValidShareSlug } from "@/lib/shareSlug";
 import { ui } from "@/lib/ui";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarCheck2, BookOpen, Package, ChevronRight } from "lucide-react";
 
@@ -23,6 +25,32 @@ type Props = {
     date_to?: string;
   }>;
 };
+
+type SessionClassRef = {
+  id?: string | null;
+  title?: string | null;
+  studio_id?: string | null;
+  share_slug?: string | null;
+};
+
+function sessionClassRef(raw: unknown): SessionClassRef | null {
+  if (!raw) return null;
+  return Array.isArray(raw) ? (raw[0] as SessionClassRef | undefined) ?? null : (raw as SessionClassRef);
+}
+
+async function ensureClassShareSlug(
+  admin: ReturnType<typeof createAdminClient>,
+  classId: string,
+  existing: string | null | undefined,
+) {
+  if (isValidShareSlug(existing)) return existing;
+  for (let i = 0; i < 15; i++) {
+    const candidate = generateShareSlugSegment(10);
+    const { error } = await admin.from("classes").update({ share_slug: candidate }).eq("id", classId);
+    if (!error) return candidate;
+  }
+  return null;
+}
 
 export default async function SchedulePage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -95,7 +123,7 @@ export default async function SchedulePage({ searchParams }: Props) {
       guest_price,
       credits_required,
       location_id,
-      classes!inner ( title, studio_id ),
+      classes!inner ( id, title, studio_id, share_slug ),
       locations ( id, name ),
       bookings (
         id,
@@ -116,6 +144,36 @@ export default async function SchedulePage({ searchParams }: Props) {
   const { data: sessions } = await sessionQuery;
   const sessionStatusFilter = sp.session_status ?? "all";
   const sessionRows = sessions ?? [];
+  const { data: activeStudio } = await supabase
+    .from("studios")
+    .select("public_slug")
+    .eq("id", activeStudioId)
+    .maybeSingle();
+  const classShareSlugs = new Map<string, string>();
+  if (activeStudio?.public_slug && sessionRows.length > 0) {
+    const classRefs = new Map<string, SessionClassRef>();
+    for (const s of sessionRows) {
+      const cls = sessionClassRef((s as { classes?: unknown }).classes);
+      if (cls?.id && cls.studio_id === activeStudioId) classRefs.set(cls.id, cls);
+    }
+    const missingClassRefs: SessionClassRef[] = [];
+    for (const cls of classRefs.values()) {
+      if (!cls.id) continue;
+      if (isValidShareSlug(cls.share_slug)) {
+        classShareSlugs.set(cls.id, cls.share_slug!);
+      } else {
+        missingClassRefs.push(cls);
+      }
+    }
+    if (missingClassRefs.length > 0) {
+      const admin = createAdminClient();
+      await Promise.all(missingClassRefs.map(async (cls) => {
+        if (!cls.id) return;
+        const slug = await ensureClassShareSlug(admin, cls.id, cls.share_slug);
+        if (slug) classShareSlugs.set(cls.id, slug);
+      }));
+    }
+  }
   const filteredSessions = sessionRows.filter((s) => {
     const status = (s as { status?: string | null }).status ?? "scheduled";
     if (sessionStatusFilter !== "all" && status !== sessionStatusFilter) return false;
@@ -300,7 +358,7 @@ export default async function SchedulePage({ searchParams }: Props) {
         </form>
         <ul className="mt-4 flex flex-col gap-4">
           {filteredSessions.map((s) => {
-            const cls = s.classes as { title?: string } | null;
+            const cls = sessionClassRef((s as { classes?: unknown }).classes);
             const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
             const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
             const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
@@ -314,6 +372,11 @@ export default async function SchedulePage({ searchParams }: Props) {
               users?: { email?: string | null } | null;
             }[];
             const activeBookingCount = bookings.filter((b) => b.status === "booked" || b.status === "pending").length;
+            const classSlug = cls?.id ? classShareSlugs.get(cls.id) : null;
+            const sharePath =
+              activeStudio?.public_slug && classSlug
+                ? `/class/${activeStudio.public_slug}/${classSlug}?session_id=${s.id}`
+                : null;
             return (
               <li key={s.id} className={`${ui.card} ${isCancelled ? "opacity-60" : ""}`}>
                 {/* ── Session header ──────────────────────────── */}
@@ -344,7 +407,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                   </div>
                   {/* Action buttons: right side on desktop, below on mobile */}
                   <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
-                    <SessionShareButton sessionId={s.id} />
+                    <SessionShareButton sharePath={sharePath} />
                     <CancelSessionButton
                       sessionId={s.id}
                       classTitle={cls?.title ?? "Class"}

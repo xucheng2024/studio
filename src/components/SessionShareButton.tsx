@@ -1,53 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, CheckCircle2, Loader2 } from "lucide-react";
+import { Link2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { ui } from "@/lib/ui";
 
-export function SessionShareButton({ sessionId }: { sessionId: string }) {
-  const [busy, setBusy] = useState(false);
+function toAbsoluteUrl(path: string) {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (typeof window === "undefined") return normalized;
+  return new URL(normalized, window.location.origin).href;
+}
+
+export function SessionShareButton({ sharePath }: { sharePath: string | null }) {
   const [copied, setCopied] = useState(false);
+  const disabled = !sharePath;
 
   return (
     <button
       type="button"
-      disabled={busy}
+      disabled={disabled}
       className={`${ui.btnSecondarySm} disabled:opacity-50`}
       onClick={async () => {
-        setBusy(true);
+        if (!sharePath) return;
         setCopied(false);
-        const res = await fetch("/api/dashboard/share-link", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entity_type: "session", entity_id: sessionId }),
-        });
-        const body = await res.json().catch(() => ({}));
-        setBusy(false);
-        if (!res.ok) {
-          toast.error(body.error ?? "Could not build link");
-          return;
-        }
-        if (body.url) {
-          try {
-            await navigator.clipboard.writeText(body.url);
-            setCopied(true);
-            toast.success("Session link copied");
-            setTimeout(() => setCopied(false), 2500);
-          } catch {
-            toast.info(body.url);
-          }
+        const didCopy = await copyTextToClipboard(toAbsoluteUrl(sharePath));
+        if (didCopy) {
+          setCopied(true);
+          toast.success("Session link copied");
+          setTimeout(() => setCopied(false), 2500);
+        } else {
+          toast.error("Could not copy session link");
         }
       }}
     >
-      {busy ? (
-        <Loader2 size={12} className="animate-spin" />
-      ) : copied ? (
+      {copied ? (
         <CheckCircle2 size={12} />
       ) : (
         <Link2 size={12} />
       )}
-      {busy ? "Getting link…" : copied ? "Copied!" : "Copy session link"}
+      {copied ? "Copied!" : "Copy session link"}
     </button>
   );
 }

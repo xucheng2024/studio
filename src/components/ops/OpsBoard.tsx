@@ -8,6 +8,10 @@ type QueuePayload = {
   starting_soon_grouped: StartingSoonSessionGroup[];
 };
 
+type QueueState = QueuePayload & {
+  qs: string | null;
+};
+
 export function OpsBoard({
   studioId,
   locationId,
@@ -21,8 +25,10 @@ export function OpsBoard({
   dateTo: string;
   sessionStatus: "all" | "scheduled" | "cancelled";
 }) {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<QueuePayload>({ starting_soon_grouped: [] });
+  const [data, setData] = useState<QueueState>({
+    qs: null,
+    starting_soon_grouped: [],
+  });
 
   const qs = useMemo(() => {
     const p = new URLSearchParams();
@@ -36,23 +42,21 @@ export function OpsBoard({
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
     fetch(`/api/operations/queue?${qs}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((json) => {
         if (!mounted) return;
         setData({
+          qs,
           starting_soon_grouped: json.starting_soon_grouped ?? [],
         });
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setLoading(false);
       });
     return () => {
       mounted = false;
     };
   }, [qs]);
+
+  const loading = data.qs !== qs;
 
   if (loading) {
     return (

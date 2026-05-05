@@ -95,7 +95,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
         <CoverUrlField
           studioId={studio.id}
           folder="services"
-          entityId={`new-${Date.now()}`}
+          entityId="new-service"
           name="cover_image_url"
           label="Cover image"
           defaultValue={null}

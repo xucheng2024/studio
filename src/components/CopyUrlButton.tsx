@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { ui } from "@/lib/ui";
 
 export function CopyUrlButton({ url, className }: { url: string; className?: string }) {
@@ -16,9 +17,11 @@ export function CopyUrlButton({ url, className }: { url: string; className?: str
           : ""
       } ${className ?? ""}`}
       onClick={async () => {
-        await navigator.clipboard.writeText(url).catch(() => {});
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        const didCopy = await copyTextToClipboard(url);
+        if (didCopy) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
       }}
     >
       {copied ? <Check size={13} /> : <Copy size={13} />}
