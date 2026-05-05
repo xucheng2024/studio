@@ -1,10 +1,12 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
 import { OpsBoard } from "@/components/ops/OpsBoard";
 import { localISODate } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { ClipboardList } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
@@ -113,6 +115,37 @@ export default async function OperationsPage({ searchParams }: Props) {
   const dateFrom = sp.date_from ?? defaultDate;
   const dateTo = sp.date_to ?? defaultDate;
   const sessionStatus = sp.session_status ?? "all";
+  const dayStartIso = `${defaultDate}T00:00:00+08:00`;
+  const nextDate = new Date(`${defaultDate}T00:00:00+08:00`);
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+  const dayEndIso = nextDate.toISOString();
+  let walkinSessionsQuery = supabase
+    .from("class_sessions")
+    .select("id, start_time, spots_left, guest_price, classes!inner(title, studio_id)")
+    .eq("classes.studio_id", activeStudioId)
+    .eq("status", "scheduled")
+    .gte("start_time", dayStartIso)
+    .lt("start_time", dayEndIso)
+    .gt("spots_left", 0)
+    .order("start_time", { ascending: true });
+  if (selectedLocationId) walkinSessionsQuery = walkinSessionsQuery.eq("location_id", selectedLocationId);
+  const { data: walkinSessionsRaw } = await walkinSessionsQuery;
+  const walkinSessions = (walkinSessionsRaw ?? []).map((session) => {
+    const cls = Array.isArray(session.classes) ? session.classes[0] : session.classes;
+    const title = cls?.title ?? "Class";
+    const when = new Date(session.start_time).toLocaleString("en-SG", {
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+    return {
+      id: session.id,
+      label: `${when} · ${title} · ${session.spots_left ?? 0} spots left`,
+      guestPrice: Number(session.guest_price ?? 0),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -131,6 +164,32 @@ export default async function OperationsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Today&apos;s front desk</h1>
         <p className={ui.muted}>Daily session execution and attendance.</p>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:items-start">
+        <FrontdeskWalkinForm sessions={walkinSessions} disabled={studioSuspended} />
+        <section className={`${ui.card} flex flex-col gap-3`}>
+          <div className="flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
+              <ClipboardList size={17} />
+            </span>
+            <div>
+              <h2 className={ui.h2}>Front desk notes</h2>
+              <p className={ui.muted}>Quick guide for ad-hoc arrivals and payment capture.</p>
+            </div>
+          </div>
+          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+            <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
+            <p className={ui.muted}>Creates a booked guest, records the payment immediately, and optionally checks the guest in on the same step.</p>
+          </div>
+          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+            <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
+            <p className={ui.muted}>
+              {walkinSessions.length > 0
+                ? `${walkinSessions.length} sessions can accept walk-ins right now.`
+                : "No scheduled sessions with open spots for today."}
+            </p>
+          </div>
+        </section>
       </div>
       <form method="get" className={`${ui.card} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
         <input type="hidden" name="studio_id" value={activeStudioId} />
