@@ -72,6 +72,7 @@ export async function POST(req: Request) {
       amount: parsed.data.amount,
       currency: "SGD",
       type: "single",
+      source: "walkin",
       status: "paid",
       payment_method: parsed.data.payment_method,
       paid_at: new Date().toISOString(),

@@ -90,6 +90,7 @@ export async function POST(req: Request) {
       amount: pkg.price,
       currency: "SGD",
       payment_method: "hitpay",
+      source: "package_buy",
       reference_code: reference,
       expires_at: expiresAt,
       type: "package",

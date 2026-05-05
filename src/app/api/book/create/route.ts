@@ -170,6 +170,7 @@ export async function POST(req: Request) {
       amount,
       currency: "SGD",
       payment_method: "hitpay",
+      source: "online_booking",
       status: "pending",
       reference_code: reference,
       expires_at: expiresAt,

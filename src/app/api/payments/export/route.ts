@@ -19,6 +19,7 @@ type PaymentRow = {
   guest_email: string | null;
   status: string | null;
   payment_method: string | null;
+  source: string | null;
   recon_status: string | null;
   amount: number | null;
   paid_amount: number | null;
@@ -83,7 +84,7 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, client_id, guest_name, guest_email, status, payment_method, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, booking_id, client_id, guest_name, guest_email, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -137,6 +138,7 @@ export async function GET(req: Request) {
     "booking_id",
     "payment_status",
     "payment_method",
+    "payment_source",
     "invoice_status",
     "invoice_number",
     "invoice_voided_at",
@@ -161,6 +163,7 @@ export async function GET(req: Request) {
       p.booking_id ?? "",
       p.status ?? "",
       p.payment_method ?? "",
+      p.source ?? "",
       p.invoice_status ?? "",
       p.invoice_number ?? "",
       p.invoice_voided_at ?? "",

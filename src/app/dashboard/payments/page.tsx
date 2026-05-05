@@ -26,6 +26,19 @@ type Props = {
   }>;
 };
 
+function paymentSourceLabel(source: string | null | undefined) {
+  switch (source) {
+    case "walkin":
+      return "Walk-in";
+    case "package_buy":
+      return "Package buy";
+    case "online_booking":
+      return "Online booking";
+    default:
+      return "Unknown";
+  }
+}
+
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -59,7 +72,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -320,6 +333,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
                   <dd className="text-stone-700 dark:text-stone-300">{p.payment_method ?? "-"}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Source</dt>
+                  <dd className="text-stone-700 dark:text-stone-300">{paymentSourceLabel((p as { source?: string | null }).source ?? null)}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Phone</dt>
