@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -31,6 +31,12 @@ export const metadata: Metadata = {
   title: site.title,
   description: site.description,
   ...(metadataBase ? { metadataBase } : {}),
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
