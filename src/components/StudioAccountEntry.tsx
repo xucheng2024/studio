@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CircleUserRound, LogIn, X } from "lucide-react";
+import { CircleUserRound, X } from "lucide-react";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { SignOutButton } from "@/components/SignOutButton";
 import { ui } from "@/lib/ui";
@@ -18,7 +18,7 @@ export function StudioAccountEntry({
     return (
       <details className="relative">
         <summary
-          aria-label="Open account menu"
+          aria-label="Account"
           className="inline-flex size-9 list-none items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
         >
           <CircleUserRound size={18} />
@@ -48,11 +48,11 @@ export function StudioAccountEntry({
     <>
       <button
         type="button"
-        aria-label="Sign in"
+        aria-label="Account"
         className="inline-flex size-9 items-center justify-center rounded-full border border-teal-300 bg-teal-50 text-teal-700 shadow-sm transition hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-300 dark:hover:bg-teal-900/40"
         onClick={() => setShowSignIn(true)}
       >
-        <LogIn size={18} />
+        <CircleUserRound size={18} />
       </button>
 
       {showSignIn ? (
