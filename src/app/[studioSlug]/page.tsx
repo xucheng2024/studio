@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import { CalendarDays, CalendarRange, ConciergeBell, MessageCircle, Tag } from "lucide-react";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
@@ -10,7 +9,6 @@ import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/cover
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 import { getVideoPreview } from "@/lib/videoPreview";
 
@@ -104,10 +102,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
   const { studio, services, classes, packages, events } = data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -149,11 +143,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 sm:pt-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-        <div className={`${ui.card} bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
-          <div className="mb-3 flex justify-end">
-            <StudioAccountEntry isSignedIn={Boolean(user)} />
+    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-2 sm:px-6 sm:pt-4 lg:px-8">
+      <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+        <div className={`${ui.card} relative bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
+          <div className="absolute right-4 top-4 z-20">
+            <StudioAccountEntry />
           </div>
           <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">
             <div className="w-full">
@@ -162,6 +156,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 coverUrl={studioMediaCover}
                 embedUrl={studioVideoPreview.embedUrl}
                 fallbackUrl={studio.public_video_url ?? null}
+                priority
               />
             </div>
             <div>
@@ -189,22 +184,18 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               )}
               <div className="mt-5 flex flex-wrap items-start gap-2.5">
                 <a href="#services" className={lightAnchorBtn}>
-                  <ConciergeBell size={15} />
                   Services
                 </a>
                 <a href="#upcoming-classes" className={lightAnchorBtn}>
-                  <CalendarDays size={15} />
                   Classes
                 </a>
                 {upcomingEvents.length > 0 ? (
                   <a href="#events" className={lightAnchorBtn}>
-                    <CalendarRange size={15} />
                     Events
                   </a>
                 ) : null}
                 {packages.length > 0 ? (
                   <a href="#packages" className={lightAnchorBtn}>
-                    <Tag size={15} />
                     Packages
                   </a>
                 ) : null}
@@ -218,7 +209,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <ConciergeBell size={18} className="text-teal-600 dark:text-teal-400" />
               <h2 className={ui.h2}>{servicesTitle}</h2>
             </div>
           </div>
@@ -295,7 +285,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             rel="noreferrer"
                             className={ui.btnSecondarySm}
                           >
-                            <MessageCircle size={14} />
                             Enquire Now
                           </a>
                         ) : null}
@@ -385,7 +374,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                                 rel="noreferrer"
                                 className={ui.btnSecondarySm}
                               >
-                                <MessageCircle size={14} />
                                 Enquire Now
                               </a>
                             ) : null}
@@ -404,7 +392,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       {classes.length > 0 ? (
         <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
-            <CalendarDays size={18} className="text-teal-600 dark:text-teal-400" />
             <h2 className={ui.h2}>{classesTitle}</h2>
           </div>
           <div className="mt-4 grid w-full gap-4">
@@ -623,7 +610,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       {upcomingEvents.length > 0 ? (
         <section id="events" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
-            <CalendarRange size={18} className="text-teal-600 dark:text-teal-400" />
             <h2 className={ui.h2}>{eventsTitle}</h2>
           </div>
           <div className="mt-4 grid w-full gap-4">
@@ -857,7 +843,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       {packages.length > 0 ? (
         <section id="packages" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
-            <Tag size={18} className="text-teal-600 dark:text-teal-400" />
             <h2 className={ui.h2}>{packagesTitle}</h2>
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>

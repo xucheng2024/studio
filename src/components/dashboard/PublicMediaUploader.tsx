@@ -9,6 +9,36 @@ import { ui } from "@/lib/ui";
 const ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+async function compressImage(file: File, maxDim = 1600, quality = 0.85): Promise<Blob> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const { width, height } = img;
+      const scale = Math.min(1, maxDim / Math.max(width, height));
+      const cw = Math.round(width * scale);
+      const ch = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, cw, ch);
+      const outMime = file.type === "image/png" || file.type === "image/webp" ? "image/webp" : "image/jpeg";
+      canvas.toBlob((blob) => resolve(blob ?? file), outMime, quality);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
+}
+
 type Props = {
   studioId: string;
   folder: "studios" | "services" | "classes" | "packages" | "events";
@@ -33,11 +63,16 @@ export function PublicMediaUploader({ studioId, folder, entityId, label = "Uploa
     }
     setBusy(true);
     try {
+      const compressed = await compressImage(file);
+      const uploadFile = compressed.size < file.size ? compressed : file;
       const fd = new FormData();
       fd.set("studio_id", studioId);
       fd.set("folder", folder);
       fd.set("entity_id", entityId);
-      fd.set("file", file);
+      fd.set(
+        "file",
+        uploadFile instanceof File ? uploadFile : new File([uploadFile], file.name, { type: uploadFile.type }),
+      );
       const res = await fetch("/api/dashboard/media/upload", { method: "POST", body: fd });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body.url) {

@@ -1,20 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CircleUserRound, X } from "lucide-react";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { SignOutButton } from "@/components/SignOutButton";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 export function StudioAccountEntry({
   isSignedIn,
 }: {
-  isSignedIn: boolean;
+  isSignedIn?: boolean;
 }) {
   const [showSignIn, setShowSignIn] = useState(false);
+  const [signedIn, setSignedIn] = useState<boolean | null>(typeof isSignedIn === "boolean" ? isSignedIn : null);
 
-  if (isSignedIn) {
+  useEffect(() => {
+    if (signedIn !== null) return;
+    let cancelled = false;
+    const supabase = createBrowserSupabase();
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!cancelled) setSignedIn(Boolean(data.session?.user));
+      })
+      .catch(() => {
+        if (!cancelled) setSignedIn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
+
+  if (signedIn) {
     return (
       <details className="relative">
         <summary

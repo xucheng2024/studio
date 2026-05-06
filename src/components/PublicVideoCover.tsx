@@ -8,6 +8,7 @@ type PublicVideoCoverProps = {
   coverUrl: string | null;
   embedUrl: string | null;
   fallbackUrl: string | null;
+  priority?: boolean;
 };
 
 export function PublicVideoCover({
@@ -15,6 +16,7 @@ export function PublicVideoCover({
   coverUrl,
   embedUrl,
   fallbackUrl,
+  priority = false,
 }: PublicVideoCoverProps) {
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -38,7 +40,9 @@ export function PublicVideoCover({
       src={coverUrl}
       alt={`${title} cover`}
       className="aspect-video w-full object-cover"
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "auto"}
+      decoding="async"
     />
   ) : (
     <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900" />
