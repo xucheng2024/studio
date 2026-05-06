@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SessionBookingActions } from "@/components/SessionBookingActions";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
+import { getVideoPreview } from "@/lib/videoPreview";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -74,6 +76,8 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
 
   const coverSrc = (cls as { image_url?: string | null }).image_url ?? null;
+  const videoUrl = (cls as { video_url?: string | null }).video_url ?? null;
+  const videoPreview = getVideoPreview(videoUrl ?? "");
 
   const classSlugPath = (cls as { share_slug?: string | null }).share_slug ?? rawClass;
   let sessionQuery = "";
@@ -121,13 +125,24 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:items-start lg:gap-12">
           {/* ── Left: class info ── */}
           <div className="min-w-0">
-            <ShareCoverImage
-              src={sessionCover}
-              alt={sessionTitle}
-              sharePath={classSharePath}
-              shareTitle={sessionTitle}
-              shareText={`Book ${sessionTitle} at ${studio.name}`}
-            />
+            {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
+              <div className="mb-6">
+                <PublicVideoCover
+                  title={sessionTitle}
+                  coverUrl={sessionCover}
+                  embedUrl={videoPreview.embedUrl}
+                  fallbackUrl={videoUrl?.trim() || null}
+                />
+              </div>
+            ) : (
+              <ShareCoverImage
+                src={sessionCover}
+                alt={sessionTitle}
+                sharePath={classSharePath}
+                shareTitle={sessionTitle}
+                shareText={`Book ${sessionTitle} at ${studio.name}`}
+              />
+            )}
             <h1 className={ui.h1}>{sessionTitle}</h1>
             {sessionDescription ? (
               <p className="mt-4 whitespace-pre-wrap leading-relaxed text-stone-700 dark:text-stone-300">
@@ -221,13 +236,24 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   // ── Multi-session / no-session fallback layout ──
   return (
     <main className={ui.page}>
-      <ShareCoverImage
-        src={coverSrc}
-        alt={cls.title}
-        sharePath={classSharePath}
-        shareTitle={cls.title}
-        shareText={`Book ${cls.title} at ${studio.name}`}
-      />
+      {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
+        <div className="mb-6">
+          <PublicVideoCover
+            title={cls.title}
+            coverUrl={coverSrc}
+            embedUrl={videoPreview.embedUrl}
+            fallbackUrl={videoUrl?.trim() || null}
+          />
+        </div>
+      ) : (
+        <ShareCoverImage
+          src={coverSrc}
+          alt={cls.title}
+          sharePath={classSharePath}
+          shareTitle={cls.title}
+          shareText={`Book ${cls.title} at ${studio.name}`}
+        />
+      )}
 
       <div className="max-w-2xl">
         <h1 className={ui.h1}>{cls.title}</h1>

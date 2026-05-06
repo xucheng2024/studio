@@ -11,7 +11,20 @@ const patchSchema = z.object({
   price: z.coerce.number().min(0).optional(),
   expiry_days: z.coerce.number().int().min(1).nullable().optional(),
   location_id: z.string().uuid().nullable().optional(),
+  video_url: z.string().max(2000).nullable().optional(),
 });
+
+function sanitizeVideoUrl(raw: string | null) {
+  const v = String(raw ?? "").trim();
+  if (!v) return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -63,6 +76,13 @@ export async function PATCH(req: Request, ctx: RouteParams) {
       if (!loc) return NextResponse.json({ error: "invalid_location" }, { status: 400 });
     }
     patch.location_id = parsed.data.location_id;
+  }
+  if (parsed.data.video_url !== undefined) {
+    const next = sanitizeVideoUrl(parsed.data.video_url);
+    if (parsed.data.video_url && !next) {
+      return NextResponse.json({ error: "invalid_video_url" }, { status: 400 });
+    }
+    patch.video_url = next;
   }
 
   if (Object.keys(patch).length === 0) {

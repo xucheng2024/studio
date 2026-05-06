@@ -9,7 +9,7 @@ import { ui } from "@/lib/ui";
 type CoverFieldProps = {
   studioId: string;
   entityId: string;
-  folder: "studios" | "services";
+  folder: "studios" | "services" | "classes" | "packages";
   name: string;
   label: string;
   defaultValue: string | null;
@@ -109,6 +109,89 @@ export function StudioProfileMediaFields({
           <span className={ui.label}>Preview</span>
           <PublicVideoCover
             title={studioName}
+            coverUrl={previewCover}
+            embedUrl={videoPreview.embedUrl}
+            fallbackUrl={videoValue.trim() || null}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type CoverVideoFieldsProps = {
+  studioId: string;
+  folder: "studios" | "services" | "classes" | "packages";
+  /** A stable identifier for uploads (e.g. classId, packageId, "new-class"). */
+  entityId: string;
+  title: string;
+  coverName: string;
+  videoName: string;
+  coverDefaultValue: string | null;
+  videoDefaultValue: string | null;
+  coverLabel?: string;
+  videoLabel?: string;
+};
+
+/** Generic cover + video editor with preview (used by create/edit forms). */
+export function CoverVideoFields({
+  studioId,
+  folder,
+  entityId,
+  title,
+  coverName,
+  videoName,
+  coverDefaultValue,
+  videoDefaultValue,
+  coverLabel = "Cover image",
+  videoLabel = "Video URL",
+}: CoverVideoFieldsProps) {
+  const [coverValue, setCoverValue] = useState(coverDefaultValue ?? "");
+  const [videoValue, setVideoValue] = useState(videoDefaultValue ?? "");
+  const videoPreview = getVideoPreview(videoValue);
+  const previewCover = coverValue || videoPreview.thumbnailUrl || null;
+
+  return (
+    <div className="grid gap-4 rounded-xl border border-stone-200 p-4 dark:border-stone-700">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
+        <div className="grid gap-4">
+          <div className="flex flex-col gap-1.5">
+            <span className={ui.label}>{coverLabel}</span>
+            <input type="hidden" name={coverName} value={coverValue} />
+            <PublicMediaUploader
+              studioId={studioId}
+              folder={folder}
+              entityId={entityId}
+              label={coverValue ? "Replace image" : "Upload image"}
+              onUploaded={(url) => setCoverValue(url)}
+            />
+            {coverValue ? (
+              <div className="mt-1 space-y-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={coverValue} alt="" className="h-28 w-full rounded-lg border border-stone-200 object-cover dark:border-stone-700" />
+                <button type="button" className={ui.btnGhost} onClick={() => setCoverValue("")}>
+                  Remove image
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>{videoLabel}</span>
+            <input
+              name={videoName}
+              className={ui.input}
+              value={videoValue}
+              onChange={(event) => setVideoValue(event.target.value)}
+              placeholder="https://..."
+            />
+          </label>
+        </div>
+
+        <div className="space-y-2">
+          <span className={ui.label}>Preview</span>
+          <PublicVideoCover
+            title={title}
             coverUrl={previewCover}
             embedUrl={videoPreview.embedUrl}
             fallbackUrl={videoValue.trim() || null}

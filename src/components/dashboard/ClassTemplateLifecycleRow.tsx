@@ -40,6 +40,7 @@ export function ClassTemplateLifecycleRow({
     duration_min: number;
     instructor_id: string | null;
     location_id: string | null;
+    video_url: string | null;
   };
   locations: Loc[];
   instructors: Ins[];
@@ -54,6 +55,7 @@ export function ClassTemplateLifecycleRow({
   const [durationMin, setDurationMin] = useState(String(initial.duration_min));
   const [instructorId, setInstructorId] = useState(initial.instructor_id ?? "");
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
+  const [videoUrl, setVideoUrl] = useState(initial.video_url ?? "");
 
   const copyBookingLink = async () => {
     setBusy(true);
@@ -91,6 +93,7 @@ export function ClassTemplateLifecycleRow({
         duration_min: Number(durationMin),
         instructor_id: instructorId === "" ? null : instructorId,
         location_id: locationId === "" ? null : locationId,
+        video_url: videoUrl.trim() === "" ? null : videoUrl.trim(),
       }),
     });
     setBusy(false);
@@ -231,6 +234,15 @@ export function ClassTemplateLifecycleRow({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
+              />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className={ui.label}>Promo video URL</span>
+              <input
+                className={ui.input}
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://..."
               />
             </label>
             <label className="flex flex-col gap-1 sm:col-span-2">

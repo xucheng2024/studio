@@ -31,6 +31,7 @@ export function PackageLifecycleRow({
     price: number;
     expiry_days: number | null;
     location_id: string | null;
+    video_url: string | null;
   };
   locations: Loc[];
 }) {
@@ -44,6 +45,7 @@ export function PackageLifecycleRow({
     initial.expiry_days != null ? String(initial.expiry_days) : "",
   );
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
+  const [videoUrl, setVideoUrl] = useState(initial.video_url ?? "");
 
   const copyPurchaseLink = async () => {
     setBusy(true);
@@ -82,6 +84,7 @@ export function PackageLifecycleRow({
         price: priceNum,
         expiry_days: expRaw === "" ? null : Number(expRaw),
         location_id: locationId === "" ? null : locationId,
+        video_url: videoUrl.trim() === "" ? null : videoUrl.trim(),
       }),
     });
     setBusy(false);
@@ -206,6 +209,15 @@ export function PackageLifecycleRow({
             <label className="flex flex-col gap-1">
               <span className={ui.label}>Expiry days</span>
               <input className={ui.input} type="number" min={1} value={expiryDays} onChange={(e) => setExpiryDays(e.target.value)} placeholder="empty = none" />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className={ui.label}>Promo video URL</span>
+              <input
+                className={ui.input}
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://..."
+              />
             </label>
             <label className="flex flex-col gap-1">
               <span className={ui.label}>Location</span>

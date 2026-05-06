@@ -14,7 +14,20 @@ const patchSchema = z.object({
   instructor_id: z.string().uuid().nullable().optional(),
   location_id: z.string().uuid().nullable().optional(),
   tags: z.array(z.string()).nullable().optional(),
+  video_url: z.string().max(2000).nullable().optional(),
 });
+
+function sanitizeVideoUrl(raw: string | null) {
+  const v = String(raw ?? "").trim();
+  if (!v) return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -100,6 +113,14 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   }
   if (parsed.data.tags !== undefined) {
     patch.tags = normalizePublicTags(parsed.data.tags);
+  }
+  if (parsed.data.video_url !== undefined) {
+    const next = sanitizeVideoUrl(parsed.data.video_url);
+    // If user sent a non-empty but invalid URL, reject to avoid silently dropping.
+    if (parsed.data.video_url && !next) {
+      return NextResponse.json({ error: "invalid_video_url" }, { status: 400 });
+    }
+    patch.video_url = next;
   }
 
   if (Object.keys(patch).length === 0) {

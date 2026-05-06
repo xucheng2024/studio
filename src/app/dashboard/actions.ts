@@ -648,6 +648,8 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
   const duration_min = Number(formData.get("duration_min") ?? 60);
   const instructor_id = String(formData.get("instructor_id") ?? "").trim();
   const tags = parsePublicTagsInput(formData.get("tags_input"));
+  const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
 
   if (!title) return;
   if (instructor_id) {
@@ -669,6 +671,8 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
     duration_min: Number.isFinite(duration_min) ? duration_min : 60,
     instructor_id: instructor_id ? instructor_id : null,
     tags,
+    image_url,
+    video_url,
   });
   if (error) {
     console.error(error.message);
@@ -697,7 +701,7 @@ export async function createSession(formData: FormData): Promise<void> {
 
   const { data: cls, error: cErr } = await supabase
     .from("classes")
-    .select("id, title, description, image_url, duration_min, capacity, studio_id, location_id, is_active")
+    .select("id, title, description, image_url, video_url, duration_min, capacity, studio_id, location_id, is_active")
     .eq("id", class_id)
     .single();
 
@@ -717,6 +721,7 @@ export async function createSession(formData: FormData): Promise<void> {
     class_title_snapshot: cls.title,
     class_description_snapshot: cls.description ?? null,
     class_image_url_snapshot: (cls as { image_url?: string | null }).image_url ?? null,
+    class_video_url_snapshot: (cls as { video_url?: string | null }).video_url ?? null,
     start_time: startDate.toISOString(),
     end_time: endDate.toISOString(),
     capacity: cls.capacity,
@@ -753,6 +758,8 @@ export async function createPackage(formData: FormData): Promise<void> {
     expiry_days_raw === "" || expiry_days_raw === null
       ? null
       : Number(expiry_days_raw);
+  const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
 
   if (!name) return;
   if (!Number.isFinite(credits) || credits <= 0) return;
@@ -766,6 +773,8 @@ export async function createPackage(formData: FormData): Promise<void> {
     price,
     expiry_days: expiry_days != null && Number.isFinite(expiry_days) ? expiry_days : null,
     type: "class_pack",
+    image_url,
+    video_url,
   });
   if (error) {
     console.error(error.message);

@@ -2,6 +2,7 @@ import { createClassTemplate, createInstructor } from "@/app/dashboard/actions";
 import { ClassTemplateLifecycleRow } from "@/components/dashboard/ClassTemplateLifecycleRow";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
+import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -57,6 +58,7 @@ export default async function ClassesPage({ searchParams }: Props) {
       is_active,
       share_slug,
       image_url,
+      video_url,
       instructors ( name )
     `,
     )
@@ -189,6 +191,20 @@ export default async function ClassesPage({ searchParams }: Props) {
                     ))}
                   </select>
                 </label>
+                <div className="md:col-span-2">
+                  <CoverVideoFields
+                    studioId={studioId}
+                    folder="classes"
+                    entityId="new-class"
+                    title="Class template media"
+                    coverName="image_url"
+                    videoName="video_url"
+                    coverDefaultValue={null}
+                    videoDefaultValue={null}
+                    coverLabel="Cover image"
+                    videoLabel="Promo video URL"
+                  />
+                </div>
                 <SubmitButton className={`${ui.btnPrimarySm} md:col-span-2 w-fit`} pendingText="Saving...">
                   Save class template
                 </SubmitButton>
@@ -230,6 +246,7 @@ export default async function ClassesPage({ searchParams }: Props) {
                     duration_min: c.duration_min,
                     instructor_id: c.instructor_id,
                     location_id: c.location_id,
+                    video_url: (c as { video_url?: string | null }).video_url ?? null,
                   }}
                   locations={locsForStudio}
                   instructors={insList}

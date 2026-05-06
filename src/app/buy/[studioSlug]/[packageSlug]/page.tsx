@@ -2,8 +2,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
+import { getVideoPreview } from "@/lib/videoPreview";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string; packageSlug: string }> };
@@ -25,6 +27,8 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
   const coverSrc = (pkg as { image_url?: string | null }).image_url ?? null;
+  const videoUrl = (pkg as { video_url?: string | null }).video_url ?? null;
+  const videoPreview = getVideoPreview(videoUrl ?? "");
   const studioPublicSlug = studio.public_slug ?? rawStudio;
   const pkgSlugPath = (pkg as { share_slug?: string | null }).share_slug ?? rawPkg;
   const packageSharePath = `/buy/${studioPublicSlug}/${pkgSlugPath}`;
@@ -32,13 +36,24 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   return (
     <main className={ui.page}>
       {/* ── Hero cover (full-bleed within page padding) ── */}
-      <ShareCoverImage
-        src={coverSrc}
-        alt={pkg.name}
-        sharePath={packageSharePath}
-        shareTitle={pkg.name}
-        shareText={`${pkg.name} · ${studio.name} · ${pkg.credits} class passes`}
-      />
+      {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
+        <div className="mb-6">
+          <PublicVideoCover
+            title={pkg.name}
+            coverUrl={coverSrc}
+            embedUrl={videoPreview.embedUrl}
+            fallbackUrl={videoUrl?.trim() || null}
+          />
+        </div>
+      ) : (
+        <ShareCoverImage
+          src={coverSrc}
+          alt={pkg.name}
+          sharePath={packageSharePath}
+          shareTitle={pkg.name}
+          shareText={`${pkg.name} · ${studio.name} · ${pkg.credits} class passes`}
+        />
+      )}
 
       <div className="max-w-2xl">
         <p className={ui.badge}>Shared package</p>
