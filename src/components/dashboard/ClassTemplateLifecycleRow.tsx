@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, Copy, EyeOff, Play, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
+import { Check, Copy, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { EntityCoverUpload } from "@/components/dashboard/EntityCoverUpload";
 import { formatPublicTagsInput, parsePublicTagsInput } from "@/lib/publicTags";
@@ -103,32 +103,6 @@ export function ClassTemplateLifecycleRow({
     router.refresh();
   };
 
-  const hideTemplate = async () => {
-    setBusy(true);
-    const res = await fetch(`/api/dashboard/classes/${classId}/disable`, { method: "POST" });
-    setBusy(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      toast.error(body.error ?? "Failed");
-      return;
-    }
-    toast.success("Class hidden");
-    router.refresh();
-  };
-
-  const resume = async () => {
-    setBusy(true);
-    const res = await fetch(`/api/dashboard/classes/${classId}/restore`, { method: "POST" });
-    setBusy(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      toast.error(body.error ?? "Failed");
-      return;
-    }
-    toast.success("Class resumed");
-    router.refresh();
-  };
-
   const deleteTemplate = async () => {
     setBusy(true);
     setDeleteConfirm(false);
@@ -207,22 +181,6 @@ export function ClassTemplateLifecycleRow({
 
               {canEdit ? (
                 <>
-                  {isActive ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className={`${ui.btnSecondarySm} border-amber-300 text-amber-900 dark:border-amber-700 dark:text-amber-200 disabled:opacity-50`}
-                      onClick={() => void hideTemplate()}
-                    >
-                      <EyeOff size={12} />
-                      <span className="hidden sm:inline">Hide</span>
-                    </button>
-                  ) : (
-                    <button type="button" disabled={busy} className={`${ui.btnPrimarySm} disabled:opacity-50`} onClick={() => void resume()}>
-                      <Play size={12} />
-                      <span className="hidden sm:inline">Resume</span>
-                    </button>
-                  )}
                   {deleteConfirm ? (
                     <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs dark:border-red-800/50 dark:bg-red-950/20">
                       <AlertTriangle size={11} className="shrink-0 text-red-600 dark:text-red-400" />

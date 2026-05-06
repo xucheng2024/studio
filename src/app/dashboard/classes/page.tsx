@@ -101,7 +101,7 @@ export default async function ClassesPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Classes</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <p className={ui.muted}>Instructors and reusable class templates. Hidden templates cannot be used for new sessions.</p>
+          <p className={ui.muted}>Instructors and reusable class templates.</p>
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
             Back to schedule
           </DashboardAppLink>
