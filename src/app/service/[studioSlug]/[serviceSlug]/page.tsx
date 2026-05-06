@@ -64,9 +64,13 @@ export default async function PublicServicePage({ params }: Props) {
         ) : null}
         {Array.isArray(service.tags) && service.tags.length > 0 ? (
           <div className="mt-4 flex flex-wrap gap-2">
-            {service.tags.map((tag) => (
-              <span key={tag} className={ui.badgeNeutral}>{tag}</span>
-            ))}
+            {Array.from(new Map(service.tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values())
+              .filter(Boolean)
+              .map((tag) => (
+                <span key={tag.toLowerCase()} className={ui.badgeNeutral}>
+                  {tag}
+                </span>
+              ))}
           </div>
         ) : null}
         {service.summary ? <p className={`mt-4 ${ui.lead}`}>{service.summary}</p> : null}

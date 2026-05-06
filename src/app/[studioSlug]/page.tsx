@@ -233,7 +233,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       </Link>
                       {Array.isArray((svc as { tags?: string[] | null }).tags) && (svc as { tags: string[] }).tags.length > 0 ? (
                         <div className="mt-3 flex flex-wrap gap-1.5">
-                          {(svc as { tags: string[] }).tags.map((tag) => (
+                          {Array.from(
+                            new Map(
+                              (svc as { tags: string[] }).tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")]),
+                            ).values(),
+                          )
+                            .filter(Boolean)
+                            .map((tag) => (
                             <span key={`${svc.id}-${tag}`} className={mediaTagClass}>
                               {tag}
                             </span>
@@ -317,7 +323,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           </Link>
                           {Array.isArray((svc as { tags?: string[] | null }).tags) && (svc as { tags: string[] }).tags.length > 0 ? (
                             <div className="mt-3 flex flex-wrap gap-1.5">
-                              {(svc as { tags: string[] }).tags.map((tag) => (
+                              {Array.from(
+                                new Map(
+                                  (svc as { tags: string[] }).tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")]),
+                                ).values(),
+                              )
+                                .filter(Boolean)
+                                .map((tag) => (
                                 <span key={`${svc.id}-${tag}`} className={mediaTagClass}>
                                   {tag}
                                 </span>
@@ -438,8 +450,14 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         </div>
                         {Array.isArray((cls as { tags?: string[] | null } | null)?.tags) && (cls as { tags: string[] }).tags.length > 0 ? (
                           <div className="mt-3 flex flex-wrap gap-1.5">
-                            {(cls as { tags: string[] }).tags.map((tag) => (
-                              <span key={`${s.id}-${tag}`} className={mediaTagClass}>
+                            {Array.from(
+                              new Map(
+                                (cls as { tags: string[] }).tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")]),
+                              ).values(),
+                            )
+                              .filter(Boolean)
+                              .map((tag) => (
+                              <span key={`${s.id}-${tag.toLowerCase()}`} className={mediaTagClass}>
                                 {tag}
                               </span>
                             ))}
@@ -539,8 +557,14 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             </div>
                             {Array.isArray((cls as { tags?: string[] | null } | null)?.tags) && (cls as { tags: string[] }).tags.length > 0 ? (
                               <div className="mt-3 flex flex-wrap gap-1.5">
-                                {(cls as { tags: string[] }).tags.map((tag) => (
-                                  <span key={`${s.id}-${tag}`} className={mediaTagClass}>
+                                {Array.from(
+                                  new Map(
+                                    (cls as { tags: string[] }).tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")]),
+                                  ).values(),
+                                )
+                                  .filter(Boolean)
+                                  .map((tag) => (
+                                  <span key={`${s.id}-${tag.toLowerCase()}`} className={mediaTagClass}>
                                     {tag}
                                   </span>
                                 ))}
