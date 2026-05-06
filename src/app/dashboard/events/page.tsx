@@ -1,5 +1,6 @@
 import { createEvent, deleteEvent, updateEvent } from "@/app/dashboard/actions";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
+import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -101,7 +102,10 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                   SGD {Number(e.price ?? 0).toFixed(2)} · cap {Number(e.capacity ?? 0)} · {Number(e.spots_left ?? 0)} left
                 </p>
                 {href ? (
-                  <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>{href}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className={`font-mono text-[11px] ${ui.muted}`}>{href}</span>
+                    <CopyUrlButton url={href} className="h-8 px-2 text-xs" />
+                  </div>
                 ) : null}
                 {tags.length ? (
                   <div className="mt-1.5 flex flex-wrap gap-1">

@@ -646,6 +646,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
                             {Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left
                           </div>
+                          <div className="absolute bottom-2 right-2 z-20">
+                            <SessionShareLinkButton
+                              sharePath={href}
+                              title={`${String(e.title ?? "Event")} · ${studio.name}`}
+                              text={`Check out this event: ${String(e.title ?? "Event")}`}
+                            />
+                          </div>
                         </div>
                         {tags.length ? (
                           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -723,6 +730,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                               <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
                                 {Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left
                               </div>
+                              <div className="absolute bottom-2 right-2 z-20">
+                                <SessionShareLinkButton
+                                  sharePath={href}
+                                  title={`${String(e.title ?? "Event")} · ${studio.name}`}
+                                  text={`Check out this event: ${String(e.title ?? "Event")}`}
+                                />
+                              </div>
                             </div>
                             {tags.length ? (
                               <div className="mt-3 flex flex-wrap gap-1.5">
@@ -799,6 +813,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                                   {String(e.currency ?? "SGD")} {Number(e.price).toFixed(2)}
                                 </span>
                               ) : null}
+                              <div className="absolute bottom-2 right-2 z-20">
+                                <SessionShareLinkButton
+                                  sharePath={href}
+                                  title={`${String(e.title ?? "Event")} · ${studio.name}`}
+                                  text={`Check out this event: ${String(e.title ?? "Event")}`}
+                                />
+                              </div>
                             </div>
                             {tags.length ? (
                               <div className="mt-3 flex flex-wrap gap-1.5">

@@ -8,6 +8,13 @@ import { ui } from "@/lib/ui";
 export function CopyUrlButton({ url, className }: { url: string; className?: string }) {
   const [copied, setCopied] = useState(false);
 
+  const absoluteUrl = (() => {
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    const normalized = url.startsWith("/") ? url : `/${url}`;
+    if (typeof window === "undefined") return normalized;
+    return new URL(normalized, window.location.origin).href;
+  })();
+
   return (
     <button
       type="button"
@@ -17,7 +24,7 @@ export function CopyUrlButton({ url, className }: { url: string; className?: str
           : ""
       } ${className ?? ""}`}
       onClick={async () => {
-        const didCopy = await copyTextToClipboard(url);
+        const didCopy = await copyTextToClipboard(absoluteUrl);
         if (didCopy) {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
