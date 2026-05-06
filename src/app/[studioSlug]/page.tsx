@@ -687,7 +687,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           </p>
                         ) : null}
                         <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <span className={ui.btnPrimarySm}>View details</span>
+                          <span className={ui.btnPrimarySm}>Book now</span>
                         </div>
                       </div>
                     </div>
@@ -764,7 +764,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                               </p>
                             ) : null}
                             <div className="mt-4 flex flex-wrap items-center gap-3">
-                              <span className={ui.btnPrimarySm}>View details</span>
+                              <span className={ui.btnPrimarySm}>Book now</span>
                             </div>
                           </div>
                         </div>

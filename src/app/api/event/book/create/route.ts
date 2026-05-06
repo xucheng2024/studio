@@ -42,6 +42,10 @@ export async function POST(req: Request) {
   if (eErr || !event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
   if (event.is_active === false) return NextResponse.json({ error: "event_not_available" }, { status: 409 });
   if ((event.spots_left ?? 0) <= 0) return NextResponse.json({ error: "full" }, { status: 409 });
+  // Guard: do not allow booking/checkout for past events.
+  if (event.start_time && new Date(String(event.start_time)).getTime() < Date.now()) {
+    return NextResponse.json({ error: "event_not_available" }, { status: 409 });
+  }
 
   const studioId = event.studio_id as string | null;
   if (!studioId) return NextResponse.json({ error: "invalid_event" }, { status: 500 });

@@ -22,6 +22,7 @@ export default async function PublicEventPage({ params }: Props) {
   const { studio, event } = ctx;
 
   const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
+  const ended = new Date(String(event.end_time)).getTime() < Date.now();
   const coverSrc = (event as { image_url?: string | null }).image_url ?? null;
   const videoUrl = (event as { video_url?: string | null }).video_url ?? null;
   const videoPreview = getVideoPreview(videoUrl ?? "");
@@ -90,23 +91,35 @@ export default async function PublicEventPage({ params }: Props) {
 
         <div className="lg:sticky lg:top-8">
           <div className={`${ui.card} overflow-hidden sm:p-6`}>
-            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Book this event</p>
-            <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
-              {paymentReady ? "Secure checkout powered by HitPay." : "Online payment is not configured for this studio."}
-            </p>
-            <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-              SGD {Number(event.price ?? 0).toFixed(2)}
-            </p>
+            {ended ? (
+              <>
+                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Event ended</p>
+                <p className={`mt-1 text-sm ${ui.muted}`}>Bookings are closed for past events.</p>
+                <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+                  SGD {Number(event.price ?? 0).toFixed(2)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Book this event</p>
+                <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
+                  {paymentReady ? "Secure checkout powered by HitPay." : "Online payment is not configured for this studio."}
+                </p>
+                <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+                  SGD {Number(event.price ?? 0).toFixed(2)}
+                </p>
 
-            <div className="mt-5">
-              <QuickEventBookPanel
-                slug={studio.public_slug ?? rawStudio}
-                eventId={event.id}
-                disabled={!paymentReady}
-                triggerClassName={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
-                triggerLabel="Continue"
-              />
-            </div>
+                <div className="mt-5">
+                  <QuickEventBookPanel
+                    slug={studio.public_slug ?? rawStudio}
+                    eventId={event.id}
+                    disabled={!paymentReady}
+                    triggerClassName={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+                    triggerLabel="Continue"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

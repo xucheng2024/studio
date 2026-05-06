@@ -62,6 +62,10 @@ export async function POST(req: Request) {
   if ((session.status ?? "scheduled") !== "scheduled") {
     return NextResponse.json({ error: "session_not_available" }, { status: 409 });
   }
+  // Guard: do not allow booking/checkout for past sessions.
+  if (session.start_time && new Date(String(session.start_time)).getTime() < Date.now()) {
+    return NextResponse.json({ error: "session_not_available" }, { status: 409 });
+  }
 
   const classes = session.classes as
     | {
