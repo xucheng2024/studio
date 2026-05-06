@@ -150,28 +150,25 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400">
-                About me
-              </p>
               {studio.public_intro?.trim() ? (
                 <details className="group">
-                  <summary className={`mt-2 cursor-pointer list-none text-[1.05rem] leading-relaxed text-stone-700 dark:text-stone-300`}>
+                  <summary className="cursor-pointer list-none text-base leading-snug text-stone-700 dark:text-stone-300">
                     <span className="line-clamp-3 whitespace-pre-wrap">
                       {studio.public_intro.trim()}
                     </span>
-                    <span className="mt-3 inline-flex text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
+                    <span className="mt-2 inline-flex text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
                       Read more
                     </span>
-                    <span className="mt-3 hidden text-sm font-semibold text-teal-700 group-open:inline-flex dark:text-teal-400">
+                    <span className="mt-2 hidden text-sm font-semibold text-teal-700 group-open:inline-flex dark:text-teal-400">
                       Show less
                     </span>
                   </summary>
-                  <p className="mt-3 whitespace-pre-wrap text-[1.02rem] leading-relaxed text-stone-700 dark:text-stone-300">
+                  <p className="mt-3 whitespace-pre-wrap text-base leading-snug text-stone-700 dark:text-stone-300">
                     {studio.public_intro.trim()}
                   </p>
                 </details>
               ) : (
-                <p className="mt-2 text-[1.02rem] leading-relaxed text-stone-700 dark:text-stone-300">
+                <p className="text-base leading-snug text-stone-700 dark:text-stone-300">
                   Welcome to our studio. Explore services and get in touch.
                 </p>
               )}
