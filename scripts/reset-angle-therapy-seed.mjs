@@ -183,13 +183,13 @@ async function cleanupAllAngleData(ctx) {
 
 async function seedTherapyData(ctx) {
   const therapyTags = {
-    anxiety: ["心理咨询", "焦虑", "认知行为疗法", "CBT"],
-    stress: ["心理咨询", "压力管理", "正念", "呼吸"],
-    burnout: ["心理咨询", "职业倦怠", "边界感", "恢复"],
-    couples: ["心理咨询", "伴侣咨询", "沟通", "冲突修复"],
-    sleep: ["心理咨询", "睡眠", "放松训练", "身心调节"],
-    teen: ["心理咨询", "青少年", "情绪管理", "自我认知"],
-    intake: ["心理咨询", "评估", "初访"],
+    anxiety: ["Therapy", "Anxiety", "CBT", "Panic"],
+    stress: ["Therapy", "Stress", "Mindfulness", "Breathing"],
+    burnout: ["Therapy", "Burnout", "Boundaries", "Recovery"],
+    couples: ["Therapy", "Couples", "Communication", "Conflict repair"],
+    sleep: ["Therapy", "Sleep", "Relaxation", "Nervous system"],
+    teen: ["Therapy", "Teens", "Emotional regulation", "Self-awareness"],
+    intake: ["Therapy", "Assessment", "Intake"],
   };
 
   // Instructors (more realistic)
@@ -218,7 +218,7 @@ async function seedTherapyData(ctx) {
   const classTemplates = [
     {
       title: "Initial Consultation (50 min)",
-      description: "A first session to understand your goals, history, and current challenges. We co-create a simple plan for the next steps.",
+      description: "A first session to clarify your goals, understand context, and agree on a simple plan for the next steps.",
       capacity: 1,
       duration_min: 50,
       tags: therapyTags.intake,
@@ -228,7 +228,7 @@ async function seedTherapyData(ctx) {
     },
     {
       title: "CBT for Anxiety (1:1 · 60 min)",
-      description: "Evidence-based CBT tools for anxious thoughts, panic cycles, and avoidance patterns. Practical exercises and homework.",
+      description: "Evidence-based CBT tools for anxious thoughts, panic cycles, and avoidance. Practical exercises and take-home plan.",
       capacity: 1,
       duration_min: 60,
       tags: therapyTags.anxiety,
@@ -238,7 +238,7 @@ async function seedTherapyData(ctx) {
     },
     {
       title: "Stress & Burnout Recovery (1:1 · 60 min)",
-      description: "Spot burnout patterns, rebuild boundaries, and design a sustainable weekly recovery routine.",
+      description: "Identify burnout patterns, rebuild boundaries, and design a sustainable weekly recovery routine.",
       capacity: 1,
       duration_min: 60,
       tags: [...therapyTags.stress, ...therapyTags.burnout],
@@ -268,7 +268,7 @@ async function seedTherapyData(ctx) {
     },
     {
       title: "Teen Emotional Regulation (Group · 60 min)",
-      description: "Teen-friendly coping skills: labeling, grounding, safe communication, and support planning.",
+      description: "Teen-friendly coping skills: labeling emotions, grounding, safer communication, and support planning.",
       capacity: 10,
       duration_min: 60,
       tags: therapyTags.teen,
