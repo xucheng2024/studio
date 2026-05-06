@@ -155,7 +155,11 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                       ) : null}
                     </div>
                     <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                      {svc.currency ?? "SGD"} {Number(svc.price ?? 0).toFixed(2)}
+                      {svc.price != null ? (
+                        <>
+                          {svc.currency ?? "SGD"} {Number(svc.price).toFixed(2)}
+                        </>
+                      ) : null}
                       {svc.summary ? ` · ${svc.summary}` : ""}
                     </p>
                     {(() => {

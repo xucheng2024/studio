@@ -57,9 +57,11 @@ export default async function PublicServicePage({ params }: Props) {
         <p className={ui.badge}>Shared service</p>
         <h1 className={`${ui.h1} mt-3`}>{service.title}</h1>
         <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
-        <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-          {service.currency} {Number(service.price ?? 0).toFixed(2)}
-        </p>
+        {service.price != null ? (
+          <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+            {service.currency} {Number(service.price).toFixed(2)}
+          </p>
+        ) : null}
         {Array.isArray(service.tags) && service.tags.length > 0 ? (
           <div className="mt-4 flex flex-wrap gap-2">
             {service.tags.map((tag) => (

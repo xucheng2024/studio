@@ -404,8 +404,12 @@ export default async function SchedulePage({ searchParams }: Props) {
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                       <span>{s.spots_left} spots left</span>
                       <span>{activeBookingCount} active bookings</span>
-                      <span>${Number(s.guest_price ?? 0).toFixed(2)} guest</span>
-                      <span>{Number(s.credits_required ?? 1)} class pass{Number(s.credits_required ?? 1) !== 1 ? "s" : ""}</span>
+                      {s.guest_price != null ? <span>${Number(s.guest_price).toFixed(2)} guest</span> : null}
+                      {s.credits_required != null ? (
+                        <span>
+                          {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "s" : ""}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   {/* Action buttons: right side on desktop, below on mobile */}

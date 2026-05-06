@@ -109,7 +109,8 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
       year: "numeric",
     });
     const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-    const price = Number(s.guest_price ?? 0).toFixed(2);
+    const hasGuestPrice = s.guest_price != null;
+    const price = hasGuestPrice ? Number(s.guest_price).toFixed(2) : null;
     const spotsLeft = Number(s.spots_left ?? 0);
     const sessionCapacity =
       Number(
@@ -179,10 +180,10 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
               <div className="flex items-center justify-between border-t border-stone-100 py-3.5 dark:border-stone-800">
                 <span className="text-sm text-stone-500 dark:text-stone-400">Per session</span>
                 <div className="flex flex-col items-end gap-0.5">
-                  <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
-                    ${price}
-                  </span>
-                  {Number(s.credits_required ?? 0) > 0 ? (
+                  {price ? (
+                    <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">${price}</span>
+                  ) : null}
+                  {s.credits_required != null && Number(s.credits_required) > 0 ? (
                     <span className="text-xs text-stone-400 dark:text-stone-500">
                       or {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "es" : ""}
                     </span>
@@ -303,10 +304,14 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   <div className="min-w-0">
                     <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
                     <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
-                      <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
-                        ${Number(s.guest_price ?? 0).toFixed(2)}
-                      </span>
-                      <span className={`text-xs ${ui.muted}`}>/ session</span>
+                      {s.guest_price != null ? (
+                        <>
+                          <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
+                            ${Number(s.guest_price).toFixed(2)}
+                          </span>
+                          <span className={`text-xs ${ui.muted}`}>/ session</span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </div>

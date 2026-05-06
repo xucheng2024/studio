@@ -59,13 +59,15 @@ export default async function PublicPackageBuyPage({ params }: Props) {
         <p className={ui.badge}>Shared package</p>
         <h1 className={`${ui.h1} mt-3`}>{pkg.name}</h1>
         <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
-        <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-          SGD {Number(pkg.price ?? 0).toFixed(2)}
-        </p>
+        {pkg.price != null ? (
+          <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+            SGD {Number(pkg.price).toFixed(2)}
+          </p>
+        ) : null}
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
           <span className="flex items-center gap-1.5">
             <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-            {pkg.credits} class passes
+            {pkg.credits != null ? `${pkg.credits} class passes` : "Class passes included"}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>

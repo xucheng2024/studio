@@ -217,9 +217,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
-                          <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                            {svc.currency} {Number(svc.price ?? 0).toFixed(2)}
-                          </span>
+                          {svc.price != null ? (
+                            <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                              {svc.currency} {Number(svc.price).toFixed(2)}
+                            </span>
+                          ) : null}
                           <div className="absolute bottom-2 right-2 z-20">
                             <SessionShareLinkButton
                               sharePath={servicePath}
@@ -299,9 +301,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                               ) : (
                                 <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                               )}
-                              <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                                {svc.currency} {Number(svc.price ?? 0).toFixed(2)}
-                              </span>
+                              {svc.price != null ? (
+                                <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                  {svc.currency} {Number(svc.price).toFixed(2)}
+                                </span>
+                              ) : null}
                               <div className="absolute bottom-2 right-2 z-20">
                                 <SessionShareLinkButton
                                   sharePath={servicePath}
@@ -414,9 +418,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
-                          <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                            SGD {Number(s.guest_price ?? 0).toFixed(2)}
-                          </span>
+                          {s.guest_price != null ? (
+                            <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                              SGD {Number(s.guest_price).toFixed(2)}
+                            </span>
+                          ) : null}
                           {creditsRequired > 0 ? (
                             <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
                               {creditsRequired} class pass{creditsRequired !== 1 ? "es" : ""}
@@ -513,9 +519,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                               ) : (
                                 <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                               )}
-                              <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                                SGD {Number(s.guest_price ?? 0).toFixed(2)}
-                              </span>
+                              {s.guest_price != null ? (
+                                <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                  SGD {Number(s.guest_price).toFixed(2)}
+                                </span>
+                              ) : null}
                               {creditsRequired > 0 ? (
                                 <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
                                   {creditsRequired} class pass{creditsRequired !== 1 ? "es" : ""}
@@ -605,9 +613,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       )}
                     </div>
                     <div className="mt-auto flex items-center justify-between pt-4">
-                      <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
-                        SGD {Number(pkg.price ?? 0).toFixed(2)}
-                      </span>
+                      {pkg.price != null ? (
+                        <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                          SGD {Number(pkg.price).toFixed(2)}
+                        </span>
+                      ) : null}
                       {buyHref ? (
                         <Link href={buyHref} className={ui.btnPrimary}>
                           Buy now

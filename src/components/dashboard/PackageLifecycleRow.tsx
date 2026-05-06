@@ -127,10 +127,14 @@ export function PackageLifecycleRow({
           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
             <div className="min-w-0">
               <p className="font-medium text-stone-900 dark:text-stone-100">{initial.name}</p>
-              <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                {initial.credits} class passes · ${Number(initial.price).toFixed(2)}
-                {initial.expiry_days != null ? ` · ${initial.expiry_days}d expiry` : ""}
-              </p>
+              {initial.credits != null || initial.price != null || initial.expiry_days != null ? (
+                <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                  {initial.credits != null ? `${initial.credits} class passes` : ""}
+                  {initial.credits != null && initial.price != null ? " · " : ""}
+                  {initial.price != null ? `$${Number(initial.price).toFixed(2)}` : ""}
+                  {initial.expiry_days != null ? ` · ${initial.expiry_days}d expiry` : ""}
+                </p>
+              ) : null}
               {shareSlug && studioPublicSlug ? (
                 <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>
                   /buy/{studioPublicSlug}/{shareSlug}
