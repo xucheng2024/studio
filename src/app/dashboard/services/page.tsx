@@ -118,75 +118,117 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
 
       <div className="grid gap-4">
         {(services ?? []).map((svc) => (
-          <form key={svc.id} action={updateStudioService} className={`${ui.card} grid gap-3`}>
+          <form key={svc.id} action={updateStudioService} className={ui.card}>
             <input type="hidden" name="studio_id" value={studio.id} />
             <input type="hidden" name="service_id" value={svc.id} />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{svc.title}</h3>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="is_active" defaultChecked={Boolean(svc.is_active)} />
-                Active
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <ServiceDetailLinkButton serviceId={svc.id} />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Title</span>
-                <input name="title" required defaultValue={svc.title} className={ui.input} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Summary</span>
-                <input name="summary" defaultValue={svc.summary ?? ""} className={ui.input} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Price</span>
-                <input name="price" type="number" min="0" step="0.01" defaultValue={Number(svc.price ?? 0)} className={ui.input} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Currency</span>
-                <input name="currency" defaultValue={svc.currency ?? "SGD"} className={ui.input} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Sort order</span>
-                <input name="sort_order" type="number" defaultValue={svc.sort_order ?? 100} className={ui.input} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Video URL</span>
-                <input name="video_url" defaultValue={svc.video_url ?? ""} className={ui.input} />
-              </label>
-            </div>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Description</span>
-              <textarea name="description" rows={4} defaultValue={svc.description ?? ""} className={`${ui.input} min-h-28`} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Tags</span>
-              <textarea
-                name="tags_input"
-                rows={3}
-                defaultValue={formatPublicTagsInput((svc as { tags?: string[] | null }).tags)}
-                className={`${ui.input} min-h-20`}
-              />
-              <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
-            </label>
-            <CoverUrlField
-              studioId={studio.id}
-              folder="services"
-              entityId={svc.id}
-              name="cover_image_url"
-              label="Cover image"
-              defaultValue={svc.cover_image_url}
-            />
-            <div className="flex flex-wrap gap-2">
-              <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">
-                Save changes
-              </SubmitButton>
-              <button type="submit" formAction={deleteStudioService} className={ui.btnDangerSm}>
-                Delete
-              </button>
-            </div>
+            <details className="chevron">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
+                    {(svc.cover_image_url as string | null) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={String(svc.cover_image_url)} alt="" className="size-full object-cover" loading="lazy" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{svc.title}</h3>
+                      {!svc.is_active ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+                          Inactive
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                      {svc.currency ?? "SGD"} {Number(svc.price ?? 0).toFixed(2)}
+                      {svc.summary ? ` · ${svc.summary}` : ""}
+                    </p>
+                    {Array.isArray((svc as { tags?: string[] | null }).tags) && (svc as { tags: string[] }).tags.length ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {(svc as { tags: string[] }).tags.slice(0, 4).map((tag) => (
+                          <span
+                            key={`${svc.id}-${tag}`}
+                            className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  <ServiceDetailLinkButton serviceId={svc.id} />
+                  <button type="submit" formAction={deleteStudioService} className={`${ui.btnDangerSm} px-2`}>
+                    Delete
+                  </button>
+                </div>
+              </summary>
+
+              <div className="mt-3 grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input type="checkbox" name="is_active" defaultChecked={Boolean(svc.is_active)} />
+                  Active
+                </label>
+
+                <label className="flex flex-col gap-1.5 sm:col-span-2">
+                  <span className={ui.label}>Title</span>
+                  <input name="title" required defaultValue={svc.title} className={ui.input} />
+                </label>
+                <label className="flex flex-col gap-1.5 sm:col-span-2">
+                  <span className={ui.label}>Summary</span>
+                  <input name="summary" defaultValue={svc.summary ?? ""} className={ui.input} />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Price</span>
+                  <input name="price" type="number" min="0" step="0.01" defaultValue={Number(svc.price ?? 0)} className={ui.input} />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Currency</span>
+                  <input name="currency" defaultValue={svc.currency ?? "SGD"} className={ui.input} />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Sort order</span>
+                  <input name="sort_order" type="number" defaultValue={svc.sort_order ?? 100} className={ui.input} />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Video URL</span>
+                  <input name="video_url" defaultValue={svc.video_url ?? ""} className={ui.input} />
+                </label>
+
+                <label className="flex flex-col gap-1.5 sm:col-span-2">
+                  <span className={ui.label}>Description</span>
+                  <textarea name="description" rows={4} defaultValue={svc.description ?? ""} className={`${ui.input} min-h-28`} />
+                </label>
+                <label className="flex flex-col gap-1.5 sm:col-span-2">
+                  <span className={ui.label}>Tags</span>
+                  <textarea
+                    name="tags_input"
+                    rows={3}
+                    defaultValue={formatPublicTagsInput((svc as { tags?: string[] | null }).tags)}
+                    className={`${ui.input} min-h-20`}
+                  />
+                  <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
+                </label>
+                <div className="sm:col-span-2">
+                  <CoverUrlField
+                    studioId={studio.id}
+                    folder="services"
+                    entityId={svc.id}
+                    name="cover_image_url"
+                    label="Cover image"
+                    defaultValue={svc.cover_image_url}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2 sm:col-span-2">
+                  <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">
+                    Save changes
+                  </SubmitButton>
+                </div>
+              </div>
+            </details>
           </form>
         ))}
       </div>
