@@ -117,6 +117,11 @@ async function cleanupAllAngleData(ctx) {
   const packageIds = (packages ?? []).map((p) => p.id);
   const classIds = (classes ?? []).map((c) => c.id);
 
+  // 1b) list events for the studio
+  const { data: events, error: evErr } = await admin.from("events").select("id").eq("studio_id", ctx.studioId);
+  if (evErr && !String(evErr.message ?? "").includes("relation")) throw evErr;
+  const eventIds = (events ?? []).map((e) => e.id);
+
   // 2) list sessions for those classes
   let sessionIds = [];
   if (classIds.length) {
@@ -141,9 +146,23 @@ async function cleanupAllAngleData(ctx) {
     paymentIdsFromBookings = (bookings ?? []).map((b) => b.payment_id).filter(Boolean);
   }
 
+  // 3b) list event_bookings for studio events (if events feature is present)
+  let eventBookingIds = [];
+  let paymentIdsFromEventBookings = [];
+  if (eventIds.length) {
+    const { data: ebs, error: ebErr } = await admin
+      .from("event_bookings")
+      .select("id, payment_id")
+      .in("event_id", eventIds);
+    if (ebErr && !String(ebErr.message ?? "").includes("relation")) throw ebErr;
+    eventBookingIds = (ebs ?? []).map((b) => b.id);
+    paymentIdsFromEventBookings = (ebs ?? []).map((b) => b.payment_id).filter(Boolean);
+  }
+
   // 4) delete payments for this studio that are linked to these bookings OR linked to studio packages
   const paymentFilters = [
     paymentIdsFromBookings.length ? `id.in.(${paymentIdsFromBookings.join(",")})` : null,
+    paymentIdsFromEventBookings.length ? `id.in.(${paymentIdsFromEventBookings.join(",")})` : null,
     packageIds.length ? `package_id.in.(${packageIds.join(",")})` : null,
   ].filter(Boolean);
 
@@ -167,6 +186,10 @@ async function cleanupAllAngleData(ctx) {
     const { error: delB } = await admin.from("bookings").delete().in("id", bookingIds);
     if (delB) throw delB;
   }
+  if (eventBookingIds.length) {
+    const { error: delEB } = await admin.from("event_bookings").delete().in("id", eventBookingIds);
+    if (delEB && !String(delEB.message ?? "").includes("relation")) throw delEB;
+  }
   if (sessionIds.length) {
     const { error: delS } = await admin.from("class_sessions").delete().in("id", sessionIds);
     if (delS) throw delS;
@@ -183,12 +206,18 @@ async function cleanupAllAngleData(ctx) {
     const { error: delI } = await admin.from("instructors").delete().in("id", instructorIds);
     if (delI) throw delI;
   }
+  if (eventIds.length) {
+    const { error: delE } = await admin.from("events").delete().in("id", eventIds);
+    if (delE && !String(delE.message ?? "").includes("relation")) throw delE;
+  }
 
   return {
     deleted: {
       instructorIds: instructorIds.length,
       packageIds: packageIds.length,
       classIds: classIds.length,
+      eventIds: eventIds.length,
+      eventBookingIds: eventBookingIds.length,
       sessionIds: sessionIds.length,
       bookingIds: bookingIds.length,
     },
@@ -491,6 +520,180 @@ async function seedTherapyData(ctx) {
     if (upErr) throw upErr;
   }
 
+  // ── Events: standalone paid activities (hotel partnerships, talks, workshops) ──
+  // Events feature may not exist in older databases; skip gracefully.
+  const now = new Date();
+  const ymd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const ymdPlus = (days) => {
+    const d2 = new Date(`${ymd}T00:00:00+08:00`);
+    d2.setDate(d2.getDate() + days);
+    return `${d2.getFullYear()}-${String(d2.getMonth() + 1).padStart(2, "0")}-${String(d2.getDate()).padStart(2, "0")}`;
+  };
+
+  const eventTemplates = [
+    {
+      title: "Hotel Partnership · Reset & Recover Workshop (90 min)",
+      description:
+        "A guided nervous system reset session with breathwork, grounding, and a short CBT-based reflection. Suitable for all levels.",
+      tags: ["Event", "Workshop", "Partner", "Breathwork", "Stress"],
+      start: { days: 3, hh: 18, mm: 30 },
+      end: { days: 3, hh: 20, mm: 0 },
+      capacity: 40,
+      price: 49,
+      video_url: "https://www.youtube.com/watch?v=O-6f5wQXSu8",
+    },
+    {
+      title: "Corporate Lunch Talk · Burnout Prevention (45 min + Q&A)",
+      description:
+        "A practical talk on early burnout signals, boundary setting, and sustainable recovery habits. Includes guided Q&A.",
+      tags: ["Event", "Talk", "Corporate", "Burnout", "Boundaries"],
+      start: { days: 7, hh: 12, mm: 15 },
+      end: { days: 7, hh: 13, mm: 15 },
+      capacity: 80,
+      price: 29,
+      video_url: null,
+    },
+    {
+      title: "Couples Mini-Retreat · Repair After Conflict (2 hours)",
+      description:
+        "A small-group couples workshop focused on conflict repair, emotional safety, and collaborative agreements. Guided practice included.",
+      tags: ["Event", "Couples", "Communication", "Workshop"],
+      start: { days: 12, hh: 10, mm: 0 },
+      end: { days: 12, hh: 12, mm: 0 },
+      capacity: 16,
+      price: 120,
+      video_url: "https://vimeo.com/76979871",
+    },
+    {
+      title: "Past Event · Mindful Sleep Reset (60 min)",
+      description:
+        "A gentle evening session on sleep down-regulation, routines, and practical tools to reduce nighttime anxiety.",
+      tags: ["Event", "Sleep", "Mindfulness"],
+      start: { days: -6, hh: 19, mm: 30 },
+      end: { days: -6, hh: 20, mm: 30 },
+      capacity: 25,
+      price: 39,
+      video_url: null,
+    },
+  ];
+
+  let insertedEvents = [];
+  try {
+    const eventRows = eventTemplates.map((e, idx) => {
+      const startYmd = ymdPlus(e.start.days);
+      const endYmd = ymdPlus(e.end.days);
+      const start_time = isoSGT(startYmd, e.start.hh, e.start.mm);
+      const end_time = isoSGT(endYmd, e.end.hh, e.end.mm);
+      return {
+        studio_id: ctx.studioId,
+        location_id: ctx.locationId,
+        title: e.title,
+        description: e.description,
+        tags: uniqTags(e.tags),
+        start_time,
+        end_time,
+        capacity: e.capacity,
+        spots_left: e.capacity,
+        price: e.price,
+        currency: "SGD",
+        is_active: true,
+        share_slug: `${CFG.seedTag.toLowerCase()}-evt-${String(idx + 1).padStart(3, "0")}`,
+        image_url: null,
+        video_url: e.video_url,
+      };
+    });
+
+    const { data: evInserted, error: evInsErr } = await admin
+      .from("events")
+      .insert(eventRows)
+      .select("id, title, start_time, end_time, capacity, spots_left, price, share_slug");
+    if (evInsErr) throw evInsErr;
+    insertedEvents = evInserted ?? [];
+
+    // Create some realistic paid event bookings + payments (for upcoming events only)
+    const paidEventTargets = insertedEvents
+      .filter((e) => new Date(e.end_time).getTime() >= Date.now())
+      .slice(0, 3);
+
+    const evBookingRows = [];
+    for (let i = 0; i < paidEventTargets.length; i += 1) {
+      const ev = paidEventTargets[i];
+      const bookingCount = Math.min(5 + i * 2, 12);
+      for (let j = 0; j < bookingCount; j += 1) {
+        const g = pickGuest(i * 25 + j);
+        const createdAt = new Date(new Date(ev.start_time).getTime() - (24 + (j % 10)) * 60 * 60 * 1000).toISOString();
+        evBookingRows.push({
+          event_id: ev.id,
+          location_id: ctx.locationId,
+          client_id: null,
+          status: "booked",
+          payment_status: "paid",
+          created_at: createdAt,
+          guest_name: g.full,
+          guest_email: g.email,
+          guest_phone: g.phone,
+        });
+      }
+      // update spots_left for the event
+      const remaining = Math.max(0, Number(ev.capacity ?? 0) - bookingCount);
+      await admin.from("events").update({ spots_left: remaining }).eq("id", ev.id);
+    }
+
+    const { data: evBookingsInserted, error: evBInsErr } = await admin
+      .from("event_bookings")
+      .insert(evBookingRows)
+      .select("id, created_at, event_id");
+    if (evBInsErr) throw evBInsErr;
+
+    const evById = new Map(insertedEvents.map((e) => [e.id, e]));
+    const evPaymentRows = (evBookingsInserted ?? []).map((b, i) => {
+      const ev = evById.get(b.event_id);
+      const amount = Number(ev?.price ?? 49);
+      const createdAt = new Date(b.created_at).toISOString();
+      return {
+        studio_id: ctx.studioId,
+        location_id: ctx.locationId,
+        client_id: null,
+        booking_id: null,
+        package_id: null,
+        event_booking_id: b.id,
+        amount,
+        paid_amount: amount,
+        type: "single",
+        status: "paid",
+        payment_method: i % 3 === 0 ? "paynow" : i % 2 === 0 ? "hitpay" : "cash",
+        source: "event_booking",
+        currency: "SGD",
+        reference_code: `${CFG.seedTag}-E-${String(i + 1).padStart(4, "0")}`,
+        created_at: createdAt,
+        paid_at: new Date(new Date(createdAt).getTime() + 7 * 60 * 1000).toISOString(),
+        verified_at: new Date(new Date(createdAt).getTime() + 11 * 60 * 1000).toISOString(),
+        verified_by: ctx.ownerId,
+        recon_status: "matched",
+        recon_note: "seed_demo",
+        invoice_status: "issued",
+        invoice_number: `INV-${CFG.seedTag.slice(-8)}-EVT-${String(i + 1).padStart(4, "0")}`,
+        gateway_status: "completed",
+      };
+    });
+
+    const { data: evPaymentsInserted, error: evPErr } = await admin
+      .from("payments")
+      .insert(evPaymentRows)
+      .select("id, event_booking_id");
+    if (evPErr) throw evPErr;
+
+    for (const row of evPaymentsInserted ?? []) {
+      if (!row.event_booking_id) continue;
+      const { error: upErr } = await admin.from("event_bookings").update({ payment_id: row.id }).eq("id", row.event_booking_id);
+      if (upErr) throw upErr;
+    }
+  } catch (e) {
+    // If events tables/migrations aren't applied yet, just skip seeding events.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.toLowerCase().includes("relation") && !msg.toLowerCase().includes("does not exist")) throw e;
+  }
+
   return {
     seedTag: CFG.seedTag,
     inserted: {
@@ -500,6 +703,7 @@ async function seedTherapyData(ctx) {
       sessions: (insertedSessions ?? []).length,
       bookings: (insertedBookings ?? []).length,
       payments: (insertedPayments ?? []).length,
+      events: insertedEvents.length,
     },
   };
 }

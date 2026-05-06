@@ -309,21 +309,6 @@ export default async function SchedulePage({ searchParams }: Props) {
             </>
           )}
         </details>
-        <div className="mt-6">
-          <DashboardAppLink
-            href={`/dashboard/packages?${scopeParams.toString()}`}
-            className={`${ui.card} chevron flex w-full max-w-xl items-center justify-between px-5 py-6 text-base font-semibold text-stone-900 dark:text-stone-100`}
-          >
-            <span className="inline-flex items-center gap-2.5">
-              <Package size={18} />
-              Create package
-            </span>
-            <span className={`inline-flex items-center gap-1 text-xs font-normal ${ui.muted}`}>
-              Open
-              <ChevronRight size={14} />
-            </span>
-          </DashboardAppLink>
-        </div>
       </div>
 
       <div>

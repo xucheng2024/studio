@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Calendar,
   CalendarRange,
+  Package,
   Users,
   CreditCard,
   BarChart2,
@@ -21,6 +22,7 @@ const links: NavLink[] = [
   { href: "/dashboard/operations", label: "Operations", icon: LayoutDashboard },
   { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
   { href: "/dashboard/schedule",   label: "Schedule",   icon: Calendar },
+  { href: "/dashboard/packages",   label: "Packages",   icon: Package },
   { href: "/dashboard/events",     label: "Events",     icon: CalendarRange },
   { href: "/dashboard/clients",    label: "Members",    icon: Users },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
@@ -30,7 +32,7 @@ const links: NavLink[] = [
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk", string[]> = {
   owner:     links.map((l) => l.href),
   manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/events", "/dashboard/clients"],
+  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/packages", "/dashboard/events", "/dashboard/clients"],
 };
 
 function useVisibleLinks(
