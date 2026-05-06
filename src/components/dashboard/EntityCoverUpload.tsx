@@ -46,9 +46,11 @@ type Props = {
   entityId: string;
   imageUrl: string | null;
   canEdit: boolean;
+  /** "full" = aspect-video full-width (default). "thumb" = compact square thumbnail. */
+  size?: "full" | "thumb";
 };
 
-export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canEdit }: Props) {
+export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canEdit, size = "full" }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState(initialUrl);
@@ -129,6 +131,14 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
   // Read-only preview for non-editors
   if (!canEdit) {
     if (!imageUrl) return null;
+    if (size === "thumb") {
+      return (
+        <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt="" className="size-full object-cover" loading="lazy" />
+        </div>
+      );
+    }
     return (
       <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
         <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900">
@@ -141,6 +151,68 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
 
   const dragHandlers = { onDragEnter, onDragLeave, onDragOver, onDrop };
 
+  // ── Compact thumbnail mode ──────────────────────────────────────────
+  if (size === "thumb") {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={imageUrl ? "Replace cover image" : "Upload cover image"}
+          className={`group relative size-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors sm:size-[72px] ${
+            dragging
+              ? "border-teal-400 bg-teal-50 dark:border-teal-500 dark:bg-teal-950/20"
+              : imageUrl
+              ? "border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900"
+              : "border-dashed border-stone-300 bg-stone-50 hover:border-stone-400 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900/30 dark:hover:border-stone-600"
+          }`}
+          onClick={() => !busy && inputRef.current?.click()}
+          {...dragHandlers}
+        >
+          {imageUrl ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt=""
+                className={`size-full object-cover transition-opacity ${dragging ? "opacity-40" : "group-hover:opacity-60"}`}
+                loading="lazy"
+              />
+              <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                {busy
+                  ? <Loader2 size={14} className="animate-spin text-white drop-shadow" />
+                  : <Upload size={14} className="text-white drop-shadow" />}
+              </div>
+            </>
+          ) : (
+            <div className="flex size-full flex-col items-center justify-center gap-1">
+              {busy
+                ? <Loader2 size={18} className="animate-spin text-stone-400" />
+                : <ImageIcon size={18} className="text-stone-400" />}
+            </div>
+          )}
+        </button>
+        {imageUrl ? (
+          <button
+            type="button"
+            disabled={busy}
+            className="text-[10px] leading-none text-red-500 hover:text-red-700 dark:text-red-400 disabled:opacity-50"
+            onClick={() => void onRemove()}
+          >
+            Remove
+          </button>
+        ) : null}
+        <input ref={inputRef} type="file" accept={ACCEPT} className="hidden" onChange={onPickFile} />
+        {error ? (
+          <p className="flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400">
+            <AlertCircle size={10} />{error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  // ── Full (default) mode ─────────────────────────────────────────────
   return (
     <div className="space-y-2">
       {imageUrl ? (

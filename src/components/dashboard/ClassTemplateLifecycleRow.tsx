@@ -19,6 +19,7 @@ export function ClassTemplateLifecycleRow({
   canEdit,
   canCopyLink,
   coverImageUrl,
+  tags,
   initial,
   locations,
   instructors,
@@ -30,6 +31,7 @@ export function ClassTemplateLifecycleRow({
   canEdit: boolean;
   canCopyLink: boolean;
   coverImageUrl: string | null;
+  tags: string[] | null;
   initial: {
     title: string;
     description: string | null;
@@ -142,59 +144,141 @@ export function ClassTemplateLifecycleRow({
   };
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <EntityCoverUpload entity="class" entityId={classId} imageUrl={coverImageUrl} canEdit={canEdit} />
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        {!isActive ? (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-            Hidden
-          </span>
-        ) : null}
-        {shareSlug && studioPublicSlug ? (
-          <span className={`font-mono text-xs ${ui.muted}`}>
-            /class/{studioPublicSlug}/{shareSlug}
-          </span>
-        ) : null}
+    <div className="flex flex-col gap-2">
+      {/* ── Main row: thumbnail + info + actions ── */}
+      <div className="flex items-start gap-3">
+        {/* Thumbnail */}
+        <EntityCoverUpload
+          entity="class"
+          entityId={classId}
+          imageUrl={coverImageUrl}
+          canEdit={canEdit}
+          size="thumb"
+        />
+
+        {/* Info + action buttons */}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+            {/* Title + meta */}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <p className="font-medium text-stone-900 dark:text-stone-100">{initial.title}</p>
+                {!isActive ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+                    Hidden
+                  </span>
+                ) : null}
+              </div>
+              <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                cap {initial.capacity} · {initial.duration_min} min
+                {initial.instructor_id && instructors.find((i) => i.id === initial.instructor_id)?.name
+                  ? ` · ${instructors.find((i) => i.id === initial.instructor_id)!.name}`
+                  : ""}
+              </p>
+              {shareSlug && studioPublicSlug ? (
+                <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>
+                  /class/{studioPublicSlug}/{shareSlug}
+                </p>
+              ) : null}
+              {tags && tags.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {tags.slice(0, 4).map((tag) => (
+                    <span key={tag} className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              {canCopyLink ? (
+                <button
+                  type="button"
+                  disabled={busy || !studioPublicSlug}
+                  className={`${ui.btnSecondarySm} disabled:opacity-50`}
+                  onClick={() => void copyBookingLink()}
+                >
+                  <Copy size={12} />
+                  <span className="hidden sm:inline">Copy link</span>
+                </button>
+              ) : null}
+
+              {canEdit ? (
+                <>
+                  {isActive ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={`${ui.btnSecondarySm} border-amber-300 text-amber-900 dark:border-amber-700 dark:text-amber-200 disabled:opacity-50`}
+                      onClick={() => void hideTemplate()}
+                    >
+                      <EyeOff size={12} />
+                      <span className="hidden sm:inline">Hide</span>
+                    </button>
+                  ) : (
+                    <button type="button" disabled={busy} className={`${ui.btnPrimarySm} disabled:opacity-50`} onClick={() => void resume()}>
+                      <Play size={12} />
+                      <span className="hidden sm:inline">Resume</span>
+                    </button>
+                  )}
+                  {deleteConfirm ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs dark:border-red-800/50 dark:bg-red-950/20">
+                      <AlertTriangle size={11} className="shrink-0 text-red-600 dark:text-red-400" />
+                      <button
+                        type="button"
+                        className="font-semibold text-red-700 hover:underline dark:text-red-400"
+                        onClick={() => void deleteTemplate()}
+                      >
+                        Delete?
+                      </button>
+                      <button type="button" className="text-stone-400 hover:text-stone-600" onClick={() => setDeleteConfirm(false)}>
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={`${ui.btnSecondarySm} border-red-200 text-red-600 dark:border-red-800 dark:text-red-400 disabled:opacity-50`}
+                      onClick={() => setDeleteConfirm(true)}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {canCopyLink ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={busy || !studioPublicSlug}
-            className={`${ui.btnSecondarySm} disabled:opacity-50`}
-            onClick={() => void copyBookingLink()}
-          >
-            <Copy size={13} />
-            Copy detail link
-          </button>
-        </div>
-      ) : null}
-
+      {/* ── Edit panel ── */}
       {canEdit ? (
-        <details className="chevron rounded-lg border border-stone-200 px-3 py-2.5 dark:border-stone-700">
-          <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-stone-800 dark:text-stone-200">
-            <Pencil size={13} />
-            Edit
+        <details className="chevron rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-700">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-700 dark:text-stone-300">
+            <Pencil size={12} />
+            Edit template
           </summary>
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <label className="flex flex-col gap-1 md:col-span-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 sm:col-span-2">
               <span className={ui.label}>Title</span>
               <input className={ui.input} value={title} onChange={(e) => setTitle(e.target.value)} />
             </label>
-            <label className="flex flex-col gap-1 md:col-span-2">
+            <label className="flex flex-col gap-1 sm:col-span-2">
               <span className={ui.label}>Description</span>
               <textarea
                 className={`${ui.input} min-h-16`}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+                rows={2}
               />
             </label>
-            <label className="flex flex-col gap-1 md:col-span-2 xl:col-span-3">
-              <span className={ui.label}>Tags</span>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className={ui.label}>Tags <span className={`font-normal ${ui.muted}`}>(one per line)</span></span>
               <textarea
-                className={`${ui.input} min-h-20`}
+                className={`${ui.input} min-h-[4.5rem]`}
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
                 rows={3}
@@ -208,73 +292,26 @@ export function ClassTemplateLifecycleRow({
               <span className={ui.label}>Duration (min)</span>
               <input className={ui.input} type="number" min={15} step={5} value={durationMin} onChange={(e) => setDurationMin(e.target.value)} />
             </label>
-            <label className="flex flex-col gap-1 md:col-span-2">
+            <label className="flex flex-col gap-1">
               <span className={ui.label}>Instructor</span>
               <select className={ui.select} value={instructorId} onChange={(e) => setInstructorId(e.target.value)}>
                 <option value="">—</option>
                 {instructors.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1 md:col-span-2">
+            <label className="flex flex-col gap-1">
               <span className={ui.label}>Location</span>
               <select className={ui.select} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
                 <option value="">—</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </label>
-            <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit md:col-span-2 xl:col-span-3`} onClick={() => void save()}>
-              <Check size={13} />
+            <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit sm:col-span-2`} onClick={() => void save()}>
+              <Check size={12} />
               {busy ? "Saving…" : "Save changes"}
             </button>
           </div>
         </details>
-      ) : null}
-
-      {canEdit ? (
-        <div className="flex flex-wrap gap-2">
-          {isActive ? (
-            <button
-              type="button"
-              disabled={busy}
-              className={`${ui.btnSecondarySm} border-amber-300 text-amber-900 dark:border-amber-700 dark:text-amber-200`}
-              onClick={() => void hideTemplate()}
-            >
-              <EyeOff size={13} />
-              Hide
-            </button>
-          ) : (
-            <button type="button" disabled={busy} className={ui.btnPrimarySm} onClick={() => void resume()}>
-              <Play size={13} />
-              Resume
-            </button>
-          )}
-          {deleteConfirm ? (
-            <span className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs dark:border-red-800/50 dark:bg-red-950/20">
-              <AlertTriangle size={12} className="text-red-600 dark:text-red-400" />
-              <span className="text-red-700 dark:text-red-300">Delete template?</span>
-              <button
-                type="button"
-                className="font-semibold text-red-700 hover:underline dark:text-red-400"
-                onClick={() => void deleteTemplate()}
-              >
-                Yes, delete
-              </button>
-              <button type="button" className={ui.btnGhost} onClick={() => setDeleteConfirm(false)}>
-                <X size={11} />
-              </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              disabled={busy}
-              className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
-              onClick={() => setDeleteConfirm(true)}
-            >
-              <Trash2 size={13} />
-              Delete
-            </button>
-          )}
-        </div>
       ) : null}
     </div>
   );

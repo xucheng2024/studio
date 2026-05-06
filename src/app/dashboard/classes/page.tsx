@@ -208,50 +208,32 @@ export default async function ClassesPage({ searchParams }: Props) {
           </div>
         ) : null}
 
-        <ul className="mt-4 flex flex-col gap-3">
+        <ul className="mt-4 flex flex-col gap-2">
           {(classes ?? []).map((c) => {
-            const ins = c.instructors as { name?: string } | null;
+            const tags = (c as { tags?: string[] | null }).tags ?? null;
             return (
-              <li key={c.id} className={`${ui.card} p-4 sm:p-4`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium text-stone-900 dark:text-stone-100">{c.title}</p>
-                    <p className={`mt-1 text-sm ${ui.muted}`}>
-                      cap {c.capacity} · {c.duration_min} min
-                      {ins?.name ? ` · ${ins.name}` : ""}
-                      {c.is_active === false ? " · Hidden" : ""}
-                    </p>
-                  </div>
-                  {Array.isArray((c as { tags?: string[] | null }).tags) && (c as { tags: string[] }).tags.length > 0 ? (
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      {(c as { tags: string[] }).tags.slice(0, 3).map((tag) => (
-                        <span key={`${c.id}-${tag}`} className={ui.badgeNeutral}>{tag}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="mt-3">
-                  <ClassTemplateLifecycleRow
-                    classId={c.id}
-                    studioPublicSlug={studioMeta?.public_slug ?? null}
-                    shareSlug={c.share_slug ?? null}
-                    isActive={c.is_active !== false}
-                    canEdit={canEdit}
-                    canCopyLink={canCopyLink}
-                    coverImageUrl={(c as { image_url?: string | null }).image_url ?? null}
-                    initial={{
-                      title: c.title,
-                      description: (c as { description?: string | null }).description ?? null,
-                      tags: (c as { tags?: string[] | null }).tags ?? null,
-                      capacity: c.capacity,
-                      duration_min: c.duration_min,
-                      instructor_id: c.instructor_id,
-                      location_id: c.location_id,
-                    }}
-                    locations={locsForStudio}
-                    instructors={insList}
-                  />
-                </div>
+              <li key={c.id} className={ui.card}>
+                <ClassTemplateLifecycleRow
+                  classId={c.id}
+                  studioPublicSlug={studioMeta?.public_slug ?? null}
+                  shareSlug={c.share_slug ?? null}
+                  isActive={c.is_active !== false}
+                  canEdit={canEdit}
+                  canCopyLink={canCopyLink}
+                  coverImageUrl={(c as { image_url?: string | null }).image_url ?? null}
+                  tags={Array.isArray(tags) && tags.length > 0 ? tags : null}
+                  initial={{
+                    title: c.title,
+                    description: (c as { description?: string | null }).description ?? null,
+                    tags,
+                    capacity: c.capacity,
+                    duration_min: c.duration_min,
+                    instructor_id: c.instructor_id,
+                    location_id: c.location_id,
+                  }}
+                  locations={locsForStudio}
+                  instructors={insList}
+                />
               </li>
             );
           })}
