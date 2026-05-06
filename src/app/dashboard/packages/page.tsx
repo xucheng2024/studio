@@ -74,10 +74,10 @@ export default async function PackagesPage({ searchParams }: Props) {
           </DashboardAppLink>
         </div>
         {canEdit ? (
-          <details className={`chevron ${ui.card} mt-5 max-w-md`} id="create-package">
-            <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
+          <details className={`chevron ${ui.card} mt-5 w-full max-w-xl`} id="create-package">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
               <span>+ New package</span>
-              <span className={`text-xs font-normal ${ui.muted}`}>Expand to create</span>
+              <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
             </summary>
             <form action={createPackage} className="mt-4 grid gap-4 sm:grid-cols-2">
               <input type="hidden" name="studio_id" value={studioId} />
@@ -95,10 +95,11 @@ export default async function PackagesPage({ searchParams }: Props) {
                 <input name="price" type="number" min={0} step="0.01" defaultValue={120} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">
-                <span className={ui.label}>Expiry days (empty = none)</span>
-                <input name="expiry_days" type="number" min={1} className={ui.input} />
+                <span className={ui.label}>Expiry days</span>
+                <input name="expiry_days" type="number" min={1} className={ui.input} placeholder="Leave empty for no expiry" />
+                <p className={`text-xs ${ui.muted}`}>Empty means no expiry.</p>
               </label>
-              <SubmitButton className={`${ui.btnPrimary} w-fit sm:col-span-2`} pendingText="Saving...">
+              <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Saving...">
                 Save package
               </SubmitButton>
             </form>
