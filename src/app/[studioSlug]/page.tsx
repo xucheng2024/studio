@@ -152,7 +152,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <div>
               {studio.public_intro?.trim() ? (
                 <details className="group">
-                  <summary className="cursor-pointer list-none text-base leading-snug text-stone-700 dark:text-stone-300">
+                  <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300">
                     <span className="line-clamp-3 whitespace-pre-wrap">
                       {studio.public_intro.trim()}
                     </span>
@@ -163,12 +163,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       Show less
                     </span>
                   </summary>
-                  <p className="mt-3 whitespace-pre-wrap text-base leading-snug text-stone-700 dark:text-stone-300">
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-snug text-stone-700 dark:text-stone-300">
                     {studio.public_intro.trim()}
                   </p>
                 </details>
               ) : (
-                <p className="text-base leading-snug text-stone-700 dark:text-stone-300">
+                <p className="text-sm leading-snug text-stone-700 dark:text-stone-300">
                   Welcome to our studio. Explore services and get in touch.
                 </p>
               )}
