@@ -1,5 +1,31 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+
+function loadDotEnvLocal() {
+  try {
+    const p = path.resolve(process.cwd(), ".env.local");
+    if (!fs.existsSync(p)) return;
+    const raw = fs.readFileSync(p, "utf8");
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq <= 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!process.env[key]) process.env[key] = value;
+    }
+  } catch {
+    // ignore .env.local parsing errors (env may already be set by runtime)
+  }
+}
+
+loadDotEnvLocal();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -10,13 +36,11 @@ if (!supabaseUrl || !serviceKey) {
 const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
 const CFG = {
-  studioId: "16f775db-50ad-4eaa-9f82-2a1f0048cce4",
-  locationId: "be01ac30-4c47-4713-af3e-94710e8a64ba",
-  classId: "9a44c48b-c384-437b-9bd5-16f2aaa15e5d",
-  ownerId: "3127c00a-5e7c-4b0d-a8b2-c05b0d6c7679",
-  packageId: "835f7785-b71c-441c-b076-26dfa1aa6b24",
+  studioSlug: "angle",
+  // Optional: keep using a real member so dashboards show member-linked rows.
+  // If this user doesn't exist in your Supabase auth, set to null and we'll seed guest-only bookings/payments.
   realMemberId: "f7cdadc7-2fff-4f3f-b10b-13099b2dfd77",
-  seedTag: "SEEDM-ANGLE-20260425",
+  seedTag: `SEEDM-ANGLE-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`,
 };
 
 const randPwd = () => crypto.randomBytes(16).toString("hex") + "Aa1!";
@@ -76,68 +100,155 @@ async function ensureUserByEmail(email, fullName, phone) {
   return userId;
 }
 
-async function cleanupSeedRows() {
+async function resolveAngleContext() {
+  const { data: studio, error: studioErr } = await admin
+    .from("studios")
+    .select("id, public_slug, owner_id")
+    .eq("public_slug", CFG.studioSlug)
+    .maybeSingle();
+  if (studioErr) throw studioErr;
+  if (!studio?.id) throw new Error(`studio not found for public_slug=${CFG.studioSlug}`);
+
+  const studioId = studio.id;
+  const ownerId = studio.owner_id ?? null;
+
+  const { data: location, error: locErr } = await admin
+    .from("locations")
+    .select("id")
+    .eq("studio_id", studioId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (locErr) throw locErr;
+  if (!location?.id) throw new Error(`no active location for studio_id=${studioId}`);
+
+  const { data: cls, error: classErr } = await admin
+    .from("classes")
+    .select("id, capacity, duration_min, title, description, image_url")
+    .eq("studio_id", studioId)
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (classErr) throw classErr;
+  if (!cls?.id) throw new Error(`no active class for studio_id=${studioId}`);
+
+  const { data: pkg, error: pkgErr } = await admin
+    .from("packages")
+    .select("id, credits, price, name, expiry_days")
+    .eq("studio_id", studioId)
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .order("price", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (pkgErr) throw pkgErr;
+
+  return {
+    studioId,
+    locationId: location.id,
+    classRow: cls,
+    packageRow: pkg ?? null,
+    ownerId,
+  };
+}
+
+async function cleanupSeedRows(ctx) {
   const likeTag = `${CFG.seedTag}%`;
 
   const { data: sessionRows, error: sErr } = await admin
     .from("class_sessions")
     .select("id")
-    .eq("class_id", CFG.classId)
+    .eq("class_id", ctx.classRow.id)
     .like("share_slug", likeTag);
   if (sErr) throw sErr;
   const sessionIds = (sessionRows ?? []).map((r) => r.id);
 
+  // Delete bookings first (we'll also delete payments linked to them below)
+  let bookingIds = [];
+  let paymentIdsFromBookings = [];
+  if (sessionIds.length > 0) {
+    const { data: bookingRows, error: bReadErr } = await admin
+      .from("bookings")
+      .select("id, payment_id")
+      .in("session_id", sessionIds);
+    if (bReadErr) throw bReadErr;
+    bookingIds = (bookingRows ?? []).map((r) => r.id);
+    paymentIdsFromBookings = (bookingRows ?? []).map((r) => r.payment_id).filter(Boolean);
+  }
+
   const { error: pErr } = await admin
     .from("payments")
     .delete()
-    .eq("studio_id", CFG.studioId)
-    .like("reference_code", likeTag);
+    .eq("studio_id", ctx.studioId)
+    .or(
+      [
+        `reference_code.like.${likeTag}`,
+        paymentIdsFromBookings.length ? `id.in.(${paymentIdsFromBookings.join(",")})` : null,
+      ]
+        .filter(Boolean)
+        .join(","),
+    );
   if (pErr) throw pErr;
 
-  if (sessionIds.length > 0) {
-    const { error: bErr } = await admin.from("bookings").delete().in("session_id", sessionIds);
+  if (bookingIds.length > 0) {
+    const { error: bErr } = await admin.from("bookings").delete().in("id", bookingIds);
     if (bErr) throw bErr;
   }
 
   const { error: csErr } = await admin
     .from("class_sessions")
     .delete()
-    .eq("class_id", CFG.classId)
+    .eq("class_id", ctx.classRow.id)
     .like("share_slug", likeTag);
   if (csErr) throw csErr;
+
+  // Clean tagged client package balances (snapshots we seed include the tag prefix)
+  if (CFG.realMemberId && ctx.packageRow?.id) {
+    await admin
+      .from("client_packages")
+      .delete()
+      .eq("client_id", CFG.realMemberId)
+      .eq("package_id", ctx.packageRow.id)
+      .like("package_name_snapshot", likeTag);
+  }
 }
 
 async function main() {
-  // 0) read class/package metadata
-  const [{ data: cls, error: classErr }, { data: pkg, error: pkgErr }] = await Promise.all([
-    admin.from("classes").select("id, capacity, duration_min, title").eq("id", CFG.classId).single(),
-    admin.from("packages").select("id, credits, price, name").eq("id", CFG.packageId).single(),
-  ]);
-  if (classErr || !cls) throw classErr ?? new Error("class not found");
-  if (pkgErr || !pkg) throw pkgErr ?? new Error("package not found");
+  const ctx = await resolveAngleContext();
 
-  await cleanupSeedRows();
+  await cleanupSeedRows(ctx);
 
   // 1) create/ensure 20 members (1 real + 19 seed)
-  const memberIds = [CFG.realMemberId];
+  const memberIds = CFG.realMemberId ? [CFG.realMemberId] : [];
   const seededMemberIds = [];
 
-  for (let i = 2; i <= 20; i += 1) {
-    const email = `seed.member${String(i).padStart(2, "0")}@angle.demo`;
-    const fullName = `Seed Member ${String(i).padStart(2, "0")}`;
-    const phone = `+6591${String(100000 + i).slice(-6)}`;
-    const id = await ensureUserByEmail(email, fullName, phone);
-    memberIds.push(id);
-    seededMemberIds.push(id);
+  if (CFG.realMemberId) {
+    for (let i = 2; i <= 20; i += 1) {
+      const email = `seed.member${String(i).padStart(2, "0")}@angle.demo`;
+      const fullName = `Seed Member ${String(i).padStart(2, "0")}`;
+      const phone = `+6591${String(100000 + i).slice(-6)}`;
+      const id = await ensureUserByEmail(email, fullName, phone);
+      memberIds.push(id);
+      seededMemberIds.push(id);
+    }
   }
 
   // ensure real member profile also present
-  const { data: realUser } = await admin.from("users").select("id, email").eq("id", CFG.realMemberId).maybeSingle();
-  if (realUser?.email) {
-    await admin.from("user_profiles").upsert(
-      { id: CFG.realMemberId, email: realUser.email, full_name: "Real Member", role: "client" },
-      { onConflict: "id" },
-    );
+  if (CFG.realMemberId) {
+    const { data: realUser } = await admin
+      .from("users")
+      .select("id, email")
+      .eq("id", CFG.realMemberId)
+      .maybeSingle();
+    if (realUser?.email) {
+      await admin.from("user_profiles").upsert(
+        { id: CFG.realMemberId, email: realUser.email, full_name: "Real Member", role: "client" },
+        { onConflict: "id" },
+      );
+    }
   }
 
   // 2) seed 30 sessions
@@ -150,23 +261,26 @@ async function main() {
     const hour = i % 3 === 0 ? 19 : i % 5 === 0 ? 7 : 18;
     const minute = i % 4 === 0 ? 30 : 0;
     const start = atTime(base, hour, minute);
-    const end = new Date(start.getTime() + Number(cls.duration_min ?? 60) * 60 * 1000);
+    const end = new Date(start.getTime() + Number(ctx.classRow.duration_min ?? 60) * 60 * 1000);
     const status = i % 15 === 0 ? "cancelled" : start < new Date(now.getTime() - 24 * 60 * 60 * 1000) ? "completed" : "scheduled";
     const guestPrice = i % 5 === 0 ? 120 : i % 3 === 0 ? 80 : 100;
     const creditsRequired = i % 6 === 0 ? 2 : 1;
 
     sessionRows.push({
-      class_id: CFG.classId,
+      class_id: ctx.classRow.id,
       start_time: iso(start),
       end_time: iso(end),
-      spots_left: Number(cls.capacity ?? 10),
-      location_id: CFG.locationId,
-      capacity: Number(cls.capacity ?? 10),
+      spots_left: Number(ctx.classRow.capacity ?? 10),
+      location_id: ctx.locationId,
+      capacity: Number(ctx.classRow.capacity ?? 10),
       status,
       guest_price: guestPrice,
       credits_required: creditsRequired,
       share_slug: `${CFG.seedTag.toLowerCase()}-s${String(i).padStart(2, "0")}`,
       cancelled_reason: status === "cancelled" ? "seed_demo" : null,
+      class_title_snapshot: ctx.classRow.title ?? null,
+      class_description_snapshot: ctx.classRow.description ?? null,
+      class_image_url_snapshot: ctx.classRow.image_url ?? null,
     });
   }
 
@@ -184,7 +298,7 @@ async function main() {
   const bookingRows = [];
   for (let i = 0; i < 30; i += 1) {
     const s = sessions[i];
-    const memberId = memberIds[i % memberIds.length];
+    const memberId = memberIds.length ? memberIds[i % memberIds.length] : null;
     const start = new Date(s.start_time);
     const createdAt = new Date(start.getTime() - (36 - (i % 10)) * 60 * 60 * 1000);
     const status = i % 11 === 0 ? "cancelled" : i % 7 === 0 ? "no_show" : i % 4 === 0 ? "attended" : "booked";
@@ -192,9 +306,12 @@ async function main() {
     bookingRows.push({
       session_id: s.id,
       client_id: memberId,
+      guest_name: memberId ? null : `Seed Guest ${String(i + 1).padStart(2, "0")}`,
+      guest_email: memberId ? null : `seed.guest${String(i + 1).padStart(2, "0")}@angle.demo`,
+      guest_phone: memberId ? null : `+6591${String(100000 + i + 1).slice(-6)}`,
       status,
       payment_status: "paid",
-      location_id: CFG.locationId,
+      location_id: ctx.locationId,
       created_at: iso(createdAt),
       checked_in_at: status === "attended" ? iso(new Date(start.getTime() + 8 * 60 * 1000)) : null,
     });
@@ -210,8 +327,8 @@ async function main() {
     const amount = 70 + (idx % 6) * 10;
     const createdAt = new Date(b.created_at);
     return {
-      studio_id: CFG.studioId,
-      location_id: CFG.locationId,
+      studio_id: ctx.studioId,
+      location_id: ctx.locationId,
       client_id: b.client_id,
       booking_id: b.id,
       package_id: null,
@@ -220,12 +337,13 @@ async function main() {
       type: "single",
       status: "paid",
       payment_method: idx % 3 === 0 ? "cash" : idx % 2 === 0 ? "paynow" : "hitpay",
+      source: "online_booking",
       currency: "SGD",
       reference_code: `${CFG.seedTag}-B-${String(idx + 1).padStart(3, "0")}`,
       created_at: createdAt.toISOString(),
       paid_at: new Date(createdAt.getTime() + 20 * 60 * 1000).toISOString(),
       verified_at: new Date(createdAt.getTime() + 30 * 60 * 1000).toISOString(),
-      verified_by: CFG.ownerId,
+      verified_by: ctx.ownerId,
       recon_status: "matched",
       recon_note: "seed_demo",
       invoice_status: "issued",
@@ -246,47 +364,56 @@ async function main() {
   }
 
   // 4) seed extra 10 paid package payments (total payments = 40)
-  const packagePayments = Array.from({ length: 10 }, (_, i) => {
+  const packagePayments = ctx.packageRow
+    ? Array.from({ length: 10 }, (_, i) => {
     const memberId = memberIds[i % memberIds.length];
     const createdAt = new Date(now.getTime() - (20 - i) * 24 * 60 * 60 * 1000);
     return {
-      studio_id: CFG.studioId,
-      location_id: CFG.locationId,
+      studio_id: ctx.studioId,
+      location_id: ctx.locationId,
       client_id: memberId,
       booking_id: null,
-      package_id: CFG.packageId,
-      amount: Number(pkg.price ?? 200),
-      paid_amount: Number(pkg.price ?? 200),
+      package_id: ctx.packageRow.id,
+      amount: Number(ctx.packageRow.price ?? 200),
+      paid_amount: Number(ctx.packageRow.price ?? 200),
       type: "package",
       status: "paid",
       payment_method: i % 2 === 0 ? "hitpay" : "paynow",
+      source: "package_buy",
       currency: "SGD",
       reference_code: `${CFG.seedTag}-P-${String(i + 1).padStart(3, "0")}`,
       created_at: createdAt.toISOString(),
       paid_at: new Date(createdAt.getTime() + 15 * 60 * 1000).toISOString(),
       verified_at: new Date(createdAt.getTime() + 20 * 60 * 1000).toISOString(),
-      verified_by: CFG.ownerId,
+      verified_by: ctx.ownerId,
       recon_status: "matched",
       recon_note: "seed_demo",
       invoice_status: "issued",
       invoice_number: `INV-${CFG.seedTag.slice(-8)}-P${String(i + 1).padStart(3, "0")}`,
       gateway_status: "completed",
+      package_name_snapshot: `${CFG.seedTag} ${ctx.packageRow.name ?? "Package"}`,
     };
-  });
+    })
+    : [];
 
   const { error: pkgPayErr } = await admin.from("payments").insert(packagePayments);
   if (pkgPayErr) throw pkgPayErr;
 
   // 5) seed class-pass balances for each member
-  const cpRows = memberIds.map((memberId, i) => ({
-    client_id: memberId,
-    package_id: CFG.packageId,
-    credits_left: Math.max(1, Number(pkg.credits ?? 10) - (i % 4)),
-    expiry_date: new Date(now.getTime() + (45 + (i % 50)) * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date(now.getTime() - (10 - (i % 8)) * 24 * 60 * 60 * 1000).toISOString(),
-  }));
-  const { error: cpInsertErr } = await admin.from("client_packages").insert(cpRows);
-  if (cpInsertErr) throw cpInsertErr;
+  if (ctx.packageRow && memberIds.length > 0) {
+    const cpRows = memberIds.map((memberId, i) => ({
+      client_id: memberId,
+      package_id: ctx.packageRow.id,
+      credits_left: Math.max(1, Number(ctx.packageRow.credits ?? 10) - (i % 4)),
+      expiry_date: new Date(now.getTime() + (45 + (i % 50)) * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date(now.getTime() - (10 - (i % 8)) * 24 * 60 * 60 * 1000).toISOString(),
+      package_name_snapshot: `${CFG.seedTag} ${ctx.packageRow.name ?? "Package"}`,
+      package_credits_snapshot: Number(ctx.packageRow.credits ?? 10),
+      package_expiry_days_snapshot: ctx.packageRow.expiry_days ?? null,
+    }));
+    const { error: cpInsertErr } = await admin.from("client_packages").insert(cpRows);
+    if (cpInsertErr) throw cpInsertErr;
+  }
 
   // 6) recompute spots_left for seeded sessions
   const sessionIdList = sessions.map((s) => s.id);
@@ -314,7 +441,7 @@ async function main() {
   const { count: memberPaidCount } = await admin
     .from("payments")
     .select("id", { count: "exact", head: true })
-    .eq("studio_id", CFG.studioId)
+    .eq("studio_id", ctx.studioId)
     .in("client_id", memberIds)
     .eq("status", "paid");
 
