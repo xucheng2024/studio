@@ -39,6 +39,7 @@ export default async function InstructorSessionsPage() {
       id,
       start_time,
       end_time,
+      class_title_snapshot,
       status,
       classes!inner(title, instructor_id),
       bookings (
@@ -72,6 +73,7 @@ export default async function InstructorSessionsPage() {
       <div className="flex flex-col gap-4">
         {(sessions ?? []).map((s) => {
           const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
+          const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
           const attendees = (s.bookings ?? []) as {
             id: string;
             status: string;
@@ -110,7 +112,7 @@ export default async function InstructorSessionsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-semibold text-stone-900 dark:text-stone-100">{cls?.title ?? "Class"}</p>
+                    <p className="font-semibold text-stone-900 dark:text-stone-100">{classTitle}</p>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusBg}`}>
                       {s.status}
                     </span>

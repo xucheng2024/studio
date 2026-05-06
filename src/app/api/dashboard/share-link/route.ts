@@ -8,7 +8,7 @@ import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
-  entity_type: z.enum(["class", "package", "session"]),
+  entity_type: z.enum(["class", "package", "service", "session"]),
   entity_id: z.string().uuid(),
   slug: z.string().max(80).optional(),
 });
@@ -30,10 +30,13 @@ export async function POST(req: Request) {
   if (parsed.data.entity_type === "package") {
     const { data: row, error } = await admin
       .from("packages")
-      .select("id, studio_id, location_id, share_slug")
+      .select("id, studio_id, location_id, share_slug, deleted_at")
       .eq("id", parsed.data.entity_id)
       .maybeSingle();
     if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    if ((row as { deleted_at?: string | null }).deleted_at) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
 
     const scope = await requireStaffScope({
       userId: user.id,
@@ -63,6 +66,42 @@ export async function POST(req: Request) {
     const url = `${base}/buy/${studio.public_slug}/${slugResult.slug}`;
     revalidatePath("/checkout");
     revalidatePath(`/buy/${studio.public_slug}/${slugResult.slug}`);
+    return NextResponse.json({ url, share_slug: slugResult.slug });
+  }
+
+  if (parsed.data.entity_type === "service") {
+    const { data: row, error } = await admin
+      .from("studio_services")
+      .select("id, studio_id, share_slug")
+      .eq("id", parsed.data.entity_id)
+      .maybeSingle();
+    if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+    const scope = await requireStaffScope({
+      userId: user.id,
+      studioId: row.studio_id,
+      locationId: null,
+      roles: ["owner", "manager", "frontdesk"],
+    });
+    if (!scope.ok) return staffScopeFailureResponse(scope);
+
+    const { data: studio } = await admin
+      .from("studios")
+      .select("public_slug, contract_status")
+      .eq("id", row.studio_id)
+      .maybeSingle();
+    if (!studio?.public_slug || studio.contract_status === "suspended") {
+      return NextResponse.json({ error: "studio_unavailable" }, { status: 409 });
+    }
+
+    const slugResult = await resolveShareSlug(admin, "studio_services", row.id, row.share_slug, parsed.data.slug);
+    if (!slugResult.ok) {
+      return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
+    }
+
+    const url = `${base}/service/${studio.public_slug}/${slugResult.slug}`;
+    revalidatePath(`/${studio.public_slug}`);
+    revalidatePath(`/service/${studio.public_slug}/${slugResult.slug}`);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
 
@@ -169,7 +208,7 @@ export async function POST(req: Request) {
 
 async function resolveShareSlug(
   admin: ReturnType<typeof createAdminClient>,
-  table: "packages" | "classes" | "class_sessions",
+  table: "packages" | "classes" | "class_sessions" | "studio_services",
   id: string,
   existing: string | null | undefined,
   customRaw: string | undefined,
@@ -180,6 +219,9 @@ async function resolveShareSlug(
     }
     if (table === "class_sessions") {
       return admin.from("class_sessions").update({ share_slug: slug }).eq("id", id);
+    }
+    if (table === "studio_services") {
+      return admin.from("studio_services").update({ share_slug: slug }).eq("id", id);
     }
     return admin.from("classes").update({ share_slug: slug }).eq("id", id);
   };

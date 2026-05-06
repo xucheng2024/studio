@@ -17,10 +17,11 @@ export async function POST(_req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("packages")
-    .select("id, studio_id, location_id")
+    .select("id, studio_id, location_id, deleted_at")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if ((row as { deleted_at?: string | null }).deleted_at) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const scope = await requireStaffScope({
     userId: user.id,

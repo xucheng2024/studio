@@ -20,7 +20,7 @@ export default async function MyOrdersPage() {
 
   const { data: payments } = await supabase
     .from("payments")
-    .select("id, amount, currency, status, created_at, reference_code, payment_method, booking_id, package_id")
+    .select("id, amount, currency, status, created_at, reference_code, payment_method, booking_id, package_id, package_name_snapshot")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -89,7 +89,11 @@ export default async function MyOrdersPage() {
                 {sessionTitle ? (
                   <p className={`mt-2 text-sm ${ui.muted}`}>Session: {sessionTitle}{sessionTime ? ` · ${sessionTime}` : ""}</p>
                 ) : null}
-                {pkg?.name ? <p className={`mt-1 text-sm ${ui.muted}`}>Package: {pkg.name}</p> : null}
+                {(((p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim()) || pkg?.name) ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>
+                    Package: {(p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || pkg?.name}
+                  </p>
+                ) : null}
               </li>
             );
           })}

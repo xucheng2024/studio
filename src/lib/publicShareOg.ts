@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getCachedClassShareContext, getCachedPackageShareContext } from "@/lib/cachedSharePages";
+import { getCachedClassShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
 
 export async function buildClassShareMetadata(
   studioSlugRaw: string,
@@ -55,6 +55,37 @@ export async function buildPackageShareMetadata(
       card: "summary_large_image",
       title: pkg.name,
       description: desc,
+      images: [img],
+    },
+  };
+}
+
+export async function buildServiceShareMetadata(
+  studioSlugRaw: string,
+  serviceSlugRaw: string,
+): Promise<Metadata> {
+  const ctx = await getCachedServiceShareContext(studioSlugRaw, serviceSlugRaw);
+  if (!ctx) return { title: "Service" };
+  const { studio, service } = ctx;
+
+  const img = service.cover_image_url && isTrustedCoverImageUrl(service.cover_image_url)
+    ? service.cover_image_url
+    : absolutePlaceholderCoverUrl();
+  const desc = service.summary || service.description || `${service.title} at ${studio.name}`;
+
+  return {
+    title: `${service.title} · ${studio.name}`,
+    description: String(desc).slice(0, 200),
+    openGraph: {
+      title: service.title,
+      description: String(desc).slice(0, 200),
+      type: "website",
+      images: [{ url: img, width: 1200, height: 675, alt: service.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: service.title,
+      description: String(desc).slice(0, 200),
       images: [img],
     },
   };

@@ -50,7 +50,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
   const sessionsPromise = supabase
     .from("class_sessions")
-    .select("id, start_time, spots_left, capacity, guest_price, credits_required, status, location_id")
+    .select("id, start_time, spots_left, capacity, guest_price, credits_required, status, location_id, class_title_snapshot, class_description_snapshot, class_image_url_snapshot")
     .eq("class_id", cls.id)
     .eq("status", "scheduled")
     .gte("start_time", new Date().toISOString())
@@ -92,6 +92,9 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   // ── Single-session share view: two-column hero layout ──
   if (isSessionShareView && listSessions.length === 1) {
     const s = listSessions[0];
+    const sessionTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot?.trim() || cls.title;
+    const sessionDescription = (s as { class_description_snapshot?: string | null }).class_description_snapshot?.trim() || cls.description || null;
+    const sessionCover = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? coverSrc;
     const dt = new Date(s.start_time);
     const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
     const monthLabel = dt.toLocaleDateString("en-SG", { month: "short" });
@@ -119,16 +122,16 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
           {/* ── Left: class info ── */}
           <div className="min-w-0">
             <ShareCoverImage
-              src={coverSrc}
-              alt={cls.title}
+              src={sessionCover}
+              alt={sessionTitle}
               sharePath={classSharePath}
-              shareTitle={cls.title}
-              shareText={`Book ${cls.title} at ${studio.name}`}
+              shareTitle={sessionTitle}
+              shareText={`Book ${sessionTitle} at ${studio.name}`}
             />
-            <h1 className={ui.h1}>{cls.title}</h1>
-            {cls.description ? (
+            <h1 className={ui.h1}>{sessionTitle}</h1>
+            {sessionDescription ? (
               <p className="mt-4 whitespace-pre-wrap leading-relaxed text-stone-700 dark:text-stone-300">
-                {cls.description}
+                {sessionDescription}
               </p>
             ) : null}
             {!paymentReady ? (

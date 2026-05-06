@@ -36,14 +36,14 @@ export async function POST(req: Request) {
 
   const { data: pkg, error: pkgErr } = await admin
     .from("packages")
-    .select("id, studio_id, name, credits, price, expiry_days, is_active")
+    .select("id, studio_id, name, credits, price, expiry_days, is_active, deleted_at")
     .eq("id", parsed.data.package_id)
     .single();
 
   if (pkgErr || !pkg) {
     return NextResponse.json({ error: "package_not_found" }, { status: 404 });
   }
-  if (pkg.is_active === false) {
+  if (pkg.is_active === false || (pkg as { deleted_at?: string | null }).deleted_at) {
     return NextResponse.json({ error: "package_not_available" }, { status: 409 });
   }
 
@@ -82,6 +82,7 @@ export async function POST(req: Request) {
     .insert({
       booking_id: null,
       package_id: pkg.id,
+      package_name_snapshot: pkg.name,
       studio_id: pkg.studio_id,
       client_id: user?.id ?? null,
       guest_name: user ? null : guestName ?? null,

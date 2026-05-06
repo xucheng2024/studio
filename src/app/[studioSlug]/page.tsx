@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import { CalendarDays, ConciergeBell, MessageCircle, PlayCircle, Tag } from "lucide-react";
+import { CalendarDays, ConciergeBell, MessageCircle, Tag } from "lucide-react";
+import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
@@ -21,14 +22,14 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, contract_status, public_intro, public_cover_image_url, public_video_url, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, contract_status, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("public_slug", slug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
 
   const { data: services } = await admin
     .from("studio_services")
-    .select("id, title, summary, description, price, currency, cover_image_url, video_url, sort_order")
+    .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, sort_order")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -37,7 +38,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
   const nowIso = new Date().toISOString();
   const { data: classes } = await admin
     .from("class_sessions")
-    .select("id, start_time, spots_left, capacity, guest_price, credits_required, classes!inner(title, description, share_slug, image_url, studio_id, is_active, capacity)")
+    .select("id, start_time, spots_left, capacity, guest_price, credits_required, class_title_snapshot, class_description_snapshot, class_image_url_snapshot, classes!inner(title, description, share_slug, image_url, tags, studio_id, is_active, capacity)")
     .eq("classes.studio_id", studio.id)
     .eq("classes.is_active", true)
     .eq("status", "scheduled")
@@ -50,6 +51,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     .select("id, name, price, credits, expiry_days, location_id, image_url, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
+    .is("deleted_at", null)
     .order("price", { ascending: true });
 
   return {
@@ -118,8 +120,18 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     }
   };
   const studioVideoPreview = getVideoPreview(studio.public_video_url);
+  const servicesTitle = studio.public_services_title?.trim() || "General services";
+  const classesTitle = studio.public_classes_title?.trim() || "Upcoming classes";
+  const packagesTitle = studio.public_packages_title?.trim() || "Packages";
+  const visibleServices = services.slice(0, 4);
+  const hiddenServices = services.slice(4);
+  const visibleClasses = classes.slice(0, 4);
+  const hiddenClasses = classes.slice(4);
   const lightAnchorBtn =
     "inline-flex items-center rounded-xl border border-stone-200 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition-colors hover:bg-white hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-stone-100";
+  const mediaTagClass =
+    "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
+  const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 sm:pt-6 lg:px-8">
@@ -128,19 +140,14 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <div className="mb-3 flex justify-end">
             <StudioAccountEntry isSignedIn={Boolean(user)} />
           </div>
-          <div className="grid gap-5 sm:grid-cols-[168px_1fr] sm:items-start">
+          <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">
             <div className="w-full">
-              {cover ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={cover}
-                  alt={`${studio.name} portrait`}
-                  className="aspect-square w-full rounded-2xl border border-stone-200 object-cover shadow-sm dark:border-stone-700"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="aspect-square w-full rounded-2xl bg-stone-100 dark:bg-stone-900" />
-              )}
+              <PublicVideoCover
+                title={studio.name}
+                coverUrl={studioMediaCover}
+                embedUrl={studioVideoPreview.embedUrl}
+                fallbackUrl={studio.public_video_url ?? null}
+              />
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400">
@@ -149,7 +156,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               {studio.public_intro?.trim() ? (
                 <details className="group">
                   <summary className={`mt-2 cursor-pointer list-none text-[1.05rem] leading-relaxed text-stone-700 dark:text-stone-300`}>
-                    <span className="line-clamp-4 whitespace-pre-wrap">
+                    <span className="line-clamp-3 whitespace-pre-wrap">
                       {studio.public_intro.trim()}
                     </span>
                     <span className="mt-3 inline-flex text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
@@ -189,114 +196,73 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         </div>
       </section>
 
-      {studio.public_video_url ? (
-        <section className="mx-auto mt-10 w-full max-w-5xl">
-          <div className={ui.card}>
-            {studioVideoPreview.embedUrl ? (
-              <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
-                <iframe
-                  src={studioVideoPreview.embedUrl}
-                  title="Studio promo video"
-                  className="aspect-video w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <a href={studio.public_video_url} target="_blank" rel="noreferrer" className={`${ui.link} gap-1.5`}>
-                <PlayCircle size={15} />
-                Watch studio video
-              </a>
-            )}
+      {services.length > 0 ? (
+        <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ConciergeBell size={18} className="text-teal-600 dark:text-teal-400" />
+              <h2 className={ui.h2}>{servicesTitle}</h2>
+            </div>
           </div>
-        </section>
-      ) : null}
-
-      <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <ConciergeBell size={18} className="text-teal-600 dark:text-teal-400" />
-            <h2 className={ui.h2}>General services</h2>
-          </div>
-        </div>
-        {services.length === 0 ? (
-          <div className={`mt-4 ${ui.emptyState}`}>
-            <p className={ui.muted}>No services published yet.</p>
-          </div>
-        ) : (
           <div className="mt-4 grid gap-4">
-            {services.map((svc) => {
-              const serviceVideoPreview = getVideoPreview(svc.video_url);
+            {visibleServices.map((svc) => {
               const serviceWaLink = buildServiceWaLink(svc.title);
+              const servicePath = `/service/${studio.public_slug}/${svc.share_slug}`;
               return (
                 <article key={svc.id} className={ui.card}>
                   <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
-                    <div className="relative">
-                      {svc.cover_image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={svc.cover_image_url} alt={svc.title} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
-                      ) : (
-                        <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
-                      )}
-                      <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                        {svc.currency} {Number(svc.price ?? 0).toFixed(2)}
-                      </span>
+                    <div className="shrink-0">
+                      <Link href={servicePath} className="block">
+                        <div className="relative">
+                          {svc.cover_image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={svc.cover_image_url} alt={svc.title} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                          ) : (
+                            <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                          )}
+                          <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                            {svc.currency} {Number(svc.price ?? 0).toFixed(2)}
+                          </span>
+                          <div className="absolute bottom-2 right-2 z-20">
+                            <SessionShareLinkButton
+                              sharePath={servicePath}
+                              title={`${svc.title} · ${studio.name}`}
+                              text={`Check out this service: ${svc.title}`}
+                            />
+                          </div>
+                        </div>
+                      </Link>
+                      {Array.isArray((svc as { tags?: string[] | null }).tags) && (svc as { tags: string[] }).tags.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {(svc as { tags: string[] }).tags.map((tag) => (
+                            <span key={`${svc.id}-${tag}`} className={mediaTagClass}>
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-start justify-between gap-2">
-                        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{svc.title}</h3>
+                        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                          <Link href={servicePath} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                            {svc.title}
+                          </Link>
+                        </h3>
                       </div>
-                      {svc.summary ? <p className={`mt-2 text-sm ${ui.muted}`}>{svc.summary}</p> : null}
+                      {svc.summary ? (
+                        <p className={`mt-2 line-clamp-2 text-sm ${ui.muted}`}>{svc.summary}</p>
+                      ) : null}
                       {svc.description ? (
-                        <p className="mt-3 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">{svc.description}</p>
+                        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
+                          {svc.description}
+                        </p>
                       ) : null}
-                      {svc.video_url ? (
-                        <div className="mt-3">
-                          {serviceVideoPreview.embedUrl ? (
-                            <div className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
-                              <iframe
-                                src={serviceVideoPreview.embedUrl}
-                                title={`${svc.title} video`}
-                                className="aspect-video w-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowFullScreen
-                              />
-                            </div>
-                          ) : (
-                            <a
-                              href={svc.video_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="group block overflow-hidden rounded-lg border border-stone-200 transition-shadow hover:shadow-sm dark:border-stone-700"
-                            >
-                              {serviceVideoPreview.thumbnailUrl ? (
-                                <div className="relative">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={serviceVideoPreview.thumbnailUrl}
-                                    alt={`${svc.title} video cover`}
-                                    className="aspect-video w-full object-cover"
-                                    loading="lazy"
-                                  />
-                                  <span className="absolute inset-0 flex items-center justify-center">
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                                      <PlayCircle size={13} />
-                                      Watch
-                                    </span>
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className={`px-3 py-2.5 text-sm ${ui.link}`}>
-                                  <PlayCircle size={14} />
-                                  Watch service video
-                                </span>
-                              )}
-                            </a>
-                          )}
-                        </div>
-                      ) : null}
-                      {serviceWaLink ? (
-                        <div className="mt-4">
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Link href={servicePath} className={ui.btnPrimarySm}>
+                          View details
+                        </Link>
+                        {serviceWaLink ? (
                           <a
                             href={serviceWaLink}
                             target="_blank"
@@ -306,34 +272,119 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             <MessageCircle size={14} />
                             Enquire Now
                           </a>
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </article>
               );
             })}
           </div>
-        )}
-      </section>
+          {hiddenServices.length > 0 ? (
+            <details className="group mt-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
+                <span className="group-open:hidden">Show {hiddenServices.length} more services</span>
+                <span className="hidden group-open:inline">Show fewer services</span>
+              </summary>
+              <div className="mt-4 grid gap-4">
+                {hiddenServices.map((svc) => {
+                  const serviceWaLink = buildServiceWaLink(svc.title);
+                  const servicePath = `/service/${studio.public_slug}/${svc.share_slug}`;
+                  return (
+                    <article key={svc.id} className={ui.card}>
+                      <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                        <div className="shrink-0">
+                          <Link href={servicePath} className="block">
+                            <div className="relative">
+                              {svc.cover_image_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={svc.cover_image_url} alt={svc.title} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                              ) : (
+                                <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                              )}
+                              <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                {svc.currency} {Number(svc.price ?? 0).toFixed(2)}
+                              </span>
+                              <div className="absolute bottom-2 right-2 z-20">
+                                <SessionShareLinkButton
+                                  sharePath={servicePath}
+                                  title={`${svc.title} · ${studio.name}`}
+                                  text={`Check out this service: ${svc.title}`}
+                                />
+                              </div>
+                            </div>
+                          </Link>
+                          {Array.isArray((svc as { tags?: string[] | null }).tags) && (svc as { tags: string[] }).tags.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {(svc as { tags: string[] }).tags.map((tag) => (
+                                <span key={`${svc.id}-${tag}`} className={mediaTagClass}>
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                              <Link href={servicePath} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                                {svc.title}
+                              </Link>
+                            </h3>
+                          </div>
+                          {svc.summary ? (
+                            <p className={`mt-2 line-clamp-2 text-sm ${ui.muted}`}>{svc.summary}</p>
+                          ) : null}
+                          {svc.description ? (
+                            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
+                              {svc.description}
+                            </p>
+                          ) : null}
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Link href={servicePath} className={ui.btnPrimarySm}>
+                              View details
+                            </Link>
+                            {serviceWaLink ? (
+                              <a
+                                href={serviceWaLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={ui.btnSecondarySm}
+                              >
+                                <MessageCircle size={14} />
+                                Enquire Now
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
+        </section>
+      ) : null}
 
-      <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
-        <div className="flex items-center gap-2">
-          <CalendarDays size={18} className="text-teal-600 dark:text-teal-400" />
-          <h2 className={ui.h2}>Upcoming classes</h2>
-        </div>
-        {classes.length === 0 ? (
-          <div className={`mt-4 ${ui.emptyState}`}>
-            <p className={ui.muted}>No upcoming classes yet.</p>
+      {classes.length > 0 ? (
+        <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={18} className="text-teal-600 dark:text-teal-400" />
+            <h2 className={ui.h2}>{classesTitle}</h2>
           </div>
-        ) : (
           <div className="mt-4 grid w-full gap-4">
-            {classes.map((s) => {
+            {visibleClasses.map((s) => {
               const dt = new Date(s.start_time);
               const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
               const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
               const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
-              const classDescription = cls?.description?.trim() ?? "";
+              const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot?.trim() || cls?.title || "Class";
+              const classDescription =
+                (s as { class_description_snapshot?: string | null }).class_description_snapshot?.trim()
+                || cls?.description?.trim()
+                || "";
+              const classImage = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
               const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
               const spotsLeft = Number(s.spots_left ?? 0);
               const creditsRequired = Number(s.credits_required ?? 0);
@@ -353,33 +404,44 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 >
                   <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
                     <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
-                      <div className="relative shrink-0">
-                        {cls?.image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={cls.image_url}
-                            alt={cls?.title ?? "Class cover"}
-                            className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
-                        )}
-                        <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                          SGD {Number(s.guest_price ?? 0).toFixed(2)}
-                        </span>
-                        {creditsRequired > 0 ? (
-                          <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
-                            {creditsRequired} class pass{creditsRequired !== 1 ? "es" : ""}
+                      <div className="shrink-0">
+                        <div className="relative">
+                          {classImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={classImage}
+                              alt={classTitle}
+                              className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                          )}
+                          <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                            SGD {Number(s.guest_price ?? 0).toFixed(2)}
                           </span>
-                        ) : null}
-                        <div className="absolute bottom-2 right-2 z-20">
-                          <SessionShareLinkButton
-                            sharePath={href}
-                            title={`${cls?.title ?? "Class"} · ${studio.name}`}
-                            text={`Book this session: ${cls?.title ?? "Class"}`}
-                          />
+                          {creditsRequired > 0 ? (
+                            <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
+                              {creditsRequired} class pass{creditsRequired !== 1 ? "es" : ""}
+                            </span>
+                          ) : null}
+                          <div className="absolute bottom-2 right-2 z-20">
+                            <SessionShareLinkButton
+                              sharePath={href}
+                              title={`${classTitle} · ${studio.name}`}
+                              text={`Book this session: ${classTitle}`}
+                            />
+                          </div>
                         </div>
+                        {Array.isArray((cls as { tags?: string[] | null } | null)?.tags) && (cls as { tags: string[] }).tags.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {(cls as { tags: string[] }).tags.map((tag) => (
+                              <span key={`${s.id}-${tag}`} className={mediaTagClass}>
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="flex min-w-0 flex-col">
                         <p className={`text-sm ${ui.muted}`}>
@@ -404,14 +466,115 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>
-        )}
-      </section>
+          {hiddenClasses.length > 0 ? (
+            <details className="group mt-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
+                <span className="group-open:hidden">Show {hiddenClasses.length} more classes</span>
+                <span className="hidden group-open:inline">Show fewer classes</span>
+              </summary>
+              <div className="mt-4 grid w-full gap-4">
+                {hiddenClasses.map((s) => {
+                  const dt = new Date(s.start_time);
+                  const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
+                  const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
+                  const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot?.trim() || cls?.title || "Class";
+                  const classDescription =
+                    (s as { class_description_snapshot?: string | null }).class_description_snapshot?.trim()
+                    || cls?.description?.trim()
+                    || "";
+                  const classImage = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
+                  const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
+                  const spotsLeft = Number(s.spots_left ?? 0);
+                  const creditsRequired = Number(s.credits_required ?? 0);
+                  const spotsText = spotsLeft === 0
+                    ? sessionCapacity > 0 ? `0/${sessionCapacity} spots left` : "Full"
+                    : sessionCapacity > 0
+                      ? `${spotsLeft}/${sessionCapacity} spots left`
+                      : `${spotsLeft} spots left`;
+                  const classSlug = cls?.share_slug;
+                  const href = classSlug
+                    ? `/class/${studio.public_slug}/${classSlug}?session_id=${s.id}`
+                    : `/booking/${studio.public_slug}`;
+                  return (
+                    <article
+                      key={s.id}
+                      className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}
+                    >
+                      <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
+                        <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                          <div className="shrink-0">
+                            <div className="relative">
+                              {classImage ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={classImage}
+                                  alt={classTitle}
+                                  className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                              )}
+                              <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                SGD {Number(s.guest_price ?? 0).toFixed(2)}
+                              </span>
+                              {creditsRequired > 0 ? (
+                                <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
+                                  {creditsRequired} class pass{creditsRequired !== 1 ? "es" : ""}
+                                </span>
+                              ) : null}
+                              <div className="absolute bottom-2 right-2 z-20">
+                                <SessionShareLinkButton
+                                  sharePath={href}
+                                  title={`${classTitle} · ${studio.name}`}
+                                  text={`Book this session: ${classTitle}`}
+                                />
+                              </div>
+                            </div>
+                            {Array.isArray((cls as { tags?: string[] | null } | null)?.tags) && (cls as { tags: string[] }).tags.length > 0 ? (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {(cls as { tags: string[] }).tags.map((tag) => (
+                                  <span key={`${s.id}-${tag}`} className={mediaTagClass}>
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="flex min-w-0 flex-col">
+                            <p className={`text-sm ${ui.muted}`}>
+                              {dateLabel} · {timeLabel}
+                            </p>
+                            <h3 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
+                              {classTitle}
+                            </h3>
+                            {classDescription ? (
+                              <p className="mt-2 line-clamp-4 text-sm text-stone-700 dark:text-stone-300">
+                                {classDescription}
+                              </p>
+                            ) : null}
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                              <span className={ui.btnPrimarySm}>Book now</span>
+                              <span className={`text-sm ${ui.muted}`}>{spotsText}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </article>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
+        </section>
+      ) : null}
 
       {packages.length > 0 ? (
         <section id="packages" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <Tag size={18} className="text-teal-600 dark:text-teal-400" />
-            <h2 className={ui.h2}>Packages</h2>
+            <h2 className={ui.h2}>{packagesTitle}</h2>
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>
             Buy a class pass pack and book any upcoming session.

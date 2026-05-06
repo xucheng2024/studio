@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { buildAccessContext, resolveAccessContext } from "@/lib/rbac";
+import { parsePublicTagsInput } from "@/lib/publicTags";
+import { generateShareSlugSegment } from "@/lib/shareSlug";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -226,6 +228,23 @@ function sanitizePrice(raw: FormDataEntryValue | null): number {
   return Math.round(n * 100) / 100;
 }
 
+async function generateUniqueServiceShareSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studioId: string,
+): Promise<string | null> {
+  for (let i = 0; i < 15; i++) {
+    const candidate = generateShareSlugSegment(10);
+    const { data: existing } = await supabase
+      .from("studio_services")
+      .select("id")
+      .eq("studio_id", studioId)
+      .eq("share_slug", candidate)
+      .maybeSingle();
+    if (!existing) return candidate;
+  }
+  return null;
+}
+
 export async function updateStudioPublicProfile(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
@@ -236,6 +255,9 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const public_cover_image_url = String(formData.get("public_cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("public_video_url") ?? "");
   const public_video_url = sanitizeVideoUrl(rawVideo);
+  const public_services_title = String(formData.get("public_services_title") ?? "").trim() || null;
+  const public_classes_title = String(formData.get("public_classes_title") ?? "").trim() || null;
+  const public_packages_title = String(formData.get("public_packages_title") ?? "").trim() || null;
   const whatsapp_enabled = formData.get("whatsapp_enabled") === "on";
   const rawWhatsapp = String(formData.get("whatsapp_number_e164") ?? "");
   const whatsapp_number_e164 = normalizeE164(rawWhatsapp);
@@ -250,6 +272,9 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
       public_intro,
       public_cover_image_url,
       public_video_url,
+      public_services_title,
+      public_classes_title,
+      public_packages_title,
       whatsapp_enabled,
       whatsapp_number_e164,
       whatsapp_prefill_text,
@@ -280,8 +305,11 @@ export async function createStudioService(formData: FormData): Promise<void> {
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("video_url") ?? "");
   const video_url = sanitizeVideoUrl(rawVideo);
+  const tags = parsePublicTagsInput(formData.get("tags_input"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   if (rawVideo.trim() && !video_url) return;
+  const share_slug = await generateUniqueServiceShareSlug(supabase, studio.id);
+  if (!share_slug) return;
 
   const { error } = await supabase.from("studio_services").insert({
     studio_id: studio.id,
@@ -292,6 +320,8 @@ export async function createStudioService(formData: FormData): Promise<void> {
     currency,
     cover_image_url,
     video_url,
+    tags,
+    share_slug,
     is_active: true,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
   });
@@ -322,6 +352,7 @@ export async function updateStudioService(formData: FormData): Promise<void> {
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("video_url") ?? "");
   const video_url = sanitizeVideoUrl(rawVideo);
+  const tags = parsePublicTagsInput(formData.get("tags_input"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
   if (rawVideo.trim() && !video_url) return;
@@ -336,6 +367,7 @@ export async function updateStudioService(formData: FormData): Promise<void> {
       currency,
       cover_image_url,
       video_url,
+      tags,
       is_active,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
     })
@@ -615,6 +647,7 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
   const capacity = Number(formData.get("capacity") ?? 10);
   const duration_min = Number(formData.get("duration_min") ?? 60);
   const instructor_id = String(formData.get("instructor_id") ?? "").trim();
+  const tags = parsePublicTagsInput(formData.get("tags_input"));
 
   if (!title) return;
   if (instructor_id) {
@@ -635,6 +668,7 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
     capacity: Number.isFinite(capacity) ? capacity : 10,
     duration_min: Number.isFinite(duration_min) ? duration_min : 60,
     instructor_id: instructor_id ? instructor_id : null,
+    tags,
   });
   if (error) {
     console.error(error.message);
@@ -663,7 +697,7 @@ export async function createSession(formData: FormData): Promise<void> {
 
   const { data: cls, error: cErr } = await supabase
     .from("classes")
-    .select("id, duration_min, capacity, studio_id, location_id, is_active")
+    .select("id, title, description, image_url, duration_min, capacity, studio_id, location_id, is_active")
     .eq("id", class_id)
     .single();
 
@@ -680,6 +714,9 @@ export async function createSession(formData: FormData): Promise<void> {
   const { error } = await supabase.from("class_sessions").insert({
     class_id: cls.id,
     location_id: locationId || cls.location_id || null,
+    class_title_snapshot: cls.title,
+    class_description_snapshot: cls.description ?? null,
+    class_image_url_snapshot: (cls as { image_url?: string | null }).image_url ?? null,
     start_time: startDate.toISOString(),
     end_time: endDate.toISOString(),
     capacity: cls.capacity,
@@ -801,7 +838,7 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, studio_id, location_id, is_active")
+    .select("id, title, description, image_url, studio_id, location_id, is_active")
     .eq("id", classId)
     .maybeSingle();
   if (!cls || cls.studio_id !== studio.id) return;
@@ -864,6 +901,9 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
         await supabase.from("class_sessions").insert({
           class_id: classId,
           location_id: locationId,
+          class_title_snapshot: (cls as { title?: string | null }).title ?? null,
+          class_description_snapshot: (cls as { description?: string | null }).description ?? null,
+          class_image_url_snapshot: (cls as { image_url?: string | null }).image_url ?? null,
           start_time: st.toISOString(),
           end_time: en.toISOString(),
           capacity,

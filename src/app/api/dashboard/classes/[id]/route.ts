@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizePublicTags } from "@/lib/publicTags";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,6 +13,7 @@ const patchSchema = z.object({
   duration_min: z.coerce.number().int().min(1).optional(),
   instructor_id: z.string().uuid().nullable().optional(),
   location_id: z.string().uuid().nullable().optional(),
+  tags: z.array(z.string()).nullable().optional(),
 });
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -96,6 +98,9 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     }
     patch.location_id = parsed.data.location_id;
   }
+  if (parsed.data.tags !== undefined) {
+    patch.tags = normalizePublicTags(parsed.data.tags);
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ ok: true });
@@ -134,17 +139,10 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
 
-  const { data: hasSession } = await admin
-    .from("class_sessions")
-    .select("id")
-    .eq("class_id", id)
-    .limit(1)
-    .maybeSingle();
-  if (hasSession?.id) {
-    return NextResponse.json({ error: "class_has_sessions" }, { status: 409 });
-  }
-
-  const { error: dErr } = await admin.from("classes").delete().eq("id", id);
+  const { error: dErr } = await admin
+    .from("classes")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
   if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
 
   revalidatePath("/dashboard/classes");

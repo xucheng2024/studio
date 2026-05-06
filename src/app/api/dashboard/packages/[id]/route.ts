@@ -30,10 +30,13 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("packages")
-    .select("id, studio_id, location_id")
+    .select("id, studio_id, location_id, deleted_at")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if ((row as { deleted_at?: string | null }).deleted_at) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
   const scope = await requireStaffScope({
     userId: user.id,
@@ -85,10 +88,13 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("packages")
-    .select("id, studio_id, location_id")
+    .select("id, studio_id, location_id, deleted_at")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if ((row as { deleted_at?: string | null }).deleted_at) {
+    return NextResponse.json({ ok: true });
+  }
 
   const scope = await requireStaffScope({
     userId: user.id,
@@ -98,27 +104,10 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
 
-  const { data: hasClientPackages } = await admin
-    .from("client_packages")
-    .select("id")
-    .eq("package_id", id)
-    .limit(1)
-    .maybeSingle();
-  if (hasClientPackages?.id) {
-    return NextResponse.json({ error: "package_has_sales" }, { status: 409 });
-  }
-
-  const { data: hasPayments } = await admin
-    .from("payments")
-    .select("id")
-    .eq("package_id", id)
-    .limit(1)
-    .maybeSingle();
-  if (hasPayments?.id) {
-    return NextResponse.json({ error: "package_has_sales" }, { status: 409 });
-  }
-
-  const { error: dErr } = await admin.from("packages").delete().eq("id", id);
+  const { error: dErr } = await admin
+    .from("packages")
+    .update({ deleted_at: new Date().toISOString(), is_active: false })
+    .eq("id", id);
   if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
 
   revalidatePath("/dashboard/packages");

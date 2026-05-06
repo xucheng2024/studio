@@ -1,7 +1,7 @@
 import { updateStudioBasics, updateStudioPublicProfile } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
+import { StudioProfileMediaFields } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -42,7 +42,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, public_intro, public_cover_image_url, public_video_url, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -93,13 +93,11 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
       <form action={updateStudioPublicProfile} className={`${ui.card} grid gap-4`}>
         <input type="hidden" name="studio_id" value={studio.id} />
-        <CoverUrlField
+        <StudioProfileMediaFields
           studioId={studio.id}
-          folder="studios"
-          entityId="cover"
-          name="public_cover_image_url"
-          label="Studio cover image"
-          defaultValue={studio.public_cover_image_url}
+          coverDefaultValue={studio.public_cover_image_url}
+          videoDefaultValue={studio.public_video_url}
+          studioName={studio.name}
         />
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Intro</span>
@@ -111,10 +109,35 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
             placeholder="Tell visitors about your studio."
           />
         </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Promo video URL (YouTube/Vimeo)</span>
-          <input name="public_video_url" className={ui.input} defaultValue={studio.public_video_url ?? ""} placeholder="https://..." />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Services section title</span>
+            <input
+              name="public_services_title"
+              className={ui.input}
+              defaultValue={studio.public_services_title ?? ""}
+              placeholder="General services"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Classes section title</span>
+            <input
+              name="public_classes_title"
+              className={ui.input}
+              defaultValue={studio.public_classes_title ?? ""}
+              placeholder="Upcoming classes"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Packages section title</span>
+            <input
+              name="public_packages_title"
+              className={ui.input}
+              defaultValue={studio.public_packages_title ?? ""}
+              placeholder="Packages"
+            />
+          </label>
+        </div>
 
         <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
           <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">WhatsApp contact</h2>

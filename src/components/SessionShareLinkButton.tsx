@@ -22,7 +22,7 @@ export function SessionShareLinkButton({ sharePath, title, text }: Props) {
   return (
     <button
       type="button"
-      aria-label="Share session"
+      aria-label="Share link"
       onClick={async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -38,7 +38,7 @@ export function SessionShareLinkButton({ sharePath, title, text }: Props) {
         }
         try {
           await navigator.clipboard.writeText(url);
-          toast.success("Session link copied");
+          toast.success("Link copied");
         } catch {
           toast.error("Could not share link");
         }

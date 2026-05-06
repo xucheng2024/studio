@@ -40,7 +40,7 @@ export function SessionEditPanel({
     <details className="chevron rounded-lg border border-stone-200 p-3 dark:border-stone-700">
       <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-700 dark:text-stone-300">
         <Pencil size={12} />
-        Edit session
+        Edit session details
       </summary>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1 sm:col-span-2">
@@ -120,7 +120,7 @@ export function SessionEditPanel({
           }}
         >
           <Check size={13} />
-          {busy ? "Saving…" : "Save session"}
+          {busy ? "Saving…" : "Save session changes"}
         </button>
         {validationMsg ? (
           <p className="flex items-center gap-1.5 text-xs text-red-600 sm:col-span-2 dark:text-red-400">

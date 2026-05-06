@@ -66,7 +66,7 @@ export function CancelSessionButton({
         onClick={() => setStep("confirm")}
       >
         <CalendarX size={13} />
-        Cancel session
+        Cancel this session
       </button>
     );
   }
@@ -84,6 +84,9 @@ export function CancelSessionButton({
             </p>
             <p className="mt-1 text-xs text-red-600 dark:text-red-400">
               All active bookings will be cancelled. Refunds and class passes apply automatically.
+            </p>
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+              This does not delete the session or its historical records.
             </p>
           </div>
         </div>
@@ -105,7 +108,7 @@ export function CancelSessionButton({
             onClick={() => void doCancel()}
           >
             <CalendarX size={13} />
-            Yes, cancel
+            Confirm cancellation
           </button>
           <button
             type="button"

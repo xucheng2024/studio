@@ -2,7 +2,9 @@ import { createStudioService, deleteStudioService, updateStudioService } from "@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
+import { ServiceDetailLinkButton } from "@/components/dashboard/ServiceDetailLinkButton";
 import { getDashboardScope } from "@/lib/dashboard";
+import { formatPublicTagsInput } from "@/lib/publicTags";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -44,7 +46,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
     supabase.from("studios").select("id, name, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("studio_services")
-      .select("id, title, summary, description, price, currency, cover_image_url, video_url, is_active, sort_order")
+      .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, is_active, sort_order")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -104,6 +106,11 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
           <span className={ui.label}>Video URL</span>
           <input name="video_url" placeholder="https://..." className={ui.input} />
         </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Tags</span>
+          <textarea name="tags_input" rows={3} className={`${ui.input} min-h-20`} placeholder={`Private session\nBeginner friendly\n60 min`} />
+          <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
+        </label>
         <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
           Create service
         </SubmitButton>
@@ -120,6 +127,9 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                 <input type="checkbox" name="is_active" defaultChecked={Boolean(svc.is_active)} />
                 Active
               </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <ServiceDetailLinkButton serviceId={svc.id} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5">
@@ -150,6 +160,16 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Description</span>
               <textarea name="description" rows={4} defaultValue={svc.description ?? ""} className={`${ui.input} min-h-28`} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Tags</span>
+              <textarea
+                name="tags_input"
+                rows={3}
+                defaultValue={formatPublicTagsInput((svc as { tags?: string[] | null }).tags)}
+                className={`${ui.input} min-h-20`}
+              />
+              <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
             </label>
             <CoverUrlField
               studioId={studio.id}

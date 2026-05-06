@@ -52,7 +52,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
 
   const { data: packRowsRaw } = await supabase
     .from("client_packages")
-    .select("id, package_id, credits_left, expiry_date, packages!inner(name, studio_id, location_id, credits)")
+    .select("id, package_id, credits_left, expiry_date, package_name_snapshot, package_credits_snapshot, packages!inner(studio_id, location_id)")
     .eq("client_id", clientId)
     .in("packages.studio_id", [activeStudioId]);
 
@@ -68,7 +68,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
 
   let payQ = supabase
     .from("payments")
-    .select("id, package_id, amount, paid_amount, status, type, payment_method, reference_code, created_at")
+    .select("id, package_id, package_name_snapshot, amount, paid_amount, status, type, payment_method, reference_code, created_at")
     .eq("client_id", clientId)
     .eq("studio_id", activeStudioId)
     .order("created_at", { ascending: false })
@@ -172,11 +172,14 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         <ul className="mt-3 flex flex-col gap-2">
           {(packRows ?? []).map((row) => {
             const pkg = Array.isArray(row.packages) ? row.packages[0] : row.packages;
-            const pct = pkg?.credits ? Math.round((row.credits_left / Number(pkg.credits)) * 100) : null;
+            const packageName =
+              (row as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || "Package";
+            const packageCredits = Number((row as { package_credits_snapshot?: number | null }).package_credits_snapshot ?? 0);
+            const pct = packageCredits > 0 ? Math.round((row.credits_left / packageCredits) * 100) : null;
             return (
               <li key={row.id} className={`${ui.card} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
                 <div>
-                  <p className="font-semibold text-stone-900 dark:text-stone-100">{pkg?.name ?? "Package"}</p>
+                  <p className="font-semibold text-stone-900 dark:text-stone-100">{packageName}</p>
                   <p className={`mt-0.5 text-xs ${ui.muted}`}>
                     Expiry: {row.expiry_date ? new Date(row.expiry_date).toLocaleDateString() : "No expiry"}
                   </p>
@@ -192,7 +195,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                   )}
                   <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">
                     {row.credits_left}
-                    <span className={`font-normal ${ui.muted}`}> / {pkg?.credits ?? "?"}</span>
+                    <span className={`font-normal ${ui.muted}`}> / {packageCredits || "?"}</span>
                   </span>
                 </div>
               </li>
@@ -212,6 +215,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         <ul className="mt-3 flex flex-col gap-2">
           {purchaseRows.map((p) => {
             const statusCls = statusColors[p.status ?? ""] ?? statusColors.pending;
+            const packageName = (p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || null;
             return (
               <li key={p.id} className="rounded-xl border border-stone-100 bg-white/70 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -227,6 +231,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                   {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
                   {p.created_at ? <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span> : null}
                 </div>
+                {packageName ? <p className={`mt-1 text-sm ${ui.muted}`}>Package: {packageName}</p> : null}
               </li>
             );
           })}

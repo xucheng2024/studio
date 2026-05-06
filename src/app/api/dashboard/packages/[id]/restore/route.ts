@@ -30,7 +30,7 @@ export async function POST(_req: Request, ctx: RouteParams) {
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
 
-  const { error: uErr } = await admin.from("packages").update({ is_active: true }).eq("id", id);
+  const { error: uErr } = await admin.from("packages").update({ is_active: true, deleted_at: null }).eq("id", id);
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
 
   revalidatePath("/dashboard/packages");

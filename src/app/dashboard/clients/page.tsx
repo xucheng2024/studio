@@ -86,7 +86,8 @@ export default async function ClientsPage({ searchParams }: Props) {
       client_id,
       credits_left,
       expiry_date,
-      packages!inner ( name, studio_id, location_id )
+      package_name_snapshot,
+      packages!inner ( studio_id, location_id )
     `,
     )
     .in("packages.studio_id", studioIds)
@@ -99,13 +100,14 @@ export default async function ClientsPage({ searchParams }: Props) {
     client_id: string;
     credits_left: number;
     expiry_date: string | null;
-    packages?: { name?: string; studio_id?: string; location_id?: string | null } | null;
+    package_name_snapshot?: string | null;
+    packages?: { studio_id?: string; location_id?: string | null } | null;
   }[]).map((p) => {
     const pkg = Array.isArray(p.packages) ? p.packages[0] : p.packages;
     return {
       id: p.id,
       client_id: p.client_id,
-      name: pkg?.name ?? "Package",
+      name: p.package_name_snapshot?.trim() || "Package",
       credits_left: p.credits_left,
       expiry_date: p.expiry_date,
       studio_id: pkg?.studio_id ?? "",

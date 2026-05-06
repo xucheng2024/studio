@@ -78,6 +78,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     .from("classes")
     .select("id, title, studio_id, location_id")
     .in("studio_id", studioIds)
+    .is("deleted_at", null)
     .eq("is_active", true)
     .order("title");
   if (selectedLocationId) classesQuery = classesQuery.eq("location_id", selectedLocationId);
@@ -117,6 +118,7 @@ export default async function SchedulePage({ searchParams }: Props) {
       id,
       start_time,
       end_time,
+      class_title_snapshot,
       spots_left,
       status,
       capacity,
@@ -359,6 +361,7 @@ export default async function SchedulePage({ searchParams }: Props) {
         <ul className="mt-4 flex flex-col gap-4">
           {filteredSessions.map((s) => {
             const cls = sessionClassRef((s as { classes?: unknown }).classes);
+            const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
             const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
             const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
             const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
@@ -384,7 +387,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-stone-900 dark:text-stone-100">
-                        {cls?.title ?? "Class"}
+                        {classTitle}
                       </p>
                       {isCancelled ? (
                         <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
@@ -410,7 +413,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                     <SessionShareButton sharePath={sharePath} />
                     <CancelSessionButton
                       sessionId={s.id}
-                      classTitle={cls?.title ?? "Class"}
+                      classTitle={classTitle}
                       startTimeIso={String(s.start_time)}
                       locationName={locationName}
                       sessionStatus={sessionStatus}

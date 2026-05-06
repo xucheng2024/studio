@@ -34,6 +34,7 @@ export default async function StudioBookingPage({ params }: Props) {
           .from("class_sessions")
           .select(
             `id, location_id, start_time, spots_left, capacity, guest_price, credits_required,
+             class_title_snapshot, class_image_url_snapshot,
              classes!inner ( title, studio_id, image_url, capacity )`,
           )
           .in("class_id", classIds)
@@ -81,8 +82,8 @@ export default async function StudioBookingPage({ params }: Props) {
       <ul className="flex flex-col gap-4 max-w-2xl">
         {(sessions ?? []).map((s) => {
           const cls = s.classes as { title?: string; studio_id?: string; image_url?: string | null; capacity?: number | null } | null;
-          const title = cls?.title ?? "Class";
-          const imageUrl = cls?.image_url ?? null;
+          const title = (s as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
+          const imageUrl = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
           const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
           const dt = new Date(s.start_time);
           const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });

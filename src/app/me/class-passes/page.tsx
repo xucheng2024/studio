@@ -18,7 +18,7 @@ export default async function MyClassPassesPage() {
 
   const { data: rows } = await supabase
     .from("client_packages")
-    .select("id, credits_left, expiry_date, created_at, packages(name, credits, studio_id)")
+    .select("id, credits_left, expiry_date, created_at, package_name_snapshot, package_credits_snapshot")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -64,18 +64,20 @@ export default async function MyClassPassesPage() {
         ) : (
           <ul className="mt-6 flex flex-col gap-3">
             {rows.map((r) => {
-              const pkg = Array.isArray(r.packages) ? r.packages[0] : r.packages;
               const expiry = r.expiry_date
                 ? new Date(r.expiry_date).toLocaleDateString("en-SG", { dateStyle: "medium" })
                 : "No expiry";
+              const packageName =
+                (r as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || "Class pass package";
+              const packSize = Math.max(0, Number((r as { package_credits_snapshot?: number | null }).package_credits_snapshot ?? 0));
               return (
                 <li key={r.id} className={ui.card}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-semibold text-stone-900 dark:text-stone-100">{pkg?.name ?? "Class pass package"}</p>
+                    <p className="font-semibold text-stone-900 dark:text-stone-100">{packageName}</p>
                     <span className={ui.badgeNeutral}>Left: {Math.max(0, Number(r.credits_left ?? 0))}</span>
                   </div>
                   <div className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm ${ui.muted}`}>
-                    <span>Pack size: {Math.max(0, Number(pkg?.credits ?? 0))}</span>
+                    <span>Pack size: {packSize}</span>
                     <span>Expiry: {expiry}</span>
                   </div>
                 </li>

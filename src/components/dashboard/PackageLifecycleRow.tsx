@@ -129,14 +129,10 @@ export function PackageLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      if (body.error === "package_has_sales") {
-        toast.error("This package has sales history. Stop selling instead.");
-        return;
-      }
       toast.error(body.error ?? "Delete failed");
       return;
     }
-    toast.success("Package deleted");
+    toast.success("Package removed");
     router.refresh();
   };
 
@@ -260,13 +256,13 @@ export function PackageLifecycleRow({
           deleteConfirm ? (
             <span className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs dark:border-red-800/50 dark:bg-red-950/20">
               <AlertTriangle size={12} className="text-red-600 dark:text-red-400" />
-              <span className="text-red-700 dark:text-red-300">Delete package?</span>
+              <span className="text-red-700 dark:text-red-300">Remove this package from the dashboard?</span>
               <button
                 type="button"
                 className="font-semibold text-red-700 hover:underline dark:text-red-400"
                 onClick={() => void deletePackage()}
               >
-                Yes, delete
+                Yes, remove
               </button>
               <button type="button" className={ui.btnGhost} onClick={() => setDeleteConfirm(false)}>
                 <X size={11} />
@@ -280,7 +276,7 @@ export function PackageLifecycleRow({
               onClick={() => setDeleteConfirm(true)}
             >
               <Trash2 size={13} />
-              Delete
+              Remove
             </button>
           )
         ) : null}

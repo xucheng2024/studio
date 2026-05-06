@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Check, Copy, EyeOff, Play, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { EntityCoverUpload } from "@/components/dashboard/EntityCoverUpload";
+import { formatPublicTagsInput, parsePublicTagsInput } from "@/lib/publicTags";
 import { ui } from "@/lib/ui";
 
 type Loc = { id: string; name: string };
@@ -32,6 +33,7 @@ export function ClassTemplateLifecycleRow({
   initial: {
     title: string;
     description: string | null;
+    tags: string[] | null;
     capacity: number;
     duration_min: number;
     instructor_id: string | null;
@@ -45,6 +47,7 @@ export function ClassTemplateLifecycleRow({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description ?? "");
+  const [tagsInput, setTagsInput] = useState(formatPublicTagsInput(initial.tags));
   const [capacity, setCapacity] = useState(String(initial.capacity));
   const [durationMin, setDurationMin] = useState(String(initial.duration_min));
   const [instructorId, setInstructorId] = useState(initial.instructor_id ?? "");
@@ -66,7 +69,7 @@ export function ClassTemplateLifecycleRow({
     if (body.url) {
       try {
         await navigator.clipboard.writeText(body.url);
-        toast.success("Booking link copied");
+        toast.success("Detail link copied");
       } catch {
         toast.info(body.url);
       }
@@ -81,6 +84,7 @@ export function ClassTemplateLifecycleRow({
       body: JSON.stringify({
         title,
         description: description.trim() === "" ? null : description,
+        tags: parsePublicTagsInput(tagsInput),
         capacity: Number(capacity),
         duration_min: Number(durationMin),
         instructor_id: instructorId === "" ? null : instructorId,
@@ -130,21 +134,17 @@ export function ClassTemplateLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      if (body.error === "class_has_sessions") {
-        toast.error("This template has sessions. Hide it instead.");
-        return;
-      }
       toast.error(body.error ?? "Delete failed");
       return;
     }
-    toast.success("Class template deleted");
+    toast.success("Class template removed");
     router.refresh();
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <EntityCoverUpload entity="class" entityId={classId} imageUrl={coverImageUrl} canEdit={canEdit} />
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {!isActive ? (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
             Hidden
@@ -166,18 +166,18 @@ export function ClassTemplateLifecycleRow({
             onClick={() => void copyBookingLink()}
           >
             <Copy size={13} />
-            Copy booking link
+            Copy detail link
           </button>
         </div>
       ) : null}
 
       {canEdit ? (
-        <details className="chevron rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+        <details className="chevron rounded-lg border border-stone-200 px-3 py-2.5 dark:border-stone-700">
           <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-stone-800 dark:text-stone-200">
             <Pencil size={13} />
             Edit
           </summary>
-          <div className="mt-3 grid max-w-lg gap-3 md:grid-cols-2">
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <label className="flex flex-col gap-1 md:col-span-2">
               <span className={ui.label}>Title</span>
               <input className={ui.input} value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -188,6 +188,15 @@ export function ClassTemplateLifecycleRow({
                 className={`${ui.input} min-h-16`}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </label>
+            <label className="flex flex-col gap-1 md:col-span-2 xl:col-span-3">
+              <span className={ui.label}>Tags</span>
+              <textarea
+                className={`${ui.input} min-h-20`}
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
                 rows={3}
               />
             </label>
@@ -213,7 +222,7 @@ export function ClassTemplateLifecycleRow({
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </label>
-            <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit md:col-span-2`} onClick={() => void save()}>
+            <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit md:col-span-2 xl:col-span-3`} onClick={() => void save()}>
               <Check size={13} />
               {busy ? "Saving…" : "Save changes"}
             </button>

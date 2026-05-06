@@ -35,7 +35,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
   const admin = createAdminClient();
   const { data: session } = await admin
     .from("class_sessions")
-    .select("id, start_time, classes!inner(title, studio_id, instructor_id), locations(name)")
+    .select("id, start_time, class_title_snapshot, classes!inner(title, studio_id, instructor_id), locations(name)")
     .eq("id", id)
     .maybeSingle();
   if (!session) return <p className={ui.muted}>Session not found.</p>;
@@ -110,7 +110,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
         </DashboardAppLink>
 
         <section className={ui.card}>
-          <h1 className={ui.h1}>{cls?.title ?? "Session"}</h1>
+          <h1 className={ui.h1}>{(session as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Session"}</h1>
           <p className={`mt-1 ${ui.muted}`}>{timeLabel}</p>
           {locationName ? <p className={`mt-1 ${ui.muted}`}>{locationName}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">

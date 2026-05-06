@@ -121,7 +121,7 @@ export default async function OperationsPage({ searchParams }: Props) {
   const dayEndIso = nextDate.toISOString();
   let walkinSessionsQuery = supabase
     .from("class_sessions")
-    .select("id, start_time, spots_left, guest_price, classes!inner(title, studio_id)")
+    .select("id, start_time, spots_left, guest_price, class_title_snapshot, classes!inner(title, studio_id)")
     .eq("classes.studio_id", activeStudioId)
     .eq("status", "scheduled")
     .gte("start_time", dayStartIso)
@@ -132,7 +132,7 @@ export default async function OperationsPage({ searchParams }: Props) {
   const { data: walkinSessionsRaw } = await walkinSessionsQuery;
   const walkinSessions = (walkinSessionsRaw ?? []).map((session) => {
     const cls = Array.isArray(session.classes) ? session.classes[0] : session.classes;
-    const title = cls?.title ?? "Class";
+    const title = (session as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
     const when = new Date(session.start_time).toLocaleString("en-SG", {
       hour: "2-digit",
       minute: "2-digit",

@@ -40,6 +40,7 @@ export default async function PackagesPage({ searchParams }: Props) {
       "id, name, credits, price, expiry_days, studio_id, location_id, is_active, share_slug, image_url, studios ( public_slug )",
     )
     .in("studio_id", studioIds)
+    .is("deleted_at", null)
     .order("price");
   if (selectedLocationId) packagesQuery = packagesQuery.eq("location_id", selectedLocationId);
   const { data: packages } = await packagesQuery;

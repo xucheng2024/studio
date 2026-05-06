@@ -60,8 +60,34 @@ export const getCachedPackageShareContext = cache(async (studioSlugRaw: string, 
     .eq("studio_id", studio.id)
     .eq("share_slug", pkgSlug)
     .eq("is_active", true)
+    .is("deleted_at", null)
     .maybeSingle();
   if (!pkg) return null;
 
   return { studio, pkg };
+});
+
+export const getCachedServiceShareContext = cache(async (studioSlugRaw: string, serviceSlugRaw: string) => {
+  const studioSlug = normalizeStudioSlug(studioSlugRaw ?? "");
+  const serviceSlug = normalizeShareSlug(serviceSlugRaw);
+  if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(serviceSlug)) return null;
+
+  const supabase = await createClient();
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, name, public_slug, contract_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
+  if (!studio || studio.contract_status === "suspended") return null;
+
+  const { data: service } = await supabase
+    .from("studio_services")
+    .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, is_active")
+    .eq("studio_id", studio.id)
+    .eq("share_slug", serviceSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!service) return null;
+
+  return { studio, service };
 });
