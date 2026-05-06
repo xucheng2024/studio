@@ -124,28 +124,22 @@ export default async function PackagesPage({ searchParams }: Props) {
           const pub = Array.isArray(st) ? st[0]?.public_slug : st?.public_slug;
           return (
             <li key={p.id} className={ui.card}>
-              <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
-              <p className={`mt-0.5 text-sm ${ui.muted}`}>
-                {p.credits} class passes · ${Number(p.price).toFixed(2)}
-              </p>
-              <div className="mt-2">
-                <PackageLifecycleRow
-                  packageId={p.id}
-                  studioPublicSlug={pub ?? null}
-                  shareSlug={p.share_slug ?? null}
-                  canEdit={canEdit}
-                  canCopyLink={canCopyLink}
-                  coverImageUrl={(p as { image_url?: string | null }).image_url ?? null}
-                  initial={{
-                    name: p.name,
-                    credits: p.credits,
-                    price: Number(p.price),
-                    expiry_days: p.expiry_days,
-                    location_id: p.location_id,
-                  }}
-                  locations={locsForStudio}
-                />
-              </div>
+              <PackageLifecycleRow
+                packageId={p.id}
+                studioPublicSlug={pub ?? null}
+                shareSlug={p.share_slug ?? null}
+                canEdit={canEdit}
+                canCopyLink={canCopyLink}
+                coverImageUrl={(p as { image_url?: string | null }).image_url ?? null}
+                initial={{
+                  name: p.name,
+                  credits: p.credits,
+                  price: Number(p.price),
+                  expiry_days: p.expiry_days,
+                  location_id: p.location_id,
+                }}
+                locations={locsForStudio}
+              />
             </li>
           );
         })}

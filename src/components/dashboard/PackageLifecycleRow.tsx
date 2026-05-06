@@ -110,125 +110,117 @@ export function PackageLifecycleRow({
 
   return (
     <div className="flex flex-col gap-2">
-      <EntityCoverUpload entity="package" entityId={packageId} imageUrl={coverImageUrl} canEdit={canEdit} />
-      {shareSlug && studioPublicSlug ? (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className={`font-mono text-xs ${ui.muted}`}>
-            /buy/{studioPublicSlug}/{shareSlug}
-          </span>
-        </div>
-      ) : null}
+      {/* ── Main row: thumbnail + info + actions ── */}
+      <div className="flex items-start gap-3">
+        <EntityCoverUpload
+          entity="package"
+          entityId={packageId}
+          imageUrl={coverImageUrl}
+          canEdit={canEdit}
+          size="thumb"
+        />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {canCopyLink ? (
-          <button
-            type="button"
-            disabled={busy || !studioPublicSlug}
-            className={`${ui.btnSecondarySm} disabled:opacity-50`}
-            onClick={() => void copyPurchaseLink()}
-          >
-            <Copy size={13} />
-            Copy purchase link
-          </button>
-        ) : null}
-
-        {canEdit ? (
-          <details className="chevron w-fit max-w-full rounded-md border border-stone-200 px-2 py-1 dark:border-stone-700 open:w-full open:px-2 open:py-2">
-            <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-stone-800 dark:text-stone-200">
-              <Pencil size={13} />
-              Edit
-            </summary>
-            <div className="mt-2 grid max-w-md gap-2 border-t border-stone-100 pt-2 dark:border-stone-800">
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Name</span>
-                <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Class passes</span>
-                <input
-                  className={ui.input}
-                  type="number"
-                  min={1}
-                  value={credits}
-                  onChange={(e) => setCredits(e.target.value)}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Price</span>
-                <input
-                  className={ui.input}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Expiry days (empty = none)</span>
-                <input
-                  className={ui.input}
-                  type="number"
-                  min={1}
-                  value={expiryDays}
-                  onChange={(e) => setExpiryDays(e.target.value)}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Location (optional)</span>
-                <select
-                  className={ui.select}
-                  value={locationId}
-                  onChange={(e) => setLocationId(e.target.value)}
-                >
-                  <option value="">All locations</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit`} onClick={() => void save()}>
-                <Check size={13} />
-                {busy ? "Saving…" : "Save changes"}
-              </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0">
+              <p className="font-medium text-stone-900 dark:text-stone-100">{initial.name}</p>
+              <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                {initial.credits} class passes · ${Number(initial.price).toFixed(2)}
+                {initial.expiry_days != null ? ` · ${initial.expiry_days}d expiry` : ""}
+              </p>
+              {shareSlug && studioPublicSlug ? (
+                <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>
+                  /buy/{studioPublicSlug}/{shareSlug}
+                </p>
+              ) : null}
             </div>
-          </details>
-        ) : null}
 
-        {canEdit ? (
-          null
-        ) : null}
-        {canEdit ? (
-          deleteConfirm ? (
-            <span className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs dark:border-red-800/50 dark:bg-red-950/20">
-              <AlertTriangle size={12} className="text-red-600 dark:text-red-400" />
-              <span className="text-red-700 dark:text-red-300">Remove this package from the dashboard?</span>
-              <button
-                type="button"
-                className="font-semibold text-red-700 hover:underline dark:text-red-400"
-                onClick={() => void deletePackage()}
-              >
-                Yes, remove
-              </button>
-              <button type="button" className={ui.btnGhost} onClick={() => setDeleteConfirm(false)}>
-                <X size={11} />
-              </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              disabled={busy}
-              className={`${ui.btnSecondarySm} border-red-300 text-red-700 dark:border-red-700 dark:text-red-300`}
-              onClick={() => setDeleteConfirm(true)}
-            >
-              <Trash2 size={13} />
-              Remove
-            </button>
-          )
-        ) : null}
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              {canCopyLink ? (
+                <button
+                  type="button"
+                  disabled={busy || !studioPublicSlug}
+                  className={`${ui.btnSecondarySm} disabled:opacity-50`}
+                  onClick={() => void copyPurchaseLink()}
+                >
+                  <Copy size={12} />
+                  <span className="hidden sm:inline">Copy link</span>
+                </button>
+              ) : null}
+
+              {canEdit ? (
+                deleteConfirm ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs dark:border-red-800/50 dark:bg-red-950/20">
+                    <AlertTriangle size={11} className="shrink-0 text-red-600 dark:text-red-400" />
+                    <button
+                      type="button"
+                      className="font-semibold text-red-700 hover:underline dark:text-red-400"
+                      onClick={() => void deletePackage()}
+                    >
+                      Remove?
+                    </button>
+                    <button
+                      type="button"
+                      className="text-stone-400 hover:text-stone-600"
+                      onClick={() => setDeleteConfirm(false)}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className={`${ui.btnSecondarySm} border-red-200 text-red-600 dark:border-red-800 dark:text-red-400 disabled:opacity-50`}
+                    onClick={() => setDeleteConfirm(true)}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )
+              ) : null}
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* ── Edit panel ── */}
+      {canEdit ? (
+        <details className="chevron rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-700">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-700 dark:text-stone-300">
+            <Pencil size={12} />
+            Edit package
+          </summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className={ui.label}>Name</span>
+              <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Class passes</span>
+              <input className={ui.input} type="number" min={1} value={credits} onChange={(e) => setCredits(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Price</span>
+              <input className={ui.input} type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Expiry days</span>
+              <input className={ui.input} type="number" min={1} value={expiryDays} onChange={(e) => setExpiryDays(e.target.value)} placeholder="empty = none" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Location</span>
+              <select className={ui.select} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+                <option value="">All locations</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+            <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit sm:col-span-2`} onClick={() => void save()}>
+              <Check size={12} />
+              {busy ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
