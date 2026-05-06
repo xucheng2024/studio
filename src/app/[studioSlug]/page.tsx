@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import { CalendarDays, ConciergeBell, MessageCircle, Tag } from "lucide-react";
+import { CalendarDays, CalendarRange, ConciergeBell, MessageCircle, Tag } from "lucide-react";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
@@ -54,11 +54,20 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     .is("deleted_at", null)
     .order("price", { ascending: true });
 
+  const { data: events } = await admin
+    .from("events")
+    .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
+    .eq("studio_id", studio.id)
+    .eq("is_active", true)
+    .order("start_time", { ascending: true })
+    .limit(12);
+
   return {
     studio,
     services: services ?? [],
     classes: classes ?? [],
     packages: packages ?? [],
+    events: events ?? [],
   };
 });
 
@@ -94,7 +103,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const { studioSlug } = await params;
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
-  const { studio, services, classes, packages } = data;
+  const { studio, services, classes, packages, events } = data;
   const supabase = await createClient();
   const {
     data: { user },
@@ -123,10 +132,16 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const servicesTitle = studio.public_services_title?.trim() || "General services";
   const classesTitle = studio.public_classes_title?.trim() || "Upcoming classes";
   const packagesTitle = studio.public_packages_title?.trim() || "Packages";
+  const eventsTitle = "Events";
   const visibleServices = services.slice(0, 4);
   const hiddenServices = services.slice(4);
   const visibleClasses = classes.slice(0, 4);
   const hiddenClasses = classes.slice(4);
+  const nowMs = Date.now();
+  const upcomingEvents = (events ?? []).filter((e) => new Date(String(e.end_time)).getTime() >= nowMs);
+  const pastEvents = (events ?? []).filter((e) => new Date(String(e.end_time)).getTime() < nowMs);
+  const visibleEvents = upcomingEvents.slice(0, 4);
+  const hiddenEvents = upcomingEvents.slice(4);
   const lightAnchorBtn =
     "inline-flex items-center rounded-xl border border-stone-200 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition-colors hover:bg-white hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-stone-100";
   const mediaTagClass =
@@ -181,6 +196,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   <CalendarDays size={15} />
                   Classes
                 </a>
+                {upcomingEvents.length > 0 ? (
+                  <a href="#events" className={lightAnchorBtn}>
+                    <CalendarRange size={15} />
+                    Events
+                  </a>
+                ) : null}
                 {packages.length > 0 ? (
                   <a href="#packages" className={lightAnchorBtn}>
                     <Tag size={15} />
@@ -586,6 +607,240 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             <div className="mt-4 flex flex-wrap items-center gap-3">
                               <span className={ui.btnPrimarySm}>Book now</span>
                               <span className={`text-sm ${ui.muted}`}>{spotsText}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </article>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
+        </section>
+      ) : null}
+
+      {upcomingEvents.length > 0 ? (
+        <section id="events" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+          <div className="flex items-center gap-2">
+            <CalendarRange size={18} className="text-teal-600 dark:text-teal-400" />
+            <h2 className={ui.h2}>{eventsTitle}</h2>
+          </div>
+          <div className="mt-4 grid w-full gap-4">
+            {visibleEvents.map((e) => {
+              const start = new Date(String(e.start_time));
+              const end = new Date(String(e.end_time));
+              const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
+              const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+              const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+              const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
+              const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
+              return (
+                <article key={e.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
+                  <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
+                    <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                      <div className="shrink-0">
+                        <div className="relative">
+                          {(e as { image_url?: string | null }).image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={String((e as { image_url?: string | null }).image_url)}
+                              alt={String(e.title ?? "")}
+                              className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                          )}
+                          {e.price != null ? (
+                            <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                              {String(e.currency ?? "SGD")} {Number(e.price).toFixed(2)}
+                            </span>
+                          ) : null}
+                          <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
+                            {Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left
+                          </div>
+                        </div>
+                        {tags.length ? (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {Array.from(new Map(tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values())
+                              .filter(Boolean)
+                              .slice(0, 4)
+                              .map((tag) => (
+                                <span key={`${e.id}-${tag.toLowerCase()}`} className={mediaTagClass}>
+                                  {tag}
+                                </span>
+                              ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex min-w-0 flex-col">
+                        <p className={`text-sm ${ui.muted}`}>
+                          {dateLabel} · {timeLabel}–{endLabel}
+                        </p>
+                        <h3 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
+                          {String(e.title ?? "Event")}
+                        </h3>
+                        {(e as { description?: string | null }).description ? (
+                          <p className="mt-2 line-clamp-4 text-sm text-stone-700 dark:text-stone-300">
+                            {String((e as { description?: string | null }).description)}
+                          </p>
+                        ) : null}
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <span className={ui.btnPrimarySm}>View details</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+
+          {hiddenEvents.length > 0 ? (
+            <details className="group mt-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
+                <span className="group-open:hidden">Show {hiddenEvents.length} more events</span>
+                <span className="hidden group-open:inline">Show fewer events</span>
+              </summary>
+              <div className="mt-4 grid w-full gap-4">
+                {hiddenEvents.map((e) => {
+                  const start = new Date(String(e.start_time));
+                  const end = new Date(String(e.end_time));
+                  const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
+                  const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
+                  const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
+                  return (
+                    <article key={e.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
+                      <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
+                        <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                          <div className="shrink-0">
+                            <div className="relative">
+                              {(e as { image_url?: string | null }).image_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={String((e as { image_url?: string | null }).image_url)}
+                                  alt={String(e.title ?? "")}
+                                  className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                              )}
+                              {e.price != null ? (
+                                <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                  {String(e.currency ?? "SGD")} {Number(e.price).toFixed(2)}
+                                </span>
+                              ) : null}
+                              <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
+                                {Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left
+                              </div>
+                            </div>
+                            {tags.length ? (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {Array.from(new Map(tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values())
+                                  .filter(Boolean)
+                                  .slice(0, 4)
+                                  .map((tag) => (
+                                    <span key={`${e.id}-${tag.toLowerCase()}`} className={mediaTagClass}>
+                                      {tag}
+                                    </span>
+                                  ))}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="flex min-w-0 flex-col">
+                            <p className={`text-sm ${ui.muted}`}>
+                              {dateLabel} · {timeLabel}–{endLabel}
+                            </p>
+                            <h3 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
+                              {String(e.title ?? "Event")}
+                            </h3>
+                            {(e as { description?: string | null }).description ? (
+                              <p className="mt-2 line-clamp-4 text-sm text-stone-700 dark:text-stone-300">
+                                {String((e as { description?: string | null }).description)}
+                              </p>
+                            ) : null}
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                              <span className={ui.btnPrimarySm}>View details</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </article>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
+
+          {pastEvents.length > 0 ? (
+            <details className="group mt-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
+                <span className="group-open:hidden">Show {pastEvents.length} past events</span>
+                <span className="hidden group-open:inline">Hide past events</span>
+              </summary>
+              <div className="mt-4 grid w-full gap-4">
+                {pastEvents.map((e) => {
+                  const start = new Date(String(e.start_time));
+                  const end = new Date(String(e.end_time));
+                  const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
+                  const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
+                  const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
+                  return (
+                    <article key={e.id} className={`${ui.card} opacity-70`}>
+                      <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
+                        <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                          <div className="shrink-0">
+                            <div className="relative">
+                              {(e as { image_url?: string | null }).image_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={String((e as { image_url?: string | null }).image_url)}
+                                  alt={String(e.title ?? "")}
+                                  className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                              )}
+                              {e.price != null ? (
+                                <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                  {String(e.currency ?? "SGD")} {Number(e.price).toFixed(2)}
+                                </span>
+                              ) : null}
+                            </div>
+                            {tags.length ? (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {Array.from(new Map(tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values())
+                                  .filter(Boolean)
+                                  .slice(0, 4)
+                                  .map((tag) => (
+                                    <span key={`${e.id}-${tag.toLowerCase()}`} className={mediaTagClass}>
+                                      {tag}
+                                    </span>
+                                  ))}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="flex min-w-0 flex-col">
+                            <p className={`text-sm ${ui.muted}`}>
+                              {dateLabel} · {timeLabel}–{endLabel}
+                            </p>
+                            <h3 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
+                              {String(e.title ?? "Event")}
+                            </h3>
+                            {(e as { description?: string | null }).description ? (
+                              <p className="mt-2 line-clamp-4 text-sm text-stone-700 dark:text-stone-300">
+                                {String((e as { description?: string | null }).description)}
+                              </p>
+                            ) : null}
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                              <span className={ui.btnPrimarySm}>View details</span>
                             </div>
                           </div>
                         </div>
