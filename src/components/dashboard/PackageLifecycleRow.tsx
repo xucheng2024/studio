@@ -194,6 +194,18 @@ export function PackageLifecycleRow({
             Edit package
           </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <span className={ui.label}>Cover image</span>
+              <div className="mt-2">
+                <EntityCoverUpload
+                  entity="package"
+                  entityId={packageId}
+                  imageUrl={coverImageUrl}
+                  canEdit={canEdit}
+                  size="full"
+                />
+              </div>
+            </div>
             <label className="flex flex-col gap-1 sm:col-span-2">
               <span className={ui.label}>Name</span>
               <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />
