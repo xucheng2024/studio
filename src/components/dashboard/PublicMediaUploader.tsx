@@ -11,7 +11,7 @@ const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 type Props = {
   studioId: string;
-  folder: "studios" | "services" | "classes" | "packages";
+  folder: "studios" | "services" | "classes" | "packages" | "events";
   entityId: string;
   label?: string;
   onUploaded: (url: string) => void;

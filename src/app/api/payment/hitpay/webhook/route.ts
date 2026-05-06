@@ -45,7 +45,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   let query = admin
     .from("payments")
-    .select("id, status, reference_code, gateway_payment_id, studio_id, studios(owner_id)")
+    .select("id, status, reference_code, gateway_payment_id, studio_id, booking_id, event_booking_id, studios(owner_id)")
     .limit(1);
   if (providerId) {
     query = query.eq("gateway_payment_id", providerId);
@@ -84,31 +84,46 @@ export async function POST(req: Request) {
     await ensurePaymentClientId(admin, payment.id);
     const ownerId = studio?.owner_id ?? null;
     if (ownerId) {
-      await admin.rpc("confirm_payment_with_invoice", {
-        p_payment_id: payment.id,
-        p_verified_by: ownerId,
-      });
+      if ((payment as { event_booking_id?: string | null }).event_booking_id) {
+        await admin.rpc("confirm_event_payment_with_invoice", {
+          p_payment_id: payment.id,
+          p_verified_by: ownerId,
+        });
+      } else {
+        await admin.rpc("confirm_payment_with_invoice", {
+          p_payment_id: payment.id,
+          p_verified_by: ownerId,
+        });
+      }
     } else {
-      await admin.rpc("confirm_payment", {
-        p_payment_id: payment.id,
-      });
+      if ((payment as { event_booking_id?: string | null }).event_booking_id) {
+        await admin.rpc("confirm_event_payment", {
+          p_payment_id: payment.id,
+        });
+      } else {
+        await admin.rpc("confirm_payment", {
+          p_payment_id: payment.id,
+        });
+      }
     }
     return NextResponse.json({ ok: true });
   }
 
   if (providerStatus === "failed" || providerStatus === "canceled" || providerStatus === "cancelled") {
-    await admin.rpc("cancel_pending_payment", {
-      p_payment_id: payment.id,
-      p_new_status: "failed",
-    });
+    if ((payment as { event_booking_id?: string | null }).event_booking_id) {
+      await admin.rpc("cancel_pending_event_payment", { p_payment_id: payment.id, p_new_status: "failed" });
+    } else {
+      await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "failed" });
+    }
     return NextResponse.json({ ok: true });
   }
 
   if (providerStatus === "expired") {
-    await admin.rpc("cancel_pending_payment", {
-      p_payment_id: payment.id,
-      p_new_status: "expired",
-    });
+    if ((payment as { event_booking_id?: string | null }).event_booking_id) {
+      await admin.rpc("cancel_pending_event_payment", { p_payment_id: payment.id, p_new_status: "expired" });
+    } else {
+      await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "expired" });
+    }
     return NextResponse.json({ ok: true });
   }
 

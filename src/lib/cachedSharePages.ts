@@ -91,3 +91,28 @@ export const getCachedServiceShareContext = cache(async (studioSlugRaw: string, 
 
   return { studio, service };
 });
+
+export const getCachedEventShareContext = cache(async (studioSlugRaw: string, eventSlugRaw: string) => {
+  const studioSlug = normalizeStudioSlug(studioSlugRaw ?? "");
+  const eventSlug = normalizeShareSlug(eventSlugRaw);
+  if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(eventSlug)) return null;
+
+  const supabase = await createClient();
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, name, public_slug, contract_status, hitpay_enabled")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
+  if (!studio || studio.contract_status === "suspended") return null;
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("id, title, description, tags, studio_id, location_id, start_time, end_time, capacity, spots_left, price, currency, image_url, video_url, share_slug, is_active")
+    .eq("studio_id", studio.id)
+    .eq("share_slug", eventSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!event) return null;
+
+  return { studio, event };
+});

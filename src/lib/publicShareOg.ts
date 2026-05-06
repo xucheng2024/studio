@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getCachedClassShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
+import { getCachedClassShareContext, getCachedEventShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
 
 export async function buildClassShareMetadata(
   studioSlugRaw: string,
@@ -86,6 +86,35 @@ export async function buildServiceShareMetadata(
       card: "summary_large_image",
       title: service.title,
       description: String(desc).slice(0, 200),
+      images: [img],
+    },
+  };
+}
+
+export async function buildEventShareMetadata(
+  studioSlugRaw: string,
+  eventSlugRaw: string,
+): Promise<Metadata> {
+  const ctx = await getCachedEventShareContext(studioSlugRaw, eventSlugRaw);
+  if (!ctx) return { title: "Event" };
+  const { studio, event } = ctx;
+
+  const img = event.image_url && isTrustedCoverImageUrl(event.image_url) ? event.image_url : absolutePlaceholderCoverUrl();
+  const desc = event.description ? String(event.description).slice(0, 200) : `Book ${event.title} at ${studio.name}`;
+
+  return {
+    title: `${event.title} · ${studio.name}`,
+    description: desc,
+    openGraph: {
+      title: event.title,
+      description: desc,
+      type: "website",
+      images: [{ url: img, width: 1200, height: 675, alt: event.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: event.title,
+      description: desc,
       images: [img],
     },
   };

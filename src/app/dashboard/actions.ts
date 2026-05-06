@@ -784,6 +784,166 @@ export async function createPackage(formData: FormData): Promise<void> {
   revalidatePath("/checkout");
 }
 
+async function generateUniqueEventShareSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studioId: string,
+): Promise<string | null> {
+  for (let i = 0; i < 15; i += 1) {
+    const candidate = generateShareSlugSegment(10);
+    const { data: existing } = await supabase
+      .from("events")
+      .select("id")
+      .eq("studio_id", studioId)
+      .eq("share_slug", candidate)
+      .maybeSingle();
+    if (!existing) return candidate;
+  }
+  return null;
+}
+
+export async function createEvent(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
+
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const tags = parsePublicTagsInput(formData.get("tags_input"));
+  const startRaw = String(formData.get("start_time") ?? "");
+  const endRaw = String(formData.get("end_time") ?? "");
+  const capacity = Number(formData.get("capacity") ?? 0);
+  const price = sanitizePrice(formData.get("price"));
+  const currency = "SGD";
+  const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
+
+  if (!title) return;
+  if (!Number.isFinite(capacity) || capacity <= 0) return;
+  if (!(price > 0)) return;
+
+  const start = new Date(startRaw);
+  const end = new Date(endRaw);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+  if (!(end.getTime() > start.getTime())) return;
+
+  const share_slug = await generateUniqueEventShareSlug(supabase, studio.id);
+  if (!share_slug) return;
+
+  const { error } = await supabase.from("events").insert({
+    studio_id: studio.id,
+    location_id: locationId || null,
+    title,
+    description,
+    tags,
+    start_time: start.toISOString(),
+    end_time: end.toISOString(),
+    capacity: Math.floor(capacity),
+    spots_left: Math.floor(capacity),
+    price,
+    currency,
+    is_active: true,
+    share_slug,
+    image_url,
+    video_url,
+  });
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/events");
+  revalidatePath("/checkout");
+}
+
+export async function updateEvent(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const eventId = String(formData.get("event_id") ?? "");
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio || !eventId) return;
+  if (isStudioContractSuspended(studio)) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
+
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const tags = parsePublicTagsInput(formData.get("tags_input"));
+  const is_active = formData.get("is_active") ? true : false;
+  const startRaw = String(formData.get("start_time") ?? "");
+  const endRaw = String(formData.get("end_time") ?? "");
+  const capacity = Number(formData.get("capacity") ?? 0);
+  const price = sanitizePrice(formData.get("price"));
+  const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
+
+  if (!title) return;
+  if (!Number.isFinite(capacity) || capacity <= 0) return;
+  if (!(price > 0)) return;
+  const start = new Date(startRaw);
+  const end = new Date(endRaw);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+  if (!(end.getTime() > start.getTime())) return;
+
+  const { data: existing } = await supabase
+    .from("events")
+    .select("id, studio_id, capacity, spots_left")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!existing || existing.studio_id !== studio.id) return;
+
+  const prevCapacity = Number(existing.capacity ?? 0);
+  const prevSpots = Number(existing.spots_left ?? 0);
+  const booked = Math.max(prevCapacity - prevSpots, 0);
+  const nextCapacity = Math.floor(capacity);
+  if (nextCapacity < booked) return;
+  const nextSpots = Math.max(0, nextCapacity - booked);
+
+  const { error } = await supabase
+    .from("events")
+    .update({
+      title,
+      description,
+      tags,
+      is_active,
+      location_id: locationId,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      capacity: nextCapacity,
+      spots_left: nextSpots,
+      price,
+      image_url,
+      video_url,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/events");
+  revalidatePath("/checkout");
+}
+
+export async function deleteEvent(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const eventId = String(formData.get("event_id") ?? "");
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio || !eventId) return;
+  if (isStudioContractSuspended(studio)) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  // Soft-delete isn't implemented for events yet; disable instead.
+  const { error } = await supabase.from("events").update({ is_active: false }).eq("id", eventId).eq("studio_id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/events");
+}
+
 export async function markAttended(bookingId: string): Promise<void> {
   const { supabase, studio, user, ctx } = await requireStudio();
   if (!studio) return;
