@@ -55,6 +55,20 @@ function isoSGT(dateYmd, hh, mm = 0) {
   return new Date(`${dateYmd}T${h}:${m}:00+08:00`).toISOString();
 }
 
+function uniqTags(tags) {
+  const out = [];
+  const seen = new Set();
+  for (const t of Array.isArray(tags) ? tags : []) {
+    const v = String(t ?? "").trim();
+    if (!v) continue;
+    const k = v.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(v);
+  }
+  return out;
+}
+
 async function mustSingle(q, msg) {
   const { data, error } = await q.maybeSingle();
   if (error) throw error;
@@ -241,7 +255,7 @@ async function seedTherapyData(ctx) {
       description: "Identify burnout patterns, rebuild boundaries, and design a sustainable weekly recovery routine.",
       capacity: 1,
       duration_min: 60,
-      tags: [...therapyTags.stress, ...therapyTags.burnout],
+      tags: uniqTags([...therapyTags.stress, ...therapyTags.burnout]),
       guest_price_default: 210,
       credits_required_default: 1,
       instructor_slot: 2,

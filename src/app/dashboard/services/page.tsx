@@ -158,18 +158,24 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                       {svc.currency ?? "SGD"} {Number(svc.price ?? 0).toFixed(2)}
                       {svc.summary ? ` · ${svc.summary}` : ""}
                     </p>
-                    {Array.isArray((svc as { tags?: string[] | null }).tags) && (svc as { tags: string[] }).tags.length ? (
+                    {(() => {
+                      const raw = (svc as { tags?: string[] | null }).tags;
+                      const tags = Array.isArray(raw)
+                        ? Array.from(new Map(raw.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values()).filter(Boolean)
+                        : [];
+                      return tags.length ? (
                       <div className="mt-1.5 flex flex-wrap gap-1">
-                        {(svc as { tags: string[] }).tags.slice(0, 4).map((tag) => (
+                        {tags.slice(0, 4).map((tag) => (
                           <span
-                            key={`${svc.id}-${tag}`}
+                            key={`${svc.id}-${tag.toLowerCase()}`}
                             className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400"
                           >
                             {tag}
                           </span>
                         ))}
                       </div>
-                    ) : null}
+                      ) : null;
+                    })()}
                   </div>
                 </div>
 

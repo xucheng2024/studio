@@ -159,11 +159,19 @@ export function ClassTemplateLifecycleRow({
               ) : null}
               {tags && tags.length > 0 ? (
                 <div className="mt-1.5 flex flex-wrap gap-1">
-                  {tags.slice(0, 4).map((tag) => (
-                    <span key={tag} className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">
-                      {tag}
-                    </span>
-                  ))}
+                  {Array.from(
+                    new Map(tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values(),
+                  )
+                    .filter(Boolean)
+                    .slice(0, 4)
+                    .map((tag) => (
+                      <span
+                        key={`${classId}-${tag.toLowerCase()}`}
+                        className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                 </div>
               ) : null}
             </div>
