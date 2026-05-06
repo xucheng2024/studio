@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, Copy, Pause, Play, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
+import { Check, Copy, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { EntityCoverUpload } from "@/components/dashboard/EntityCoverUpload";
 import { ui } from "@/lib/ui";
@@ -13,7 +13,6 @@ export function PackageLifecycleRow({
   packageId,
   studioPublicSlug,
   shareSlug,
-  isActive,
   canEdit,
   canCopyLink,
   coverImageUrl,
@@ -23,7 +22,6 @@ export function PackageLifecycleRow({
   packageId: string;
   studioPublicSlug: string | null;
   shareSlug: string | null;
-  isActive: boolean;
   canEdit: boolean;
   canCopyLink: boolean;
   coverImageUrl: string | null;
@@ -96,32 +94,6 @@ export function PackageLifecycleRow({
     router.refresh();
   };
 
-  const stopSelling = async () => {
-    setBusy(true);
-    const res = await fetch(`/api/dashboard/packages/${packageId}/disable`, { method: "POST" });
-    setBusy(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      toast.error(body.error ?? "Failed");
-      return;
-    }
-    toast.success("Package stopped");
-    router.refresh();
-  };
-
-  const resume = async () => {
-    setBusy(true);
-    const res = await fetch(`/api/dashboard/packages/${packageId}/restore`, { method: "POST" });
-    setBusy(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      toast.error(body.error ?? "Failed");
-      return;
-    }
-    toast.success("Package resumed");
-    router.refresh();
-  };
-
   const deletePackage = async () => {
     setBusy(true);
     setDeleteConfirm(false);
@@ -136,23 +108,14 @@ export function PackageLifecycleRow({
     router.refresh();
   };
 
-  const showMeta = !isActive || (shareSlug && studioPublicSlug);
-
   return (
     <div className="flex flex-col gap-2">
       <EntityCoverUpload entity="package" entityId={packageId} imageUrl={coverImageUrl} canEdit={canEdit} />
-      {showMeta ? (
+      {shareSlug && studioPublicSlug ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          {!isActive ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-              Stopped
-            </span>
-          ) : null}
-          {shareSlug && studioPublicSlug ? (
-            <span className={`font-mono text-xs ${ui.muted}`}>
-              /buy/{studioPublicSlug}/{shareSlug}
-            </span>
-          ) : null}
+          <span className={`font-mono text-xs ${ui.muted}`}>
+            /buy/{studioPublicSlug}/{shareSlug}
+          </span>
         </div>
       ) : null}
 
@@ -235,22 +198,7 @@ export function PackageLifecycleRow({
         ) : null}
 
         {canEdit ? (
-          isActive ? (
-            <button
-              type="button"
-              disabled={busy}
-              className={`${ui.btnSecondarySm} border-amber-300 text-amber-900 dark:border-amber-700 dark:text-amber-200`}
-              onClick={() => void stopSelling()}
-            >
-              <Pause size={13} />
-              Stop selling
-            </button>
-          ) : (
-            <button type="button" disabled={busy} className={ui.btnPrimarySm} onClick={() => void resume()}>
-              <Play size={13} />
-              Resume
-            </button>
-          )
+          null
         ) : null}
         {canEdit ? (
           deleteConfirm ? (

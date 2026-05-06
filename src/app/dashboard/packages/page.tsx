@@ -126,14 +126,12 @@ export default async function PackagesPage({ searchParams }: Props) {
               <p className="font-medium text-stone-900 dark:text-stone-100">{p.name}</p>
               <p className={`mt-0.5 text-sm ${ui.muted}`}>
                 {p.credits} class passes · ${Number(p.price).toFixed(2)}
-                {p.is_active === false ? " · Stopped" : ""}
               </p>
               <div className="mt-2">
                 <PackageLifecycleRow
                   packageId={p.id}
                   studioPublicSlug={pub ?? null}
                   shareSlug={p.share_slug ?? null}
-                  isActive={p.is_active !== false}
                   canEdit={canEdit}
                   canCopyLink={canCopyLink}
                   coverImageUrl={(p as { image_url?: string | null }).image_url ?? null}
