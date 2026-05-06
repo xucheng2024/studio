@@ -1,7 +1,7 @@
 import { createStudioService, deleteStudioService, updateStudioService } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
+import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { ServiceDetailLinkButton } from "@/components/dashboard/ServiceDetailLinkButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { formatPublicTagsInput } from "@/lib/publicTags";
@@ -65,13 +65,20 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
         </DashboardAppLink>
       </div>
 
-      <form action={createStudioService} className={`${ui.card} grid gap-3`}>
-        <input type="hidden" name="studio_id" value={studio.id} />
-        <h2 className={ui.h2}>Add service</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5">
+      <details className={`chevron ${ui.card}`}>
+        <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
+          <span>+ Add service</span>
+          <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
+        </summary>
+        <form action={createStudioService} className="mt-4 grid gap-4 sm:grid-cols-2">
+          <input type="hidden" name="studio_id" value={studio.id} />
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Title</span>
             <input name="title" required className={ui.input} />
+          </label>
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Summary</span>
+            <input name="summary" className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Price</span>
@@ -85,36 +92,44 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
             <span className={ui.label}>Sort order</span>
             <input name="sort_order" type="number" defaultValue={100} className={ui.input} />
           </label>
-        </div>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Summary</span>
-          <input name="summary" className={ui.input} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Description</span>
-          <textarea name="description" rows={4} className={`${ui.input} min-h-28`} />
-        </label>
-        <CoverUrlField
-          studioId={studio.id}
-          folder="services"
-          entityId="new-service"
-          name="cover_image_url"
-          label="Cover image"
-          defaultValue={null}
-        />
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Video URL</span>
-          <input name="video_url" placeholder="https://..." className={ui.input} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Tags</span>
-          <textarea name="tags_input" rows={3} className={`${ui.input} min-h-20`} placeholder={`Private session\nBeginner friendly\n60 min`} />
-          <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
-        </label>
-        <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
-          Create service
-        </SubmitButton>
-      </form>
+          <div className="hidden sm:block" />
+
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Description</span>
+            <textarea name="description" rows={4} className={`${ui.input} min-h-28`} />
+          </label>
+
+          <div className="sm:col-span-2">
+            <CoverVideoFields
+              studioId={studio.id}
+              folder="services"
+              entityId="new-service"
+              title="Service media"
+              coverName="cover_image_url"
+              videoName="video_url"
+              coverDefaultValue={null}
+              videoDefaultValue={null}
+              coverLabel="Cover image"
+              videoLabel="Promo video URL"
+            />
+          </div>
+
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Tags</span>
+            <textarea
+              name="tags_input"
+              rows={3}
+              className={`${ui.input} min-h-20`}
+              placeholder={`Private session\nBeginner friendly\n60 min`}
+            />
+            <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
+          </label>
+
+          <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Creating...">
+            Create service
+          </SubmitButton>
+        </form>
+      </details>
 
       <div className="grid gap-4">
         {(services ?? []).map((svc) => (
@@ -192,10 +207,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   <span className={ui.label}>Sort order</span>
                   <input name="sort_order" type="number" defaultValue={svc.sort_order ?? 100} className={ui.input} />
                 </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Video URL</span>
-                  <input name="video_url" defaultValue={svc.video_url ?? ""} className={ui.input} />
-                </label>
+                <div className="hidden sm:block" />
 
                 <label className="flex flex-col gap-1.5 sm:col-span-2">
                   <span className={ui.label}>Description</span>
@@ -212,13 +224,17 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
                 </label>
                 <div className="sm:col-span-2">
-                  <CoverUrlField
+                  <CoverVideoFields
                     studioId={studio.id}
                     folder="services"
                     entityId={svc.id}
-                    name="cover_image_url"
-                    label="Cover image"
-                    defaultValue={svc.cover_image_url}
+                    title={svc.title}
+                    coverName="cover_image_url"
+                    videoName="video_url"
+                    coverDefaultValue={svc.cover_image_url ?? null}
+                    videoDefaultValue={svc.video_url ?? null}
+                    coverLabel="Cover image"
+                    videoLabel="Promo video URL"
                   />
                 </div>
 
