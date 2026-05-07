@@ -7,7 +7,7 @@ import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { CalendarRange, Clock3, MapPin, Ticket } from "lucide-react";
+import { CalendarRange, Clock3, Ticket } from "lucide-react";
 
 type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
 
@@ -67,67 +67,72 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
       <form key={e.id} action={updateEvent} className={`${ui.card} ${muted ? "opacity-70" : ""}`}>
         <input type="hidden" name="studio_id" value={studioId} />
         <input type="hidden" name="event_id" value={e.id} />
-        <details className="chevron">
-          <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
-                {(e as { image_url?: string | null }).image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={String((e as { image_url?: string | null }).image_url)} alt="" className="size-full object-cover" loading="lazy" />
-                ) : null}
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{e.title}</h3>
-                  <span className={ui.badgeAmber}>Event</span>
-                  {e.is_active === false ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-                      Inactive
-                    </span>
-                  ) : null}
-                </div>
-                <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                  {new Date(String(e.start_time)).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
-                  {" · "}
-                  {new Date(String(e.end_time)).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
-                </p>
-                <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                  SGD {Number(e.price ?? 0).toFixed(2)} · cap {Number(e.capacity ?? 0)} · {Number(e.spots_left ?? 0)} left
-                </p>
-                {(e as { address?: string | null }).address ? (
-                  <p className={`mt-0.5 text-xs ${ui.muted}`}>{String((e as { address?: string | null }).address)}</p>
-                ) : null}
-                {href ? (
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className={`font-mono text-[11px] ${ui.muted}`}>{href}</span>
-                    <CopyUrlButton url={href} className="h-8 px-2 text-xs" />
-                  </div>
-                ) : null}
-                {tags.length ? (
-                  <div className="mt-1.5 flex flex-wrap gap-1">
-                    {Array.from(new Map(tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values())
-                      .filter(Boolean)
-                      .slice(0, 4)
-                      .map((tag) => (
-                        <span key={`${e.id}-${tag.toLowerCase()}`} className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">
-                          {tag}
-                        </span>
-                      ))}
-                  </div>
-                ) : null}
-              </div>
+
+        {/* ── Card header (mirrors session row layout) ────────── */}
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 items-start gap-3">
+            {/* Thumbnail */}
+            <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
+              {(e as { image_url?: string | null }).image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={String((e as { image_url?: string | null }).image_url)} alt="" className="size-full object-cover" loading="lazy" />
+              ) : null}
             </div>
-
-            {canEdit ? (
-              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                <button type="submit" formAction={deleteEvent} className={`${ui.btnDangerSm} px-2`}>
-                  Remove
-                </button>
+            {/* Info */}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <p className="font-semibold text-stone-900 dark:text-stone-100">{e.title}</p>
+                <span className={ui.badgeAmber}>Event</span>
+                {e.is_active === false ? (
+                  <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                    Inactive
+                  </span>
+                ) : null}
               </div>
-            ) : null}
-          </summary>
+              <p className={`mt-0.5 text-sm ${ui.muted}`}>
+                {new Date(String(e.start_time)).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
+                {" – "}
+                {new Date(String(e.end_time)).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                <span>SGD {Number(e.price ?? 0).toFixed(2)}</span>
+                <span>{Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left</span>
+                {(e as { address?: string | null }).address ? (
+                  <span>{String((e as { address?: string | null }).address)}</span>
+                ) : null}
+              </div>
+              {tags.length ? (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {Array.from(new Map(tags.map((t) => [String(t ?? "").toLowerCase(), String(t ?? "")])).values())
+                    .filter(Boolean)
+                    .slice(0, 4)
+                    .map((tag) => (
+                      <span key={`${e.id}-${tag.toLowerCase()}`} className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+                        {tag}
+                      </span>
+                    ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
 
-          {canEdit ? (
+          {/* Action buttons — right side, same layout as session row */}
+          <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
+            {href ? <CopyUrlButton url={href} label="Copy event link" /> : null}
+            {canEdit ? (
+              <button type="submit" formAction={deleteEvent} className={ui.btnDangerSm}>
+                Remove
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* ── Edit panel (collapsible, mirrors SessionEditPanel style) ── */}
+        {canEdit ? (
+          <details className="chevron mt-3">
+            <summary className={`cursor-pointer list-none text-sm font-medium ${ui.muted} hover:text-teal-700 dark:hover:text-teal-400`}>
+              Edit event details
+            </summary>
             <div className="mt-3 grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input type="checkbox" name="is_active" defaultChecked={Boolean(e.is_active)} />
@@ -173,7 +178,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 <input name="capacity" type="number" min={1} step={1} defaultValue={Number(e.capacity ?? 1)} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Price</span>
+                <span className={ui.label}>Price (SGD)</span>
                 <input name="price" type="number" min={0.01} step={0.01} defaultValue={Number(e.price ?? 1)} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">
@@ -199,8 +204,15 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 Save changes
               </SubmitButton>
             </div>
-          ) : null}
-        </details>
+          </details>
+        ) : null}
+
+        {/* ── Footer hint ──────────────────────────────────────── */}
+        <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
+          <p className={`text-xs ${ui.muted}`}>
+            Attendee actions and payment operations are managed in Bookings.
+          </p>
+        </div>
       </form>
     );
   };
@@ -214,7 +226,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             Create and maintain standalone paid events here. Booking handling stays in Booking management.
           </p>
           <DashboardAppLink href="/dashboard/schedule" className={ui.btnSecondarySm}>
-            Back to schedule
+            Back to sessions
           </DashboardAppLink>
         </div>
       </div>

@@ -5,7 +5,7 @@ import { Copy, Check } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { ui } from "@/lib/ui";
 
-export function CopyUrlButton({ url, className }: { url: string; className?: string }) {
+export function CopyUrlButton({ url, className, label }: { url: string; className?: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
   const absoluteUrl = (() => {
@@ -32,7 +32,7 @@ export function CopyUrlButton({ url, className }: { url: string; className?: str
       }}
     >
       {copied ? <Check size={13} /> : <Copy size={13} />}
-      {copied ? "Copied!" : "Copy URL"}
+      {copied ? "Copied!" : (label ?? "Copy URL")}
     </button>
   );
 }
