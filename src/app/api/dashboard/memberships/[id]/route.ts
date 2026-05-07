@@ -11,6 +11,7 @@ const patchSchema = z.object({
   price: z.number().min(0).optional(),
   billing_interval: z.enum(["monthly", "yearly"]).optional(),
   location_id: z.string().uuid().nullable().optional(),
+  trial_days: z.number().int().min(0).max(60).optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };

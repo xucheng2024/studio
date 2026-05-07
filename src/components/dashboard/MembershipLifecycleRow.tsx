@@ -28,6 +28,7 @@ export function MembershipLifecycleRow({
     price: number;
     billing_interval: "monthly" | "yearly";
     location_id: string | null;
+    trial_days: number;
   };
   locations: Loc[];
 }) {
@@ -39,6 +40,8 @@ export function MembershipLifecycleRow({
   const [price, setPrice] = useState(String(initial.price));
   const [billingInterval, setBillingInterval] = useState(initial.billing_interval);
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
+  const [trialEnabled, setTrialEnabled] = useState(initial.trial_days > 0);
+  const [trialDays, setTrialDays] = useState(String(initial.trial_days > 0 ? initial.trial_days : 14));
 
   const copyPurchaseLink = async () => {
     setBusy(true);
@@ -74,6 +77,7 @@ export function MembershipLifecycleRow({
         price: Number(price),
         billing_interval: billingInterval,
         location_id: locationId || null,
+        trial_days: trialEnabled ? Number(trialDays) : 0,
       }),
     });
     setBusy(false);
@@ -108,6 +112,9 @@ export function MembershipLifecycleRow({
           <p className={`mt-0.5 text-xs ${ui.muted}`}>
             SGD {Number(initial.price).toFixed(2)} · {initial.billing_interval === "yearly" ? "Yearly" : "Monthly"}
           </p>
+          {initial.trial_days > 0 ? (
+            <p className={`mt-0.5 text-xs ${ui.muted}`}>{initial.trial_days}-day trial / guarantee</p>
+          ) : null}
           {shareSlug && studioPublicSlug ? (
             <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>
               /membership/{studioPublicSlug}/{shareSlug}
@@ -195,6 +202,33 @@ export function MembershipLifecycleRow({
                 ))}
               </select>
             </label>
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <span className={ui.label}>Trial</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                  <input
+                    type="checkbox"
+                    checked={trialEnabled}
+                    onChange={(e) => setTrialEnabled(e.target.checked)}
+                    className="accent-teal-600"
+                  />
+                  Enable trial / refund guarantee
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                  <span className={ui.muted}>Days</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    step="1"
+                    value={trialDays}
+                    onChange={(e) => setTrialDays(e.target.value)}
+                    disabled={!trialEnabled}
+                    className={`${ui.input} w-24 disabled:opacity-60`}
+                  />
+                </label>
+              </div>
+            </div>
             <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit sm:col-span-2`} onClick={() => void save()}>
               <Check size={12} />
               {busy ? "Saving…" : "Save changes"}

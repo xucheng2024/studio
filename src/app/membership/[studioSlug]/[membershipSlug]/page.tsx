@@ -29,6 +29,7 @@ export default async function PublicMembershipPage({ params }: Props) {
   const membershipSlugPath = (membership as { share_slug?: string | null }).share_slug ?? rawMembership;
   const sharePath = `/membership/${studioPublicSlug}/${membershipSlugPath}`;
   const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
+  const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
 
   return (
     <main className={ui.page}>
@@ -56,6 +57,11 @@ export default async function PublicMembershipPage({ params }: Props) {
           <p className={ui.badge}>Membership</p>
           <h1 className={`${ui.h1} mt-3`}>{membership.name}</h1>
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
+          {trialDays > 0 ? (
+            <p className="mt-3 inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-300">
+              {trialDays}-day trial / refund guarantee
+            </p>
+          ) : null}
           <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
             SGD {Number(membership.price ?? 0).toFixed(2)}
             <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ {intervalLabel.toLowerCase().replace("ly", "")}</span>

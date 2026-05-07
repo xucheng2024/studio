@@ -39,7 +39,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
 
   let membershipQuery = supabase
     .from("membership_products")
-    .select("id, name, description, price, billing_interval, studio_id, location_id, is_active, share_slug, deleted_at, studios(public_slug)")
+    .select("id, name, description, price, billing_interval, trial_days, studio_id, location_id, is_active, share_slug, deleted_at, studios(public_slug)")
     .eq("studio_id", activeStudioId)
     .is("deleted_at", null)
     .order("price");
@@ -109,6 +109,30 @@ export default async function MembershipsPage({ searchParams }: Props) {
                   <option value="yearly">Yearly</option>
                 </select>
               </label>
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className={ui.label}>Trial</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                    <input name="trial_enabled" type="checkbox" className="accent-teal-600" />
+                    Enable trial / refund guarantee
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                    <span className={ui.muted}>Days</span>
+                    <input
+                      name="trial_days"
+                      type="number"
+                      min={1}
+                      max={60}
+                      step="1"
+                      defaultValue={14}
+                      className={`${ui.input} w-24`}
+                    />
+                  </label>
+                </div>
+                <p className={`text-xs ${ui.muted}`}>
+                  If enabled, the public page will show a “X-day trial / guarantee” message. (Rules enforcement is configured separately.)
+                </p>
+              </div>
               <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Saving...">
                 Save membership
               </SubmitButton>
@@ -145,6 +169,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
                     price: Number(membership.price ?? 0),
                     billing_interval: ((membership as { billing_interval?: string | null }).billing_interval === "yearly" ? "yearly" : "monthly"),
                     location_id: membership.location_id ?? null,
+                    trial_days: Number((membership as { trial_days?: number | null }).trial_days ?? 0),
                   }}
                 />
               </li>

@@ -816,6 +816,9 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
   const billingIntervalRaw = String(formData.get("billing_interval") ?? "").trim().toLowerCase();
   const billing_interval = billingIntervalRaw === "yearly" ? "yearly" : "monthly";
   const price = Number(formData.get("price") ?? 0);
+  const trialEnabled = formData.get("trial_enabled") === "on";
+  const trialDaysRaw = Number(formData.get("trial_days") ?? 0);
+  const trial_days = trialEnabled && Number.isFinite(trialDaysRaw) ? Math.max(1, Math.min(60, Math.floor(trialDaysRaw))) : 0;
   if (!name || !Number.isFinite(price) || price < 0) return;
 
   const share_slug = await generateUniqueMembershipShareSlug(supabase, studio.id);
@@ -831,6 +834,7 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
     billing_interval,
     is_active: true,
     share_slug,
+    trial_days,
   });
   if (error) {
     console.error(error.message);

@@ -55,7 +55,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
 
   const { data: memberships } = await admin
     .from("membership_products")
-    .select("id, name, description, price, currency, billing_interval, image_url, video_url, share_slug")
+    .select("id, name, description, price, currency, billing_interval, trial_days, image_url, video_url, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
