@@ -621,6 +621,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
               const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
               const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
+              const eSpotsLeft = Number(e.spots_left ?? 0);
+              const eCapacity = Number(e.capacity ?? 0);
+              const eSpotsText = eSpotsLeft === 0
+                ? eCapacity > 0 ? `0/${eCapacity} spots left` : "Full"
+                : eCapacity > 0 ? `${eSpotsLeft}/${eCapacity} spots left` : `${eSpotsLeft} spots left`;
               return (
                 <article key={e.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
                   <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
@@ -643,9 +648,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                               {String(e.currency ?? "SGD")} {Number(e.price).toFixed(2)}
                             </span>
                           ) : null}
-                          <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
-                            {Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left
-                          </div>
                           <div className="absolute bottom-2 right-2 z-20">
                             <SessionShareLinkButton
                               sharePath={href}
@@ -681,6 +683,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         ) : null}
                         <div className="mt-4 flex flex-wrap items-center gap-3">
                           <span className={ui.btnPrimarySm}>Book now</span>
+                          <span className={`text-sm ${ui.muted}`}>{eSpotsText}</span>
                         </div>
                       </div>
                     </div>
@@ -705,6 +708,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
                   const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
                   const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
+                  const eSpotsLeft = Number(e.spots_left ?? 0);
+                  const eCapacity = Number(e.capacity ?? 0);
+                  const eSpotsText = eSpotsLeft === 0
+                    ? eCapacity > 0 ? `0/${eCapacity} spots left` : "Full"
+                    : eCapacity > 0 ? `${eSpotsLeft}/${eCapacity} spots left` : `${eSpotsLeft} spots left`;
                   return (
                     <article key={e.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
                       <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
@@ -727,9 +735,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                                   {String(e.currency ?? "SGD")} {Number(e.price).toFixed(2)}
                                 </span>
                               ) : null}
-                              <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-stone-700 backdrop-blur-sm dark:bg-stone-900/80 dark:text-stone-200">
-                                {Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left
-                              </div>
                               <div className="absolute bottom-2 right-2 z-20">
                                 <SessionShareLinkButton
                                   sharePath={href}
@@ -765,6 +770,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             ) : null}
                             <div className="mt-4 flex flex-wrap items-center gap-3">
                               <span className={ui.btnPrimarySm}>Book now</span>
+                              <span className={`text-sm ${ui.muted}`}>{eSpotsText}</span>
                             </div>
                           </div>
                         </div>
@@ -847,7 +853,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                               </p>
                             ) : null}
                             <div className="mt-4 flex flex-wrap items-center gap-3">
-                              <span className={ui.btnPrimarySm}>View details</span>
+                              <span className={`${ui.btnSecondarySm}`}>View details</span>
+                              <span className={`text-sm ${ui.muted}`}>Event ended</span>
                             </div>
                           </div>
                         </div>
