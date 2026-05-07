@@ -4,6 +4,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { MembershipLifecycleRow } from "@/components/dashboard/MembershipLifecycleRow";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
+import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { bestRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -55,7 +56,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
   const admin = createAdminClient();
   let subscriptionsQuery = admin
     .from("customer_subscriptions")
-    .select("id, client_id, status, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, customer_email_snapshot, customer_name_snapshot, membership_product_id, membership_products!inner(studio_id, location_id)")
+    .select("id, client_id, status, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, customer_email_snapshot, customer_name_snapshot, membership_product_id, current_period_end, cancel_at_period_end, cancel_requested_at, membership_products!inner(studio_id, location_id)")
     .eq("membership_products.studio_id", activeStudioId)
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
     .order("created_at", { ascending: false })
@@ -154,30 +155,83 @@ export default async function MembershipsPage({ searchParams }: Props) {
 
       <section>
         <h2 className={ui.h2}>Active subscribers</h2>
-        <div className="mt-3 flex flex-col gap-2">
-          {(subscriptions ?? []).map((subscription) => (
-            <div key={subscription.id} className={`${ui.card} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-              <div>
-                <p className="font-medium text-stone-900 dark:text-stone-100">
-                  {subscription.customer_name_snapshot?.trim() || subscription.customer_email_snapshot || "Subscriber"}
-                </p>
-                <p className={`mt-0.5 text-sm ${ui.muted}`}>
-                  {subscription.membership_name_snapshot} · SGD {Number(subscription.membership_price_snapshot ?? 0).toFixed(2)} ·{" "}
-                  {subscription.billing_interval_snapshot === "yearly" ? "Yearly" : "Monthly"}
-                </p>
-                <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                  {subscription.customer_email_snapshot} · {subscription.status}
-                </p>
-              </div>
-              <CancelMembershipSubscriptionButton subscriptionId={subscription.id} />
+        <p className={`mt-1 text-sm ${ui.muted}`}>
+          This list is for membership operations. Use Users when you want the full customer profile.
+        </p>
+        {(subscriptions ?? []).length ? (
+          <div className={`${ui.card} mt-3 overflow-hidden p-0`}>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone-100 text-left text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
+                    <th className="px-4 py-3 font-medium">Subscriber</th>
+                    <th className="px-4 py-3 font-medium">Membership</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Started</th>
+                    <th className="px-4 py-3 font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+          {(subscriptions ?? []).filter((subscription) => !isMembershipEnded(subscription)).map((subscription) => {
+                    const tone =
+                      getMembershipDisplayStatus(subscription) === "active"
+                        ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                        : getMembershipDisplayStatus(subscription) === "retrying"
+                          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          : getMembershipDisplayStatus(subscription) === "ending"
+                            ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                          : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400";
+                    return (
+                      <tr key={subscription.id} className="border-b border-stone-100 last:border-b-0 dark:border-stone-800">
+                        <td className="px-4 py-3 align-top">
+                          <p className="font-medium text-stone-900 dark:text-stone-100">
+                            {subscription.customer_name_snapshot?.trim() || subscription.customer_email_snapshot || "Subscriber"}
+                          </p>
+                          <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                            {subscription.customer_email_snapshot || "No email"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <p className="font-medium text-stone-900 dark:text-stone-100">
+                            {subscription.membership_name_snapshot || "Membership"}
+                          </p>
+                          <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                            SGD {Number(subscription.membership_price_snapshot ?? 0).toFixed(2)} ·{" "}
+                            {subscription.billing_interval_snapshot === "yearly" ? "Yearly" : "Monthly"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tone}`}>
+                            {getMembershipDisplayStatus(subscription)}
+                          </span>
+                          {subscription.cancel_at_period_end && subscription.current_period_end ? (
+                            <p className={`mt-1 text-xs ${ui.muted}`}>
+                              Ends {new Date(subscription.current_period_end).toLocaleDateString("en-SG")}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <p className="text-stone-800 dark:text-stone-200">
+                            {subscription.created_at
+                              ? new Date(subscription.created_at).toLocaleDateString("en-SG")
+                              : "-"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <CancelMembershipSubscriptionButton subscriptionId={subscription.id} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ))}
-          {!subscriptions?.length ? (
-            <div className={ui.emptyState}>
-              <p className={`text-sm ${ui.muted}`}>No active subscribers yet.</p>
-            </div>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <div className={`${ui.emptyState} mt-3`}>
+            <p className={`text-sm ${ui.muted}`}>No active subscribers yet.</p>
+          </div>
+        )}
       </section>
     </div>
   );

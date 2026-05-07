@@ -4,13 +4,15 @@ import {
   filterPacksForDashboard,
   type MemberPackageForCredits,
 } from "@/lib/memberCredits";
+import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
+import { badgeToneClass } from "@/lib/order-status";
 import { bestRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { Users } from "lucide-react";
 
-type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string; q?: string }> };
+type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string; q?: string; membership_status?: string }> };
 
 export default async function ClientsPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -36,6 +38,7 @@ export default async function ClientsPage({ searchParams }: Props) {
   }
 
   const keyword = (sp.q ?? "").trim().toLowerCase();
+  const membershipStatusFilter = (sp.membership_status ?? "").trim().toLowerCase();
 
   let paymentsQuery = supabase
     .from("payments")
@@ -137,6 +140,90 @@ export default async function ClientsPage({ searchParams }: Props) {
     activePacksByClient.set(cid, arr);
   }
 
+  const { data: subscriptionsRaw } = await admin
+    .from("customer_subscriptions")
+    .select("id, client_id, status, membership_name_snapshot, billing_interval_snapshot, created_at, canceled_at, membership_products!inner(studio_id, location_id)")
+    .in("studio_id", studioIds)
+    .order("created_at", { ascending: false })
+    .limit(2000);
+
+  const subscriptions = (selectedLocationId
+    ? (subscriptionsRaw ?? []).filter((row) => {
+        const membership = Array.isArray(row.membership_products) ? row.membership_products[0] : row.membership_products;
+        return !membership?.location_id || membership.location_id === selectedLocationId;
+      })
+    : (subscriptionsRaw ?? [])) as Array<{
+      id: string;
+      client_id: string;
+      status: string | null;
+      membership_name_snapshot?: string | null;
+      billing_interval_snapshot?: string | null;
+      created_at: string | null;
+      current_period_end?: string | null;
+      cancel_at_period_end?: boolean | null;
+      canceled_at?: string | null;
+    }>;
+
+  const subscriptionByClient = new Map<
+    string,
+    {
+      name: string;
+      interval: "monthly" | "yearly";
+      status: string;
+      startedAt: string | null;
+      current_period_end?: string | null;
+      cancel_at_period_end?: boolean | null;
+      canceledAt: string | null;
+    }
+  >();
+  const subscriptionRank = (status: string | null | undefined) => {
+    switch (status) {
+      case "active":
+        return 5;
+      case "retrying":
+        return 4;
+      case "scheduled":
+        return 3;
+      case "paused":
+        return 2;
+      case "inactive":
+        return 1;
+      case "canceled":
+        return 0;
+      default:
+        return -1;
+    }
+  };
+  for (const row of subscriptions) {
+    const existing = subscriptionByClient.get(row.client_id);
+    const candidate = {
+      name: row.membership_name_snapshot?.trim() || "Membership",
+      interval: row.billing_interval_snapshot === "yearly" ? "yearly" : "monthly",
+      status: row.status ?? "scheduled",
+      startedAt: row.created_at ?? null,
+      current_period_end: row.current_period_end ?? null,
+      cancel_at_period_end: row.cancel_at_period_end ?? false,
+      canceledAt: row.canceled_at ?? null,
+    } as const;
+    if (!existing) {
+      subscriptionByClient.set(row.client_id, candidate);
+      continue;
+    }
+    const existingRank = subscriptionRank(existing.status);
+    const nextRank = subscriptionRank(candidate.status);
+    if (nextRank > existingRank) {
+      subscriptionByClient.set(row.client_id, candidate);
+      continue;
+    }
+    if (nextRank === existingRank) {
+      const existingTime = existing.startedAt ? new Date(existing.startedAt).getTime() : 0;
+      const nextTime = candidate.startedAt ? new Date(candidate.startedAt).getTime() : 0;
+      if (nextTime > existingTime) {
+        subscriptionByClient.set(row.client_id, candidate);
+      }
+    }
+  }
+
   let bookingsQuery = supabase
     .from("bookings")
     .select("id, client_id, status, created_at, session_id, class_sessions(start_time, classes(title, studio_id), location_id)")
@@ -184,14 +271,19 @@ export default async function ClientsPage({ searchParams }: Props) {
       const name = (profile as { full_name?: string | null } | undefined)?.full_name ?? null;
       const phone = (profile as { phone?: string | null } | undefined)?.phone ?? null;
       const email = userRow?.email ?? "";
-      const searchable = `${name ?? ""} ${phone ?? ""} ${email}`.toLowerCase();
+      const subscription = subscriptionByClient.get(clientId) ?? null;
+      const searchable = `${name ?? ""} ${phone ?? ""} ${email} ${subscription?.name ?? ""} ${subscription?.interval ?? ""}`.toLowerCase();
       if (keyword && !searchable.includes(keyword)) return null;
+      const displayStatus = subscription ? getMembershipDisplayStatus(subscription) : null;
+      if (membershipStatusFilter === "none" && subscription && !isMembershipEnded(subscription)) return null;
+      if (membershipStatusFilter && membershipStatusFilter !== "none" && displayStatus !== membershipStatusFilter) return null;
       return {
         clientId,
         name,
         email,
         phone,
         activeCredits,
+        subscription,
         lastActivity: history[0] ?? null,
       };
     })
@@ -205,7 +297,7 @@ export default async function ClientsPage({ searchParams }: Props) {
         <p className={`mt-1 ${ui.muted}`}>Registered users with quick contact and class pass status.</p>
       </div>
 
-      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-3`}>
+      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-4`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
         <label className="sm:col-span-2">
@@ -216,6 +308,20 @@ export default async function ClientsPage({ searchParams }: Props) {
             placeholder="e.g. Chloe / +65 / user@email.com"
             defaultValue={sp.q ?? ""}
           />
+        </label>
+        <label>
+          <span className={ui.label}>Membership status</span>
+          <select name="membership_status" className={`${ui.select} mt-1`} defaultValue={membershipStatusFilter}>
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="retrying">Retrying</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="paused">Paused</option>
+            <option value="inactive">Inactive</option>
+            <option value="ending">Ending this period</option>
+            <option value="canceled">Canceled</option>
+            <option value="none">No membership</option>
+          </select>
         </label>
         <div className="flex items-end gap-2">
           <button className={ui.btnPrimarySm} type="submit">Search</button>
@@ -230,7 +336,7 @@ export default async function ClientsPage({ searchParams }: Props) {
 
       <div>
         <ul className="mt-1 flex flex-col gap-3 text-sm">
-          {memberRows.map(({ clientId, name, email, phone, activeCredits, lastActivity }) => (
+          {memberRows.map(({ clientId, name, email, phone, activeCredits, subscription, lastActivity }) => (
             <li key={clientId}>
               <div className={`${ui.card}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -248,6 +354,38 @@ export default async function ClientsPage({ searchParams }: Props) {
                     Open user
                   </DashboardAppLink>
                 </div>
+                {subscription ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(
+                      getMembershipDisplayStatus(subscription) === "active"
+                        ? "teal"
+                        : getMembershipDisplayStatus(subscription) === "retrying"
+                          ? "amber"
+                          : getMembershipDisplayStatus(subscription) === "ending"
+                            ? "blue"
+                          : "stone",
+                    )}`}>
+                      {getMembershipDisplayStatus(subscription) === "active"
+                        ? `${subscription.interval === "yearly" ? "Yearly" : "Monthly"} member`
+                        : getMembershipDisplayStatus(subscription) === "ending"
+                          ? `${subscription.interval === "yearly" ? "Yearly" : "Monthly"} · ending`
+                          : `${subscription.interval === "yearly" ? "Yearly" : "Monthly"} · ${getMembershipDisplayStatus(subscription)}`}
+                    </span>
+                    <span className={`text-xs ${ui.muted}`}>
+                      {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription)
+                        ? `Active until ${new Date(subscription.current_period_end).toLocaleDateString("en-SG")}`
+                        : subscription.status === "canceled"
+                        ? `Cancelled ${subscription.canceledAt ? new Date(subscription.canceledAt).toLocaleDateString("en-SG") : ""}`.trim()
+                        : subscription.startedAt
+                          ? `Started ${new Date(subscription.startedAt).toLocaleDateString("en-SG")} · Auto-renews until cancelled`
+                          : "Auto-renews until cancelled"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <span className={`text-xs ${ui.muted}`}>No membership subscription</span>
+                  </div>
+                )}
                 <div className="mt-3 border-t border-stone-100 pt-3 text-xs dark:border-stone-800">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <p className={ui.muted}>

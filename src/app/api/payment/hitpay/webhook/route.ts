@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isMembershipEnded } from "@/lib/membership-subscription";
 import { upsertMemberStudioMembership } from "@/lib/member-studio";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
@@ -85,7 +86,18 @@ type RecurringSubscriptionContext = {
   recurring_billing_id: string | null;
   membership_name_snapshot: string | null;
   status: string | null;
+  billing_interval_snapshot?: string | null;
+  current_period_end?: string | null;
+  cancel_at_period_end?: boolean | null;
 };
+
+function addMembershipPeriod(anchorIso: string, interval: string | null | undefined) {
+  const next = new Date(anchorIso);
+  if (Number.isNaN(next.getTime())) return null;
+  if (interval === "yearly") next.setFullYear(next.getFullYear() + 1);
+  else next.setMonth(next.getMonth() + 1);
+  return next.toISOString();
+}
 
 async function resolveRecurringWebhookContext(args: {
   rawBody: string;
@@ -100,7 +112,7 @@ async function resolveRecurringWebhookContext(args: {
   if (args.referenceCode) {
     const { data } = await admin
       .from("customer_subscriptions")
-      .select("id, studio_id, client_id, membership_product_id, reference_code, recurring_billing_id, membership_name_snapshot, status")
+      .select("id, studio_id, client_id, membership_product_id, reference_code, recurring_billing_id, membership_name_snapshot, status, billing_interval_snapshot, current_period_end, cancel_at_period_end")
       .eq("reference_code", args.referenceCode)
       .maybeSingle();
     subscription = (data as RecurringSubscriptionContext | null) ?? null;
@@ -109,7 +121,7 @@ async function resolveRecurringWebhookContext(args: {
   if (!subscription && args.recurringBillingId) {
     const { data } = await admin
       .from("customer_subscriptions")
-      .select("id, studio_id, client_id, membership_product_id, reference_code, recurring_billing_id, membership_name_snapshot, status")
+      .select("id, studio_id, client_id, membership_product_id, reference_code, recurring_billing_id, membership_name_snapshot, status, billing_interval_snapshot, current_period_end, cancel_at_period_end")
       .eq("recurring_billing_id", args.recurringBillingId)
       .maybeSingle();
     subscription = (data as RecurringSubscriptionContext | null) ?? null;
@@ -125,7 +137,7 @@ async function resolveRecurringWebhookContext(args: {
     if (existingPayment?.customer_subscription_id) {
       const { data } = await admin
         .from("customer_subscriptions")
-        .select("id, studio_id, client_id, membership_product_id, reference_code, recurring_billing_id, membership_name_snapshot, status")
+        .select("id, studio_id, client_id, membership_product_id, reference_code, recurring_billing_id, membership_name_snapshot, status, billing_interval_snapshot, current_period_end, cancel_at_period_end")
         .eq("id", existingPayment.customer_subscription_id)
         .maybeSingle();
       subscription = (data as RecurringSubscriptionContext | null) ?? null;
@@ -175,11 +187,27 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
       gateway_payload: rawBody,
       updated_at: nowIso,
     };
-    if (recurringStatus) update.status = recurringStatus;
+    const endingAtPeriodEnd =
+      recurringStatus === "canceled" &&
+      subscription.cancel_at_period_end &&
+      subscription.current_period_end &&
+      !isMembershipEnded(
+        {
+          status: subscription.status,
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          current_period_end: subscription.current_period_end,
+        },
+        new Date(),
+      );
+    if (recurringStatus && !endingAtPeriodEnd) update.status = recurringStatus;
     if (eventType === "method_attached") {
       update.payment_method_attached_at = payload.updated_at ?? payload.created_at ?? nowIso;
+      if (!subscription.current_period_end) {
+        const inferred = addMembershipPeriod(payload.updated_at ?? payload.created_at ?? nowIso, subscription.billing_interval_snapshot);
+        if (inferred) update.current_period_end = inferred;
+      }
     }
-    if (recurringStatus === "canceled") {
+    if (recurringStatus === "canceled" && !endingAtPeriodEnd) {
       update.canceled_at = payload.updated_at ?? payload.created_at ?? nowIso;
     }
     await admin.from("customer_subscriptions").update(update).eq("id", subscription.id);
@@ -200,6 +228,7 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
   const effectiveAt = payload.closed_at ?? payload.created_at ?? new Date().toISOString();
   const gatewayMethod = payload.payment_provider?.charge?.method ?? "card";
   const gatewayStatus = String(payload.status ?? "").trim().toLowerCase() || null;
+  const currentPeriodEnd = addMembershipPeriod(effectiveAt, subscription.billing_interval_snapshot);
 
   const { data: existingPayment } = await admin
     .from("payments")
@@ -247,6 +276,7 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
     .update({
       status: paymentStatus === "paid" ? "active" : subscription.status ?? "scheduled",
       last_charge_at: paymentStatus === "paid" ? effectiveAt : null,
+      current_period_end: paymentStatus === "paid" ? currentPeriodEnd : subscription.current_period_end ?? null,
       gateway_payload: rawBody,
       updated_at: new Date().toISOString(),
     })

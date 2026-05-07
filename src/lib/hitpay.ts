@@ -53,6 +53,9 @@ type HitpayRecurringBillingResponse = {
   customer_name?: string;
   name?: string;
   reference?: string;
+  cycle?: string;
+  expires_at?: string;
+  updated_at?: string;
 };
 
 const REF_PREFIX = "STU";
@@ -199,6 +202,7 @@ export async function cancelHitpayRecurringBilling(input: { apiKey: string; recu
   return {
     recurringBillingId: payload.id ?? input.recurringBillingId,
     status: payload.status ?? "canceled",
+    expiresAt: payload.expires_at ?? null,
   };
 }
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import { z } from "zod";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { createHitpayRecurringBilling, generatePaymentReference } from "@/lib/hitpay";
@@ -90,12 +91,12 @@ export async function POST(req: Request) {
 
   const { data: existing } = await admin
     .from("customer_subscriptions")
-    .select("id, status")
+    .select("id, status, cancel_at_period_end, current_period_end")
     .eq("client_id", user.id)
     .eq("membership_product_id", membership.id)
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
     .maybeSingle();
-  if (existing?.id) {
+  if (existing?.id && isMembershipActiveForAccess(existing)) {
     return NextResponse.json({ error: "subscription_exists" }, { status: 409 });
   }
 
@@ -113,6 +114,7 @@ export async function POST(req: Request) {
       membership_name_snapshot: membership.name,
       membership_price_snapshot: membership.price,
       billing_interval_snapshot: membership.billing_interval,
+      cancel_at_period_end: false,
     })
     .select("id")
     .single();

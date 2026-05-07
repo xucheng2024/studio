@@ -3,6 +3,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { updateMemberProfile } from "@/app/dashboard/actions";
 import { getDashboardScope } from "@/lib/dashboard";
+import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { bestRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -61,6 +62,32 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     .select("full_name, phone, notes")
     .eq("id", clientId)
     .maybeSingle();
+
+  const { data: subscriptionsRaw } = await admin
+    .from("customer_subscriptions")
+    .select("id, status, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, canceled_at, current_period_end, cancel_at_period_end, cancel_requested_at, membership_products!inner(studio_id, location_id)")
+    .eq("client_id", clientId)
+    .eq("studio_id", activeStudioId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const subscriptions = (selectedLocationId
+    ? (subscriptionsRaw ?? []).filter((row) => {
+        const membership = Array.isArray(row.membership_products) ? row.membership_products[0] : row.membership_products;
+        return !membership?.location_id || membership.location_id === selectedLocationId;
+      })
+    : (subscriptionsRaw ?? [])) as Array<{
+      id: string;
+      status: string | null;
+      membership_name_snapshot?: string | null;
+      membership_price_snapshot?: number | null;
+      billing_interval_snapshot?: string | null;
+      created_at: string | null;
+      current_period_end?: string | null;
+      cancel_at_period_end?: boolean | null;
+      cancel_requested_at?: string | null;
+      canceled_at?: string | null;
+    }>;
 
   const { data: packRowsRaw } = await supabase
     .from("client_packages")
@@ -169,6 +196,58 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
             <button type="submit" className={ui.btnPrimarySm}>Save profile</button>
           </div>
         </form>
+      </section>
+
+      <section>
+        <h2 className={ui.h2}>Membership subscription</h2>
+        <ul className="mt-3 flex flex-col gap-2">
+          {subscriptions.map((subscription) => {
+            const tone =
+              getMembershipDisplayStatus(subscription) === "active"
+                ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
+                : getMembershipDisplayStatus(subscription) === "retrying"
+                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                  : getMembershipDisplayStatus(subscription) === "ending"
+                    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                  : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400";
+            const intervalLabel = subscription.billing_interval_snapshot === "yearly" ? "Yearly" : "Monthly";
+            return (
+              <li key={subscription.id} className="rounded-xl border border-stone-100 bg-white/70 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      {subscription.membership_name_snapshot?.trim() || "Membership"}
+                    </p>
+                    <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                      SGD {Number(subscription.membership_price_snapshot ?? 0).toFixed(2)} · {intervalLabel}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tone}`}>
+                    {getMembershipDisplayStatus(subscription)}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                  {subscription.created_at ? (
+                    <span>Started {new Date(subscription.created_at).toLocaleDateString("en-SG")}</span>
+                  ) : null}
+                  {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription) ? (
+                    <span>Active until {new Date(subscription.current_period_end).toLocaleDateString("en-SG")}</span>
+                  ) : null}
+                  {getMembershipDisplayStatus(subscription) === "canceled" && subscription.canceled_at ? (
+                    <span>Ended {new Date(subscription.canceled_at).toLocaleDateString("en-SG")}</span>
+                  ) : (
+                    <span>{subscription.cancel_at_period_end ? "No further renewals scheduled" : "Auto-renews until cancelled"}</span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        {!subscriptions.length ? (
+          <div className={`mt-3 ${ui.emptyState}`}>
+            <p className={`text-sm ${ui.muted}`}>No membership subscription.</p>
+          </div>
+        ) : null}
       </section>
 
       {/* ── Current packages ────────────────────────────────────── */}
