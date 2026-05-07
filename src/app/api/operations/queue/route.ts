@@ -192,16 +192,14 @@ export async function GET(req: Request) {
     });
   }
 
-  let eventsQuery = admin
+  const eventsQuery = admin
     .from("events")
-    .select("id, title, start_time, location_id, locations(name)")
+    .select("id, title, start_time, address")
     .in("studio_id", studioIds)
     .gte("start_time", windowStart.toISOString())
     .lt("start_time", windowEnd.toISOString())
     .order("start_time", { ascending: true })
     .limit(150);
-
-  if (locationId) eventsQuery = eventsQuery.eq("location_id", locationId);
 
   const { data: events } = await eventsQuery;
   const eventIds = (events ?? []).map((eventRow) => eventRow.id);
@@ -229,7 +227,7 @@ export async function GET(req: Request) {
     event_id: string;
     event_title: string;
     start_time: string;
-    location_name: string | null;
+    address: string | null;
     active_booking_count: number;
     attendees: Array<{
       event_booking_id: string;
@@ -262,18 +260,11 @@ export async function GET(req: Request) {
       })
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 
-    const loc = eventRow.locations as
-      | { name?: string | null }
-      | { name?: string | null }[]
-      | null
-      | undefined;
-    const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
-
     eventGroups.push({
       event_id: eventRow.id,
       event_title: eventRow.title ?? "Event",
       start_time: eventRow.start_time ?? new Date().toISOString(),
-      location_name: locationName,
+      address: (eventRow as { address?: string | null }).address ?? null,
       active_booking_count: attendees.filter((attendee) => attendee.status !== "cancelled").length,
       attendees,
     });

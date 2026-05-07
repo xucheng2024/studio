@@ -79,9 +79,16 @@ export default async function PublicEventPage({ params }: Props) {
               {Number(event.spots_left ?? 0)} / {Number(event.capacity ?? 0)} spots left
             </span>
             {(event as { address?: string | null }).address?.trim() ? (
-              <span className="flex items-center gap-1.5">
-                <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-                <span className="min-w-0 truncate">{String((event as { address: string }).address)}</span>
+              <span className="flex items-start gap-1.5">
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
+                <span className="min-w-0">
+                  <span className="block">{String((event as { address: string }).address)}</span>
+                  {(event as { address_details?: string | null }).address_details?.trim() ? (
+                    <span className="block text-xs text-stone-500 dark:text-stone-400">
+                      {String((event as { address_details: string }).address_details)}
+                    </span>
+                  ) : null}
+                </span>
               </span>
             ) : null}
           </div>

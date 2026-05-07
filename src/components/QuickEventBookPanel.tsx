@@ -1,8 +1,9 @@
  "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, Loader2, X } from "lucide-react";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 type Props = {
@@ -28,11 +29,18 @@ export function QuickEventBookPanel({
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    createBrowserSupabase()
+      .auth.getSession()
+      .then(({ data }) => setIsLoggedIn(!!data.session?.user));
+  }, []);
 
   const toFriendly = (code: string) => {
     if (code === "full") return "This event is full.";
@@ -70,9 +78,9 @@ export function QuickEventBookPanel({
       body: JSON.stringify({
         slug,
         event_id: eventId,
-        guest_name: name,
-        guest_email: email,
-        guest_phone: phone.trim() || null,
+        guest_name: isLoggedIn ? undefined : name,
+        guest_email: isLoggedIn ? undefined : email,
+        guest_phone: isLoggedIn ? undefined : (phone.trim() || null),
       }),
     });
     const body = await res.json().catch(() => ({}));
@@ -84,7 +92,35 @@ export function QuickEventBookPanel({
     if (body.checkout_url) router.push(body.checkout_url);
   };
 
-  const formFields = (
+  const loggedInForm = (
+    <div className="flex flex-col gap-3">
+      <p className={`text-sm ${ui.muted}`}>You are signed in. Click below to proceed to payment.</p>
+      {error ? (
+        <p className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+          <AlertCircle size={14} className="shrink-0" />
+          {error}
+        </p>
+      ) : null}
+      <div className={embedded ? "" : ui.mobileActionBar}>
+        <button
+          type="button"
+          disabled={loading}
+          className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+          onClick={handleSubmit}
+        >
+          {loading ? (
+            <>
+              <Loader2 size={15} className="animate-spin" /> Processing…
+            </>
+          ) : (
+            <>Continue to payment</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  const guestForm = (
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1">
         <span className={ui.label}>Name</span>
@@ -155,6 +191,8 @@ export function QuickEventBookPanel({
       </div>
     </div>
   );
+
+  const formFields = isLoggedIn ? loggedInForm : guestForm;
 
   if (embedded) return formFields;
 
