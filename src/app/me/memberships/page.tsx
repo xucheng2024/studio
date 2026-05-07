@@ -23,7 +23,7 @@ export default async function MyMembershipsPage() {
 
   const { data: subscriptions } = await supabase
     .from("customer_subscriptions")
-    .select("id, status, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, canceled_at, current_period_end, cancel_at_period_end, cancel_requested_at")
+    .select("id, status, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, canceled_at, current_period_end, cancel_at_period_end, cancel_requested_at, billing_start_date, last_charge_at")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -52,22 +52,39 @@ export default async function MyMembershipsPage() {
                   {getMembershipDisplayStatus(subscription)}
                 </span>
               </div>
-              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                {subscription.created_at ? (
-                  <span>Started {new Date(subscription.created_at).toLocaleDateString("en-SG")}</span>
-                ) : null}
-                {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription) ? (
-                  <span>Active until {new Date(subscription.current_period_end).toLocaleDateString("en-SG")}</span>
-                ) : null}
-                {subscription.canceled_at ? (
-                  <span>Cancelled {new Date(subscription.canceled_at).toLocaleDateString("en-SG")}</span>
-                ) : null}
-              </div>
-              <p className={`mt-2 text-sm ${ui.muted}`}>
-                {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription)
-                  ? "Cancellation is scheduled for the end of the current billing period."
-                  : "Need to cancel or change billing details? Contact the studio directly."}
-              </p>
+              {(() => {
+                const billingStartDate = (subscription as { billing_start_date?: string | null }).billing_start_date ?? null;
+                const lastCharge = (subscription as { last_charge_at?: string | null }).last_charge_at ?? null;
+                const inTrial = billingStartDate && !lastCharge && getMembershipDisplayStatus(subscription) !== "canceled";
+                const trialEndLabel = inTrial
+                  ? new Date(`${billingStartDate}T00:00:00+08:00`).toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" })
+                  : null;
+                return (
+                  <>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                      {subscription.created_at ? (
+                        <span>Started {new Date(subscription.created_at).toLocaleDateString("en-SG")}</span>
+                      ) : null}
+                      {inTrial && trialEndLabel ? (
+                        <span className="font-medium text-blue-600 dark:text-blue-400">Free trial · first charge on {trialEndLabel}</span>
+                      ) : null}
+                      {!inTrial && subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription) ? (
+                        <span>Active until {new Date(subscription.current_period_end).toLocaleDateString("en-SG")}</span>
+                      ) : null}
+                      {subscription.canceled_at ? (
+                        <span>Cancelled {new Date(subscription.canceled_at).toLocaleDateString("en-SG")}</span>
+                      ) : null}
+                    </div>
+                    <p className={`mt-2 text-sm ${ui.muted}`}>
+                      {inTrial
+                        ? "You're in your free trial. Cancel any time before the first charge at no cost."
+                        : subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription)
+                          ? "Cancellation is scheduled for the end of the current billing period."
+                          : "Need to cancel or change billing details? Contact the studio directly."}
+                    </p>
+                  </>
+                );
+              })()}
             </li>
           ))}
         </ul>
