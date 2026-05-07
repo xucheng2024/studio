@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CancelMyMembershipButton } from "@/components/CancelMyMembershipButton";
@@ -163,9 +162,6 @@ export default async function MyMembershipsPage() {
                             studioSlug={studioSlug}
                             label="Subscribe"
                           />
-                          <Link href={`/membership/${studioSlug}/${shareSlug}`} className={`${ui.link} text-xs`}>
-                            View details
-                          </Link>
                         </div>
                       ) : null}
                     </div>
