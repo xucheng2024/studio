@@ -64,21 +64,49 @@ export default async function MyClassPassesPage() {
         ) : (
           <ul className="mt-6 flex flex-col gap-3">
             {rows.map((r) => {
-              const expiry = r.expiry_date
+              const now = Date.now();
+              const expiryMs = r.expiry_date ? new Date(r.expiry_date).getTime() : null;
+              const isExpired = expiryMs != null && expiryMs <= now;
+              const isUsedUp = Number(r.credits_left ?? 0) <= 0;
+              const isDepleted = isExpired || isUsedUp;
+              const daysLeft = expiryMs != null && !isExpired
+                ? Math.ceil((expiryMs - now) / (1000 * 60 * 60 * 24))
+                : null;
+              const expiryLabel = r.expiry_date
                 ? new Date(r.expiry_date).toLocaleDateString("en-SG", { dateStyle: "medium" })
                 : "No expiry";
               const packageName =
                 (r as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || "Class pass package";
               const packSize = Math.max(0, Number((r as { package_credits_snapshot?: number | null }).package_credits_snapshot ?? 0));
+              const creditsLeft = Math.max(0, Number(r.credits_left ?? 0));
               return (
-                <li key={r.id} className={ui.card}>
+                <li key={r.id} className={`${ui.card} ${isDepleted ? "opacity-60" : ""}`}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-semibold text-stone-900 dark:text-stone-100">{packageName}</p>
-                    <span className={ui.badgeNeutral}>Left: {Math.max(0, Number(r.credits_left ?? 0))}</span>
+                    <p className={`font-semibold ${isDepleted ? "text-stone-500 dark:text-stone-400" : "text-stone-900 dark:text-stone-100"}`}>
+                      {packageName}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {isExpired ? (
+                        <span className="rounded-full bg-stone-200 px-2.5 py-0.5 text-xs font-medium text-stone-500 dark:bg-stone-700 dark:text-stone-400">
+                          Expired
+                        </span>
+                      ) : isUsedUp ? (
+                        <span className="rounded-full bg-stone-200 px-2.5 py-0.5 text-xs font-medium text-stone-500 dark:bg-stone-700 dark:text-stone-400">
+                          Used up
+                        </span>
+                      ) : daysLeft != null && daysLeft <= 7 ? (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          Expires in {daysLeft}d
+                        </span>
+                      ) : null}
+                      <span className={isDepleted ? ui.badgeNeutral : ui.badge}>
+                        {creditsLeft} pass{creditsLeft !== 1 ? "es" : ""} left
+                      </span>
+                    </div>
                   </div>
                   <div className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm ${ui.muted}`}>
                     <span>Pack size: {packSize}</span>
-                    <span>Expiry: {expiry}</span>
+                    <span>Expiry: {expiryLabel}</span>
                   </div>
                 </li>
               );
