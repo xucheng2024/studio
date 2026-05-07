@@ -25,6 +25,21 @@ function todayInSingapore() {
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 
+function startDateInSingapore(trialDays: number) {
+  const today = todayInSingapore();
+  const base = new Date(`${today}T00:00:00+08:00`);
+  const days = Number.isFinite(trialDays) ? Math.max(0, Math.floor(trialDays)) : 0;
+  base.setDate(base.getDate() + days);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(base);
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
@@ -40,7 +55,7 @@ export async function POST(req: Request) {
   const [{ data: membership, error: membershipErr }, { data: account }, { data: profile }] = await Promise.all([
     admin
       .from("membership_products")
-      .select("id, studio_id, location_id, name, description, price, currency, billing_interval, is_active, deleted_at, share_slug")
+      .select("id, studio_id, location_id, name, description, price, currency, billing_interval, trial_days, is_active, deleted_at, share_slug")
       .eq("id", parsed.data.membership_id)
       .maybeSingle(),
     admin.from("users").select("id, email").eq("id", user.id).maybeSingle(),
@@ -101,6 +116,8 @@ export async function POST(req: Request) {
   }
 
   const reference = generatePaymentReference();
+  const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
+  const startDate = startDateInSingapore(trialDays);
   const { data: localSubscription, error: insertErr } = await admin
     .from("customer_subscriptions")
     .insert({
@@ -115,6 +132,7 @@ export async function POST(req: Request) {
       membership_price_snapshot: membership.price,
       billing_interval_snapshot: membership.billing_interval,
       cancel_at_period_end: false,
+      billing_start_date: startDate,
     })
     .select("id")
     .single();
@@ -136,7 +154,7 @@ export async function POST(req: Request) {
       apiKey: studioSecrets.hitpay_api_key,
       customerEmail,
       customerName,
-      startDate: todayInSingapore(),
+      startDate,
       name: membership.name,
       amount: Number(membership.price ?? 0),
       currency: String(membership.currency ?? "SGD"),

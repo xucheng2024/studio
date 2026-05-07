@@ -202,10 +202,6 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
     if (recurringStatus && !endingAtPeriodEnd) update.status = recurringStatus;
     if (eventType === "method_attached") {
       update.payment_method_attached_at = payload.updated_at ?? payload.created_at ?? nowIso;
-      if (!subscription.current_period_end) {
-        const inferred = addMembershipPeriod(payload.updated_at ?? payload.created_at ?? nowIso, subscription.billing_interval_snapshot);
-        if (inferred) update.current_period_end = inferred;
-      }
     }
     if (recurringStatus === "canceled" && !endingAtPeriodEnd) {
       update.canceled_at = payload.updated_at ?? payload.created_at ?? nowIso;

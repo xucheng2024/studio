@@ -30,6 +30,23 @@ export default async function PublicMembershipPage({ params }: Props) {
   const sharePath = `/membership/${studioPublicSlug}/${membershipSlugPath}`;
   const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
   const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
+  const billingStartLabel =
+    trialDays > 0
+      ? (() => {
+          const now = new Date();
+          const parts = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Singapore",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).formatToParts(now);
+          const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+          const today = `${pick("year")}-${pick("month")}-${pick("day")}`;
+          const base = new Date(`${today}T00:00:00+08:00`);
+          base.setDate(base.getDate() + Math.max(0, Math.floor(trialDays)));
+          return base.toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" });
+        })()
+      : null;
 
   return (
     <main className={ui.page}>
@@ -59,7 +76,7 @@ export default async function PublicMembershipPage({ params }: Props) {
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {trialDays > 0 ? (
             <p className="mt-3 inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-300">
-              {trialDays}-day trial / refund guarantee
+              {trialDays}-day free trial
             </p>
           ) : null}
           <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
@@ -71,6 +88,12 @@ export default async function PublicMembershipPage({ params }: Props) {
               <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
               Automatic {intervalLabel.toLowerCase()} billing
             </span>
+            {trialDays > 0 && billingStartLabel ? (
+              <span className="flex items-center gap-1.5">
+                <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
+                First charge on {billingStartLabel}
+              </span>
+            ) : null}
             <span className="flex items-center gap-1.5">
               <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
               Cancelled by the studio on request
