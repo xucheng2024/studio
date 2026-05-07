@@ -21,7 +21,7 @@ export default async function MyOrdersPage() {
 
   const { data: payments } = await supabase
     .from("payments")
-    .select("id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot")
+    .select("id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -93,6 +93,8 @@ export default async function MyOrdersPage() {
             const sourceBadge =
               source === "event_booking"
                 ? { text: "Event", tone: "amber" as const }
+                : source === "membership_subscription"
+                  ? { text: "Membership", tone: "teal" as const }
                 : source === "package_buy"
                   ? { text: "Package", tone: "stone" as const }
                   : { text: "Class", tone: "blue" as const };
@@ -128,6 +130,11 @@ export default async function MyOrdersPage() {
                 {(((p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim()) || pkg?.name) ? (
                   <p className={`mt-1 text-sm ${ui.muted}`}>
                     Package: {(p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || pkg?.name}
+                  </p>
+                ) : null}
+                {((p as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim()) ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>
+                    Membership: {(p as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim()}
                   </p>
                 ) : null}
               </li>

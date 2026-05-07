@@ -42,10 +42,20 @@ export function AuthPageInner() {
   const oauthNext = encodeURIComponent(postAuthPath);
   const oauthCallbackPath = `/auth/callback?next=${oauthNext}`;
 
+  const rememberMemberStudio = useCallback(async () => {
+    if (!memberScopedSlug) return;
+    await fetch("/api/member/studio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: memberScopedSlug }),
+    }).catch(() => null);
+  }, [memberScopedSlug]);
+
   const goPostAuth = useCallback(async () => {
+    await rememberMemberStudio();
     router.replace(postAuthPath);
     router.refresh();
-  }, [postAuthPath, router]);
+  }, [postAuthPath, rememberMemberStudio, router]);
 
   useEffect(() => {
     const supabase = createBrowserSupabase();

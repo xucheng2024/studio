@@ -67,6 +67,32 @@ export const getCachedPackageShareContext = cache(async (studioSlugRaw: string, 
   return { studio, pkg };
 });
 
+export const getCachedMembershipShareContext = cache(async (studioSlugRaw: string, membershipSlugRaw: string) => {
+  const studioSlug = normalizeStudioSlug(studioSlugRaw ?? "");
+  const membershipSlug = normalizeShareSlug(membershipSlugRaw);
+  if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(membershipSlug)) return null;
+
+  const supabase = await createClient();
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, name, public_slug, contract_status, hitpay_enabled")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
+  if (!studio || studio.contract_status === "suspended") return null;
+
+  const { data: membership } = await supabase
+    .from("membership_products")
+    .select("id, name, description, price, currency, billing_interval, image_url, video_url, share_slug, is_active")
+    .eq("studio_id", studio.id)
+    .eq("share_slug", membershipSlug)
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!membership) return null;
+
+  return { studio, membership };
+});
+
 export const getCachedServiceShareContext = cache(async (studioSlugRaw: string, serviceSlugRaw: string) => {
   const studioSlug = normalizeStudioSlug(studioSlugRaw ?? "");
   const serviceSlug = normalizeShareSlug(serviceSlugRaw);

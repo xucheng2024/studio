@@ -582,14 +582,15 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
 
   // Only allow editing members that belong to this studio scope.
   const admin = createAdminClient();
-  const { data: inScopePayment } = await admin
-    .from("payments")
+  const { data: inScopeMember } = await admin
+    .from("member_studio_memberships")
     .select("id")
     .eq("studio_id", studio.id)
-    .eq("client_id", clientId)
+    .eq("user_id", clientId)
+    .eq("status", "active")
     .limit(1)
     .maybeSingle();
-  if (!inScopePayment) {
+  if (!inScopeMember) {
     redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=out_of_scope`);
   }
 
@@ -782,6 +783,65 @@ export async function createPackage(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/packages");
   revalidatePath("/checkout");
+}
+
+async function generateUniqueMembershipShareSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studioId: string,
+): Promise<string | null> {
+  for (let i = 0; i < 15; i += 1) {
+    const candidate = generateShareSlugSegment(10);
+    const { data: existing } = await supabase
+      .from("membership_products")
+      .select("id")
+      .eq("studio_id", studioId)
+      .eq("share_slug", candidate)
+      .maybeSingle();
+    if (!existing) return candidate;
+  }
+  return null;
+}
+
+export async function createMembershipProduct(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
+
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const billingIntervalRaw = String(formData.get("billing_interval") ?? "").trim().toLowerCase();
+  const billing_interval = billingIntervalRaw === "yearly" ? "yearly" : "monthly";
+  const price = Number(formData.get("price") ?? 0);
+  if (!name || !Number.isFinite(price) || price < 0) return;
+
+  const share_slug = await generateUniqueMembershipShareSlug(supabase, studio.id);
+  if (!share_slug) return;
+
+  const { error } = await supabase.from("membership_products").insert({
+    studio_id: studio.id,
+    location_id: locationId || null,
+    name,
+    description,
+    price,
+    currency: "SGD",
+    billing_interval,
+    is_active: true,
+    share_slug,
+  });
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+
+  revalidatePath("/dashboard/memberships");
+  if (studio.public_slug) {
+    revalidatePath(`/${studio.public_slug}`);
+    revalidatePath(`/membership/${studio.public_slug}/${share_slug}`);
+  }
 }
 
 async function generateUniqueEventShareSlug(

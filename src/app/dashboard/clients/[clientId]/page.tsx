@@ -39,12 +39,23 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const admin = createAdminClient();
 
-  const { data: clientUser } = await supabase
-    .from("users")
-    .select("id, email")
-    .eq("id", clientId)
-    .maybeSingle();
+  const [{ data: clientUser }, { data: inScopeMember }] = await Promise.all([
+    supabase
+      .from("users")
+      .select("id, email")
+      .eq("id", clientId)
+      .maybeSingle(),
+    admin
+      .from("member_studio_memberships")
+      .select("id")
+      .eq("studio_id", activeStudioId)
+      .eq("user_id", clientId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle(),
+  ]);
   if (!clientUser) return <p className={ui.muted}>User not found.</p>;
+  if (!inScopeMember) return <p className={ui.muted}>User not found in this studio.</p>;
   const { data: profile } = await admin
     .from("user_profiles")
     .select("full_name, phone, notes")

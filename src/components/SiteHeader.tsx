@@ -46,10 +46,11 @@ export async function SiteHeader() {
   // Root/staff entry should prioritize backoffice navigation.
   // Member pages (for example /[studioSlug]) render their own account menu.
   const navItems = user
-    ? hasBackofficeAccess
+        ? hasBackofficeAccess
       ? [{ href: "/dashboard", label: "Dashboard" }]
       : [
           { href: "/me/bookings", label: "My bookings" },
+          { href: "/me/memberships", label: "My memberships" },
           { href: "/me/class-passes", label: "My packages" },
           { href: "/me/orders", label: "My orders" },
           { href: "/me/profile", label: "Profile" },

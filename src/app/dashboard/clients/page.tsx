@@ -66,13 +66,24 @@ export default async function ClientsPage({ searchParams }: Props) {
     paidByClient.set(clientId, row);
   }
 
-  const paidClientIds = [...paidByClient.keys()];
+  const { data: memberRowsRaw } = await admin
+    .from("member_studio_memberships")
+    .select("user_id")
+    .in("studio_id", studioIds)
+    .eq("status", "active")
+    .limit(5000);
+
+  const memberClientIds = (memberRowsRaw ?? [])
+    .map((m) => (m as { user_id?: string | null }).user_id)
+    .filter((id): id is string => Boolean(id));
+  const allClientIds = [...new Set(memberClientIds)];
+
   const [{ data: users }, { data: profiles }] = await Promise.all([
-    paidClientIds.length > 0
-      ? supabase.from("users").select("id, email").in("id", paidClientIds)
+    allClientIds.length > 0
+      ? supabase.from("users").select("id, email").in("id", allClientIds)
       : Promise.resolve({ data: [] as const }),
-    paidClientIds.length > 0
-      ? admin.from("user_profiles").select("id, full_name, phone").in("id", paidClientIds)
+    allClientIds.length > 0
+      ? admin.from("user_profiles").select("id, full_name, phone").in("id", allClientIds)
       : Promise.resolve({ data: [] as const }),
   ]);
   const userMap = new Map((users ?? []).map((u) => [u.id, u]));
@@ -129,13 +140,13 @@ export default async function ClientsPage({ searchParams }: Props) {
   let bookingsQuery = supabase
     .from("bookings")
     .select("id, client_id, status, created_at, session_id, class_sessions(start_time, classes(title, studio_id), location_id)")
-    .in("client_id", paidClientIds)
+    .in("client_id", allClientIds)
     .order("created_at", { ascending: false })
     .limit(1000);
   if (selectedLocationId) {
     bookingsQuery = bookingsQuery.eq("location_id", selectedLocationId);
   }
-  const { data: bookingsRaw } = paidClientIds.length > 0 ? await bookingsQuery : { data: [] as const };
+  const { data: bookingsRaw } = allClientIds.length > 0 ? await bookingsQuery : { data: [] as const };
 
   const bookingByClient = new Map<
     string,
@@ -163,7 +174,7 @@ export default async function ClientsPage({ searchParams }: Props) {
     bookingByClient.set(clientId, arr);
   }
 
-  const memberRows = paidClientIds
+  const memberRows = allClientIds
     .map((clientId) => {
       const userRow = userMap.get(clientId);
       const profile = profileMap.get(clientId);
@@ -191,7 +202,7 @@ export default async function ClientsPage({ searchParams }: Props) {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className={ui.h1}>User records</h1>
-        <p className={`mt-1 ${ui.muted}`}>Paid users with quick contact and class pass status.</p>
+        <p className={`mt-1 ${ui.muted}`}>Registered users with quick contact and class pass status.</p>
       </div>
 
       <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-3`}>
@@ -259,7 +270,7 @@ export default async function ClientsPage({ searchParams }: Props) {
         {!memberRows.length ? (
           <div className={`mt-4 ${ui.emptyState}`}>
             <div className={ui.emptyStateIcon}><Users size={18} /></div>
-            <p className={`text-sm ${ui.muted}`}>No paid users found in this scope.</p>
+            <p className={`text-sm ${ui.muted}`}>No users found in this scope.</p>
           </div>
         ) : null}
       </div>

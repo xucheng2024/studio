@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { upsertMemberStudioMembership } from "@/lib/member-studio";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeOperationAudit } from "@/lib/audit";
 import { sendPaymentResultNotice } from "@/lib/email";
@@ -65,7 +66,13 @@ export async function POST(req: Request) {
   }
 
   if (parsed.data.status === "paid") {
-    await ensurePaymentClientId(admin, parsed.data.payment_id);
+    const clientId = await ensurePaymentClientId(admin, parsed.data.payment_id);
+    if (clientId) {
+      await upsertMemberStudioMembership(admin, {
+        userId: clientId,
+        studioId: payment.studio_id,
+      });
+    }
     const { data: result, error } = await admin.rpc(
       payment.event_booking_id ? "confirm_event_payment_with_invoice" : "confirm_payment_with_invoice",
       {

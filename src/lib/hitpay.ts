@@ -30,6 +30,31 @@ type HitpayRefundResponse = {
   message?: string;
 };
 
+type HitpayRecurringBillingRequest = {
+  apiKey: string;
+  customerEmail: string;
+  customerName: string;
+  startDate: string;
+  name: string;
+  amount: number;
+  currency: string;
+  cycle: "monthly" | "yearly";
+  redirectUrl: string;
+  reference: string;
+  paymentMethods?: string[];
+  sendEmail?: boolean;
+};
+
+type HitpayRecurringBillingResponse = {
+  id?: string;
+  status?: string;
+  url?: string;
+  customer_email?: string;
+  customer_name?: string;
+  name?: string;
+  reference?: string;
+};
+
 const REF_PREFIX = "STU";
 
 function getHitpayPlatformHeaders(apiKey: string) {
@@ -103,6 +128,78 @@ export function verifyHitpayWebhookSignature(rawBody: string, signature: string 
   if (!webhookSalt || !signature) return false;
   const digest = crypto.createHmac("sha256", webhookSalt).update(rawBody, "utf8").digest("hex");
   return digest === signature;
+}
+
+export async function createHitpayRecurringBilling(input: HitpayRecurringBillingRequest) {
+  const apiKey = input.apiKey.trim();
+  if (!apiKey || !HITPAY_PLATFORM_KEY) throw new Error("hitpay_not_configured");
+
+  const res = await fetch(`${HITPAY_API_BASE.replace(/\/$/, "")}/v1/recurring-billing`, {
+    method: "POST",
+    headers: {
+      ...getHitpayPlatformHeaders(apiKey),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      customer_email: input.customerEmail,
+      customer_name: input.customerName,
+      start_date: input.startDate,
+      plan_id: null,
+      save_card: "false",
+      save_payment_method: "false",
+      start_date_method: null,
+      name: input.name,
+      amount: Number(input.amount.toFixed(2)),
+      currency: input.currency,
+      cycle: input.cycle,
+      redirect_url: input.redirectUrl,
+      reference: input.reference,
+      payment_methods: input.paymentMethods?.length ? input.paymentMethods : ["card"],
+      send_email: input.sendEmail ? "true" : "false",
+    }),
+    cache: "no-store",
+  });
+
+  const payload = (await res.json().catch(() => ({}))) as HitpayRecurringBillingResponse & { message?: string };
+  if (!res.ok) {
+    throw new Error(String(payload?.message ?? "hitpay_recurring_create_failed"));
+  }
+  if (!payload.id || !payload.url) {
+    throw new Error("hitpay_invalid_response");
+  }
+
+  return {
+    recurringBillingId: payload.id,
+    checkoutUrl: payload.url,
+    status: payload.status || "scheduled",
+  };
+}
+
+export async function cancelHitpayRecurringBilling(input: { apiKey: string; recurringBillingId: string }) {
+  const apiKey = input.apiKey.trim();
+  if (!apiKey || !HITPAY_PLATFORM_KEY) throw new Error("hitpay_not_configured");
+  if (!input.recurringBillingId) throw new Error("hitpay_recurring_id_missing");
+
+  const res = await fetch(
+    `${HITPAY_API_BASE.replace(/\/$/, "")}/v1/recurring-billing/${encodeURIComponent(input.recurringBillingId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        ...getHitpayPlatformHeaders(apiKey),
+      },
+      cache: "no-store",
+    },
+  );
+
+  const payload = (await res.json().catch(() => ({}))) as HitpayRecurringBillingResponse & { message?: string };
+  if (!res.ok) {
+    throw new Error(String(payload?.message ?? "hitpay_recurring_cancel_failed"));
+  }
+
+  return {
+    recurringBillingId: payload.id ?? input.recurringBillingId,
+    status: payload.status ?? "canceled",
+  };
 }
 
 export async function refundHitpayPayment(input: {

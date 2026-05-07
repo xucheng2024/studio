@@ -38,6 +38,8 @@ function paymentSourceLabel(source: string | null | undefined) {
       return "Session booking";
     case "event_booking":
       return "Event booking";
+    case "membership_subscription":
+      return "Membership subscription";
     default:
       return "Unknown";
   }
@@ -76,7 +78,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, guest_name, guest_email, guest_phone, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, guest_name, guest_email, guest_phone, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -186,6 +188,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       sessionTitle,
       eventTitle,
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? pkg?.name ?? null,
+      (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
     ]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(keyword));
@@ -279,8 +282,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </label>
         </div>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Search member / class / event / ref</span>
-          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="member name, class title, event title, email, ref…" />
+          <span className={ui.label}>Search member / session / event / membership / ref</span>
+          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="member name, session title, event title, membership name, email, ref…" />
         </label>
 
         {/* ── Apply / Reset ─────────────────────────────────── */}
@@ -340,10 +343,15 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             (p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() ||
             pkg?.name?.trim() ||
             "-";
+          const membershipLabel =
+            (p as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim() ||
+            "-";
           const source = (p as { source?: string | null }).source ?? null;
           const orderTypeLabel =
             source === "event_booking"
               ? "Event"
+              : source === "membership_subscription"
+                ? "Membership"
               : source === "package_buy"
                 ? "Package"
                 : "Session";
@@ -426,6 +434,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Package</dt>
                   <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{packageLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Membership</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{membershipLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Ref</dt>

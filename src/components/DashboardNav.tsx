@@ -9,6 +9,7 @@ import {
   CalendarRange,
   BriefcaseBusiness,
   Package,
+  Repeat,
   Users,
   CreditCard,
   BarChart2,
@@ -26,6 +27,7 @@ const links: NavLink[] = [
   { href: "/dashboard/schedule",   label: "Sessions",   icon: Calendar },
   { href: "/dashboard/events",     label: "Events",     icon: CalendarRange },
   { href: "/dashboard/packages",   label: "Packages",   icon: Package },
+  { href: "/dashboard/memberships",label: "Memberships",icon: Repeat },
   { href: "/dashboard/clients",    label: "Users",      icon: Users },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },
@@ -34,7 +36,7 @@ const links: NavLink[] = [
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk", string[]> = {
   owner:     links.map((l) => l.href),
   manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/clients"],
+  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients"],
 };
 
 function useVisibleLinks(

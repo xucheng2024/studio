@@ -1,5 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { parseStudioSlugFromPath } from "@/lib/member-studio-shared";
+import { upsertMemberStudioMembership } from "@/lib/member-studio";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 export async function GET(request: NextRequest) {
@@ -30,8 +33,22 @@ export async function GET(request: NextRequest) {
       },
     );
     await supabase.auth.exchangeCodeForSession(code);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const studioSlug = parseStudioSlugFromPath(safeNext);
+    if (user?.id && studioSlug) {
+      const admin = createAdminClient();
+      const { data: studio } = await admin
+        .from("studios")
+        .select("id")
+        .eq("public_slug", studioSlug)
+        .maybeSingle();
+      if (studio?.id) {
+        await upsertMemberStudioMembership(admin, { userId: user.id, studioId: studio.id });
+      }
+    }
   }
 
   return response;
 }
-

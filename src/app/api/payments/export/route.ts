@@ -16,6 +16,8 @@ type PaymentRow = {
   booking_id: string | null;
   event_booking_id: string | null;
   package_id: string | null;
+  membership_product_id: string | null;
+  customer_subscription_id: string | null;
   client_id: string | null;
   guest_name: string | null;
   guest_email: string | null;
@@ -35,6 +37,8 @@ type PaymentRow = {
   invoice_status?: string | null;
   invoice_voided_at?: string | null;
   invoice_void_reason?: string | null;
+  package_name_snapshot?: string | null;
+  membership_name_snapshot?: string | null;
 };
 
 export async function GET(req: Request) {
@@ -87,7 +91,7 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, event_booking_id, package_id, client_id, guest_name, guest_email, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot",
+      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -150,6 +154,7 @@ export async function GET(req: Request) {
         eventBooking?.guest_name,
         eventObj?.title,
         (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name : null),
+        (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
         clientEmail,
       ]
         .filter(Boolean)
@@ -162,6 +167,8 @@ export async function GET(req: Request) {
     "booking_id",
     "event_booking_id",
     "package_id",
+    "membership_product_id",
+    "customer_subscription_id",
     "payment_status",
     "payment_method",
     "payment_source",
@@ -169,6 +176,7 @@ export async function GET(req: Request) {
     "class_or_session_name",
     "event_name",
     "package_name",
+    "membership_name",
     "invoice_status",
     "invoice_number",
     "invoice_voided_at",
@@ -198,6 +206,8 @@ export async function GET(req: Request) {
     const orderType =
       p.source === "event_booking"
         ? "event"
+        : p.source === "membership_subscription"
+          ? "membership"
         : p.source === "package_buy"
           ? "package"
           : "session";
@@ -214,6 +224,8 @@ export async function GET(req: Request) {
       p.booking_id ?? "",
       p.event_booking_id ?? "",
       p.package_id ?? "",
+      p.membership_product_id ?? "",
+      p.customer_subscription_id ?? "",
       p.status ?? "",
       p.payment_method ?? "",
       p.source ?? "",
@@ -221,6 +233,7 @@ export async function GET(req: Request) {
       sessionClass?.title ?? "",
       eventObj?.title ?? "",
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name ?? "" : ""),
+      (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? "",
       p.invoice_status ?? "",
       p.invoice_number ?? "",
       p.invoice_voided_at ?? "",

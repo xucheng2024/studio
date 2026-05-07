@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getCachedClassShareContext, getCachedEventShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
+import { getCachedClassShareContext, getCachedEventShareContext, getCachedMembershipShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
 
 export async function buildClassShareMetadata(
   studioSlugRaw: string,
@@ -54,6 +54,38 @@ export async function buildPackageShareMetadata(
     twitter: {
       card: "summary_large_image",
       title: pkg.name,
+      description: desc,
+      images: [img],
+    },
+  };
+}
+
+export async function buildMembershipShareMetadata(
+  studioSlugRaw: string,
+  membershipSlugRaw: string,
+): Promise<Metadata> {
+  const ctx = await getCachedMembershipShareContext(studioSlugRaw, membershipSlugRaw);
+  if (!ctx) return { title: "Membership" };
+  const { studio, membership } = ctx;
+
+  const img = membership.image_url && isTrustedCoverImageUrl(membership.image_url)
+    ? membership.image_url
+    : absolutePlaceholderCoverUrl();
+  const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
+  const desc = `${studio.name} · ${intervalLabel} membership · $${membership.price}`;
+
+  return {
+    title: `${membership.name} · ${studio.name}`,
+    description: desc,
+    openGraph: {
+      title: membership.name,
+      description: desc,
+      type: "website",
+      images: [{ url: img, width: 1200, height: 675, alt: membership.name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: membership.name,
       description: desc,
       images: [img],
     },

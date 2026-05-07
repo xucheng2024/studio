@@ -4,6 +4,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
@@ -20,7 +21,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, contract_status, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, contract_status, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
     .eq("public_slug", slug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -52,6 +53,14 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     .is("deleted_at", null)
     .order("price", { ascending: true });
 
+  const { data: memberships } = await admin
+    .from("membership_products")
+    .select("id, name, description, price, currency, billing_interval, image_url, video_url, share_slug")
+    .eq("studio_id", studio.id)
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
   const { data: events } = await admin
     .from("events")
     .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
@@ -65,6 +74,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     services: services ?? [],
     classes: classes ?? [],
     packages: packages ?? [],
+    memberships: memberships ?? [],
     events: events ?? [],
   };
 });
@@ -101,7 +111,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const { studioSlug } = await params;
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
-  const { studio, services, classes, packages, events } = data;
+  const { studio, services, classes, packages, memberships, events } = data;
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -126,6 +136,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const servicesTitle = studio.public_services_title?.trim() || "General services";
   const classesTitle = studio.public_classes_title?.trim() || "Upcoming classes";
   const packagesTitle = studio.public_packages_title?.trim() || "Packages";
+  const membershipsTitle = "Memberships";
   const eventsTitle = "Events";
   const visibleServices = services.slice(0, 4);
   const hiddenServices = services.slice(4);
@@ -197,6 +208,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 {packages.length > 0 ? (
                   <a href="#packages" className={lightAnchorBtn}>
                     Packages
+                  </a>
+                ) : null}
+                {memberships.length > 0 ? (
+                  <a href="#memberships" className={lightAnchorBtn}>
+                    Memberships
                   </a>
                 ) : null}
               </div>
@@ -956,6 +972,101 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           Buy now
                         </Link>
                       ) : null}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {memberships.length > 0 ? (
+        <section id="memberships" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+          <div className="flex items-center gap-2">
+            <h2 className={ui.h2}>{membershipsTitle}</h2>
+          </div>
+          <p className={`mt-1 text-sm ${ui.muted}`}>
+            Start a recurring membership with automatic monthly or yearly billing.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {memberships.map((membership) => {
+              const detailHref = membership.share_slug
+                ? `/membership/${studio.public_slug}/${membership.share_slug}`
+                : null;
+              const membershipImage = (membership as { image_url?: string | null }).image_url ?? null;
+              const membershipVideo = (membership as { video_url?: string | null }).video_url ?? null;
+              const membershipVideoPreview = getVideoPreview(membershipVideo ?? "");
+              const showVideoCover = Boolean(membershipVideoPreview.embedUrl || membershipVideo?.trim());
+              const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
+
+              return (
+                <article key={membership.id} className={`${ui.card} flex flex-col`}>
+                  <div className="mb-4">
+                    {showVideoCover ? (
+                      <PublicVideoCover
+                        title={membership.name}
+                        coverUrl={membershipImage}
+                        embedUrl={membershipVideoPreview.embedUrl}
+                        fallbackUrl={membershipVideo?.trim() || null}
+                      />
+                    ) : membershipImage ? (
+                      detailHref ? (
+                        <Link href={detailHref} className="block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={membershipImage}
+                            alt={membership.name}
+                            className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                            loading="lazy"
+                          />
+                        </Link>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={membershipImage}
+                          alt={membership.name}
+                          className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                          loading="lazy"
+                        />
+                      )
+                    ) : (
+                      <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col">
+                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                      {detailHref ? (
+                        <Link href={detailHref} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                          {membership.name}
+                        </Link>
+                      ) : (
+                        membership.name
+                      )}
+                    </h3>
+                    <p className={`mt-1.5 text-sm ${ui.muted}`}>{intervalLabel} membership</p>
+                    {membership.description ? (
+                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
+                        {membership.description}
+                      </p>
+                    ) : null}
+                    <div className="mt-auto flex flex-col gap-3 pt-4">
+                      <div className="flex items-end justify-between gap-3">
+                        <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                          {membership.currency} {Number(membership.price).toFixed(2)}
+                        </span>
+                        {detailHref ? (
+                          <Link href={detailHref} className={ui.btnSecondarySm}>
+                            View details
+                          </Link>
+                        ) : null}
+                      </div>
+                      <SubscribeMembershipPanel
+                        membershipId={membership.id}
+                        studioSlug={studio.public_slug}
+                        membershipSlug={membership.share_slug ?? ""}
+                        disabled={!studio.hitpay_enabled}
+                      />
                     </div>
                   </div>
                 </article>

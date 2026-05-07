@@ -7,7 +7,7 @@ export type RevenuePaymentRow = {
   source?: string | null;
 };
 
-export type RevenueOrderType = "session" | "event" | "package";
+export type RevenueOrderType = "session" | "event" | "package" | "membership";
 
 export function revenueOrderTypeFromSource(source: string | null | undefined): RevenueOrderType {
   switch (source) {
@@ -15,6 +15,8 @@ export function revenueOrderTypeFromSource(source: string | null | undefined): R
       return "event";
     case "package_buy":
       return "package";
+    case "membership_subscription":
+      return "membership";
     default:
       return "session";
   }
@@ -52,6 +54,7 @@ export function revenueByOrderType(rows: RevenuePaymentRow[]) {
     ["session", { gross: 0, refunds: 0 }],
     ["event", { gross: 0, refunds: 0 }],
     ["package", { gross: 0, refunds: 0 }],
+    ["membership", { gross: 0, refunds: 0 }],
   ]);
 
   for (const p of rows) {
@@ -66,6 +69,7 @@ export function revenueByOrderType(rows: RevenuePaymentRow[]) {
     session: { ...map.get("session")!, net: map.get("session")!.gross - map.get("session")!.refunds },
     event: { ...map.get("event")!, net: map.get("event")!.gross - map.get("event")!.refunds },
     package: { ...map.get("package")!, net: map.get("package")!.gross - map.get("package")!.refunds },
+    membership: { ...map.get("membership")!, net: map.get("membership")!.gross - map.get("membership")!.refunds },
   };
 }
 
@@ -76,6 +80,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
       session: { gross: number; refunds: number };
       event: { gross: number; refunds: number };
       package: { gross: number; refunds: number };
+      membership: { gross: number; refunds: number };
       gross: number;
       refunds: number;
     }
@@ -89,6 +94,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
         session: { gross: 0, refunds: 0 },
         event: { gross: 0, refunds: 0 },
         package: { gross: 0, refunds: 0 },
+        membership: { gross: 0, refunds: 0 },
         gross: 0,
         refunds: 0,
       });
@@ -114,6 +120,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
       sessionNet: v.session.gross - v.session.refunds,
       eventNet: v.event.gross - v.event.refunds,
       packageNet: v.package.gross - v.package.refunds,
+      membershipNet: v.membership.gross - v.membership.refunds,
     }))
     .sort((a, b) => a.day.localeCompare(b.day));
 }

@@ -46,6 +46,9 @@ export function StudioAccountEntry({
           <Link href="/me/bookings" className={ui.linkHeaderMenu}>
             My bookings
           </Link>
+          <Link href="/me/memberships" className={ui.linkHeaderMenu}>
+            My memberships
+          </Link>
           <Link href="/me/class-passes" className={ui.linkHeaderMenu}>
             My packages
           </Link>
