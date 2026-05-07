@@ -57,6 +57,10 @@ export default async function MyMembershipsPage() {
                 const billingStartDate = (subscription as { billing_start_date?: string | null }).billing_start_date ?? null;
                 const lastCharge = (subscription as { last_charge_at?: string | null }).last_charge_at ?? null;
                 const inTrial = billingStartDate && !lastCharge && getMembershipDisplayStatus(subscription) !== "canceled";
+                const canSelfCancel =
+                  getMembershipDisplayStatus(subscription) !== "canceled" &&
+                  !isMembershipEnded(subscription) &&
+                  (inTrial || !subscription.cancel_at_period_end);
                 const trialEndLabel = inTrial
                   ? new Date(`${billingStartDate}T00:00:00+08:00`).toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" })
                   : null;
@@ -83,10 +87,15 @@ export default async function MyMembershipsPage() {
                           ? "Cancellation is scheduled for the end of the current billing period."
                           : "Need to cancel or change billing details? Contact the studio directly."}
                     </p>
-                    {inTrial ? (
+                    {canSelfCancel ? (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <CancelMyMembershipButton subscriptionId={subscription.id} />
-                        <span className={`text-xs ${ui.muted}`}>Cancels before the first charge.</span>
+                        <CancelMyMembershipButton
+                          subscriptionId={subscription.id}
+                          label={inTrial ? "Cancel trial" : "Cancel renewal"}
+                        />
+                        <span className={`text-xs ${ui.muted}`}>
+                          {inTrial ? "Cancels before the first charge." : "Stops future renewals (access continues until period end)."}
+                        </span>
                       </div>
                     ) : null}
                   </>

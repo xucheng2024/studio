@@ -5,7 +5,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ui } from "@/lib/ui";
 
-export function CancelMyMembershipButton({ subscriptionId }: { subscriptionId: string }) {
+export function CancelMyMembershipButton({
+  subscriptionId,
+  label,
+}: {
+  subscriptionId: string;
+  label?: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +29,9 @@ export function CancelMyMembershipButton({ subscriptionId }: { subscriptionId: s
         toast.error(body.error ?? "Could not cancel");
         return;
       }
-      toast.success("Membership cancelled");
+      toast.success(
+        body?.mode === "period_end" ? "Cancellation scheduled" : "Membership cancelled",
+      );
       router.refresh();
     } finally {
       setBusy(false);
@@ -37,7 +45,7 @@ export function CancelMyMembershipButton({ subscriptionId }: { subscriptionId: s
       className={`${ui.btnSecondarySm} border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/20 disabled:opacity-60`}
       onClick={() => void cancel()}
     >
-      {busy ? "Cancelling…" : "Cancel"}
+      {busy ? "Cancelling…" : (label ?? "Cancel")}
     </button>
   );
 }
