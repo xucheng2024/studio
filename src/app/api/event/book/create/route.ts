@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: event, error: eErr } = await admin
     .from("events")
-    .select("id, studio_id, location_id, is_active, start_time, spots_left, price, currency, studios(public_slug)")
+    .select("id, studio_id, is_active, start_time, spots_left, price, currency, studios(public_slug)")
     .eq("id", parsed.data.event_id)
     .single();
 
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
       package_id: null,
       event_booking_id: bookingResult.event_booking_id,
       studio_id: studioId,
-      location_id: event.location_id ?? null,
+      location_id: null,
       client_id: user?.id ?? null,
       guest_name: user ? null : guestName ?? null,
       guest_email: user ? null : guestEmail ?? null,

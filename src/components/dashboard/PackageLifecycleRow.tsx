@@ -104,7 +104,7 @@ export function PackageLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      toast.error(body.error ?? "Delete failed");
+      toast.error(body.error ?? "Remove failed");
       return;
     }
     toast.success("Package removed");

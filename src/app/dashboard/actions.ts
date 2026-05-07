@@ -803,15 +803,15 @@ async function generateUniqueEventShareSlug(
 
 export async function createEvent(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const locationId = String(formData.get("location_id") ?? "").trim();
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const address_details = String(formData.get("address_details") ?? "").trim() || null;
   const tags = parsePublicTagsInput(formData.get("tags_input"));
   const startRaw = String(formData.get("start_time") ?? "");
   const endRaw = String(formData.get("end_time") ?? "");
@@ -835,7 +835,6 @@ export async function createEvent(formData: FormData): Promise<void> {
 
   const { error } = await supabase.from("events").insert({
     studio_id: studio.id,
-    location_id: locationId || null,
     title,
     description,
     tags,
@@ -849,6 +848,8 @@ export async function createEvent(formData: FormData): Promise<void> {
     share_slug,
     image_url,
     video_url,
+    address,
+    address_details,
   });
   if (error) {
     console.error(error.message);
@@ -861,15 +862,15 @@ export async function createEvent(formData: FormData): Promise<void> {
 export async function updateEvent(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const eventId = String(formData.get("event_id") ?? "");
-  const locationId = String(formData.get("location_id") ?? "").trim() || null;
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !eventId) return;
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const address_details = String(formData.get("address_details") ?? "").trim() || null;
   const tags = parsePublicTagsInput(formData.get("tags_input"));
   const is_active = formData.get("is_active") ? true : false;
   const startRaw = String(formData.get("start_time") ?? "");
@@ -908,7 +909,6 @@ export async function updateEvent(formData: FormData): Promise<void> {
       description,
       tags,
       is_active,
-      location_id: locationId,
       start_time: start.toISOString(),
       end_time: end.toISOString(),
       capacity: nextCapacity,
@@ -916,6 +916,8 @@ export async function updateEvent(formData: FormData): Promise<void> {
       price,
       image_url,
       video_url,
+      address,
+      address_details,
       updated_at: new Date().toISOString(),
     })
     .eq("id", eventId);

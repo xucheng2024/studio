@@ -8,6 +8,7 @@ import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import {
   PAYMENT_METHOD_FILTER_OPTIONS,
+  PAYMENT_SOURCE_FILTER_OPTIONS,
 } from "@/lib/payment-filter-options";
 import { bestRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +21,7 @@ type Props = {
     location_id?: string;
     studio_id?: string;
     payment_method?: string;
+    source?: string;
     date_from?: string;
     date_to?: string;
     q?: string;
@@ -31,9 +33,11 @@ function paymentSourceLabel(source: string | null | undefined) {
     case "walkin":
       return "Walk-in";
     case "package_buy":
-      return "Package buy";
+      return "Package purchase";
     case "online_booking":
-      return "Online booking";
+      return "Session booking";
+    case "event_booking":
+      return "Event booking";
     default:
       return "Unknown";
   }
@@ -72,13 +76,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, guest_name, guest_email, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, guest_name, guest_email, guest_phone, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
     .limit(300);
   if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
   if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
+  if (sp.source) q = q.eq("source", sp.source);
   const defaultDate = localISODate();
   const dateFrom = sp.date_from ?? defaultDate;
   const dateTo = sp.date_to ?? defaultDate;
@@ -90,14 +95,28 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const { data: rawPayments } = await q;
   const payments = rawPayments ?? [];
   const bookingIds = [...new Set(payments.map((p) => p.booking_id).filter(Boolean))];
+  const eventBookingIds = [...new Set(payments.map((p) => (p as { event_booking_id?: string | null }).event_booking_id).filter(Boolean))];
   const clientIds = [...new Set(payments.map((p) => p.client_id).filter(Boolean))];
+  const packageIds = [...new Set(payments.map((p) => (p as { package_id?: string | null }).package_id).filter(Boolean))];
 
-  const [{ data: bookings }, { data: clients }, { data: clientProfiles }] = await Promise.all([
+  const [{ data: bookings }, { data: eventBookings }, { data: packageRows }, { data: clients }, { data: clientProfiles }] = await Promise.all([
     bookingIds.length > 0
       ? supabase
           .from("bookings")
           .select("id, guest_name, guest_email, guest_phone, class_sessions(start_time, classes(title))")
           .in("id", bookingIds)
+      : Promise.resolve({ data: [] as const }),
+    eventBookingIds.length > 0
+      ? supabase
+          .from("event_bookings")
+          .select("id, guest_name, guest_email, guest_phone, events(title, start_time)")
+          .in("id", eventBookingIds)
+      : Promise.resolve({ data: [] as const }),
+    packageIds.length > 0
+      ? supabase
+          .from("packages")
+          .select("id, name")
+          .in("id", packageIds)
       : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
       ? supabase.from("users").select("id, email").in("id", clientIds)
@@ -107,6 +126,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       : Promise.resolve({ data: [] as const }),
   ]);
   const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
+  const eventBookingMap = new Map((eventBookings ?? []).map((b) => [b.id, b]));
+  const packageMap = new Map((packageRows ?? []).map((pkg) => [pkg.id, pkg]));
   const clientMap = new Map((clients ?? []).map((u) => [u.id, u.email]));
   const clientProfileMap = new Map(
     (clientProfiles ?? []).map((u) => [
@@ -126,6 +147,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     const cProfile = p.client_id ? clientProfileMap.get(p.client_id) : null;
     const cPhone = cProfile?.phone ?? null;
     const cName = cProfile?.full_name ?? null;
+    const eventBooking = (p as { event_booking_id?: string | null }).event_booking_id
+      ? eventBookingMap.get((p as { event_booking_id?: string | null }).event_booking_id ?? "")
+      : null;
+    const pkg = (p as { package_id?: string | null }).package_id
+      ? packageMap.get((p as { package_id?: string | null }).package_id ?? "")
+      : null;
     const sessionObj = booking
       ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
           ? (booking as { class_sessions?: unknown[] }).class_sessions?.[0]
@@ -137,6 +164,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       : null;
     const sessionClass = Array.isArray(sessionObj?.classes) ? sessionObj?.classes[0] : sessionObj?.classes;
     const sessionTitle = sessionClass?.title ?? null;
+    const eventObj = eventBooking
+      ? ((Array.isArray((eventBooking as { events?: unknown }).events)
+          ? (eventBooking as { events?: unknown[] }).events?.[0]
+          : (eventBooking as { events?: unknown }).events) as
+          | { title?: string | null }
+          | null)
+      : null;
+    const eventTitle = eventObj?.title ?? null;
     return [
       p.reference_code,
       p.guest_email,
@@ -149,6 +184,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       cPhone,
       cName,
       sessionTitle,
+      eventTitle,
+      (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? pkg?.name ?? null,
     ]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(keyword));
@@ -185,6 +222,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   exportParams.set("studio_id", activeStudioId);
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
   if (sp.payment_method) exportParams.set("payment_method", sp.payment_method);
+  if (sp.source) exportParams.set("source", sp.source);
   exportParams.set("date_from", dateFrom);
   exportParams.set("date_to", dateTo);
   if (sp.q) exportParams.set("q", sp.q);
@@ -230,10 +268,19 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Order type</span>
+            <select name="source" className={ui.select} defaultValue={sp.source ?? ""}>
+              <option value="">All</option>
+              {PAYMENT_SOURCE_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Search member / session / ref</span>
-          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="member name, session title, email, ref…" />
+          <span className={ui.label}>Search member / class / event / ref</span>
+          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="member name, class title, event title, email, ref…" />
         </label>
 
         {/* ── Apply / Reset ─────────────────────────────────── */}
@@ -255,6 +302,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const badges = getUnifiedStatusBadges({ payment_status: p.status });
           const needsReview = p.status === "pending" && p.verified_at == null;
           const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+          const eventBooking = (p as { event_booking_id?: string | null }).event_booking_id
+            ? eventBookingMap.get((p as { event_booking_id?: string | null }).event_booking_id ?? "")
+            : null;
+          const pkg = (p as { package_id?: string | null }).package_id
+            ? packageMap.get((p as { package_id?: string | null }).package_id ?? "")
+            : null;
           const sessionObj = booking
             ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
                 ? (booking as { class_sessions?: unknown[] }).class_sessions?.[0]
@@ -271,6 +324,29 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const sessionLabel = sessionTitle
             ? `${sessionTitle}${sessionStart && !Number.isNaN(sessionStart.getTime()) ? ` · ${sessionStart.toLocaleString()}` : ""}`
             : "-";
+          const eventObj = eventBooking
+            ? ((Array.isArray((eventBooking as { events?: unknown }).events)
+                ? (eventBooking as { events?: unknown[] }).events?.[0]
+                : (eventBooking as { events?: unknown }).events) as
+                | { title?: string | null; start_time?: string | null }
+                | null)
+            : null;
+          const eventTitle = eventObj?.title?.trim() || null;
+          const eventStart = eventObj?.start_time ? new Date(eventObj.start_time) : null;
+          const eventLabel = eventTitle
+            ? `${eventTitle}${eventStart && !Number.isNaN(eventStart.getTime()) ? ` · ${eventStart.toLocaleString()}` : ""}`
+            : "-";
+          const packageLabel =
+            (p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() ||
+            pkg?.name?.trim() ||
+            "-";
+          const source = (p as { source?: string | null }).source ?? null;
+          const orderTypeLabel =
+            source === "event_booking"
+              ? "Event"
+              : source === "package_buy"
+                ? "Package"
+                : "Session";
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
           const clientProfile = p.client_id ? clientProfileMap.get(p.client_id) : null;
           const clientPhone = clientProfile?.phone ?? null;
@@ -302,6 +378,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     {p.currency} {Number(p.amount).toFixed(2)}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <span className={ui.badgeNeutral}>{orderTypeLabel}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badges.payment.tone)}`}>
                       {badges.payment.text}
                     </span>
@@ -323,7 +400,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <dd className="min-w-0 break-all font-medium text-stone-700 dark:text-stone-300">{emailLabel}</dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Session</dt>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Class</dt>
                   <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{sessionLabel}</dd>
                 </div>
                 <div className="flex gap-2">
@@ -341,6 +418,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Phone</dt>
                   <dd className="text-stone-700 dark:text-stone-300">{phoneLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Event</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{eventLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Package</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{packageLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Ref</dt>

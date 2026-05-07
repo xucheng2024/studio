@@ -186,7 +186,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                   <ServiceDetailLinkButton serviceId={svc.id} />
                   <button type="submit" formAction={deleteStudioService} className={`${ui.btnDangerSm} px-2`}>
-                    Delete
+                    Remove
                   </button>
                 </div>
               </summary>

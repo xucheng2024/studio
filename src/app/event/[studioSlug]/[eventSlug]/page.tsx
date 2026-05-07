@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
+import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { QuickEventBookPanel } from "@/components/QuickEventBookPanel";
 import { getCachedEventShareContext } from "@/lib/cachedSharePages";
 import { buildEventShareMetadata } from "@/lib/publicShareOg";
@@ -32,12 +33,21 @@ export default async function PublicEventPage({ params }: Props) {
     <main className={ui.page}>
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">
-          <PublicVideoCover
-            title={event.title}
-            coverUrl={coverSrc}
-            embedUrl={videoPreview.embedUrl}
-            fallbackUrl={videoUrl?.trim() || null}
-          />
+          <div className="relative">
+            <PublicVideoCover
+              title={event.title}
+              coverUrl={coverSrc}
+              embedUrl={videoPreview.embedUrl}
+              fallbackUrl={videoUrl?.trim() || null}
+            />
+            <div className="absolute bottom-4 right-4 z-20">
+              <SessionShareLinkButton
+                sharePath={sharePath}
+                title={`${event.title} · ${studio.name}`}
+                text={`Check out this event: ${event.title}`}
+              />
+            </div>
+          </div>
         </div>
       ) : (
         <ShareCoverImage
@@ -68,6 +78,12 @@ export default async function PublicEventPage({ params }: Props) {
               <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
               {Number(event.spots_left ?? 0)} / {Number(event.capacity ?? 0)} spots left
             </span>
+            {(event as { address?: string | null }).address?.trim() ? (
+              <span className="flex items-center gap-1.5">
+                <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
+                <span className="min-w-0 truncate">{String((event as { address: string }).address)}</span>
+              </span>
+            ) : null}
           </div>
 
           {Array.isArray(event.tags) && event.tags.length ? (

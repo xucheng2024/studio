@@ -41,7 +41,10 @@ export function OpsSessionGroup({
     <DashboardAppLink href={detailHref} className={`${ui.card} block transition-shadow hover:shadow-md`}>
       <div className="flex flex-col gap-2 border-b border-stone-200/80 pb-3 dark:border-stone-800/80 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{group.class_title}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{group.class_title}</h3>
+            <span className={ui.badgeNeutral}>Class</span>
+          </div>
           <p className={`text-sm ${ui.muted}`}>{startLabel}</p>
           {group.location_name ? (
             <p className={`text-sm ${ui.muted}`}>{group.location_name}</p>

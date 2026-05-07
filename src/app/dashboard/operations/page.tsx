@@ -66,15 +66,15 @@ export default async function OperationsPage({ searchParams }: Props) {
             <p className={ui.badge}>Setup required</p>
             <h1 className={ui.h1}>Create your first studio</h1>
             <p className={ui.muted}>
-              Operations will be available after studio setup. Add your studio profile first, then return here to manage
-              verification, check-ins, and exceptions.
+              Booking management will be available after studio setup. Add your studio profile first, then return here
+              to manage bookings, verification, check-ins, and exceptions.
             </p>
           </div>
           <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
             <p className="font-medium text-stone-900 dark:text-stone-100">Next steps</p>
             <p className={ui.muted}>1. Open overview and create studio</p>
             <p className={ui.muted}>2. Add at least one location and class</p>
-            <p className={ui.muted}>3. Return to Operations to process daily tasks</p>
+            <p className={ui.muted}>3. Return to Booking management to process daily tasks</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <DashboardAppLink href="/dashboard/overview" className={ui.btnPrimary}>
@@ -93,7 +93,7 @@ export default async function OperationsPage({ searchParams }: Props) {
       <div className={`${ui.card} max-w-2xl`}>
         <p className="font-medium text-stone-900 dark:text-stone-100">Choose a studio to continue</p>
         <p className={`mt-1 ${ui.muted}`}>
-          You have access to multiple studios. Use the studio switcher on the left, then Operations will load the
+          You have access to multiple studios. Use the studio switcher on the left, then Booking management will load the
           matching queue.
         </p>
       </div>
@@ -156,14 +156,14 @@ export default async function OperationsPage({ searchParams }: Props) {
         >
           <p className="font-medium">Studio contract suspended</p>
           <p className={`mt-1 ${ui.muted}`}>
-            Operations APIs and mutating actions are paused for this studio. Owners can resume under Settings → Studio
+            Booking management APIs and mutating actions are paused for this studio. Owners can resume under Settings → Studio
             contract.
           </p>
         </div>
       ) : null}
       <div>
-        <h1 className={ui.h1}>Today&apos;s front desk</h1>
-        <p className={ui.muted}>Daily session execution and attendance.</p>
+        <h1 className={ui.h1}>Booking management</h1>
+        <p className={ui.muted}>Daily booking, attendance, and exception handling for classes and events.</p>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:items-start">
         <FrontdeskWalkinForm sessions={walkinSessions} disabled={studioSuspended} />
@@ -195,7 +195,7 @@ export default async function OperationsPage({ searchParams }: Props) {
         <input type="hidden" name="studio_id" value={activeStudioId} />
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Session status</span>
+          <span className={ui.label}>Booking status</span>
           <select name="session_status" className={ui.select} defaultValue={sessionStatus}>
             <option value="all">All</option>
             <option value="scheduled">Scheduled</option>

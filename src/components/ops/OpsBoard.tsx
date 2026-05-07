@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { OpsEventGroup, type StartingSoonEventGroup } from "@/components/ops/OpsEventGroup";
 import { OpsSessionGroup, type StartingSoonSessionGroup } from "@/components/ops/OpsSessionGroup";
 import { ui } from "@/lib/ui";
 
 type QueuePayload = {
   starting_soon_grouped: StartingSoonSessionGroup[];
+  event_groups: StartingSoonEventGroup[];
 };
 
 type QueueState = QueuePayload & {
@@ -28,6 +30,7 @@ export function OpsBoard({
   const [data, setData] = useState<QueueState>({
     qs: null,
     starting_soon_grouped: [],
+    event_groups: [],
   });
 
   const qs = useMemo(() => {
@@ -49,6 +52,7 @@ export function OpsBoard({
         setData({
           qs,
           starting_soon_grouped: json.starting_soon_grouped ?? [],
+          event_groups: json.event_groups ?? [],
         });
       });
     return () => {
@@ -72,23 +76,42 @@ export function OpsBoard({
     );
   }
 
-  if (!data.starting_soon_grouped.length) {
+  if (!data.starting_soon_grouped.length && !data.event_groups.length) {
     return (
       <section className={ui.card}>
-        <p className={ui.muted}>No sessions match this filter.</p>
+        <p className={ui.muted}>No bookings match this filter.</p>
       </section>
     );
   }
 
   return (
     <div className="grid gap-4">
-      {data.starting_soon_grouped.map((group) => (
-        <OpsSessionGroup
-          key={group.session_id}
-          group={group}
-          detailHref={`/dashboard/sessions/${group.session_id}/checkin?${qs}`}
-        />
-      ))}
+      {data.starting_soon_grouped.length ? (
+        <section className="grid gap-4">
+          <div>
+            <h2 className={ui.h2}>Class sessions</h2>
+            <p className={ui.muted}>Check-ins and attendee actions for scheduled classes.</p>
+          </div>
+          {data.starting_soon_grouped.map((group) => (
+            <OpsSessionGroup
+              key={group.session_id}
+              group={group}
+              detailHref={`/dashboard/sessions/${group.session_id}/checkin?${qs}`}
+            />
+          ))}
+        </section>
+      ) : null}
+      {data.event_groups.length ? (
+        <section className="grid gap-4">
+          <div>
+            <h2 className={ui.h2}>Event bookings</h2>
+            <p className={ui.muted}>Manage event attendees here. Refunds still stay in Payments.</p>
+          </div>
+          {data.event_groups.map((group) => (
+            <OpsEventGroup key={group.event_id} group={group} />
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

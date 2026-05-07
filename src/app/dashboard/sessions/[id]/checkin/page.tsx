@@ -106,7 +106,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
     <div className={ui.pageNarrow}>
       <div className="flex flex-col gap-4">
         <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-          ← Back to sessions
+          ← Back to booking management
         </DashboardAppLink>
 
         <section className={ui.card}>

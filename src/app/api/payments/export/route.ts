@@ -14,6 +14,8 @@ function csvEscape(value: unknown) {
 type PaymentRow = {
   id: string;
   booking_id: string | null;
+  event_booking_id: string | null;
+  package_id: string | null;
   client_id: string | null;
   guest_name: string | null;
   guest_email: string | null;
@@ -40,6 +42,7 @@ export async function GET(req: Request) {
   const studioId = url.searchParams.get("studio_id");
   const locationId = url.searchParams.get("location_id");
   const paymentMethod = url.searchParams.get("payment_method");
+  const source = url.searchParams.get("source");
   const dateFromParam = url.searchParams.get("date_from");
   const dateToParam = url.searchParams.get("date_to");
 
@@ -84,13 +87,14 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, client_id, guest_name, guest_email, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason",
+      "id, booking_id, event_booking_id, package_id, client_id, guest_name, guest_email, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
     .limit(5000); // Hard cap: export larger datasets via date-range pagination
   if (locationId) q = q.eq("location_id", locationId);
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
+  if (source) q = q.eq("source", source);
   if (from) q = q.gte("created_at", from);
   if (to) q = q.lt("created_at", to);
   const { data: payments } = await q;
@@ -98,13 +102,21 @@ export async function GET(req: Request) {
 
   // Fetch related bookings and users for keyword search & operator email resolution
   const bookingIds = [...new Set(rows.map((p) => p.booking_id).filter(Boolean))] as string[];
+  const eventBookingIds = [...new Set(rows.map((p) => p.event_booking_id).filter(Boolean))] as string[];
+  const packageIds = [...new Set(rows.map((p) => p.package_id).filter(Boolean))] as string[];
   const clientIds = [...new Set(rows.map((p) => p.client_id).filter(Boolean))] as string[];
   const operatorIds = [...new Set(rows.map((p) => p.verified_by).filter(Boolean))] as string[];
   const allUserIds = [...new Set([...clientIds, ...operatorIds])];
 
-  const [{ data: bookings }, { data: userRows }] = await Promise.all([
+  const [{ data: bookings }, { data: eventBookings }, { data: packages }, { data: userRows }] = await Promise.all([
     bookingIds.length > 0
-      ? supabase.from("bookings").select("id, guest_name, guest_email").in("id", bookingIds)
+      ? supabase.from("bookings").select("id, guest_name, guest_email, class_sessions(classes(title))").in("id", bookingIds)
+      : Promise.resolve({ data: [] as const }),
+    eventBookingIds.length > 0
+      ? supabase.from("event_bookings").select("id, guest_name, guest_email, events(title)").in("id", eventBookingIds)
+      : Promise.resolve({ data: [] as const }),
+    packageIds.length > 0
+      ? supabase.from("packages").select("id, name").in("id", packageIds)
       : Promise.resolve({ data: [] as const }),
     allUserIds.length > 0
       ? supabase.from("users").select("id, email").in("id", allUserIds)
@@ -112,13 +124,21 @@ export async function GET(req: Request) {
   ]);
 
   const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
+  const eventBookingMap = new Map((eventBookings ?? []).map((b) => [b.id, b]));
+  const packageMap = new Map((packages ?? []).map((pkg) => [pkg.id, pkg]));
   const userEmailMap = new Map((userRows ?? []).map((u) => [u.id, u.email ?? ""]));
 
   // Apply keyword filter (mirrors payments page logic)
   if (keyword) {
     rows = rows.filter((p) => {
       const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+      const eventBooking = p.event_booking_id ? eventBookingMap.get(p.event_booking_id) : null;
       const clientEmail = p.client_id ? userEmailMap.get(p.client_id) : null;
+      const eventObj = eventBooking
+        ? ((Array.isArray((eventBooking as { events?: unknown }).events)
+            ? (eventBooking as { events?: unknown[] }).events?.[0]
+            : (eventBooking as { events?: unknown }).events) as { title?: string | null } | null)
+        : null;
       return [
         p.reference_code,
         p.recon_note,
@@ -126,6 +146,10 @@ export async function GET(req: Request) {
         p.guest_name,
         booking?.guest_email,
         booking?.guest_name,
+        eventBooking?.guest_email,
+        eventBooking?.guest_name,
+        eventObj?.title,
+        (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name : null),
         clientEmail,
       ]
         .filter(Boolean)
@@ -136,9 +160,15 @@ export async function GET(req: Request) {
   const headers = [
     "payment_id",
     "booking_id",
+    "event_booking_id",
+    "package_id",
     "payment_status",
     "payment_method",
     "payment_source",
+    "order_type",
+    "class_or_session_name",
+    "event_name",
+    "package_name",
     "invoice_status",
     "invoice_number",
     "invoice_voided_at",
@@ -158,12 +188,39 @@ export async function GET(req: Request) {
     const expected = Number(p.amount ?? 0);
     const paid = Number(p.paid_amount ?? expected);
     const operatorEmail = p.verified_by ? (userEmailMap.get(p.verified_by) ?? p.verified_by) : "";
+    const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+    const eventBooking = p.event_booking_id ? eventBookingMap.get(p.event_booking_id) : null;
+    const eventObj = eventBooking
+      ? ((Array.isArray((eventBooking as { events?: unknown }).events)
+          ? (eventBooking as { events?: unknown[] }).events?.[0]
+          : (eventBooking as { events?: unknown }).events) as { title?: string | null } | null)
+      : null;
+    const orderType =
+      p.source === "event_booking"
+        ? "event"
+        : p.source === "package_buy"
+          ? "package"
+          : "session";
+    const sessionObj = booking
+      ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
+          ? (booking as { class_sessions?: unknown[] }).class_sessions?.[0]
+          : (booking as { class_sessions?: unknown }).class_sessions) as
+          | { classes?: { title?: string | null } | { title?: string | null }[] | null }
+          | null)
+      : null;
+    const sessionClass = Array.isArray(sessionObj?.classes) ? sessionObj?.classes[0] : sessionObj?.classes;
     return [
       p.id,
       p.booking_id ?? "",
+      p.event_booking_id ?? "",
+      p.package_id ?? "",
       p.status ?? "",
       p.payment_method ?? "",
       p.source ?? "",
+      orderType,
+      sessionClass?.title ?? "",
+      eventObj?.title ?? "",
+      (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name ?? "" : ""),
       p.invoice_status ?? "",
       p.invoice_number ?? "",
       p.invoice_voided_at ?? "",

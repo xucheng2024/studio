@@ -113,7 +113,7 @@ export function ClassTemplateLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      toast.error(body.error ?? "Delete failed");
+      toast.error(body.error ?? "Remove failed");
       return;
     }
     toast.success("Class template removed");
@@ -200,7 +200,7 @@ export function ClassTemplateLifecycleRow({
                         className="font-semibold text-red-700 hover:underline dark:text-red-400"
                         onClick={() => void deleteTemplate()}
                       >
-                        Delete?
+                        Remove?
                       </button>
                       <button type="button" className="text-stone-400 hover:text-stone-600" onClick={() => setDeleteConfirm(false)}>
                         <X size={11} />

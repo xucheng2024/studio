@@ -7,6 +7,7 @@ import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { CalendarRange, Clock3, MapPin, Ticket } from "lucide-react";
 
 type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
 
@@ -32,29 +33,17 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
 
   let eventsQuery = supabase
     .from("events")
-    .select("id, title, description, tags, studio_id, location_id, start_time, end_time, capacity, spots_left, price, currency, is_active, share_slug, image_url, video_url")
+    .select("id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, is_active, share_slug, image_url, video_url, address, address_details")
     .in("studio_id", studioIds)
     .order("start_time", { ascending: false });
-  if (selectedLocationId) eventsQuery = eventsQuery.eq("location_id", selectedLocationId);
-
-  const locationsQuery = supabase
-    .from("locations")
-    .select("id, name, studio_id")
-    .in("studio_id", studioIds)
-    .eq("is_active", true)
-    .order("name");
-
-  const [{ data: events }, { data: locations }, { data: studioMeta }] = await Promise.all([
+  const [{ data: events }, { data: studioMeta }] = await Promise.all([
     eventsQuery,
-    locationsQuery,
     supabase.from("studios").select("id, public_slug").in("id", studioIds).order("created_at", { ascending: true }),
   ]);
 
   const studioId = selectedStudioId ?? (events?.[0]?.studio_id as string | undefined) ?? studioIds[0];
   const studioPublicSlug =
     (studioMeta ?? []).find((s) => s.id === studioId)?.public_slug ?? null;
-
-  const locsForStudio = (locations ?? []).filter((l) => l.studio_id === studioId).map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }));
 
   const now = Date.now();
   const studioEvents = (events ?? []).filter((e) => String(e.studio_id) === studioId);
@@ -66,6 +55,9 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
     .sort((a, b) => new Date(String(b.start_time)).getTime() - new Date(String(a.start_time)).getTime());
   const UPCOMING_PREVIEW_COUNT = 6;
   const PAST_PREVIEW_COUNT = 4;
+  const inactiveCount = studioEvents.filter((event) => event.is_active === false).length;
+  const liveCount = upcomingEvents.filter((event) => event.is_active !== false).length;
+  const seatsRemaining = upcomingEvents.reduce((sum, event) => sum + Number(event.spots_left ?? 0), 0);
 
   const renderEventCard = (e: any, opts?: { muted?: boolean }) => {
     const href = studioPublicSlug && e.share_slug ? `/event/${studioPublicSlug}/${e.share_slug}` : null;
@@ -87,6 +79,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{e.title}</h3>
+                  <span className={ui.badgeAmber}>Event</span>
                   {e.is_active === false ? (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
                       Inactive
@@ -101,6 +94,9 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 <p className={`mt-0.5 text-xs ${ui.muted}`}>
                   SGD {Number(e.price ?? 0).toFixed(2)} · cap {Number(e.capacity ?? 0)} · {Number(e.spots_left ?? 0)} left
                 </p>
+                {(e as { address?: string | null }).address ? (
+                  <p className={`mt-0.5 text-xs ${ui.muted}`}>{String((e as { address?: string | null }).address)}</p>
+                ) : null}
                 {href ? (
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <span className={`font-mono text-[11px] ${ui.muted}`}>{href}</span>
@@ -125,7 +121,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             {canEdit ? (
               <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                 <button type="submit" formAction={deleteEvent} className={`${ui.btnDangerSm} px-2`}>
-                  Delete
+                  Remove
                 </button>
               </div>
             ) : null}
@@ -144,6 +140,25 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               <label className="flex flex-col gap-1.5 sm:col-span-2">
                 <span className={ui.label}>Description</span>
                 <textarea name="description" rows={3} defaultValue={String(e.description ?? "")} className={`${ui.input} min-h-24`} />
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className={ui.label}>Address</span>
+                <input
+                  name="address"
+                  defaultValue={String((e as { address?: string | null }).address ?? "")}
+                  className={ui.input}
+                  placeholder="123 Orchard Rd, Singapore 238888"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className={ui.label}>Address details</span>
+                <textarea
+                  name="address_details"
+                  rows={2}
+                  defaultValue={String((e as { address_details?: string | null }).address_details ?? "")}
+                  className={`${ui.input} min-h-16`}
+                  placeholder="Floor, room, check-in instructions (optional)"
+                />
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Start</span>
@@ -165,15 +180,6 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 <span className={ui.label}>Tags</span>
                 <textarea name="tags_input" rows={3} defaultValue={(tags ?? []).join("\n")} className={`${ui.input} min-h-20`} />
                 <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
-              </label>
-              <label className="flex flex-col gap-1.5 sm:col-span-2">
-                <span className={ui.label}>Location</span>
-                <select name="location_id" defaultValue={String(e.location_id ?? "")} className={ui.select}>
-                  <option value="">—</option>
-                  {locsForStudio.map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
               </label>
               <div className="sm:col-span-2">
                 <CoverVideoFields
@@ -202,20 +208,61 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className={ui.h1}>Events</h1>
+        <h1 className={ui.h1}>Event setup</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <p className={ui.muted}>Standalone paid events (no class template).</p>
+          <p className={ui.muted}>
+            Create and maintain standalone paid events here. Booking handling stays in Booking management.
+          </p>
           <DashboardAppLink href="/dashboard/schedule" className={ui.btnSecondarySm}>
             Back to schedule
           </DashboardAppLink>
         </div>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <section className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
+            <CalendarRange size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Upcoming events</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
+              {upcomingEvents.length}
+            </p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>{liveCount} active · {inactiveCount} inactive overall</p>
+          </div>
+        </section>
+        <section className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            <Ticket size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Open seats</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
+              {seatsRemaining}
+            </p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Across all upcoming events</p>
+          </div>
+        </section>
+        <section className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+            <Clock3 size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Past events</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
+              {pastEvents.length}
+            </p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Kept for reference and sharing history</p>
+          </div>
+        </section>
+      </div>
+
       {canEdit ? (
         <details className={`chevron ${ui.card} max-w-3xl`}>
           <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
-            <span>+ Create event</span>
-            <span className={`text-xs font-normal ${ui.muted}`}>Paid only</span>
+            <span>+ New event</span>
+            <span className={`text-xs font-normal ${ui.muted}`}>Paid standalone event</span>
           </summary>
           <form action={createEvent} className="mt-4 grid gap-3 md:grid-cols-2">
             <input type="hidden" name="studio_id" value={studioId} />
@@ -226,6 +273,14 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <label className="flex flex-col gap-1.5 md:col-span-2">
               <span className={ui.label}>Description</span>
               <textarea name="description" rows={2} className={`${ui.input} min-h-16`} />
+            </label>
+            <label className="flex flex-col gap-1.5 md:col-span-2">
+              <span className={ui.label}>Address</span>
+              <input name="address" required className={ui.input} placeholder="123 Orchard Rd, Singapore 238888" />
+            </label>
+            <label className="flex flex-col gap-1.5 md:col-span-2">
+              <span className={ui.label}>Address details</span>
+              <textarea name="address_details" rows={2} className={`${ui.input} min-h-16`} placeholder="Floor, room, check-in instructions (optional)" />
             </label>
             <label className="flex flex-col gap-1.5 md:col-span-2">
               <span className={ui.label}>Tags</span>
@@ -247,17 +302,6 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Price (SGD)</span>
               <input name="price" type="number" min={0.01} step={0.01} required defaultValue={120} className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Location</span>
-              <select name="location_id" className={ui.select} defaultValue={selectedLocationId ?? ""}>
-                <option value="">—</option>
-                {locsForStudio.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
             </label>
             <div className="md:col-span-2">
               <CoverVideoFields
@@ -287,6 +331,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <h2 className={ui.h2}>Upcoming events</h2>
             <span className={ui.badgeNeutral}>{upcomingEvents.length}</span>
           </div>
+          <p className={`text-xs ${ui.muted}`}>These are the events currently available or scheduled next.</p>
         </div>
 
         {upcomingEvents.length ? (
@@ -347,4 +392,3 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
     </div>
   );
 }
-

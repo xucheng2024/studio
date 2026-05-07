@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
 import { sendBookingOutcomeNotice } from "@/lib/email";
+import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,6 +36,15 @@ export async function POST(req: Request) {
   const s0 = Array.isArray(session) ? session[0] : session;
   const classes = s0?.classes;
   const cancelStudioId = Array.isArray(classes) ? classes[0]?.studio_id : classes?.studio_id;
+  if (!cancelStudioId) return NextResponse.json({ error: "invalid_booking" }, { status: 404 });
+
+  // Only staff can cancel bookings. Members can only view status and contact front desk.
+  const scope = await requireStaffScope({
+    userId: user.id,
+    studioId: cancelStudioId,
+    roles: ["owner", "manager", "frontdesk"],
+  });
+  if (!scope.ok) return staffScopeFailureResponse(scope);
   if (cancelStudioId) {
     const { data: st } = await admin.from("studios").select("contract_status").eq("id", cancelStudioId).maybeSingle();
     if (st?.contract_status === "suspended") {
@@ -45,7 +55,7 @@ export async function POST(req: Request) {
   const { data, error } = await admin.rpc("cancel_booking_with_rules", {
     p_booking_id: parsed.data.booking_id,
     p_actor_id: user.id,
-    p_cancel_reason: "user_cancel",
+    p_cancel_reason: "staff_cancel",
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const result = data as { ok?: boolean; error?: string; status?: string; credit_returned?: boolean };

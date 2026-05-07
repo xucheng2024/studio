@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { badgeToneClass } from "@/lib/order-status";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,12 +21,15 @@ export default async function MyOrdersPage() {
 
   const { data: payments } = await supabase
     .from("payments")
-    .select("id, amount, currency, status, created_at, reference_code, payment_method, booking_id, package_id, package_name_snapshot")
+    .select("id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
   const bookingIds = Array.from(
     new Set((payments ?? []).map((p) => p.booking_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
+  );
+  const eventBookingIds = Array.from(
+    new Set((payments ?? []).map((p) => (p as { event_booking_id?: string | null }).event_booking_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
   );
   const packageIds = Array.from(
     new Set((payments ?? []).map((p) => p.package_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
@@ -38,6 +42,13 @@ export default async function MyOrdersPage() {
           .select("id, class_sessions(start_time, classes(title))")
           .in("id", bookingIds)
       : { data: [] };
+  const { data: eventBookingRows } =
+    eventBookingIds.length > 0
+      ? await supabase
+          .from("event_bookings")
+          .select("id, events(title, start_time)")
+          .in("id", eventBookingIds)
+      : { data: [] };
   const { data: packageRows } =
     packageIds.length > 0
       ? await supabase
@@ -47,6 +58,7 @@ export default async function MyOrdersPage() {
       : { data: [] };
 
   const bookingMap = new Map((bookingRows ?? []).map((r) => [r.id, r]));
+  const eventBookingMap = new Map((eventBookingRows ?? []).map((r) => [r.id, r]));
   const packageMap = new Map((packageRows ?? []).map((r) => [r.id, r]));
 
   return (
@@ -60,6 +72,9 @@ export default async function MyOrdersPage() {
         <ul className="flex flex-col gap-2">
           {(payments ?? []).map((p) => {
             const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+            const eventBooking = (p as { event_booking_id?: string | null }).event_booking_id
+              ? eventBookingMap.get((p as { event_booking_id?: string | null }).event_booking_id ?? "")
+              : null;
             const pkg = p.package_id ? packageMap.get(p.package_id) : null;
             const session = booking && "class_sessions" in booking ? booking.class_sessions : null;
             const sessionRow = Array.isArray(session) ? session[0] : session;
@@ -68,13 +83,31 @@ export default async function MyOrdersPage() {
             const sessionTime = sessionRow?.start_time
               ? new Date(sessionRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
               : null;
+            const eventInfo = eventBooking && "events" in eventBooking ? eventBooking.events : null;
+            const eventRow = Array.isArray(eventInfo) ? eventInfo[0] : eventInfo;
+            const eventTitle = eventRow?.title ?? null;
+            const eventTime = eventRow?.start_time
+              ? new Date(eventRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
+              : null;
+            const source = (p as { source?: string | null }).source ?? null;
+            const sourceBadge =
+              source === "event_booking"
+                ? { text: "Event", tone: "amber" as const }
+                : source === "package_buy"
+                  ? { text: "Package", tone: "stone" as const }
+                  : { text: "Class", tone: "blue" as const };
 
             return (
               <li key={p.id} className={ui.card}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-stone-900 dark:text-stone-100">
-                    {p.currency} {Number(p.amount).toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-stone-900 dark:text-stone-100">
+                      {p.currency} {Number(p.amount).toFixed(2)}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(sourceBadge.tone)}`}>
+                      {sourceBadge.text}
+                    </span>
+                  </div>
                   <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${paymentStatusColor[p.status ?? ""] ?? paymentStatusColor.pending}`}>
                     {p.status ?? "Unknown"}
                   </span>
@@ -88,6 +121,9 @@ export default async function MyOrdersPage() {
                 </div>
                 {sessionTitle ? (
                   <p className={`mt-2 text-sm ${ui.muted}`}>Session: {sessionTitle}{sessionTime ? ` · ${sessionTime}` : ""}</p>
+                ) : null}
+                {eventTitle ? (
+                  <p className={`mt-2 text-sm ${ui.muted}`}>Event: {eventTitle}{eventTime ? ` · ${eventTime}` : ""}</p>
                 ) : null}
                 {(((p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim()) || pkg?.name) ? (
                   <p className={`mt-1 text-sm ${ui.muted}`}>

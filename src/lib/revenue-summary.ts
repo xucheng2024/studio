@@ -4,7 +4,21 @@ export type RevenuePaymentRow = {
   amount: unknown;
   created_at?: string | null;
   location_id?: string | null;
+  source?: string | null;
 };
+
+export type RevenueOrderType = "session" | "event" | "package";
+
+export function revenueOrderTypeFromSource(source: string | null | undefined): RevenueOrderType {
+  switch (source) {
+    case "event_booking":
+      return "event";
+    case "package_buy":
+      return "package";
+    default:
+      return "session";
+  }
+}
 
 export function computeRevenueSummary(rows: RevenuePaymentRow[]) {
   let gross = 0;
@@ -30,6 +44,77 @@ export function revenueByDay(rows: RevenuePaymentRow[]) {
   }
   return [...map.entries()]
     .map(([day, v]) => ({ day, gross: v.gross, refunds: v.refunds, net: v.gross - v.refunds }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+export function revenueByOrderType(rows: RevenuePaymentRow[]) {
+  const map = new Map<RevenueOrderType, { gross: number; refunds: number }>([
+    ["session", { gross: 0, refunds: 0 }],
+    ["event", { gross: 0, refunds: 0 }],
+    ["package", { gross: 0, refunds: 0 }],
+  ]);
+
+  for (const p of rows) {
+    const key = revenueOrderTypeFromSource(p.source);
+    const entry = map.get(key)!;
+    const amt = Number(p.amount ?? 0);
+    if (p.status === "paid") entry.gross += amt;
+    else if (p.status === "refunded") entry.refunds += amt;
+  }
+
+  return {
+    session: { ...map.get("session")!, net: map.get("session")!.gross - map.get("session")!.refunds },
+    event: { ...map.get("event")!, net: map.get("event")!.gross - map.get("event")!.refunds },
+    package: { ...map.get("package")!, net: map.get("package")!.gross - map.get("package")!.refunds },
+  };
+}
+
+export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
+  const map = new Map<
+    string,
+    {
+      session: { gross: number; refunds: number };
+      event: { gross: number; refunds: number };
+      package: { gross: number; refunds: number };
+      gross: number;
+      refunds: number;
+    }
+  >();
+
+  for (const p of rows) {
+    const day = (p.created_at ?? "").slice(0, 10);
+    if (!day) continue;
+    if (!map.has(day)) {
+      map.set(day, {
+        session: { gross: 0, refunds: 0 },
+        event: { gross: 0, refunds: 0 },
+        package: { gross: 0, refunds: 0 },
+        gross: 0,
+        refunds: 0,
+      });
+    }
+    const row = map.get(day)!;
+    const key = revenueOrderTypeFromSource(p.source);
+    const amt = Number(p.amount ?? 0);
+    if (p.status === "paid") {
+      row[key].gross += amt;
+      row.gross += amt;
+    } else if (p.status === "refunded") {
+      row[key].refunds += amt;
+      row.refunds += amt;
+    }
+  }
+
+  return [...map.entries()]
+    .map(([day, v]) => ({
+      day,
+      gross: v.gross,
+      refunds: v.refunds,
+      net: v.gross - v.refunds,
+      sessionNet: v.session.gross - v.session.refunds,
+      eventNet: v.event.gross - v.event.refunds,
+      packageNet: v.package.gross - v.package.refunds,
+    }))
     .sort((a, b) => a.day.localeCompare(b.day));
 }
 

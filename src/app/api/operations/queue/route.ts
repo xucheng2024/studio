@@ -13,6 +13,15 @@ type SoonBookingRow = {
   users: { email: string | null } | { email: string | null }[] | null;
 };
 
+type SoonEventBookingRow = {
+  id: string;
+  event_id: string;
+  status: string;
+  guest_name: string | null;
+  guest_email: string | null;
+  users: { email: string | null } | { email: string | null }[] | null;
+};
+
 function normalizeDateRange(dateFrom: string | null, dateTo: string | null) {
   if (!dateFrom && !dateTo) {
     const now = new Date();
@@ -74,7 +83,7 @@ export async function GET(req: Request) {
 
   const allStudioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
   if (allStudioIds.length === 0) {
-    return NextResponse.json({ starting_soon_grouped: [] });
+    return NextResponse.json({ starting_soon_grouped: [], event_groups: [] });
   }
 
   const studioIds =
@@ -183,5 +192,92 @@ export async function GET(req: Request) {
     });
   }
 
-  return NextResponse.json({ starting_soon_grouped: grouped });
+  let eventsQuery = admin
+    .from("events")
+    .select("id, title, start_time, location_id, locations(name)")
+    .in("studio_id", studioIds)
+    .gte("start_time", windowStart.toISOString())
+    .lt("start_time", windowEnd.toISOString())
+    .order("start_time", { ascending: true })
+    .limit(150);
+
+  if (locationId) eventsQuery = eventsQuery.eq("location_id", locationId);
+
+  const { data: events } = await eventsQuery;
+  const eventIds = (events ?? []).map((eventRow) => eventRow.id);
+
+  const eventBookingStatuses =
+    sessionStatus === "cancelled" ? ["cancelled"] : sessionStatus === "scheduled" ? ["pending", "booked"] : ["pending", "booked", "cancelled"];
+
+  const { data: eventBookingsRaw } =
+    eventIds.length > 0
+      ? await admin
+          .from("event_bookings")
+          .select("id, event_id, status, guest_name, guest_email, users(email)")
+          .in("event_id", eventIds)
+          .in("status", eventBookingStatuses)
+      : { data: [] as SoonEventBookingRow[] };
+
+  const eventBookings = (eventBookingsRaw ?? []) as SoonEventBookingRow[];
+  const eventBookingsByEvent = new Map<string, SoonEventBookingRow[]>();
+  for (const booking of eventBookings) {
+    const prev = eventBookingsByEvent.get(booking.event_id) ?? [];
+    eventBookingsByEvent.set(booking.event_id, [...prev, booking]);
+  }
+
+  const eventGroups: Array<{
+    event_id: string;
+    event_title: string;
+    start_time: string;
+    location_name: string | null;
+    active_booking_count: number;
+    attendees: Array<{
+      event_booking_id: string;
+      label: string;
+      guest_email: string | null;
+      status: "pending" | "booked" | "cancelled";
+    }>;
+  }> = [];
+
+  for (const eventRow of events ?? []) {
+    const rawList = eventBookingsByEvent.get(eventRow.id) ?? [];
+    if (!rawList.length) continue;
+
+    const attendees = rawList
+      .map((booking) => {
+        const u = Array.isArray(booking.users) ? booking.users[0] : booking.users;
+        const label = (booking.guest_name?.trim() || u?.email?.trim() || booking.guest_email?.trim() || "Guest") as string;
+        const status =
+          booking.status === "cancelled"
+            ? "cancelled"
+            : booking.status === "booked"
+              ? "booked"
+              : "pending";
+        return {
+          event_booking_id: booking.id,
+          label,
+          guest_email: booking.guest_email ?? u?.email ?? null,
+          status: status as "pending" | "booked" | "cancelled",
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+
+    const loc = eventRow.locations as
+      | { name?: string | null }
+      | { name?: string | null }[]
+      | null
+      | undefined;
+    const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
+
+    eventGroups.push({
+      event_id: eventRow.id,
+      event_title: eventRow.title ?? "Event",
+      start_time: eventRow.start_time ?? new Date().toISOString(),
+      location_name: locationName,
+      active_booking_count: attendees.filter((attendee) => attendee.status !== "cancelled").length,
+      attendees,
+    });
+  }
+
+  return NextResponse.json({ starting_soon_grouped: grouped, event_groups: eventGroups });
 }

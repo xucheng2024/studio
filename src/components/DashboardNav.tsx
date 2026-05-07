@@ -19,7 +19,7 @@ import { isRouteActive, pathFromHref } from "@/lib/nav-active";
 type NavLink = { href: string; label: string; icon: LucideIcon };
 
 const links: NavLink[] = [
-  { href: "/dashboard/operations", label: "Operations", icon: LayoutDashboard },
+  { href: "/dashboard/operations", label: "Bookings", icon: LayoutDashboard },
   { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
   { href: "/dashboard/schedule",   label: "Schedule",   icon: Calendar },
   { href: "/dashboard/packages",   label: "Packages",   icon: Package },
