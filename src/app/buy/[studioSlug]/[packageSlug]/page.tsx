@@ -85,12 +85,6 @@ export default async function PublicPackageBuyPage({ params }: Props) {
               ? "Secure checkout powered by HitPay."
               : "Online payment is not configured for this studio."}
           </p>
-
-          <div className="mt-8">
-            <Link href={`/booking/${studio.public_slug}`} className={ui.btnSecondary}>
-              Browse classes
-            </Link>
-          </div>
         </div>
 
         <div className="lg:sticky lg:top-8">

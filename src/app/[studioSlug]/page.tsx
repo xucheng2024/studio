@@ -46,7 +46,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
 
   const { data: packages } = await admin
     .from("packages")
-    .select("id, name, price, credits, expiry_days, location_id, image_url, share_slug")
+    .select("id, name, price, credits, expiry_days, location_id, image_url, video_url, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
@@ -881,19 +881,60 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const buyHref = pkg.share_slug
                 ? `/buy/${studio.public_slug}/${pkg.share_slug}`
                 : null;
+              const pkgImage = (pkg as { image_url?: string | null }).image_url ?? null;
+              const pkgVideo = (pkg as { video_url?: string | null }).video_url ?? null;
+              const pkgVideoPreview = getVideoPreview(pkgVideo ?? "");
+              const showVideoCover = Boolean(pkgVideoPreview.embedUrl || pkgVideo?.trim());
               return (
                 <article key={pkg.id} className={`${ui.card} flex flex-col`}>
-                  {(pkg as { image_url?: string | null }).image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={(pkg as { image_url: string }).image_url}
-                      alt={pkg.name}
-                      className="mb-4 aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-                      loading="lazy"
-                    />
-                  ) : null}
+                  <div className="mb-4">
+                    {showVideoCover ? (
+                      <PublicVideoCover
+                        title={pkg.name}
+                        coverUrl={pkgImage}
+                        embedUrl={pkgVideoPreview.embedUrl}
+                        fallbackUrl={pkgVideo?.trim() || null}
+                      />
+                    ) : pkgImage ? (
+                      buyHref ? (
+                        <Link href={buyHref} className="block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={pkgImage}
+                            alt={pkg.name}
+                            className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                            loading="lazy"
+                          />
+                        </Link>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={pkgImage}
+                          alt={pkg.name}
+                          className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                          loading="lazy"
+                        />
+                      )
+                    ) : buyHref ? (
+                      <Link
+                        href={buyHref}
+                        className="block aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900"
+                        aria-label={`View ${pkg.name}`}
+                      />
+                    ) : (
+                      <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
+                    )}
+                  </div>
                   <div className="flex flex-1 flex-col">
-                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{pkg.name}</h3>
+                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                      {buyHref ? (
+                        <Link href={buyHref} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                          {pkg.name}
+                        </Link>
+                      ) : (
+                        pkg.name
+                      )}
+                    </h3>
                     <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
                       <span className={`text-sm ${ui.muted}`}>
                         {pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}
