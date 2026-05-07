@@ -52,20 +52,27 @@ export async function SiteHeader() {
     user?.id?.charAt(0).toUpperCase() ||
     "U";
 
-  const personalNavItems = user
-    ? [
-        { href: "/me/bookings", label: "My bookings" },
-        { href: "/me/class-passes", label: "My packages" },
-        { href: "/me/orders", label: "My orders" },
-        { href: "/me/profile", label: "Profile" },
-        ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
-      ]
-    : [];
+  // If user arrived via a studio public page (cookie set), show member nav.
+  // If no studio context, show Dashboard link for staff or generic member nav.
+  const inStudioContext = Boolean(activeStudioSlug);
   const navItems = user
-    ? [
-        ...(hasBackofficeAccess ? [{ href: "/dashboard", label: "Dashboard" }] : []),
-        ...personalNavItems,
-      ]
+    ? inStudioContext
+      ? [
+          { href: "/me/bookings", label: "My bookings" },
+          { href: "/me/class-passes", label: "My packages" },
+          { href: "/me/orders", label: "My orders" },
+          { href: "/me/profile", label: "Profile" },
+          ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
+        ]
+      : hasBackofficeAccess
+        ? [{ href: "/dashboard", label: "Dashboard" }]
+        : [
+            { href: "/me/bookings", label: "My bookings" },
+            { href: "/me/class-passes", label: "My packages" },
+            { href: "/me/orders", label: "My orders" },
+            { href: "/me/profile", label: "Profile" },
+            ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
+          ]
     : [{ href: "/booking", label: "Classes" }];
 
   return (
