@@ -121,7 +121,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           href={scopedHref("/dashboard/settings/payments", selectedStudioId, selectedLocationId)}
           icon={CreditCard}
           title="Payment settings"
-          desc="Bank details, transfer instructions, and payment policies"
+          desc="HitPay platform status, sub-merchant credentials, and webhook configuration"
         />
         {role === "owner" ? (
           <SettingCard

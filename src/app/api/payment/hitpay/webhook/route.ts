@@ -4,6 +4,7 @@ import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
 import { ensurePaymentClientId } from "@/lib/resolveClientId";
 
 type HitpayWebhookPayload = {
+  id?: string;
   payment_request_id?: string;
   payment_id?: string;
   charge_id?: string;
@@ -11,6 +12,12 @@ type HitpayWebhookPayload = {
   reference_number?: string;
   currency?: string;
   amount?: string;
+  payments?: Array<{
+    id?: string;
+    status?: string;
+    amount?: string;
+    refunded_amount?: string;
+  }>;
 };
 
 function parseWebhookPayload(rawBody: string): HitpayWebhookPayload {
@@ -19,6 +26,7 @@ function parseWebhookPayload(rawBody: string): HitpayWebhookPayload {
   } catch {
     const form = new URLSearchParams(rawBody);
     return {
+      id: form.get("id") ?? undefined,
       payment_request_id: form.get("payment_request_id") ?? undefined,
       payment_id: form.get("payment_id") ?? undefined,
       charge_id: form.get("charge_id") ?? undefined,
@@ -34,8 +42,10 @@ export async function POST(req: Request) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-hitpay-signature");
   const payload = parseWebhookPayload(rawBody);
-  const providerId = payload.payment_request_id?.trim() || null;
-  const providerPaymentId = payload.payment_id?.trim() || payload.charge_id?.trim() || null;
+  const providerId = payload.id?.trim() || payload.payment_request_id?.trim() || null;
+  const firstSettledPayment = Array.isArray(payload.payments) ? payload.payments[0] : null;
+  const providerPaymentId =
+    firstSettledPayment?.id?.trim() || payload.payment_id?.trim() || payload.charge_id?.trim() || null;
   const referenceCode = payload.reference_number?.trim() || null;
   const providerStatus = (payload.status ?? "").trim().toLowerCase();
   if (!providerId && !referenceCode) {

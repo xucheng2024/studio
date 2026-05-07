@@ -1,6 +1,7 @@
 import crypto from "crypto";
 
 const HITPAY_API_BASE = process.env.HITPAY_API_BASE_URL?.trim() || "https://api.hit-pay.com";
+const HITPAY_PLATFORM_KEY = process.env.HITPAY_PLATFORM_API_KEY?.trim() || null;
 
 type HitpayPaymentRequest = {
   apiKey: string;
@@ -31,6 +32,19 @@ type HitpayRefundResponse = {
 
 const REF_PREFIX = "STU";
 
+function getHitpayPlatformHeaders(apiKey: string) {
+  const merchantKey = apiKey.trim();
+  if (!merchantKey || !HITPAY_PLATFORM_KEY) {
+    throw new Error("hitpay_not_configured");
+  }
+
+  return {
+    "X-BUSINESS-API-KEY": merchantKey,
+    "X-PLATFORM-KEY": HITPAY_PLATFORM_KEY,
+    "X-Requested-With": "XMLHttpRequest",
+  };
+}
+
 export function generatePaymentReference() {
   const date = new Date();
   const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
@@ -45,7 +59,7 @@ export function generatePaymentReference() {
 
 export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
   const apiKey = input.apiKey.trim();
-  if (!apiKey) {
+  if (!apiKey || !HITPAY_PLATFORM_KEY) {
     throw new Error("hitpay_not_configured");
   }
 
@@ -61,7 +75,7 @@ export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
   const res = await fetch(`${HITPAY_API_BASE.replace(/\/$/, "")}/v1/payment-requests`, {
     method: "POST",
     headers: {
-      "X-BUSINESS-API-KEY": apiKey,
+      ...getHitpayPlatformHeaders(apiKey),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: body.toString(),
@@ -97,14 +111,14 @@ export async function refundHitpayPayment(input: {
   amount: number;
 }): Promise<HitpayRefundResponse> {
   const apiKey = input.apiKey.trim();
-  if (!apiKey) throw new Error("hitpay_not_configured");
+  if (!apiKey || !HITPAY_PLATFORM_KEY) throw new Error("hitpay_not_configured");
   if (!input.paymentId) throw new Error("hitpay_payment_id_missing");
   if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("invalid_refund_amount");
 
   const res = await fetch(`${HITPAY_API_BASE.replace(/\/$/, "")}/v1/refund`, {
     method: "POST",
     headers: {
-      "X-BUSINESS-API-KEY": apiKey,
+      ...getHitpayPlatformHeaders(apiKey),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
