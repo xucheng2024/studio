@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CancelMyMembershipButton } from "@/components/CancelMyMembershipButton";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
@@ -27,6 +26,14 @@ export default async function MyMembershipsPage() {
     .select("id, status, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, canceled_at, current_period_end, cancel_at_period_end, cancel_requested_at, billing_start_date, last_charge_at")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
+
+  const { data: anyMembership } = await supabase
+    .from("membership_products")
+    .select("id")
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .limit(1)
+    .maybeSingle();
 
   return (
     <main className={ui.page}>
@@ -107,10 +114,9 @@ export default async function MyMembershipsPage() {
 
         {!subscriptions?.length ? (
           <div className={ui.emptyState}>
-            <p className={`text-sm ${ui.muted}`}>No memberships yet.</p>
-            <Link href="/booking" className={`mt-1 text-sm ${ui.link}`}>
-              Browse studios →
-            </Link>
+            <p className={`text-sm ${ui.muted}`}>
+              {anyMembership ? "No memberships yet." : "Memberships are not available yet."}
+            </p>
           </div>
         ) : null}
       </div>

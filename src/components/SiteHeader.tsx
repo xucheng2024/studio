@@ -38,6 +38,15 @@ export async function SiteHeader() {
     hasBackofficeAccess = access.hasBackofficeAccess;
   }
 
+  const { data: anyMembership } = await supabase
+    .from("membership_products")
+    .select("id")
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .limit(1)
+    .maybeSingle();
+  const showMembershipsLink = Boolean(anyMembership?.id);
+
   const userInitial =
     user?.email?.trim().charAt(0).toUpperCase() ||
     user?.id?.charAt(0).toUpperCase() ||
@@ -50,10 +59,10 @@ export async function SiteHeader() {
       ? [{ href: "/dashboard", label: "Dashboard" }]
       : [
           { href: "/me/bookings", label: "My bookings" },
-          { href: "/me/memberships", label: "My memberships" },
           { href: "/me/class-passes", label: "My packages" },
           { href: "/me/orders", label: "My orders" },
           { href: "/me/profile", label: "Profile" },
+          ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
         ]
     : [{ href: "/booking", label: "Classes" }];
 

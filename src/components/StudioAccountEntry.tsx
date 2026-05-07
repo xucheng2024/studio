@@ -10,8 +10,10 @@ import { ui } from "@/lib/ui";
 
 export function StudioAccountEntry({
   isSignedIn,
+  showMembershipsLink,
 }: {
   isSignedIn?: boolean;
+  showMembershipsLink?: boolean;
 }) {
   const [showSignIn, setShowSignIn] = useState(false);
   const [signedIn, setSignedIn] = useState<boolean | null>(typeof isSignedIn === "boolean" ? isSignedIn : null);
@@ -55,9 +57,11 @@ export function StudioAccountEntry({
           <Link href="/me/profile" className={ui.linkHeaderMenu}>
             Profile
           </Link>
-          <Link href="/me/memberships" className={ui.linkHeaderMenu}>
-            My memberships
-          </Link>
+          {showMembershipsLink !== false ? (
+            <Link href="/me/memberships" className={ui.linkHeaderMenu}>
+              My memberships
+            </Link>
+          ) : null}
           <div className={`mt-1 border-t ${ui.divider} pt-1`}>
             <SignOutButton />
           </div>

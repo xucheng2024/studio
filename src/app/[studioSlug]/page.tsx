@@ -158,7 +158,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className={`${ui.card} relative bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
           <div className="absolute right-4 top-4 z-20">
-            <StudioAccountEntry />
+            <StudioAccountEntry showMembershipsLink={memberships.length > 0} />
           </div>
           <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">
             <div className="w-full">
