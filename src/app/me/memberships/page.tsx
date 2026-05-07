@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CancelMyMembershipButton } from "@/components/CancelMyMembershipButton";
+import { SubscribeMembershipButton } from "@/components/SubscribeMembershipButton";
 import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -156,9 +157,16 @@ export default async function MyMembershipsPage() {
                         ) : null}
                       </div>
                       {studioSlug && shareSlug ? (
-                        <Link href={`/membership/${studioSlug}/${shareSlug}`} className={ui.btnPrimarySm}>
-                          View & subscribe
-                        </Link>
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <SubscribeMembershipButton
+                            membershipId={m.id}
+                            studioSlug={studioSlug}
+                            label="Subscribe"
+                          />
+                          <Link href={`/membership/${studioSlug}/${shareSlug}`} className={`${ui.link} text-xs`}>
+                            View details
+                          </Link>
+                        </div>
                       ) : null}
                     </div>
                   </li>
