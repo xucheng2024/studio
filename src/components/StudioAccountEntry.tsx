@@ -35,39 +35,34 @@ export function StudioAccountEntry({
 
   if (signedIn) {
     return (
-      <div className="flex items-center gap-2">
-        <Link href="/me/memberships" className={`${ui.btnSecondarySm} hidden sm:inline-flex`}>
-          My memberships
-        </Link>
-        <details className="relative">
-          <summary
-            aria-label="Account"
-            className="inline-flex size-9 list-none items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-          >
-            <CircleUserRound size={18} />
-          </summary>
-          <div className="absolute right-0 top-11 z-50 min-w-52 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
-            <Link href="/me/bookings" className={ui.linkHeaderMenu}>
-              My bookings
-            </Link>
-            <Link href="/me/memberships" className={ui.linkHeaderMenu}>
-              My memberships
-            </Link>
-            <Link href="/me/class-passes" className={ui.linkHeaderMenu}>
-              My packages
-            </Link>
-            <Link href="/me/orders" className={ui.linkHeaderMenu}>
-              My orders
-            </Link>
-            <Link href="/me/profile" className={ui.linkHeaderMenu}>
-              Profile
-            </Link>
-            <div className={`mt-1 border-t ${ui.divider} pt-1`}>
-              <SignOutButton />
-            </div>
+      <details className="relative">
+        <summary
+          aria-label="Account"
+          className="inline-flex size-9 list-none items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+        >
+          <CircleUserRound size={18} />
+        </summary>
+        <div className="absolute right-0 top-11 z-50 min-w-52 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
+          <Link href="/me/bookings" className={ui.linkHeaderMenu}>
+            My bookings
+          </Link>
+          <Link href="/me/class-passes" className={ui.linkHeaderMenu}>
+            My packages
+          </Link>
+          <Link href="/me/orders" className={ui.linkHeaderMenu}>
+            My orders
+          </Link>
+          <Link href="/me/profile" className={ui.linkHeaderMenu}>
+            Profile
+          </Link>
+          <Link href="/me/memberships" className={ui.linkHeaderMenu}>
+            My memberships
+          </Link>
+          <div className={`mt-1 border-t ${ui.divider} pt-1`}>
+            <SignOutButton />
           </div>
-        </details>
-      </div>
+        </div>
+      </details>
     );
   }
 
