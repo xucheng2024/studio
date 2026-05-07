@@ -47,6 +47,7 @@ export default async function PublicMembershipPage({ params }: Props) {
           return base.toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" });
         })()
       : null;
+  const intervalShort = intervalLabel.toLowerCase() === "yearly" ? "year" : "month";
 
   return (
     <main className={ui.page}>
@@ -76,13 +77,19 @@ export default async function PublicMembershipPage({ params }: Props) {
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {trialDays > 0 ? (
             <p className="mt-3 inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-300">
-              {trialDays}-day free trial
+              Free for {trialDays} days
             </p>
           ) : null}
           <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
             SGD {Number(membership.price ?? 0).toFixed(2)}
             <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ {intervalLabel.toLowerCase().replace("ly", "")}</span>
           </p>
+          {trialDays > 0 && billingStartLabel ? (
+            <p className={`mt-2 text-sm ${ui.muted}`}>
+              You won’t be charged today. Your first payment will be on <span className="font-medium text-stone-700 dark:text-stone-200">{billingStartLabel}</span>, then SGD{" "}
+              {Number(membership.price ?? 0).toFixed(2)} per {intervalShort} after that.
+            </p>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
             <span className="flex items-center gap-1.5">
               <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
@@ -111,9 +118,15 @@ export default async function PublicMembershipPage({ params }: Props) {
 
         <div className="lg:sticky lg:top-8">
           <div className={`${ui.card} overflow-hidden sm:p-6`}>
-            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Start this membership</p>
+            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+              {trialDays > 0 ? `Start free trial` : "Start this membership"}
+            </p>
             <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
-              {paymentReady ? "Attach a payment method once, then future renewals bill automatically." : "Online payment is not configured for this studio."}
+              {paymentReady
+                ? trialDays > 0
+                  ? `Attach a payment method now. Your first charge will be on ${billingStartLabel ?? "the trial end date"}.`
+                  : "Attach a payment method once, then future renewals bill automatically."
+                : "Online payment is not configured for this studio."}
             </p>
             <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
               SGD {Number(membership.price ?? 0).toFixed(2)}
@@ -124,6 +137,11 @@ export default async function PublicMembershipPage({ params }: Props) {
                 membershipId={membership.id}
                 studioSlug={studioPublicSlug}
                 membershipSlug={membershipSlugPath}
+                intro={
+                  trialDays > 0 && billingStartLabel
+                    ? `Free for ${trialDays} days. First charge on ${billingStartLabel}.`
+                    : "Attach a payment method once, then future renewals bill automatically."
+                }
                 disabled={!paymentReady}
               />
             </div>

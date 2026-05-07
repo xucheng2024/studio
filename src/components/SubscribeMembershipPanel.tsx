@@ -11,11 +11,13 @@ export function SubscribeMembershipPanel({
   studioSlug,
   membershipSlug,
   disabled,
+  intro,
 }: {
   membershipId: string;
   studioSlug: string;
   membershipSlug: string;
   disabled?: boolean;
+  intro?: string;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -53,9 +55,7 @@ export function SubscribeMembershipPanel({
 
   return (
     <div className="space-y-3">
-      <p className={`text-sm ${ui.muted}`}>
-        Sign in to attach a payment method and start automatic billing for this membership.
-      </p>
+      <p className={`text-sm ${ui.muted}`}>{intro ?? "Sign in to attach a payment method and start automatic billing for this membership."}</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={busy || disabled} className={ui.btnPrimary} onClick={() => void start()}>
           {busy ? "Continuing…" : "Start membership"}
