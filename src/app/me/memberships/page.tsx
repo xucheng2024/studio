@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CancelMyMembershipButton } from "@/components/CancelMyMembershipButton";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -82,6 +83,12 @@ export default async function MyMembershipsPage() {
                           ? "Cancellation is scheduled for the end of the current billing period."
                           : "Need to cancel or change billing details? Contact the studio directly."}
                     </p>
+                    {inTrial ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <CancelMyMembershipButton subscriptionId={subscription.id} />
+                        <span className={`text-xs ${ui.muted}`}>Cancels before the first charge.</span>
+                      </div>
+                    ) : null}
                   </>
                 );
               })()}
