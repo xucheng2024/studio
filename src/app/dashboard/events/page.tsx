@@ -3,13 +3,22 @@ import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
+import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarRange, Clock3, Ticket } from "lucide-react";
 
-type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
+type Props = {
+  searchParams: Promise<{
+    location_id?: string;
+    studio_id?: string;
+    event_status?: "all" | "active" | "inactive";
+    date_from?: string;
+    date_to?: string;
+  }>;
+};
 
 export default async function DashboardEventsPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -31,10 +40,21 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   if (!["owner", "manager", "frontdesk"].includes(role)) return <p className={ui.muted}>You do not have access to this page.</p>;
   const canEdit = ["owner", "manager"].includes(role);
 
+  const now = new Date();
+  const defaultDate = localISODate(now);
+  const defaultEndDate = localISODate(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
+  const fallbackDateFrom = dayRangeStartIso(defaultDate)!;
+  const fallbackDateTo = dayRangeEndInclusiveIso(defaultEndDate)!;
+  const dateFrom = dayRangeStartIso(sp.date_from ?? defaultDate) ?? fallbackDateFrom;
+  const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultEndDate) ?? fallbackDateTo;
+  const eventStatusFilter = sp.event_status ?? "all";
+
   let eventsQuery = supabase
     .from("events")
     .select("id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, is_active, share_slug, image_url, video_url, address, address_details")
     .in("studio_id", studioIds)
+    .gte("start_time", dateFrom)
+    .lte("start_time", dateTo)
     .order("start_time", { ascending: false });
   const [{ data: events }, { data: studioMeta }] = await Promise.all([
     eventsQuery,
@@ -44,27 +64,25 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const studioId = selectedStudioId ?? (events?.[0]?.studio_id as string | undefined) ?? studioIds[0];
   const studioPublicSlug =
     (studioMeta ?? []).find((s) => s.id === studioId)?.public_slug ?? null;
+  const scopeParams = new URLSearchParams();
+  scopeParams.set("studio_id", studioId);
+  if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
 
-  const now = Date.now();
   const studioEvents = (events ?? []).filter((e) => String(e.studio_id) === studioId);
-  const upcomingEvents = studioEvents
-    .filter((e) => new Date(String(e.end_time)).getTime() >= now)
-    .sort((a, b) => new Date(String(a.start_time)).getTime() - new Date(String(b.start_time)).getTime());
-  const pastEvents = studioEvents
-    .filter((e) => new Date(String(e.end_time)).getTime() < now)
-    .sort((a, b) => new Date(String(b.start_time)).getTime() - new Date(String(a.start_time)).getTime());
-  const UPCOMING_PREVIEW_COUNT = 6;
-  const PAST_PREVIEW_COUNT = 4;
-  const inactiveCount = studioEvents.filter((event) => event.is_active === false).length;
-  const liveCount = upcomingEvents.filter((event) => event.is_active !== false).length;
-  const seatsRemaining = upcomingEvents.reduce((sum, event) => sum + Number(event.spots_left ?? 0), 0);
+  const filteredEvents = studioEvents.filter((event) => {
+    if (eventStatusFilter === "active") return event.is_active !== false;
+    if (eventStatusFilter === "inactive") return event.is_active === false;
+    return true;
+  });
+  const activeCount = filteredEvents.filter((event) => event.is_active !== false).length;
+  const inactiveCount = filteredEvents.filter((event) => event.is_active === false).length;
+  const seatsRemaining = filteredEvents.reduce((sum, event) => sum + Number(event.spots_left ?? 0), 0);
 
-  const renderEventCard = (e: any, opts?: { muted?: boolean }) => {
+  const renderEventCard = (e: any) => {
     const href = studioPublicSlug && e.share_slug ? `/event/${studioPublicSlug}/${e.share_slug}` : null;
     const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
-    const muted = opts?.muted === true;
     return (
-      <form key={e.id} action={updateEvent} className={`${ui.card} ${muted ? "opacity-70" : ""}`}>
+      <form key={e.id} action={updateEvent} className={ui.card}>
         <input type="hidden" name="studio_id" value={studioId} />
         <input type="hidden" name="event_id" value={e.id} />
 
@@ -82,7 +100,6 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="font-semibold text-stone-900 dark:text-stone-100">{e.title}</p>
-                <span className={ui.badgeAmber}>Event</span>
                 {e.is_active === false ? (
                   <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
                     Inactive
@@ -237,11 +254,11 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <CalendarRange size={18} />
           </span>
           <div>
-            <p className={`text-xs font-medium ${ui.muted}`}>Upcoming events</p>
+            <p className={`text-xs font-medium ${ui.muted}`}>Events in range</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
-              {upcomingEvents.length}
+              {filteredEvents.length}
             </p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>{liveCount} active · {inactiveCount} inactive overall</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>{activeCount} active · {inactiveCount} inactive</p>
           </div>
         </section>
         <section className={`${ui.statCard} flex items-center gap-4`}>
@@ -253,7 +270,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
               {seatsRemaining}
             </p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>Across all upcoming events</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Across the current filtered list</p>
           </div>
         </section>
         <section className={`${ui.statCard} flex items-center gap-4`}>
@@ -261,11 +278,11 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <Clock3 size={18} />
           </span>
           <div>
-            <p className={`text-xs font-medium ${ui.muted}`}>Past events</p>
+            <p className={`text-xs font-medium ${ui.muted}`}>Inactive events</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
-              {pastEvents.length}
+              {inactiveCount}
             </p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>Kept for reference and sharing history</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Hidden from booking until reactivated</p>
           </div>
         </section>
       </div>
@@ -336,70 +353,49 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         </details>
       ) : null}
 
-      {/* ── Upcoming ───────────────────────────────────────────── */}
       <section>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className={ui.h2}>Upcoming events</h2>
-            <span className={ui.badgeNeutral}>{upcomingEvents.length}</span>
+        <h2 className={ui.h2}>Events</h2>
+        <form method="get" className={`${ui.card} mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
+          {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
+          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Event status</span>
+            <select name="event_status" className={ui.select} defaultValue={eventStatusFilter}>
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>From date</span>
+            <input type="date" name="date_from" className={ui.input} defaultValue={sp.date_from ?? defaultDate} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>To date</span>
+            <input type="date" name="date_to" className={ui.input} defaultValue={sp.date_to ?? defaultEndDate} />
+          </label>
+          <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
+            <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
+              Apply
+            </SubmitButton>
+            <DashboardAppLink
+              href={`/dashboard/events?${scopeParams.toString()}`}
+              className={ui.btnGhost}
+            >
+              Reset
+            </DashboardAppLink>
           </div>
-          <p className={`text-xs ${ui.muted}`}>These are the events currently available or scheduled next.</p>
-        </div>
+        </form>
 
-        {upcomingEvents.length ? (
+        {filteredEvents.length ? (
           <div className="mt-4 grid gap-4">
-            {upcomingEvents.slice(0, UPCOMING_PREVIEW_COUNT).map((e) => renderEventCard(e))}
-            {upcomingEvents.length > UPCOMING_PREVIEW_COUNT ? (
-              <details className="chevron">
-                <summary className={`cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400`}>
-                  <span className="group-open:hidden">Show {upcomingEvents.length - UPCOMING_PREVIEW_COUNT} more</span>
-                  <span className="hidden group-open:inline">Show fewer</span>
-                </summary>
-                <div className="mt-4 grid gap-4">
-                  {upcomingEvents.slice(UPCOMING_PREVIEW_COUNT).map((e) => renderEventCard(e))}
-                </div>
-              </details>
-            ) : null}
+            {filteredEvents.map((e) => renderEventCard(e))}
           </div>
         ) : (
           <div className={`mt-4 ${ui.emptyState}`}>
-            <p className={`text-sm ${ui.muted}`}>No upcoming events.</p>
+            <p className={`text-sm ${ui.muted}`}>No events match this filter.</p>
           </div>
         )}
-      </section>
-
-      {/* ── Past ───────────────────────────────────────────────── */}
-      <section>
-        <details className="chevron group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h2 className={ui.h2}>Past events</h2>
-              <span className={ui.badgeNeutral}>{pastEvents.length}</span>
-            </div>
-            <span className={`text-xs font-normal ${ui.muted}`}>Collapsed by default</span>
-          </summary>
-
-          {pastEvents.length ? (
-            <div className="mt-4 grid gap-4">
-              {pastEvents.slice(0, PAST_PREVIEW_COUNT).map((e) => renderEventCard(e, { muted: true }))}
-              {pastEvents.length > PAST_PREVIEW_COUNT ? (
-                <details className="chevron">
-                  <summary className={`cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400`}>
-                    <span className="group-open:hidden">Show {pastEvents.length - PAST_PREVIEW_COUNT} more</span>
-                    <span className="hidden group-open:inline">Show fewer</span>
-                  </summary>
-                  <div className="mt-4 grid gap-4">
-                    {pastEvents.slice(PAST_PREVIEW_COUNT).map((e) => renderEventCard(e, { muted: true }))}
-                  </div>
-                </details>
-              ) : null}
-            </div>
-          ) : (
-            <div className={`mt-4 ${ui.emptyState}`}>
-              <p className={`text-sm ${ui.muted}`}>No past events.</p>
-            </div>
-          )}
-        </details>
       </section>
     </div>
   );

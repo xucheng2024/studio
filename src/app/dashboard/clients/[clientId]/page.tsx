@@ -33,7 +33,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     return <p className={ui.muted}>Create your first studio in Overview.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio in the left sidebar to view this member&apos;s ledger.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to view this user&apos;s ledger.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const admin = createAdminClient();
@@ -43,7 +43,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     .select("id, email")
     .eq("id", clientId)
     .maybeSingle();
-  if (!clientUser) return <p className={ui.muted}>Member not found.</p>;
+  if (!clientUser) return <p className={ui.muted}>User not found.</p>;
   const { data: profile } = await admin
     .from("user_profiles")
     .select("full_name, phone, notes")
@@ -108,7 +108,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div>
         <DashboardAppLink href={`/dashboard/clients?${backParams.toString()}`} className={`${ui.btnSecondarySm} mb-3`}>
-          ← Member records
+          ← User records
         </DashboardAppLink>
         <h1 className={ui.h1}>Package ledger</h1>
         <p className={`mt-1 ${ui.muted}`}>{clientUser.email ?? clientUser.id}</p>
@@ -120,7 +120,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
 
       <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className={ui.h2}>Member profile</h2>
+          <h2 className={ui.h2}>User profile</h2>
           {sp.member_saved === "1" ? <p className={ui.success}>Saved.</p> : null}
           {sp.member_error ? <p className={ui.error}>Save failed: {sp.member_error}</p> : null}
         </div>
@@ -135,7 +135,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
               type="text"
               defaultValue={(profile as { full_name?: string | null } | null)?.full_name ?? ""}
               className={ui.input}
-              placeholder="Member name"
+              placeholder="User name"
             />
           </label>
           <label className="flex flex-col gap-1.5">

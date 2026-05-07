@@ -67,11 +67,11 @@ export default async function PackagesPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Packages</h1>
         <p className={`mt-2 ${ui.lead}`}>
-          Create and share class pass packs. Single-visit pricing is set per session in Schedule.
+          Create and share class pass packs. Single-visit pricing is set per session in Sessions.
         </p>
         <div className="mt-3">
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-            Back to schedule
+            Back to sessions
           </DashboardAppLink>
         </div>
         {canEdit ? (

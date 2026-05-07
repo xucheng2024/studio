@@ -57,11 +57,11 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
     <div className="flex max-w-5xl flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className={ui.h1}>Services Management</h1>
-          <p className={ui.muted}>Manage public services shown on /{studio.public_slug}.</p>
+          <h1 className={ui.h1}>Service setup</h1>
+          <p className={ui.muted}>Create and maintain the public services shown on /{studio.public_slug}.</p>
         </div>
-        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId, selectedLocationId)} className={ui.btnSecondarySm}>
-          Back to settings
+        <DashboardAppLink href={scopedHref("/dashboard/schedule", selectedStudioId, selectedLocationId)} className={ui.btnSecondarySm}>
+          Back to sessions
         </DashboardAppLink>
       </div>
 

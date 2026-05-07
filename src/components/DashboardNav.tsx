@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Calendar,
   CalendarRange,
+  BriefcaseBusiness,
   Package,
   Users,
   CreditCard,
@@ -21,10 +22,11 @@ type NavLink = { href: string; label: string; icon: LucideIcon };
 const links: NavLink[] = [
   { href: "/dashboard/operations", label: "Bookings", icon: LayoutDashboard },
   { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
-  { href: "/dashboard/schedule",   label: "Schedule",   icon: Calendar },
-  { href: "/dashboard/packages",   label: "Packages",   icon: Package },
+  { href: "/dashboard/services",   label: "Services",   icon: BriefcaseBusiness },
+  { href: "/dashboard/schedule",   label: "Sessions",   icon: Calendar },
   { href: "/dashboard/events",     label: "Events",     icon: CalendarRange },
-  { href: "/dashboard/clients",    label: "Members",    icon: Users },
+  { href: "/dashboard/packages",   label: "Packages",   icon: Package },
+  { href: "/dashboard/clients",    label: "Users",      icon: Users },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },
 ];
@@ -32,7 +34,7 @@ const links: NavLink[] = [
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk", string[]> = {
   owner:     links.map((l) => l.href),
   manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/packages", "/dashboard/events", "/dashboard/clients"],
+  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/clients"],
 };
 
 function useVisibleLinks(

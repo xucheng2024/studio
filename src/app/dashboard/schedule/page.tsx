@@ -102,14 +102,16 @@ export default async function SchedulePage({ searchParams }: Props) {
   scopeParams.set("studio_id", activeStudioId);
   if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
 
-  // Default window: today only, preventing unbounded full-table scans.
+  // Default window: today through the next 7 days.
   // Users can override via the date filter form.
-  const defaultDate = localISODate();
+  const now = new Date();
+  const defaultDate = localISODate(now);
+  const defaultEndDate = localISODate(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
   const fallbackDateFrom = dayRangeStartIso(defaultDate)!;
-  const fallbackDateTo = dayRangeEndInclusiveIso(defaultDate)!;
+  const fallbackDateTo = dayRangeEndInclusiveIso(defaultEndDate)!;
 
   const dateFrom = dayRangeStartIso(sp.date_from ?? defaultDate) ?? fallbackDateFrom;
-  const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultDate) ?? fallbackDateTo;
+  const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultEndDate) ?? fallbackDateTo;
 
   let sessionQuery = supabase
     .from("class_sessions")
@@ -181,11 +183,97 @@ export default async function SchedulePage({ searchParams }: Props) {
     if (sessionStatusFilter !== "all" && status !== sessionStatusFilter) return false;
     return true;
   });
+
+  const renderSessionCard = (s: (typeof filteredSessions)[number]) => {
+    const cls = sessionClassRef((s as { classes?: unknown }).classes);
+    const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
+    const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
+    const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
+    const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
+    const isCancelled = sessionStatus === "cancelled";
+    const bookings = (s.bookings ?? []) as {
+      id: string;
+      client_id: string | null;
+      status: string;
+      guest_name?: string | null;
+      guest_email?: string | null;
+      users?: { email?: string | null } | null;
+    }[];
+    const activeBookingCount = bookings.filter((b) => b.status === "booked" || b.status === "pending").length;
+    const classSlug = cls?.id ? classShareSlugs.get(cls.id) : null;
+    const sharePath =
+      activeStudio?.public_slug && classSlug
+        ? `/class/${activeStudio.public_slug}/${classSlug}?session_id=${s.id}`
+        : null;
+
+    return (
+      <li key={s.id} className={`${ui.card} ${isCancelled ? "opacity-60" : ""}`}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold text-stone-900 dark:text-stone-100">{classTitle}</p>
+              {isCancelled ? (
+                <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                  Cancelled
+                </span>
+              ) : null}
+            </div>
+            {locationName ? <p className={`mt-0.5 text-xs ${ui.muted}`}>{locationName}</p> : null}
+            <p className={`mt-1 text-sm ${ui.muted}`}>
+              {new Date(s.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+              <span>{s.spots_left} spots left</span>
+              <span>{activeBookingCount} active bookings</span>
+              {s.guest_price != null ? <span>${Number(s.guest_price).toFixed(2)} guest</span> : null}
+              {s.credits_required != null ? (
+                <span>
+                  {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "s" : ""}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
+            <SessionShareButton sharePath={sharePath} />
+            <CancelSessionButton
+              sessionId={s.id}
+              classTitle={classTitle}
+              startTimeIso={String(s.start_time)}
+              locationName={locationName}
+              sessionStatus={sessionStatus}
+            />
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <SessionEditPanel
+            sessionId={s.id}
+            initial={{
+              start_time: String(s.start_time),
+              capacity: Number(s.capacity ?? 1),
+              guest_price: Number(s.guest_price ?? 0),
+              credits_required: Number(s.credits_required ?? 1),
+              location_id: s.location_id ?? null,
+            }}
+            locations={(locations ?? [])
+              .filter((l) => l.studio_id === activeStudioId)
+              .map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }))}
+          />
+        </div>
+
+        <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
+          <p className={`text-xs ${ui.muted}`}>
+            Attendee actions and payment/check-in operations are managed in Bookings.
+          </p>
+        </div>
+      </li>
+    );
+  };
   return (
     <div className="flex flex-col gap-10">
       <div>
-        <h1 className={ui.h1}>Schedule</h1>
-        <p className={`mt-1 ${ui.muted}`}>Add sessions from your class templates.</p>
+        <h1 className={ui.h1}>Sessions</h1>
+        <p className={`mt-1 ${ui.muted}`}>Create sessions from your class templates and manage upcoming runs.</p>
         <div className="mt-6">
           <DashboardAppLink
             href={`/dashboard/classes?${scopeParams.toString()}`}
@@ -332,7 +420,7 @@ export default async function SchedulePage({ searchParams }: Props) {
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>To date</span>
             <input type="date" name="date_to" className={ui.input}
-              defaultValue={sp.date_to ?? defaultDate} />
+              defaultValue={sp.date_to ?? defaultEndDate} />
           </label>
           <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
             <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
@@ -343,99 +431,12 @@ export default async function SchedulePage({ searchParams }: Props) {
             </DashboardAppLink>
           </div>
         </form>
-        <ul className="mt-4 flex flex-col gap-4">
-          {filteredSessions.map((s) => {
-            const cls = sessionClassRef((s as { classes?: unknown }).classes);
-            const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
-            const loc = s.locations as { name?: string | null } | { name?: string | null }[] | null;
-            const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
-            const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
-            const isCancelled = sessionStatus === "cancelled";
-            const bookings = (s.bookings ?? []) as {
-              id: string;
-              client_id: string | null;
-              status: string;
-              guest_name?: string | null;
-              guest_email?: string | null;
-              users?: { email?: string | null } | null;
-            }[];
-            const activeBookingCount = bookings.filter((b) => b.status === "booked" || b.status === "pending").length;
-            const classSlug = cls?.id ? classShareSlugs.get(cls.id) : null;
-            const sharePath =
-              activeStudio?.public_slug && classSlug
-                ? `/class/${activeStudio.public_slug}/${classSlug}?session_id=${s.id}`
-                : null;
-            return (
-              <li key={s.id} className={`${ui.card} ${isCancelled ? "opacity-60" : ""}`}>
-                {/* ── Session header ──────────────────────────── */}
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-stone-900 dark:text-stone-100">
-                        {classTitle}
-                      </p>
-                      {isCancelled ? (
-                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
-                          Cancelled
-                        </span>
-                      ) : null}
-                    </div>
-                    {locationName ? (
-                      <p className={`mt-0.5 text-xs ${ui.muted}`}>{locationName}</p>
-                    ) : null}
-                    <p className={`mt-1 text-sm ${ui.muted}`}>
-                      {new Date(s.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                      <span>{s.spots_left} spots left</span>
-                      <span>{activeBookingCount} active bookings</span>
-                      {s.guest_price != null ? <span>${Number(s.guest_price).toFixed(2)} guest</span> : null}
-                      {s.credits_required != null ? (
-                        <span>
-                          {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "s" : ""}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                  {/* Action buttons: right side on desktop, below on mobile */}
-                  <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
-                    <SessionShareButton sharePath={sharePath} />
-                    <CancelSessionButton
-                      sessionId={s.id}
-                      classTitle={classTitle}
-                      startTimeIso={String(s.start_time)}
-                      locationName={locationName}
-                      sessionStatus={sessionStatus}
-                    />
-                  </div>
-                </div>
+        {filteredSessions.length ? (
+          <ul className="mt-4 flex flex-col gap-4">
+            {filteredSessions.map((session) => renderSessionCard(session))}
+          </ul>
+        ) : null}
 
-                {/* ── Edit panel ──────────────────────────────── */}
-                <div className="mt-3">
-                  <SessionEditPanel
-                    sessionId={s.id}
-                    initial={{
-                      start_time: String(s.start_time),
-                      capacity: Number(s.capacity ?? 1),
-                      guest_price: Number(s.guest_price ?? 0),
-                      credits_required: Number(s.credits_required ?? 1),
-                      location_id: s.location_id ?? null,
-                    }}
-                    locations={(locations ?? [])
-                      .filter((l) => l.studio_id === activeStudioId)
-                      .map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }))}
-                  />
-                </div>
-
-                <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
-                  <p className={`text-xs ${ui.muted}`}>
-                    Attendee actions and payment/check-in operations are managed in Operations.
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
         {!filteredSessions.length ? (
           <div className={`mt-4 ${ui.emptyState}`}>
             <div className={ui.emptyStateIcon}><CalendarCheck2 size={18} /></div>

@@ -101,11 +101,11 @@ export default async function ClassesPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className={ui.h1}>Classes</h1>
+        <h1 className={ui.h1}>Class setup</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <p className={ui.muted}>Instructors and reusable class templates.</p>
+          <p className={ui.muted}>Manage instructors and reusable class templates for future sessions.</p>
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-            Back to schedule
+            Back to sessions
           </DashboardAppLink>
         </div>
 

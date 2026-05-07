@@ -190,15 +190,15 @@ export default async function ClientsPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className={ui.h1}>Member records</h1>
-        <p className={`mt-1 ${ui.muted}`}>Paid members with quick contact and class pass status.</p>
+        <h1 className={ui.h1}>User records</h1>
+        <p className={`mt-1 ${ui.muted}`}>Paid users with quick contact and class pass status.</p>
       </div>
 
       <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-3`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
         <label className="sm:col-span-2">
-          <span className={ui.label}>Search member (name / phone / email)</span>
+          <span className={ui.label}>Search user (name / phone / email)</span>
           <input
             name="q"
             className={`${ui.input} mt-1`}
@@ -234,7 +234,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                     href={`/dashboard/clients/${clientId}?studio_id=${selectedStudioId ?? studioIds[0]}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
                     className={ui.btnSecondarySm}
                   >
-                    Open member
+                    Open user
                   </DashboardAppLink>
                 </div>
                 <div className="mt-3 border-t border-stone-100 pt-3 text-xs dark:border-stone-800">
@@ -259,7 +259,7 @@ export default async function ClientsPage({ searchParams }: Props) {
         {!memberRows.length ? (
           <div className={`mt-4 ${ui.emptyState}`}>
             <div className={ui.emptyStateIcon}><Users size={18} /></div>
-            <p className={`text-sm ${ui.muted}`}>No paid members found in this scope.</p>
+            <p className={`text-sm ${ui.muted}`}>No paid users found in this scope.</p>
           </div>
         ) : null}
       </div>
