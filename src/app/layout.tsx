@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import "react-international-phone/style.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ConditionalSiteHeader } from "@/components/ConditionalSiteHeader";
 import { site } from "@/lib/brand";

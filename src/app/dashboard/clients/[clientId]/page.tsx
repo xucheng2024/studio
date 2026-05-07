@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { updateMemberProfile } from "@/app/dashboard/actions";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
@@ -140,14 +141,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Phone</span>
-            <input
-              name="phone"
-              type="tel"
-              inputMode="tel"
-              defaultValue={(profile as { phone?: string | null } | null)?.phone ?? ""}
-              className={ui.input}
-              placeholder="+65 9123 4567"
-            />
+            <FormPhoneField name="phone" defaultValue={(profile as { phone?: string | null } | null)?.phone ?? ""} />
           </label>
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Notes</span>

@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -67,13 +68,7 @@ export default async function MyProfilePage() {
           </label>
           <label className="grid gap-1.5">
             <span className={ui.label}>Phone</span>
-            <input
-              name="phone"
-              className={ui.input}
-              placeholder="+65 9123 4567"
-              defaultValue={profile?.phone ?? ""}
-              autoComplete="tel"
-            />
+            <FormPhoneField name="phone" defaultValue={profile?.phone ?? ""} />
           </label>
           <label className="grid gap-1.5">
             <span className={ui.label}>Notes</span>
@@ -95,4 +90,3 @@ export default async function MyProfilePage() {
     </main>
   );
 }
-

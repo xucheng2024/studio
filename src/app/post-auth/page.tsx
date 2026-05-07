@@ -75,6 +75,12 @@ export default async function PostAuthPage({ searchParams }: Props) {
     redirect("/auth");
   }
 
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("phone")
+    .eq("id", user.id)
+    .maybeSingle();
+
   await acceptInviteIfNeeded(user.id, user.email, sp.invite_token);
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
   if (access.ctx.isSuperAdmin) {
@@ -86,16 +92,20 @@ export default async function PostAuthPage({ searchParams }: Props) {
   if (fromStaffPortal && !access.hasBackofficeAccess) {
     redirect("/account/access-required");
   }
-  if (access.bestRole === "instructor") {
-    redirect("/instructor/sessions");
-  }
-  if (access.hasBackofficeAccess) {
-    redirect("/dashboard/operations");
-  }
   const c = await cookies();
   const studioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
-  if (studioSlug) {
-    redirect(`/booking/${studioSlug}`);
+  const nextPath =
+    access.bestRole === "instructor"
+      ? "/instructor/sessions"
+      : access.hasBackofficeAccess
+        ? "/dashboard/operations"
+        : studioSlug
+          ? `/booking/${studioSlug}`
+          : "/";
+
+  if (!profile?.phone?.trim()) {
+    redirect(`/account/complete-profile?next=${encodeURIComponent(nextPath)}`);
   }
-  redirect("/");
+
+  redirect(nextPath);
 }

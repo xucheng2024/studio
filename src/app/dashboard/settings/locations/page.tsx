@@ -5,6 +5,7 @@ import {
 } from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
+import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -116,7 +117,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Phone (optional)</span>
-            <input name="phone" type="tel" inputMode="tel" className={ui.input} placeholder="+65 9123 4567" />
+            <FormPhoneField name="phone" />
           </label>
           <div className="md:col-span-2">
             <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
@@ -154,7 +155,9 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
                     <input name="name" required defaultValue={loc.name} className={ui.input} />
                     <input name="address" defaultValue={loc.address ?? ""} className={ui.input} placeholder="Address" />
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <input name="phone" type="tel" inputMode="tel" defaultValue={loc.phone ?? ""} className={ui.input} placeholder="+65 9123 4567" />
+                      <div className="min-w-0 flex-1">
+                        <FormPhoneField name="phone" defaultValue={loc.phone ?? ""} />
+                      </div>
                       <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
                         Save
                       </SubmitButton>

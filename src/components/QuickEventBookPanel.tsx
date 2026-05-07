@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, Loader2, X } from "lucide-react";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
@@ -45,6 +46,7 @@ export function QuickEventBookPanel({
   const toFriendly = (code: string) => {
     if (code === "full") return "This event is full.";
     if (code === "already_has_booking") return "You already have a booking for this event.";
+    if (code === "guest_details_required") return "Please enter your name, email, and phone number.";
     if (code === "hitpay_not_configured") {
       return "This studio has not configured online payment yet. Please contact the front desk.";
     }
@@ -147,23 +149,9 @@ export function QuickEventBookPanel({
       </label>
       <label className="flex flex-col gap-1">
         <span className={ui.label}>
-          Phone <span className={`font-normal ${ui.muted}`}>(optional)</span>
+          Phone
         </span>
-        <div className="flex items-center overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20 dark:border-stone-700 dark:bg-stone-950">
-          <span className="select-none border-r border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
-            +65
-          </span>
-          <input
-            type="tel"
-            inputMode="numeric"
-            className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-stone-400"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-            placeholder="9123 4567"
-            autoComplete="tel-national"
-            maxLength={8}
-          />
-        </div>
+        <PhoneNumberInput value={phone} onChange={setPhone} placeholder="9123 4567" required />
       </label>
 
       {error ? (
@@ -176,7 +164,7 @@ export function QuickEventBookPanel({
       <div className={embedded ? "" : ui.mobileActionBar}>
         <button
           type="button"
-          disabled={loading || !name.trim() || !email.trim()}
+          disabled={loading || !name.trim() || !email.trim() || !phone.trim()}
           className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
           onClick={handleSubmit}
         >
@@ -218,4 +206,3 @@ export function QuickEventBookPanel({
     </div>
   );
 }
-

@@ -59,14 +59,14 @@ export default async function Home({ searchParams }: Props) {
             </span>
           </Link>
 
-          <Link href="/member/auth" className={`${ui.cardInteractive} group flex gap-4`}>
+          <Link href="/booking" className={`${ui.cardInteractive} group flex gap-4`}>
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition-colors group-hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:group-hover:bg-emerald-900/60">
               <RefreshCw size={19} />
             </span>
             <span className="flex flex-col justify-center gap-0.5">
-              <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">One account, full history</span>
+              <span className="text-sm font-semibold text-stone-900 dark:text-stone-50">Use your studio booking page</span>
               <span className={`text-xs ${ui.muted}`}>
-                Sign in with your guest email to link all past bookings, payments, and class passes automatically
+                Members sign in from a studio booking link, where bookings, payments, and class passes stay in one place
               </span>
             </span>
           </Link>
@@ -86,7 +86,7 @@ export default async function Home({ searchParams }: Props) {
           Studios get a shareable booking link at{" "}
           <code className={ui.code}>/booking/your-slug</code>{" "}
           for members to book classes online.{" "}
-          <Link href="/member/auth" className={ui.link}>Sign in →</Link>
+          <Link href="/booking" className={ui.link}>Open booking →</Link>
         </p>
       </div>
     </main>

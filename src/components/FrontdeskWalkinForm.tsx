@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Banknote, CircleDollarSign, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { Toggle } from "@/components/ui/Toggle";
 import { ui } from "@/lib/ui";
 
@@ -18,6 +19,7 @@ export function FrontdeskWalkinForm({
   const [busy, setBusy] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [amount, setAmount] = useState("0.00");
+  const [phone, setPhone] = useState("");
   const formDisabled = disabled || busy || sessions.length === 0;
 
   return (
@@ -34,7 +36,7 @@ export function FrontdeskWalkinForm({
             session_id: String(fd.get("session_id") ?? ""),
             guest_name: String(fd.get("guest_name") ?? ""),
             guest_email: String(fd.get("guest_email") ?? ""),
-            guest_phone: String(fd.get("guest_phone_local") ?? "").trim(),
+            guest_phone: phone.trim() || null,
             amount: Number(amount || 0),
             payment_method: String(fd.get("payment_method") ?? "cash"),
             mark_checkin: fd.get("mark_checkin") === "on",
@@ -50,6 +52,7 @@ export function FrontdeskWalkinForm({
         (e.currentTarget as HTMLFormElement).reset();
         setSelectedSessionId("");
         setAmount("0.00");
+        setPhone("");
         router.refresh();
       }}
     >
@@ -99,21 +102,12 @@ export function FrontdeskWalkinForm({
 
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Phone</span>
-          <div className="flex items-center overflow-hidden rounded-xl border border-stone-200 bg-white focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20 dark:border-stone-700 dark:bg-stone-950">
-            <span className="select-none border-r border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400">
-              +65
-            </span>
-            <input
-              name="guest_phone_local"
-              type="tel"
-              inputMode="numeric"
-              placeholder="91234567"
-              autoComplete="tel-national"
-              maxLength={8}
-              disabled={formDisabled}
-              className="flex-1 bg-transparent px-3 py-2.5 text-sm text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-500"
-            />
-          </div>
+          <PhoneNumberInput
+            value={phone}
+            onChange={setPhone}
+            disabled={formDisabled}
+            placeholder="9123 4567"
+          />
         </label>
 
         <label className="flex flex-col gap-1.5">

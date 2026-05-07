@@ -161,3 +161,68 @@ details.chevron[open] > summary::after {
     transform: translateY(0);
   }
 }
+
+.intl-phone-field {
+  --react-international-phone-height: 46px;
+  --react-international-phone-border-radius: 12px;
+  --react-international-phone-border-color: rgb(231 229 228);
+  --react-international-phone-background-color: rgb(255 255 255);
+  --react-international-phone-text-color: rgb(28 25 23);
+  --react-international-phone-font-size: 14px;
+  --react-international-phone-dropdown-shadow: 0 12px 30px rgb(0 0 0 / 0.12);
+  --react-international-phone-selected-dropdown-item-background-color: rgb(240 253 250);
+  width: 100%;
+}
+
+.intl-phone-field .react-international-phone-country-selector-button {
+  min-width: 72px;
+  border-right: 0;
+  background: rgb(250 250 249);
+}
+
+.intl-phone-field .react-international-phone-country-selector-button__button-content {
+  gap: 6px;
+  padding-left: 10px;
+  padding-right: 8px;
+}
+
+.intl-phone-field .react-international-phone-country-selector-button__flag-emoji {
+  margin: 0;
+}
+
+.intl-phone-field .react-international-phone-input {
+  width: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+.intl-phone-field .react-international-phone-country-selector-dropdown {
+  z-index: 40;
+  border: 1px solid rgb(231 229 228);
+  border-radius: 14px;
+  background: rgb(255 255 255);
+}
+
+.intl-phone-field:focus-within .react-international-phone-country-selector-button,
+.intl-phone-field:focus-within .react-international-phone-input {
+  border-color: rgb(20 184 166 / 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  .intl-phone-field {
+    --react-international-phone-border-color: rgb(68 64 60);
+    --react-international-phone-background-color: rgb(12 10 9);
+    --react-international-phone-text-color: rgb(250 250 249);
+    --react-international-phone-selected-dropdown-item-background-color: rgb(19 78 74);
+  }
+
+  .intl-phone-field .react-international-phone-country-selector-button {
+    background: rgb(28 25 23);
+  }
+
+  .intl-phone-field .react-international-phone-country-selector-dropdown {
+    border-color: rgb(68 64 60);
+    background: rgb(28 25 23);
+  }
+}

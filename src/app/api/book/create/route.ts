@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
   const guestPhone = parsed.data.guest_phone?.trim() || null;
 
-  if (!user && (!guestName || !guestEmail)) {
+  if (!user && (!guestName || !guestEmail || !guestPhone)) {
     return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
   }
 

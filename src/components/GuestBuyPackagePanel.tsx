@@ -1,16 +1,25 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageId: string; disabled?: boolean }) {
   const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    createBrowserSupabase()
+      .auth.getSession()
+      .then(({ data }) => setIsLoggedIn(!!data.session?.user));
+  }, []);
 
   return (
     <form
@@ -24,16 +33,16 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             package_id: packageId,
-            guest_name: name,
-            guest_email: email,
-            guest_phone: phone.trim() || null,
+            guest_name: isLoggedIn ? undefined : name,
+            guest_email: isLoggedIn ? undefined : email,
+            guest_phone: isLoggedIn ? undefined : (phone.trim() || null),
           }),
         });
         const body = await res.json().catch(() => ({}));
         setBusy(false);
         if (!res.ok) {
           if (body.error === "guest_details_required") {
-            setMsg("Please enter your name and email.");
+            setMsg("Please enter your name, email, and phone number.");
           } else if (body.error === "hitpay_not_configured") {
             setMsg("Online payment is not configured for this studio yet.");
           } else {
@@ -48,37 +57,33 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
         setMsg("Payment created");
       }}
     >
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-        placeholder="Your name"
-        className={ui.input}
-      />
-      <input
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        type="email"
-        placeholder="Email"
-        className={ui.input}
-      />
-      <div className="flex items-center overflow-hidden rounded-lg border border-stone-300 bg-white focus-within:ring-2 focus-within:ring-teal-500 dark:border-stone-700 dark:bg-stone-900">
-        <span className="select-none border-r border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
-          +65
-        </span>
-        <input
-          type="tel"
-          inputMode="numeric"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-          placeholder="9123 4567"
-          autoComplete="tel-national"
-          maxLength={8}
-          className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-stone-400"
-        />
-      </div>
-      <button type="submit" disabled={busy || disabled} className={`${ui.btnPrimary} disabled:opacity-50`}>
+      {isLoggedIn ? (
+        <p className={`text-sm ${ui.muted}`}>You are signed in. Click below to proceed to payment.</p>
+      ) : (
+        <>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="Your name"
+            className={ui.input}
+          />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            type="email"
+            placeholder="Email"
+            className={ui.input}
+          />
+          <PhoneNumberInput value={phone} onChange={setPhone} placeholder="9123 4567" required />
+        </>
+      )}
+      <button
+        type="submit"
+        disabled={busy || disabled || (!isLoggedIn && (!name.trim() || !email.trim() || !phone.trim()))}
+        className={`${ui.btnPrimary} disabled:opacity-50`}
+      >
         {busy ? "Creating..." : disabled ? "Online payment unavailable" : "Buy package"}
       </button>
       {msg ? <p className={`text-xs ${ui.muted}`}>{msg}</p> : null}

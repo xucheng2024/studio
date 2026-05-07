@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { site } from "@/lib/brand";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
 import { createBrowserSupabase } from "@/lib/supabase/client";
@@ -16,7 +17,7 @@ export function AuthPageInner() {
   const searchParams = useSearchParams();
   const memberScopedMatch = pathname.match(/^\/m\/([a-z0-9-]{3,60})\/auth(?:\/|$)/i);
   const memberScopedSlug = memberScopedMatch?.[1]?.toLowerCase() ?? null;
-  const isMemberAuth = pathname.startsWith("/member/auth") || Boolean(memberScopedSlug);
+  const isMemberAuth = Boolean(memberScopedSlug);
   const inviteToken = searchParams.get("invite_token") ?? "";
   const nextRaw = searchParams.get("next");
   const safeNext =
@@ -30,6 +31,7 @@ export function AuthPageInner() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<OtpStep>("request");
@@ -201,7 +203,10 @@ export function AuthPageInner() {
                     email: email.trim(),
                     options: {
                       shouldCreateUser: true,
-                      ...(name.trim() ? { data: { full_name: name.trim() } } : {}),
+                      data: {
+                        ...(name.trim() ? { full_name: name.trim() } : {}),
+                        phone: phone.trim(),
+                      },
                     },
                   });
                   setLoading(false);
@@ -227,6 +232,16 @@ export function AuthPageInner() {
                 if (error) {
                   setMsg(error.message);
                   return;
+                }
+                if (phone.trim()) {
+                  await fetch("/api/account/profile", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      full_name: name.trim() || null,
+                      phone: phone.trim(),
+                    }),
+                  }).catch(() => null);
                 }
                 await goPostAuth();
               }}
@@ -259,6 +274,17 @@ export function AuthPageInner() {
                   disabled={step === "verify"}
                 />
               </label>
+              {step === "request" ? (
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Phone number</span>
+                  <PhoneNumberInput
+                    value={phone}
+                    onChange={setPhone}
+                    placeholder="9123 4567"
+                    required
+                  />
+                </label>
+              ) : null}
               {step === "verify" ? (
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>6-digit code from email</span>
@@ -284,7 +310,11 @@ export function AuthPageInner() {
                   {msg}
                 </p>
               ) : null}
-              <button type="submit" disabled={loading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
+              <button
+                type="submit"
+                disabled={loading || (step === "request" && !phone.trim())}
+                className={`${ui.btnPrimary} w-full disabled:opacity-50`}
+              >
                 {loading
                   ? "Please wait…"
                   : step === "request"
@@ -304,7 +334,10 @@ export function AuthPageInner() {
                         email: email.trim(),
                         options: {
                           shouldCreateUser: true,
-                          ...(name.trim() ? { data: { full_name: name.trim() } } : {}),
+                          data: {
+                            ...(name.trim() ? { full_name: name.trim() } : {}),
+                            phone: phone.trim(),
+                          },
                         },
                       });
                       setLoading(false);

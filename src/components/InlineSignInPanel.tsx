@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
@@ -32,6 +33,7 @@ export function InlineSignInPanel({
   const [open, setOpen] = useState(defaultOpen);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<OtpStep>("request");
@@ -196,7 +198,10 @@ export function InlineSignInPanel({
                 email: email.trim(),
                 options: {
                   shouldCreateUser: true,
-                  ...(name.trim() ? { data: { full_name: name.trim() } } : {}),
+                  data: {
+                    ...(name.trim() ? { full_name: name.trim() } : {}),
+                    phone: phone.trim(),
+                  },
                 },
               });
               setLoading(false);
@@ -222,6 +227,16 @@ export function InlineSignInPanel({
             if (error) {
               setMsg(error.message);
               return;
+            }
+            if (phone.trim()) {
+              await fetch("/api/account/profile", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  full_name: name.trim() || null,
+                  phone: phone.trim(),
+                }),
+              }).catch(() => null);
             }
             await afterSignedIn();
           }}
@@ -253,6 +268,17 @@ export function InlineSignInPanel({
               disabled={step === "verify"}
             />
           </label>
+          {step === "request" ? (
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Phone</span>
+              <PhoneNumberInput
+                value={phone}
+                onChange={setPhone}
+                placeholder="9123 4567"
+                required
+              />
+            </label>
+          ) : null}
           {step === "verify" ? (
             <label className="flex flex-col gap-1">
               <span className={ui.label}>6-digit code</span>
@@ -280,7 +306,11 @@ export function InlineSignInPanel({
               {msg}
             </p>
           ) : null}
-          <button type="submit" disabled={loading} className={`${ui.btnPrimary} w-full disabled:opacity-50`}>
+          <button
+            type="submit"
+            disabled={loading || (step === "request" && !phone.trim())}
+            className={`${ui.btnPrimary} w-full disabled:opacity-50`}
+          >
             {loading ? "Please wait…" : step === "request" ? "Send code" : "Verify and sign in"}
           </button>
           {step === "verify" ? (
@@ -296,7 +326,10 @@ export function InlineSignInPanel({
                     email: email.trim(),
                     options: {
                       shouldCreateUser: true,
-                      ...(name.trim() ? { data: { full_name: name.trim() } } : {}),
+                      data: {
+                        ...(name.trim() ? { full_name: name.trim() } : {}),
+                        phone: phone.trim(),
+                      },
                     },
                   });
                   setLoading(false);

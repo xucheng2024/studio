@@ -137,8 +137,9 @@ export default async function PublicEventPage({ params }: Props) {
                     slug={studio.public_slug ?? rawStudio}
                     eventId={event.id}
                     disabled={!paymentReady}
-                    triggerClassName={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
-                    triggerLabel="Continue"
+                    defaultOpen
+                    hideClose
+                    embedded
                   />
                 </div>
               </>
@@ -149,4 +150,3 @@ export default async function PublicEventPage({ params }: Props) {
     </main>
   );
 }
-
