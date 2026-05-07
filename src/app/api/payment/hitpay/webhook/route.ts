@@ -271,15 +271,19 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
     });
   }
 
+  const subscriptionUpdate: Record<string, string | null> = {
+    status: paymentStatus === "paid" ? "active" : subscription.status ?? "scheduled",
+    gateway_payload: rawBody,
+    updated_at: new Date().toISOString(),
+  };
+  if (paymentStatus === "paid") {
+    subscriptionUpdate.last_charge_at = effectiveAt;
+    if (currentPeriodEnd) subscriptionUpdate.current_period_end = currentPeriodEnd;
+  }
+
   await admin
     .from("customer_subscriptions")
-    .update({
-      status: paymentStatus === "paid" ? "active" : subscription.status ?? "scheduled",
-      last_charge_at: paymentStatus === "paid" ? effectiveAt : null,
-      current_period_end: paymentStatus === "paid" ? currentPeriodEnd : subscription.current_period_end ?? null,
-      gateway_payload: rawBody,
-      updated_at: new Date().toISOString(),
-    })
+    .update(subscriptionUpdate)
     .eq("id", subscription.id);
 
   return NextResponse.json({ ok: true });
