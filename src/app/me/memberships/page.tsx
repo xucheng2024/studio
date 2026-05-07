@@ -51,6 +51,43 @@ export default async function MyMembershipsPage() {
         .order("price", { ascending: true })
     : { data: null };
 
+  const { data: memberStudios } = !activeStudio?.id
+    ? await supabase
+        .from("member_studio_memberships")
+        .select("studios!inner(id, name, public_slug)")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .limit(50)
+    : { data: null };
+
+  const studioIds = (memberStudios ?? [])
+    .map((row) => {
+      const s = (row as { studios?: { id?: string | null } | { id?: string | null }[] | null }).studios;
+      const st = Array.isArray(s) ? s[0] : s;
+      return st?.id ?? null;
+    })
+    .filter((v): v is string => Boolean(v));
+
+  const { data: fallbackMemberships } =
+    !activeStudio?.id && studioIds.length
+      ? await supabase
+          .from("membership_products")
+          .select("id, name, description, price, currency, billing_interval, share_slug, trial_days, studio_id")
+          .in("studio_id", studioIds)
+          .eq("is_active", true)
+          .is("deleted_at", null)
+          .order("price", { ascending: true })
+      : { data: null };
+
+  const studioById = new Map<string, { name: string; public_slug: string }>();
+  for (const row of memberStudios ?? []) {
+    const s = (row as { studios?: { id?: string | null; name?: string | null; public_slug?: string | null } | any[] | null }).studios;
+    const st = Array.isArray(s) ? s[0] : s;
+    const id = String(st?.id ?? "");
+    const slug = String(st?.public_slug ?? "");
+    if (id && slug) studioById.set(id, { name: String(st?.name ?? "Studio"), public_slug: slug });
+  }
+
   return (
     <main className={ui.page}>
       <div className="mx-auto max-w-2xl space-y-6">
@@ -163,6 +200,47 @@ export default async function MyMembershipsPage() {
                             label="Subscribe"
                           />
                         </div>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : fallbackMemberships?.length ? (
+          <div className="space-y-4">
+            <p className={`text-sm ${ui.muted}`}>You don’t have a membership yet. Choose a plan below to start.</p>
+            <ul className="flex flex-col gap-3">
+              {fallbackMemberships.map((m) => {
+                const studioId = String((m as { studio_id?: string | null }).studio_id ?? "");
+                const studio = studioById.get(studioId) ?? null;
+                const studioSlug = studio?.public_slug ?? "";
+                const shareSlug = String((m as { share_slug?: string | null }).share_slug ?? "");
+                const trialDays = Number((m as { trial_days?: number | null }).trial_days ?? 0);
+                const intervalLabel = (m as { billing_interval?: string | null }).billing_interval === "yearly" ? "Yearly" : "Monthly";
+                const ccy = String((m as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+                return (
+                  <li key={m.id} className={ui.card}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold tracking-wide text-stone-500 dark:text-stone-400">
+                          {studio?.name ?? "Studio"}
+                        </p>
+                        <p className="mt-1 font-semibold text-stone-900 dark:text-stone-100">{m.name}</p>
+                        <p className={`mt-1 text-sm ${ui.muted}`}>
+                          {ccy} {Number(m.price ?? 0).toFixed(2)} · {intervalLabel}
+                          {trialDays > 0 ? ` · Free for ${trialDays} days` : ""}
+                        </p>
+                        {(m as { description?: string | null }).description ? (
+                          <p className={`mt-2 text-sm ${ui.muted}`}>{String((m as { description?: string | null }).description)}</p>
+                        ) : null}
+                      </div>
+                      {studioSlug && shareSlug ? (
+                        <SubscribeMembershipButton
+                          membershipId={m.id}
+                          studioSlug={studioSlug}
+                          label="Subscribe"
+                        />
                       ) : null}
                     </div>
                   </li>
