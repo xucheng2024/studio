@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
-import { StudioSectionTabs } from "@/components/StudioSectionTabs";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -167,13 +166,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     .slice(0, 2)
     .map((part: string) => part[0]?.toUpperCase() ?? "")
     .join("") || "S";
-  const sectionTabs = [
-    { href: "#services", label: "Services" },
-    { href: "#upcoming-classes", label: "Classes" },
-    ...(upcomingEvents.length > 0 ? [{ href: "#events", label: "Events" }] : []),
-    ...(memberZoneSeries.length > 0 ? [{ href: "#member-zone", label: "Member zone" }] : []),
-    ...(packages.length > 0 ? [{ href: "#packages", label: "Packages" }] : []),
-  ];
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-2 sm:px-6 sm:pt-4 lg:px-8">
@@ -237,11 +229,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             </div>
           </div>
         </div>
-        <StudioSectionTabs items={sectionTabs} />
       </section>
 
       {services.length > 0 ? (
-        <section id="services" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl">
+        <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <h2 className={ui.h2}>{servicesTitle}</h2>
@@ -425,7 +416,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {classes.length > 0 ? (
-        <section id="upcoming-classes" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{classesTitle}</h2>
           </div>
@@ -643,7 +634,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {upcomingEvents.length > 0 ? (
-        <section id="events" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="events" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{eventsTitle}</h2>
           </div>
@@ -904,7 +895,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {memberZoneSeries.length > 0 ? (
-        <section id="member-zone" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="member-zone" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{memberZoneTitle}</h2>
           </div>
@@ -975,7 +966,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {packages.length > 0 ? (
-        <section id="packages" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="packages" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{packagesTitle}</h2>
           </div>
