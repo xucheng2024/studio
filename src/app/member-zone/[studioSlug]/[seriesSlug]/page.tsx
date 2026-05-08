@@ -27,6 +27,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function renderMedia(url: string, title: string, mediaType: string) {
   const videoPreview = getVideoPreview(url);
   if (mediaType === "audio") {
+    if (videoPreview.provider === "mux" && videoPreview.embedUrl) {
+      return (
+        <iframe
+          src={videoPreview.embedUrl}
+          title={title}
+          className="aspect-video w-full rounded-lg"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      );
+    }
     return (
       <audio controls className="w-full">
         <source src={url} />
