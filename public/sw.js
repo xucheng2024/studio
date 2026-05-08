@@ -1,10 +1,17 @@
-const SW_VERSION = "studio-pwa-v1";
+const SW_VERSION = "studio-pwa-v2";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
+const OFFLINE_URL = "/offline.html";
 
 const NETWORK_ONLY_SEGMENTS = ["/auth", "/checkout", "/me/", "/member-zone/"];
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches
+      .open(PAGE_CACHE)
+      .then((cache) => cache.add(OFFLINE_URL))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -40,12 +47,23 @@ function isNetworkOnlyPath(pathname) {
 function isCacheableHtmlPath(pathname) {
   if (!pathname) return false;
   const segments = pathname.split("/").filter(Boolean);
+  // /angle
   if (segments.length === 1) return true;
+  // /angle/classes
   if (segments.length === 2 && segments[1] === "classes") return true;
-  if (segments.length === 3 && ["events", "services", "packages", "memberships"].includes(segments[1])) {
+  // /angle/classes/yoga, /angle/events/slug, /angle/services/slug, etc.
+  if (
+    segments.length === 3 &&
+    ["classes", "events", "services", "packages", "memberships"].includes(segments[1])
+  ) {
     return true;
   }
   return false;
+}
+
+async function offlineFallback() {
+  const cache = await caches.open(PAGE_CACHE);
+  return (await cache.match(OFFLINE_URL)) ?? Response.error();
 }
 
 async function staleWhileRevalidate(request, cacheName) {
@@ -68,7 +86,7 @@ async function staleWhileRevalidate(request, cacheName) {
   const networkResponse = await networkPromise;
   if (networkResponse) return networkResponse;
 
-  return Response.error();
+  return offlineFallback();
 }
 
 async function networkFirst(request, cacheName) {
@@ -81,7 +99,7 @@ async function networkFirst(request, cacheName) {
     return response;
   } catch {
     const cached = await cache.match(request);
-    return cached || Response.error();
+    return cached ?? offlineFallback();
   }
 }
 
@@ -90,11 +108,15 @@ async function cacheFirst(request, cacheName) {
   const cached = await cache.match(request);
   if (cached) return cached;
 
-  const response = await fetch(request);
-  if (response && response.ok) {
-    void cache.put(request, response.clone());
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      void cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return Response.error();
   }
-  return response;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -119,7 +141,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.destination === "style" || request.destination === "script" || request.destination === "worker") {
+  if (
+    request.destination === "style" ||
+    request.destination === "script" ||
+    request.destination === "worker"
+  ) {
     event.respondWith(staleWhileRevalidate(request, ASSET_CACHE));
     return;
   }
