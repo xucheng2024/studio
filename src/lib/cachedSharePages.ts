@@ -142,3 +142,28 @@ export const getCachedEventShareContext = cache(async (studioSlugRaw: string, ev
 
   return { studio, event };
 });
+
+export const getCachedMemberZoneShareContext = cache(async (studioSlugRaw: string, seriesSlugRaw: string) => {
+  const studioSlug = normalizeStudioSlug(studioSlugRaw ?? "");
+  const seriesSlug = normalizeShareSlug(seriesSlugRaw);
+  if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(seriesSlug)) return null;
+
+  const supabase = await createClient();
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, name, public_slug, contract_status")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
+  if (!studio || studio.contract_status === "suspended") return null;
+
+  const { data: series } = await supabase
+    .from("member_zone_series")
+    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, is_active")
+    .eq("studio_id", studio.id)
+    .eq("share_slug", seriesSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!series) return null;
+
+  return { studio, series };
+});

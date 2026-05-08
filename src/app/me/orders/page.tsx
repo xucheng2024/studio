@@ -21,7 +21,7 @@ export default async function MyOrdersPage() {
 
   const { data: payments } = await supabase
     .from("payments")
-    .select("id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot")
+    .select("id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot, member_zone_series_id, member_zone_lesson_id")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -33,6 +33,12 @@ export default async function MyOrdersPage() {
   );
   const packageIds = Array.from(
     new Set((payments ?? []).map((p) => p.package_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
+  );
+  const memberZoneSeriesIds = Array.from(
+    new Set((payments ?? []).map((p) => (p as { member_zone_series_id?: string | null }).member_zone_series_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
+  );
+  const memberZoneLessonIds = Array.from(
+    new Set((payments ?? []).map((p) => (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
   );
 
   const { data: bookingRows } =
@@ -56,10 +62,26 @@ export default async function MyOrdersPage() {
           .select("id, name")
           .in("id", packageIds)
       : { data: [] };
+  const { data: memberZoneSeriesRows } =
+    memberZoneSeriesIds.length > 0
+      ? await supabase
+          .from("member_zone_series")
+          .select("id, title")
+          .in("id", memberZoneSeriesIds)
+      : { data: [] };
+  const { data: memberZoneLessonRows } =
+    memberZoneLessonIds.length > 0
+      ? await supabase
+          .from("member_zone_lessons")
+          .select("id, title")
+          .in("id", memberZoneLessonIds)
+      : { data: [] };
 
   const bookingMap = new Map((bookingRows ?? []).map((r) => [r.id, r]));
   const eventBookingMap = new Map((eventBookingRows ?? []).map((r) => [r.id, r]));
   const packageMap = new Map((packageRows ?? []).map((r) => [r.id, r]));
+  const memberZoneSeriesMap = new Map((memberZoneSeriesRows ?? []).map((r) => [r.id, r]));
+  const memberZoneLessonMap = new Map((memberZoneLessonRows ?? []).map((r) => [r.id, r]));
 
   return (
     <main className={ui.page}>
@@ -76,6 +98,12 @@ export default async function MyOrdersPage() {
               ? eventBookingMap.get((p as { event_booking_id?: string | null }).event_booking_id ?? "")
               : null;
             const pkg = p.package_id ? packageMap.get(p.package_id) : null;
+            const memberZoneSeries = (p as { member_zone_series_id?: string | null }).member_zone_series_id
+              ? memberZoneSeriesMap.get((p as { member_zone_series_id?: string | null }).member_zone_series_id ?? "")
+              : null;
+            const memberZoneLesson = (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id
+              ? memberZoneLessonMap.get((p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id ?? "")
+              : null;
             const session = booking && "class_sessions" in booking ? booking.class_sessions : null;
             const sessionRow = Array.isArray(session) ? session[0] : session;
             const cls = Array.isArray(sessionRow?.classes) ? sessionRow?.classes[0] : sessionRow?.classes;
@@ -95,6 +123,8 @@ export default async function MyOrdersPage() {
                 ? { text: "Event", tone: "amber" as const }
                 : source === "membership_subscription"
                   ? { text: "Membership", tone: "teal" as const }
+                : source === "member_zone_purchase"
+                  ? { text: "Member zone", tone: "teal" as const }
                 : source === "package_buy"
                   ? { text: "Package", tone: "stone" as const }
                   : { text: "Class", tone: "blue" as const };
@@ -136,6 +166,12 @@ export default async function MyOrdersPage() {
                   <p className={`mt-1 text-sm ${ui.muted}`}>
                     Membership: {(p as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim()}
                   </p>
+                ) : null}
+                {memberZoneSeries?.title ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>Member zone series: {memberZoneSeries.title}</p>
+                ) : null}
+                {memberZoneLesson?.title ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>Member zone lesson: {memberZoneLesson.title}</p>
                 ) : null}
               </li>
             );

@@ -113,6 +113,14 @@ export async function POST(req: Request) {
         });
       }
     }
+    await admin
+      .from("member_zone_purchases")
+      .update({
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_id", parsed.data.payment_id);
     return NextResponse.json({ ok: true });
   }
 
@@ -211,6 +219,14 @@ export async function POST(req: Request) {
         });
       }
     }
+    await admin
+      .from("member_zone_purchases")
+      .update({
+        status: "refunded",
+        refunded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_id", parsed.data.payment_id);
     return NextResponse.json({
       ok: true,
       already_refunded: alreadyRefunded,
@@ -237,6 +253,10 @@ export async function POST(req: Request) {
   if (!cr?.ok && cr?.error === "not_pending") {
     return NextResponse.json({ error: "not_pending" }, { status: 409 });
   }
+  await admin
+    .from("member_zone_purchases")
+    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
+    .eq("payment_id", parsed.data.payment_id);
 
   if (payment.booking_id) {
     const { data: booking } = await admin

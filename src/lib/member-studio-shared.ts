@@ -9,6 +9,7 @@ export function parseStudioSlugFromPath(pathname: string): string | null {
     /^\/booking\/([a-z0-9-]{3,60})(?:\/|$)/i,
     /^\/class\/([a-z0-9-]{3,60})(?:\/|$)/i,
     /^\/buy\/([a-z0-9-]{3,60})(?:\/|$)/i,
+    /^\/member-zone\/([a-z0-9-]{3,60})(?:\/|$)/i,
     /^\/m\/([a-z0-9-]{3,60})\/auth(?:\/|$)/i,
     /^\/([a-z0-9-]{3,60})(?:\/|$)/i,
   ];

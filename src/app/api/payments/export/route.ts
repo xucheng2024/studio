@@ -208,6 +208,8 @@ export async function GET(req: Request) {
         ? "event"
         : p.source === "membership_subscription"
           ? "membership"
+        : p.source === "member_zone_purchase"
+          ? "member_zone"
         : p.source === "package_buy"
           ? "package"
           : "session";

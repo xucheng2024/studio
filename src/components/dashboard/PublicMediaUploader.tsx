@@ -41,7 +41,7 @@ async function compressImage(file: File, maxDim = 1600, quality = 0.85): Promise
 
 type Props = {
   studioId: string;
-  folder: "studios" | "services" | "classes" | "packages" | "events";
+  folder: "studios" | "services" | "classes" | "packages" | "events" | "member-zone";
   entityId: string;
   label?: string;
   onUploaded: (url: string) => void;

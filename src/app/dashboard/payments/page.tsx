@@ -40,6 +40,8 @@ function paymentSourceLabel(source: string | null | undefined) {
       return "Event booking";
     case "membership_subscription":
       return "Membership subscription";
+    case "member_zone_purchase":
+      return "Member zone purchase";
     default:
       return "Unknown";
   }
@@ -78,7 +80,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, guest_name, guest_email, guest_phone, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, guest_name, guest_email, guest_phone, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -100,8 +102,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const eventBookingIds = [...new Set(payments.map((p) => (p as { event_booking_id?: string | null }).event_booking_id).filter(Boolean))];
   const clientIds = [...new Set(payments.map((p) => p.client_id).filter(Boolean))];
   const packageIds = [...new Set(payments.map((p) => (p as { package_id?: string | null }).package_id).filter(Boolean))];
+  const memberZoneSeriesIds = [...new Set(payments.map((p) => (p as { member_zone_series_id?: string | null }).member_zone_series_id).filter(Boolean))];
+  const memberZoneLessonIds = [...new Set(payments.map((p) => (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id).filter(Boolean))];
 
-  const [{ data: bookings }, { data: eventBookings }, { data: packageRows }, { data: clients }, { data: clientProfiles }] = await Promise.all([
+  const [{ data: bookings }, { data: eventBookings }, { data: packageRows }, { data: memberZoneSeriesRows }, { data: memberZoneLessonRows }, { data: clients }, { data: clientProfiles }] = await Promise.all([
     bookingIds.length > 0
       ? supabase
           .from("bookings")
@@ -120,6 +124,18 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           .select("id, name")
           .in("id", packageIds)
       : Promise.resolve({ data: [] as const }),
+    memberZoneSeriesIds.length > 0
+      ? supabase
+          .from("member_zone_series")
+          .select("id, title")
+          .in("id", memberZoneSeriesIds)
+      : Promise.resolve({ data: [] as const }),
+    memberZoneLessonIds.length > 0
+      ? supabase
+          .from("member_zone_lessons")
+          .select("id, title")
+          .in("id", memberZoneLessonIds)
+      : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
       ? supabase.from("users").select("id, email").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
@@ -130,6 +146,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
   const eventBookingMap = new Map((eventBookings ?? []).map((b) => [b.id, b]));
   const packageMap = new Map((packageRows ?? []).map((pkg) => [pkg.id, pkg]));
+  const memberZoneSeriesMap = new Map((memberZoneSeriesRows ?? []).map((row) => [row.id, row]));
+  const memberZoneLessonMap = new Map((memberZoneLessonRows ?? []).map((row) => [row.id, row]));
   const clientMap = new Map((clients ?? []).map((u) => [u.id, u.email]));
   const clientProfileMap = new Map(
     (clientProfiles ?? []).map((u) => [
@@ -154,6 +172,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       : null;
     const pkg = (p as { package_id?: string | null }).package_id
       ? packageMap.get((p as { package_id?: string | null }).package_id ?? "")
+      : null;
+    const memberZoneSeries = (p as { member_zone_series_id?: string | null }).member_zone_series_id
+      ? memberZoneSeriesMap.get((p as { member_zone_series_id?: string | null }).member_zone_series_id ?? "")
+      : null;
+    const memberZoneLesson = (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id
+      ? memberZoneLessonMap.get((p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id ?? "")
       : null;
     const sessionObj = booking
       ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
@@ -187,6 +211,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       cName,
       sessionTitle,
       eventTitle,
+      memberZoneSeries?.title ?? null,
+      memberZoneLesson?.title ?? null,
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? pkg?.name ?? null,
       (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
     ]
@@ -346,12 +372,22 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const membershipLabel =
             (p as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim() ||
             "-";
+          const memberZoneSeries = (p as { member_zone_series_id?: string | null }).member_zone_series_id
+            ? memberZoneSeriesMap.get((p as { member_zone_series_id?: string | null }).member_zone_series_id ?? "")
+            : null;
+          const memberZoneLesson = (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id
+            ? memberZoneLessonMap.get((p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id ?? "")
+            : null;
+          const memberZoneSeriesLabel = memberZoneSeries?.title?.trim() || "-";
+          const memberZoneLessonLabel = memberZoneLesson?.title?.trim() || "-";
           const source = (p as { source?: string | null }).source ?? null;
           const orderTypeLabel =
             source === "event_booking"
               ? "Event"
               : source === "membership_subscription"
                 ? "Membership"
+              : source === "member_zone_purchase"
+                ? "Member zone"
               : source === "package_buy"
                 ? "Package"
                 : "Session";
@@ -438,6 +474,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Membership</dt>
                   <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{membershipLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">MZ series</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{memberZoneSeriesLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">MZ lesson</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{memberZoneLessonLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Ref</dt>

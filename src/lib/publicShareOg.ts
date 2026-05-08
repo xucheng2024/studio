@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getCachedClassShareContext, getCachedEventShareContext, getCachedMembershipShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
+import { getCachedClassShareContext, getCachedEventShareContext, getCachedMemberZoneShareContext, getCachedMembershipShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
 
 export async function buildClassShareMetadata(
   studioSlugRaw: string,
@@ -147,6 +147,37 @@ export async function buildEventShareMetadata(
       card: "summary_large_image",
       title: event.title,
       description: desc,
+      images: [img],
+    },
+  };
+}
+
+export async function buildMemberZoneShareMetadata(
+  studioSlugRaw: string,
+  seriesSlugRaw: string,
+): Promise<Metadata> {
+  const ctx = await getCachedMemberZoneShareContext(studioSlugRaw, seriesSlugRaw);
+  if (!ctx) return { title: "Member zone" };
+  const { studio, series } = ctx;
+
+  const img = series.cover_image_url && isTrustedCoverImageUrl(series.cover_image_url)
+    ? series.cover_image_url
+    : absolutePlaceholderCoverUrl();
+  const desc = series.summary || series.description || `${series.title} by ${studio.name}`;
+
+  return {
+    title: `${series.title} · ${studio.name}`,
+    description: String(desc).slice(0, 200),
+    openGraph: {
+      title: series.title,
+      description: String(desc).slice(0, 200),
+      type: "website",
+      images: [{ url: img, width: 1200, height: 675, alt: series.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: series.title,
+      description: String(desc).slice(0, 200),
       images: [img],
     },
   };

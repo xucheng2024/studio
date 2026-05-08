@@ -25,21 +25,6 @@ function todayInSingapore() {
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 
-function startDateInSingapore(trialDays: number) {
-  const today = todayInSingapore();
-  const base = new Date(`${today}T00:00:00+08:00`);
-  const days = Number.isFinite(trialDays) ? Math.max(0, Math.floor(trialDays)) : 0;
-  base.setDate(base.getDate() + days);
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Singapore",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(base);
-  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${pick("year")}-${pick("month")}-${pick("day")}`;
-}
-
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
@@ -117,7 +102,7 @@ export async function POST(req: Request) {
 
   const reference = generatePaymentReference();
   const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
-  const startDate = startDateInSingapore(trialDays);
+  const startDate = todayInSingapore();
   const { data: localSubscription, error: insertErr } = await admin
     .from("customer_subscriptions")
     .insert({

@@ -68,6 +68,14 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     .order("start_time", { ascending: true })
     .limit(12);
 
+  const { data: memberZoneSeries } = await admin
+    .from("member_zone_series")
+    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, sort_order")
+    .eq("studio_id", studio.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+
   return {
     studio,
     services: services ?? [],
@@ -75,6 +83,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     packages: packages ?? [],
     memberships: memberships ?? [],
     events: events ?? [],
+    memberZoneSeries: memberZoneSeries ?? [],
   };
 });
 
@@ -110,7 +119,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const { studioSlug } = await params;
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
-  const { studio, services, classes, packages, memberships, events } = data;
+  const { studio, services, classes, packages, memberships, events, memberZoneSeries } = data;
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -136,6 +145,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const classesTitle = studio.public_classes_title?.trim() || "Upcoming classes";
   const packagesTitle = studio.public_packages_title?.trim() || "Packages";
   const eventsTitle = "Events";
+  const memberZoneTitle = "Member zone";
   const visibleServices = services.slice(0, 4);
   const hiddenServices = services.slice(4);
   const visibleClasses = classes.slice(0, 4);
@@ -201,6 +211,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 {upcomingEvents.length > 0 ? (
                   <a href="#events" className={lightAnchorBtn}>
                     Events
+                  </a>
+                ) : null}
+                {memberZoneSeries.length > 0 ? (
+                  <a href="#member-zone" className={lightAnchorBtn}>
+                    Member zone
                   </a>
                 ) : null}
                 {packages.length > 0 ? (
@@ -874,6 +889,73 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               </div>
             </details>
           ) : null}
+        </section>
+      ) : null}
+
+      {memberZoneSeries.length > 0 ? (
+        <section id="member-zone" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+          <div className="flex items-center gap-2">
+            <h2 className={ui.h2}>{memberZoneTitle}</h2>
+          </div>
+          <p className={`mt-1 text-sm ${ui.muted}`}>Members can access exclusive audio/video lesson series. Some series also support one-time purchase.</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {memberZoneSeries.map((series) => {
+              const href = `/member-zone/${studio.public_slug}/${series.share_slug}`;
+              const tag =
+                series.access_type === "free"
+                  ? "免费"
+                  : series.access_type === "paid"
+                    ? `付费 ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    : "会员";
+              const ctaLabel =
+                series.access_type === "free"
+                  ? "免费试看"
+                  : series.access_type === "paid"
+                    ? `单独购买 ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    : "订阅会员解锁";
+              return (
+                <article key={series.id} className={ui.card}>
+                  <Link href={href} className="block">
+                    {series.cover_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={series.cover_image_url}
+                        alt={series.title}
+                        className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
+                    )}
+                  </Link>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                      <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                        {series.title}
+                      </Link>
+                    </h3>
+                    <span className={ui.badgeNeutral}>{tag}</span>
+                  </div>
+                  {series.summary ? (
+                    <p className={`mt-1 line-clamp-2 text-sm ${ui.muted}`}>{series.summary}</p>
+                  ) : null}
+                  {series.description ? (
+                    <p className="mt-2 line-clamp-3 text-sm text-stone-700 dark:text-stone-300">
+                      {series.description}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 flex items-center justify-between gap-2">
+                    <Link href={href} className={ui.btnPrimarySm}>{ctaLabel}</Link>
+                    <SessionShareLinkButton
+                      sharePath={href}
+                      title={`${series.title} · ${studio.name}`}
+                      text={`Check out this member zone series: ${series.title}`}
+                    />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </section>
       ) : null}
 

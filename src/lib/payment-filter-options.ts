@@ -17,6 +17,7 @@ export const PAYMENT_SOURCE_FILTER_OPTIONS: { value: string; label: string }[] =
   { value: "walkin", label: "Walk-in session" },
   { value: "event_booking", label: "Event booking" },
   { value: "package_buy", label: "Package purchase" },
+  { value: "member_zone_purchase", label: "Member zone purchase" },
   { value: "membership_subscription", label: "Membership subscription" },
 ];
 

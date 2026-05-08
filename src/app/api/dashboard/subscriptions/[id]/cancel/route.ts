@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { cancelHitpayRecurringBilling } from "@/lib/hitpay";
+import { cancelHitpayRecurringBilling, refundHitpayPayment } from "@/lib/hitpay";
 import { isMembershipEnded } from "@/lib/membership-subscription";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,7 +19,7 @@ export async function POST(_req: Request, { params }: Params) {
   const admin = createAdminClient();
   const { data: subscription } = await admin
     .from("customer_subscriptions")
-    .select("id, studio_id, recurring_billing_id, status, membership_product_id, membership_name_snapshot, billing_interval_snapshot, created_at, last_charge_at, current_period_end, billing_start_date, cancel_at_period_end, membership_products(location_id)")
+    .select("id, studio_id, recurring_billing_id, status, membership_product_id, membership_name_snapshot, billing_interval_snapshot, created_at, last_charge_at, current_period_end, billing_start_date, cancel_at_period_end, membership_products(location_id, trial_days)")
     .eq("id", id)
     .maybeSingle();
   if (!subscription) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -27,6 +27,7 @@ export async function POST(_req: Request, { params }: Params) {
   const membershipProduct = Array.isArray(subscription.membership_products)
     ? subscription.membership_products[0]
     : subscription.membership_products;
+  const trialDays = Number(membershipProduct?.trial_days ?? 0);
 
   const scope = await requireStaffScope({
     userId: user.id,
@@ -38,12 +39,6 @@ export async function POST(_req: Request, { params }: Params) {
 
   const now = new Date();
   const nowIso = now.toISOString();
-  const neverCharged = !subscription.last_charge_at;
-  const scheduledStart =
-    (subscription as { billing_start_date?: string | null }).billing_start_date
-      ? new Date(`${String((subscription as { billing_start_date?: string | null }).billing_start_date)}T00:00:00+08:00`)
-      : null;
-  const beforeStart = scheduledStart ? now.getTime() < scheduledStart.getTime() : false;
   const interval = subscription.billing_interval_snapshot === "yearly" ? "yearly" : "monthly";
   const derivePeriodEnd = () => {
     if (subscription.current_period_end) return subscription.current_period_end;
@@ -82,9 +77,56 @@ export async function POST(_req: Request, { params }: Params) {
     }
   }
 
-  // If the subscription hasn't had any successful charge yet (free trial / future start),
-  // cancel immediately rather than scheduling a period-end cancellation.
-  if (neverCharged && beforeStart) {
+  if (trialDays > 0) {
+    const { data: latestPayment } = await admin
+      .from("payments")
+      .select("id, status, amount, paid_amount, gateway_refund_payment_id, gateway_payment_id, payment_method, paid_at, created_at")
+      .eq("customer_subscription_id", subscription.id)
+      .eq("source", "membership_subscription")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const trialAnchorRaw = latestPayment?.status === "paid"
+      ? (latestPayment.paid_at ?? latestPayment.created_at ?? subscription.last_charge_at ?? subscription.created_at ?? nowIso)
+      : (subscription.last_charge_at ?? subscription.created_at ?? nowIso);
+    const trialAnchor = new Date(trialAnchorRaw);
+    const trialDeadline = new Date(trialAnchor);
+    trialDeadline.setDate(trialDeadline.getDate() + Math.max(0, trialDays));
+    if (now.getTime() > trialDeadline.getTime()) {
+      return NextResponse.json({ error: "trial_window_expired" }, { status: 409 });
+    }
+
+    if (latestPayment?.status === "paid") {
+      const { data: secrets } = await admin
+        .from("studio_payment_secrets")
+        .select("hitpay_api_key")
+        .eq("studio_id", subscription.studio_id)
+        .maybeSingle();
+      const apiKey = secrets?.hitpay_api_key ?? null;
+      if (!apiKey) return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
+      const gatewayPaymentId = latestPayment.gateway_refund_payment_id ?? latestPayment.gateway_payment_id ?? null;
+      if (!gatewayPaymentId) return NextResponse.json({ error: "gateway_payment_id_missing" }, { status: 409 });
+      try {
+        await refundHitpayPayment({
+          apiKey,
+          paymentId: gatewayPaymentId,
+          amount: Number(latestPayment.paid_amount ?? latestPayment.amount ?? 0),
+        });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "hitpay_refund_failed";
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
+      const { data: refundResult, error: refundErr } = await admin.rpc("refund_payment_with_invoice_void", {
+        p_payment_id: latestPayment.id,
+        p_operator_id: user.id,
+        p_reason: "cancelled_within_membership_trial",
+      });
+      if (refundErr) return NextResponse.json({ error: refundErr.message }, { status: 500 });
+      const rr = refundResult as { ok?: boolean; error?: string };
+      if (!rr?.ok) return NextResponse.json({ error: rr?.error ?? "refund_failed" }, { status: 409 });
+    }
+
     const { error } = await admin
       .from("customer_subscriptions")
       .update({
@@ -93,7 +135,7 @@ export async function POST(_req: Request, { params }: Params) {
         cancel_at_period_end: false,
         cancel_requested_at: nowIso,
         updated_at: nowIso,
-        cancel_reason: "cancelled_by_studio",
+        cancel_reason: "cancelled_by_studio_trial_refund",
       })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

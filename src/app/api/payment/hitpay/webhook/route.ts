@@ -383,6 +383,14 @@ export async function POST(req: Request) {
         });
       }
     }
+    await admin
+      .from("member_zone_purchases")
+      .update({
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_id", payment.id);
     return NextResponse.json({ ok: true });
   }
 
@@ -392,6 +400,10 @@ export async function POST(req: Request) {
     } else {
       await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "failed" });
     }
+    await admin
+      .from("member_zone_purchases")
+      .update({ status: "failed", updated_at: new Date().toISOString() })
+      .eq("payment_id", payment.id);
     return NextResponse.json({ ok: true });
   }
 
@@ -401,6 +413,10 @@ export async function POST(req: Request) {
     } else {
       await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "expired" });
     }
+    await admin
+      .from("member_zone_purchases")
+      .update({ status: "expired", updated_at: new Date().toISOString() })
+      .eq("payment_id", payment.id);
     return NextResponse.json({ ok: true });
   }
 
@@ -413,6 +429,14 @@ export async function POST(req: Request) {
         p_reason: "hitpay_webhook_refund",
       });
     }
+    await admin
+      .from("member_zone_purchases")
+      .update({
+        status: "refunded",
+        refunded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_id", payment.id);
     return NextResponse.json({ ok: true });
   }
 
