@@ -6,6 +6,15 @@ import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import {
+  studioClassPath,
+  studioClassesPath,
+  studioEventPath,
+  studioHomePath,
+  studioMemberZonePath,
+  studioPackagePath,
+  studioServicePath,
+} from "@/lib/public-paths";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -150,7 +159,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const hiddenServices = services.slice(4);
   const visibleClasses = classes.slice(0, 4);
   const hiddenClasses = classes.slice(4);
-  const nowMs = Date.now();
+  const nowMs = new Date().getTime();
   const upcomingEvents = (events ?? []).filter((e) => new Date(String(e.end_time)).getTime() >= nowMs);
   const pastEvents = (events ?? []).filter((e) => new Date(String(e.end_time)).getTime() < nowMs);
   const visibleEvents = upcomingEvents.slice(0, 4);
@@ -189,7 +198,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             </p>
           </div>
           <div className="justify-self-end">
-            <StudioAccountEntry showMembershipsLink={memberships.length > 0} />
+            <StudioAccountEntry studioSlug={studio.public_slug} showMembershipsLink={memberships.length > 0} />
           </div>
         </div>
         <div className={`${ui.card} bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
@@ -241,7 +250,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <div className="mt-4 grid gap-4">
             {visibleServices.map((svc) => {
               const serviceWaLink = buildServiceWaLink(svc.title);
-              const servicePath = `/service/${studio.public_slug}/${svc.share_slug}`;
+              const servicePath = studioServicePath(studio.public_slug, svc.share_slug);
               return (
                 <article key={svc.id} className={ui.card}>
                   <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
@@ -330,7 +339,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               <div className="mt-4 grid gap-4">
                 {hiddenServices.map((svc) => {
                   const serviceWaLink = buildServiceWaLink(svc.title);
-                  const servicePath = `/service/${studio.public_slug}/${svc.share_slug}`;
+                  const servicePath = studioServicePath(studio.public_slug, svc.share_slug);
                   return (
                     <article key={svc.id} className={ui.card}>
                       <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
@@ -442,8 +451,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   : `${spotsLeft} spots left`;
               const classSlug = cls?.share_slug;
               const href = classSlug
-                ? `/class/${studio.public_slug}/${classSlug}?session_id=${s.id}`
-                : `/booking/${studio.public_slug}`;
+                ? studioClassPath(studio.public_slug, classSlug, `session_id=${s.id}`)
+                : studioClassesPath(studio.public_slug);
               return (
                 <article
                   key={s.id}
@@ -549,8 +558,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       : `${spotsLeft} spots left`;
                   const classSlug = cls?.share_slug;
                   const href = classSlug
-                    ? `/class/${studio.public_slug}/${classSlug}?session_id=${s.id}`
-                    : `/booking/${studio.public_slug}`;
+                    ? studioClassPath(studio.public_slug, classSlug, `session_id=${s.id}`)
+                    : studioClassesPath(studio.public_slug);
                   return (
                     <article
                       key={s.id}
@@ -645,7 +654,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
               const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
               const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-              const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
+              const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
               const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
               const eSpotsLeft = Number(e.spots_left ?? 0);
               const eCapacity = Number(e.capacity ?? 0);
@@ -732,7 +741,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
                   const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
                   const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-                  const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
+                  const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
                   const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
                   const eSpotsLeft = Number(e.spots_left ?? 0);
                   const eCapacity = Number(e.capacity ?? 0);
@@ -821,7 +830,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
                   const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
                   const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-                  const href = e.share_slug ? `/event/${studio.public_slug}/${e.share_slug}` : `/${studio.public_slug}`;
+                  const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
                   const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
                   return (
                     <article key={e.id} className={`${ui.card} opacity-70`}>
@@ -902,7 +911,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <p className={`mt-1 text-sm ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {memberZoneSeries.map((series) => {
-              const href = `/member-zone/${studio.public_slug}/${series.share_slug}`;
+              const href = studioMemberZonePath(studio.public_slug, series.share_slug);
               const priceStr = `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price ?? 0).toFixed(2)}`;
               const accessTag =
                 series.access_type === "free"
@@ -976,7 +985,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {packages.map((pkg) => {
               const buyHref = pkg.share_slug
-                ? `/buy/${studio.public_slug}/${pkg.share_slug}`
+                ? studioPackagePath(studio.public_slug, pkg.share_slug)
                 : null;
               const pkgImage = (pkg as { image_url?: string | null }).image_url ?? null;
               const pkgVideo = (pkg as { video_url?: string | null }).video_url ?? null;

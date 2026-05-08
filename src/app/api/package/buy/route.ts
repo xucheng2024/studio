@@ -4,6 +4,7 @@ import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitp
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
 
   const { data: pkg, error: pkgErr } = await admin
     .from("packages")
-    .select("id, studio_id, name, credits, price, expiry_days, is_active, deleted_at")
+    .select("id, studio_id, name, credits, price, expiry_days, is_active, deleted_at, studios(public_slug)")
     .eq("id", parsed.data.package_id)
     .single();
 
@@ -45,6 +46,12 @@ export async function POST(req: Request) {
   }
   if (pkg.is_active === false || (pkg as { deleted_at?: string | null }).deleted_at) {
     return NextResponse.json({ error: "package_not_available" }, { status: 409 });
+  }
+  const studioRaw = (pkg as { studios?: { public_slug?: string | null } | { public_slug?: string | null }[] | null }).studios;
+  const studioObj = Array.isArray(studioRaw) ? studioRaw[0] : studioRaw;
+  const studioSlug = normalizeStudioSlug(studioObj?.public_slug ?? "");
+  if (!studioSlug) {
+    return NextResponse.json({ error: "studio_not_found" }, { status: 404 });
   }
 
   const blockedPkg = await respondIfStudioContractSuspended(admin, pkg.studio_id);
@@ -109,7 +116,7 @@ export async function POST(req: Request) {
   if (!baseUrl) {
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
-  const returnUrl = `${baseUrl}/checkout/${payment.id}`;
+  const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;
   try {
     const hitpay = await createHitpayPaymentRequest({
       apiKey: studioSecrets.hitpay_api_key,

@@ -7,18 +7,16 @@ function isSharePagePath(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "") || "/";
   if (normalized === "/") return false;
 
-  if (normalized.startsWith("/class/")) return true;
-  if (normalized.startsWith("/buy/")) return true;
-  if (normalized.startsWith("/checkout/")) return true;
-
-  if (normalized.startsWith("/booking/")) {
-    const parts = normalized.split("/").filter(Boolean);
-    return parts.length >= 2;
-  }
-
   const parts = normalized.split("/").filter(Boolean);
   if (parts.length === 1) {
     return !isReservedPublicSlug(parts[0] ?? "");
+  }
+  if (
+    parts.length >= 2 &&
+    !isReservedPublicSlug(parts[0] ?? "") &&
+    ["classes", "events", "services", "packages", "memberships", "member-zone", "me", "checkout", "auth"].includes(parts[1] ?? "")
+  ) {
+    return true;
   }
 
   return false;

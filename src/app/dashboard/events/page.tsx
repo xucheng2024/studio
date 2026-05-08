@@ -49,7 +49,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultEndDate) ?? fallbackDateTo;
   const eventStatusFilter = sp.event_status ?? "all";
 
-  let eventsQuery = supabase
+  const eventsQuery = supabase
     .from("events")
     .select("id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, is_active, share_slug, image_url, video_url, address, address_details")
     .in("studio_id", studioIds)
@@ -78,8 +78,8 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const inactiveCount = filteredEvents.filter((event) => event.is_active === false).length;
   const seatsRemaining = filteredEvents.reduce((sum, event) => sum + Number(event.spots_left ?? 0), 0);
 
-  const renderEventCard = (e: any) => {
-    const href = studioPublicSlug && e.share_slug ? `/event/${studioPublicSlug}/${e.share_slug}` : null;
+  const renderEventCard = (e: NonNullable<typeof events>[number]) => {
+    const href = studioPublicSlug && e.share_slug ? `/${studioPublicSlug}/events/${e.share_slug}` : null;
     const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
     return (
       <form key={e.id} action={updateEvent} className={ui.card}>

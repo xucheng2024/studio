@@ -93,7 +93,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
 
   revalidatePath("/dashboard/packages");
-  revalidatePath("/checkout");
+  revalidatePath("/");
   return NextResponse.json({ ok: true });
 }
 
@@ -131,6 +131,6 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
 
   revalidatePath("/dashboard/packages");
-  revalidatePath("/checkout");
+  revalidatePath("/");
   return NextResponse.json({ ok: true });
 }

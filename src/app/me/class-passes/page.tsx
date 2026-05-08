@@ -14,7 +14,7 @@ export default async function MyClassPassesPage() {
   if (!user) redirect("/login");
   const c = await cookies();
   const activeStudioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
-  const packagesHref = activeStudioSlug ? `/${activeStudioSlug}#packages` : "/booking";
+  const packagesHref = activeStudioSlug ? `/${activeStudioSlug}#packages` : "/";
 
   const { data: rows } = await supabase
     .from("client_packages")
@@ -40,6 +40,7 @@ export default async function MyClassPassesPage() {
     .order("credit_consumed_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(30);
+  const now = new Date().getTime();
 
   return (
     <main className={ui.page}>
@@ -64,7 +65,6 @@ export default async function MyClassPassesPage() {
         ) : (
           <ul className="mt-6 flex flex-col gap-3">
             {rows.map((r) => {
-              const now = Date.now();
               const expiryMs = r.expiry_date ? new Date(r.expiry_date).getTime() : null;
               const isExpired = expiryMs != null && expiryMs <= now;
               const isUsedUp = Number(r.credits_left ?? 0) <= 0;

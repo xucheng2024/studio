@@ -29,7 +29,7 @@ export default function AccessRequiredPage() {
           <Link href="/auth" className={ui.btnPrimarySm}>
             Back to staff sign in
           </Link>
-          <Link href="/booking" className={ui.btnSecondarySm}>
+          <Link href="/" className={ui.btnSecondarySm}>
             Browse classes
           </Link>
         </div>

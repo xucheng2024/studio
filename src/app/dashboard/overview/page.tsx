@@ -64,7 +64,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
             />
           </label>
           <p className={`text-xs ${ui.muted}`}>
-            Live at <code className={ui.code}>/booking/your-slug</code> — stored lowercase.
+            Live at <code className={ui.code}>/your-slug</code> — stored lowercase.
           </p>
           <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Saving...">
             Save studio

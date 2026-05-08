@@ -217,7 +217,7 @@ export async function POST(req: Request) {
 
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
-  const redirectUrl = `${baseUrl}/checkout/${payment.id}`;
+  const redirectUrl = `${baseUrl}/${studio.public_slug}/checkout/${payment.id}`;
   const profilePromise = user
     ? admin
         .from("user_profiles")

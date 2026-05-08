@@ -5,14 +5,17 @@ import { useEffect, useState } from "react";
 import { CircleUserRound, X } from "lucide-react";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { SignOutButton } from "@/components/SignOutButton";
+import { studioMePath } from "@/lib/public-paths";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 export function StudioAccountEntry({
   isSignedIn,
+  studioSlug,
   showMembershipsLink,
 }: {
   isSignedIn?: boolean;
+  studioSlug: string;
   showMembershipsLink?: boolean;
 }) {
   const [showSignIn, setShowSignIn] = useState(false);
@@ -45,20 +48,20 @@ export function StudioAccountEntry({
           <CircleUserRound size={18} />
         </summary>
         <div className="absolute right-0 top-11 z-50 min-w-52 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
-          <Link href="/me/bookings" className={ui.linkHeaderMenu}>
+          <Link href={studioMePath(studioSlug, "bookings")} className={ui.linkHeaderMenu}>
             My bookings
           </Link>
-          <Link href="/me/class-passes" className={ui.linkHeaderMenu}>
+          <Link href={studioMePath(studioSlug, "class-passes")} className={ui.linkHeaderMenu}>
             My packages
           </Link>
-          <Link href="/me/orders" className={ui.linkHeaderMenu}>
+          <Link href={studioMePath(studioSlug, "orders")} className={ui.linkHeaderMenu}>
             My orders
           </Link>
-          <Link href="/me/profile" className={ui.linkHeaderMenu}>
+          <Link href={studioMePath(studioSlug, "profile")} className={ui.linkHeaderMenu}>
             Profile
           </Link>
           {showMembershipsLink !== false ? (
-            <Link href="/me/memberships" className={ui.linkHeaderMenu}>
+            <Link href={studioMePath(studioSlug, "memberships")} className={ui.linkHeaderMenu}>
               My memberships
             </Link>
           ) : null}

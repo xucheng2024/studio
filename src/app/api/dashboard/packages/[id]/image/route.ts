@@ -98,7 +98,7 @@ export async function POST(req: Request, ctx: RouteParams) {
   }
 
   revalidatePath("/dashboard/packages");
-  revalidatePath("/checkout");
+  revalidatePath("/");
   return NextResponse.json({ ok: true, image_url: publicUrl, image_updated_at: now });
 }
 
@@ -141,6 +141,6 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
 
   revalidatePath("/dashboard/packages");
-  revalidatePath("/checkout");
+  revalidatePath("/");
   return NextResponse.json({ ok: true, image_url: null });
 }

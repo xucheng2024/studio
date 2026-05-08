@@ -174,7 +174,7 @@ export async function POST(req: Request) {
   }
 
   const membershipSlug = (membership as { share_slug?: string | null }).share_slug ?? "";
-  const redirectUrl = `${baseUrl}/membership/${studioSlug}/${membershipSlug}`;
+  const redirectUrl = `${baseUrl}/${studioSlug}/memberships/${membershipSlug}`;
 
   try {
     const hitpay = await createHitpayRecurringBilling({

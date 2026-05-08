@@ -7,7 +7,7 @@ export default async function CheckoutPage() {
   const c = await cookies();
   const activeSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
   if (activeSlug) {
-    redirect(`/booking/${activeSlug}`);
+    redirect(`/${activeSlug}/classes`);
   }
   redirect("/");
 }

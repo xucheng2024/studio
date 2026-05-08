@@ -4,6 +4,7 @@ import { site } from "@/lib/brand";
 import { SignOutButton } from "@/components/SignOutButton";
 import { MobileMenu } from "@/components/MobileMenu";
 import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
+import { studioClassesPath, studioMePath } from "@/lib/public-paths";
 import { resolveAccessContext } from "@/lib/rbac";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -19,7 +20,7 @@ export async function SiteHeader() {
             {site.name}
           </Link>
           <nav className="flex items-center gap-1">
-            <Link href="/booking" className={ui.linkHeaderNav}>Classes</Link>
+            <Link href="/" className={ui.linkHeaderNav}>Studios</Link>
             <Link href="/auth" className={`${ui.btnPrimarySm} py-1!`}>Sign in</Link>
           </nav>
         </div>
@@ -55,25 +56,28 @@ export async function SiteHeader() {
   // If user arrived via a studio public page (cookie set), show member nav.
   // If no studio context, show Dashboard link for staff or generic member nav.
   const inStudioContext = Boolean(activeStudioSlug);
+  const memberNavItems = activeStudioSlug
+    ? [
+        { href: studioMePath(activeStudioSlug, "bookings"), label: "My bookings" },
+        { href: studioMePath(activeStudioSlug, "class-passes"), label: "My packages" },
+        { href: studioMePath(activeStudioSlug, "orders"), label: "My orders" },
+        { href: studioMePath(activeStudioSlug, "profile"), label: "Profile" },
+        ...(showMembershipsLink ? [{ href: studioMePath(activeStudioSlug, "memberships"), label: "My memberships" }] : []),
+      ]
+    : [
+        { href: "/me/bookings", label: "My bookings" },
+        { href: "/me/class-passes", label: "My packages" },
+        { href: "/me/orders", label: "My orders" },
+        { href: "/me/profile", label: "Profile" },
+        ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
+      ];
   const navItems = user
     ? inStudioContext
-      ? [
-          { href: "/me/bookings", label: "My bookings" },
-          { href: "/me/class-passes", label: "My packages" },
-          { href: "/me/orders", label: "My orders" },
-          { href: "/me/profile", label: "Profile" },
-          ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
-        ]
+      ? memberNavItems
       : hasBackofficeAccess
         ? [{ href: "/dashboard", label: "Dashboard" }]
-        : [
-            { href: "/me/bookings", label: "My bookings" },
-            { href: "/me/class-passes", label: "My packages" },
-            { href: "/me/orders", label: "My orders" },
-            { href: "/me/profile", label: "Profile" },
-            ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
-          ]
-    : [{ href: "/booking", label: "Classes" }];
+        : memberNavItems
+    : [{ href: activeStudioSlug ? studioClassesPath(activeStudioSlug) : "/", label: "Classes" }];
 
   return (
     <header className={ui.headerBar}>

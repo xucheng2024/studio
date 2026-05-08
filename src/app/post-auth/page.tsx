@@ -100,7 +100,7 @@ export default async function PostAuthPage({ searchParams }: Props) {
       : access.hasBackofficeAccess
         ? "/dashboard/operations"
         : studioSlug
-          ? `/booking/${studioSlug}`
+          ? `/${studioSlug}`
           : "/";
 
   if (!profile?.phone?.trim()) {

@@ -6,10 +6,7 @@ export const ACTIVE_MEMBER_STUDIO_COOKIE = "member_active_studio_slug";
 export function parseStudioSlugFromPath(pathname: string): string | null {
   const path = pathname.trim();
   const patterns = [
-    /^\/booking\/([a-z0-9-]{3,60})(?:\/|$)/i,
-    /^\/class\/([a-z0-9-]{3,60})(?:\/|$)/i,
-    /^\/buy\/([a-z0-9-]{3,60})(?:\/|$)/i,
-    /^\/member-zone\/([a-z0-9-]{3,60})(?:\/|$)/i,
+    /^\/([a-z0-9-]{3,60})\/(?:classes|events|services|packages|memberships|member-zone|me|checkout|auth)(?:\/|$)/i,
     /^\/m\/([a-z0-9-]{3,60})\/auth(?:\/|$)/i,
     /^\/([a-z0-9-]{3,60})(?:\/|$)/i,
   ];

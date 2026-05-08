@@ -117,7 +117,7 @@ export function MembershipLifecycleRow({
           ) : null}
           {shareSlug && studioPublicSlug ? (
             <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>
-              /membership/{studioPublicSlug}/{shareSlug}
+              /{studioPublicSlug}/memberships/{shareSlug}
             </p>
           ) : null}
         </div>

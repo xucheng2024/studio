@@ -35,6 +35,6 @@ export async function POST(_req: Request, ctx: RouteParams) {
 
   revalidatePath("/dashboard/classes");
   revalidatePath("/dashboard/schedule");
-  revalidatePath("/booking");
+  revalidatePath("/");
   return NextResponse.json({ ok: true });
 }

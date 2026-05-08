@@ -37,7 +37,7 @@ export default async function Home({ searchParams }: Props) {
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2">
           <Link
-            href="/booking"
+            href="/"
             className={`${ui.cardInteractive} group flex gap-4 border-teal-200/60 dark:border-teal-900/50`}
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700 transition-colors group-hover:bg-teal-200 dark:bg-teal-900/50 dark:text-teal-400 dark:group-hover:bg-teal-900">
@@ -49,7 +49,7 @@ export default async function Home({ searchParams }: Props) {
             </span>
           </Link>
 
-          <Link href="/checkout" className={`${ui.cardInteractive} group flex gap-4`}>
+          <Link href="/" className={`${ui.cardInteractive} group flex gap-4`}>
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 transition-colors group-hover:bg-violet-200 dark:bg-violet-900/40 dark:text-violet-400 dark:group-hover:bg-violet-900/60">
               <ShoppingBag size={19} />
             </span>
@@ -59,7 +59,7 @@ export default async function Home({ searchParams }: Props) {
             </span>
           </Link>
 
-          <Link href="/booking" className={`${ui.cardInteractive} group flex gap-4`}>
+          <Link href="/" className={`${ui.cardInteractive} group flex gap-4`}>
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition-colors group-hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:group-hover:bg-emerald-900/60">
               <RefreshCw size={19} />
             </span>
@@ -84,9 +84,9 @@ export default async function Home({ searchParams }: Props) {
 
         <p className={`mt-10 text-sm ${ui.muted}`}>
           Studios get a shareable booking link at{" "}
-          <code className={ui.code}>/booking/your-slug</code>{" "}
+          <code className={ui.code}>/your-slug</code>{" "}
           for members to book classes online.{" "}
-          <Link href="/booking" className={ui.link}>Open booking →</Link>
+          <Link href="/" className={ui.link}>Open studios →</Link>
         </p>
       </div>
     </main>

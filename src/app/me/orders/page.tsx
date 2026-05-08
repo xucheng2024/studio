@@ -180,7 +180,7 @@ export default async function MyOrdersPage() {
         {!payments?.length ? (
           <div className={ui.emptyState}>
             <p className={`text-sm ${ui.muted}`}>No orders yet.</p>
-            <Link href="/booking" className={`mt-1 text-sm ${ui.link}`}>
+            <Link href="/" className={`mt-1 text-sm ${ui.link}`}>
               Browse classes →
             </Link>
           </div>

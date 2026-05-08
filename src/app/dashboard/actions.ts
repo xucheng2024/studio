@@ -120,7 +120,7 @@ export async function createStudio(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/dashboard");
-  revalidatePath(`/booking/${public_slug}`);
+  revalidatePath(`/${public_slug}`);
 }
 
 export async function updateStudioBasics(formData: FormData): Promise<void> {
@@ -147,8 +147,6 @@ export async function updateStudioBasics(formData: FormData): Promise<void> {
   revalidatePath("/dashboard/overview");
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/settings/public-profile");
-  revalidatePath(`/booking/${public_slug}`);
-  revalidatePath(`/booking/${studio.public_slug}`);
   revalidatePath(`/${public_slug}`);
   revalidatePath(`/${studio.public_slug}`);
 }
@@ -198,9 +196,8 @@ export async function updateStudioHitpaySettings(formData: FormData): Promise<vo
   }
 
   revalidatePath("/dashboard/settings/payments");
-  revalidatePath("/checkout");
-  revalidatePath("/booking");
-  if (studio.public_slug) revalidatePath(`/booking/${studio.public_slug}`);
+  revalidatePath("/");
+  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
 }
 
 function normalizeE164(raw: string): string | null {
@@ -766,9 +763,9 @@ export async function createSession(formData: FormData): Promise<void> {
     return;
   }
   revalidatePath("/dashboard/schedule");
-  revalidatePath("/booking");
   if (studio.public_slug) {
-    revalidatePath(`/booking/${studio.public_slug}`);
+    revalidatePath(`/${studio.public_slug}`);
+    revalidatePath(`/${studio.public_slug}/classes`);
   }
 }
 
@@ -812,7 +809,7 @@ export async function createPackage(formData: FormData): Promise<void> {
     return;
   }
   revalidatePath("/dashboard/packages");
-  revalidatePath("/checkout");
+  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
 }
 
 async function generateUniqueMembershipShareSlug(
@@ -874,7 +871,7 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
   revalidatePath("/dashboard/memberships");
   if (studio.public_slug) {
     revalidatePath(`/${studio.public_slug}`);
-    revalidatePath(`/membership/${studio.public_slug}/${share_slug}`);
+    revalidatePath(`/${studio.public_slug}/memberships/${share_slug}`);
   }
 }
 
@@ -950,7 +947,7 @@ export async function createEvent(formData: FormData): Promise<void> {
     return;
   }
   revalidatePath("/dashboard/events");
-  revalidatePath("/checkout");
+  revalidatePath("/");
 }
 
 export async function updateEvent(formData: FormData): Promise<void> {
@@ -1020,7 +1017,7 @@ export async function updateEvent(formData: FormData): Promise<void> {
     return;
   }
   revalidatePath("/dashboard/events");
-  revalidatePath("/checkout");
+  revalidatePath("/");
 }
 
 export async function deleteEvent(formData: FormData): Promise<void> {

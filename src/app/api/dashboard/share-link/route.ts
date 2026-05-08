@@ -63,9 +63,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const url = `${base}/buy/${studio.public_slug}/${slugResult.slug}`;
-    revalidatePath("/checkout");
-    revalidatePath(`/buy/${studio.public_slug}/${slugResult.slug}`);
+    const url = `${base}/${studio.public_slug}/packages/${slugResult.slug}`;
+    revalidatePath(`/${studio.public_slug}`);
+    revalidatePath(`/${studio.public_slug}/packages/${slugResult.slug}`);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
 
@@ -102,8 +102,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
     }
 
-    const url = `${base}/membership/${studio.public_slug}/${slugResult.slug}`;
-    revalidatePath(`/membership/${studio.public_slug}/${slugResult.slug}`);
+    const url = `${base}/${studio.public_slug}/memberships/${slugResult.slug}`;
+    revalidatePath(`/${studio.public_slug}/memberships/${slugResult.slug}`);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
 
@@ -137,9 +137,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
     }
 
-    const url = `${base}/service/${studio.public_slug}/${slugResult.slug}`;
+    const url = `${base}/${studio.public_slug}/services/${slugResult.slug}`;
     revalidatePath(`/${studio.public_slug}`);
-    revalidatePath(`/service/${studio.public_slug}/${slugResult.slug}`);
+    revalidatePath(`/${studio.public_slug}/services/${slugResult.slug}`);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
 
@@ -198,9 +198,10 @@ export async function POST(req: Request) {
     // Use the human-readable session slug in the shared URL.
     // The class page accepts both ?session=<slug> and ?session_id=<uuid> so
     // direct links with UUIDs (e.g. from ops tools) keep working.
-    const url = `${base}/class/${studio.public_slug}/${classSlugResult.slug}?session=${sessionSlugResult.slug}`;
-    revalidatePath("/booking");
-    revalidatePath(`/class/${studio.public_slug}/${classSlugResult.slug}`);
+    const url = `${base}/${studio.public_slug}/classes/${classSlugResult.slug}?session=${sessionSlugResult.slug}`;
+    revalidatePath(`/${studio.public_slug}`);
+    revalidatePath(`/${studio.public_slug}/classes`);
+    revalidatePath(`/${studio.public_slug}/classes/${classSlugResult.slug}`);
     return NextResponse.json({
       url,
       share_slug: classSlugResult.slug,
@@ -238,9 +239,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
   }
 
-  const url = `${base}/class/${studio.public_slug}/${slugResult.slug}`;
-  revalidatePath("/booking");
-  revalidatePath(`/class/${studio.public_slug}/${slugResult.slug}`);
+  const url = `${base}/${studio.public_slug}/classes/${slugResult.slug}`;
+  revalidatePath(`/${studio.public_slug}`);
+  revalidatePath(`/${studio.public_slug}/classes`);
+  revalidatePath(`/${studio.public_slug}/classes/${slugResult.slug}`);
   return NextResponse.json({ url, share_slug: slugResult.slug });
 }
 

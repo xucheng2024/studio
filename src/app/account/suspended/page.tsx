@@ -23,7 +23,7 @@ export default function SuspendedAccountPage() {
             Contact your platform admin to reactivate the studio contract, then sign in again.
           </div>
           <div className="flex flex-wrap gap-2">
-            <DashboardAppLink href="/booking" className={ui.btnSecondarySm}>
+            <DashboardAppLink href="/" className={ui.btnSecondarySm}>
               Open booking page
             </DashboardAppLink>
             <DashboardAppLink href="/auth" className={ui.btnPrimary}>
@@ -35,4 +35,3 @@ export default function SuspendedAccountPage() {
     </main>
   );
 }
-

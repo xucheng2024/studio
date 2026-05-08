@@ -62,6 +62,9 @@ export async function POST(req: Request) {
   const studioRaw = event.studios as { public_slug?: string | null } | { public_slug?: string | null }[] | null;
   const studioObj = Array.isArray(studioRaw) ? studioRaw[0] : studioRaw;
   const studioSlug = normalizeStudioSlug(studioObj?.public_slug ?? "");
+  if (!studioSlug) {
+    return NextResponse.json({ error: "studio_not_found" }, { status: 404 });
+  }
   const inputSlug = parsed.data.slug ? normalizeStudioSlug(parsed.data.slug) : null;
   if (inputSlug && inputSlug !== studioSlug) {
     return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
@@ -148,7 +151,7 @@ export async function POST(req: Request) {
 
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
-  const returnUrl = `${baseUrl}/checkout/${payment.id}`;
+  const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;
   const guestDisplayName = guestName ?? null;
   const guestDisplayEmail = guestEmail ?? user?.email ?? null;
 

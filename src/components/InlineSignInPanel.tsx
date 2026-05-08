@@ -13,7 +13,7 @@ function safeReturnPath(pathname: string, search: string) {
   const path = pathname.startsWith("/") ? pathname : "/";
   const qs = search ? (search.startsWith("?") ? search : `?${search}`) : "";
   const full = `${path}${qs}`;
-  if (!full.startsWith("/") || full.startsWith("//")) return "/booking";
+  if (!full.startsWith("/") || full.startsWith("//")) return "/";
   return full;
 }
 

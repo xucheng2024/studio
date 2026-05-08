@@ -35,6 +35,6 @@ export async function POST(_req: Request, ctx: RouteParams) {
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
 
   revalidatePath("/dashboard/packages");
-  revalidatePath("/checkout");
+  revalidatePath("/");
   return NextResponse.json({ ok: true });
 }

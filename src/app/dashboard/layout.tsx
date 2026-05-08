@@ -33,7 +33,7 @@ export default async function DashboardLayout({
     if (!access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess) {
       redirect("/account/suspended");
     }
-    redirect("/booking");
+    redirect("/");
   }
 
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];

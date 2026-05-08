@@ -137,7 +137,7 @@ export function PackageLifecycleRow({
               ) : null}
               {shareSlug && studioPublicSlug ? (
                 <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>
-                  /buy/{studioPublicSlug}/{shareSlug}
+                  /{studioPublicSlug}/packages/{shareSlug}
                 </p>
               ) : null}
             </div>

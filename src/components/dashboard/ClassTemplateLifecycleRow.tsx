@@ -154,7 +154,7 @@ export function ClassTemplateLifecycleRow({
               </p>
               {shareSlug && studioPublicSlug ? (
                 <p className={`mt-0.5 font-mono text-[11px] ${ui.muted}`}>
-                  /class/{studioPublicSlug}/{shareSlug}
+                  /{studioPublicSlug}/classes/{shareSlug}
                 </p>
               ) : null}
               {tags && tags.length > 0 ? (

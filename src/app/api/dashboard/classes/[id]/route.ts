@@ -132,7 +132,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
 
   revalidatePath("/dashboard/classes");
   revalidatePath("/dashboard/schedule");
-  revalidatePath("/booking");
+  revalidatePath("/");
   return NextResponse.json({ ok: true });
 }
 
@@ -168,6 +168,6 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
 
   revalidatePath("/dashboard/classes");
   revalidatePath("/dashboard/schedule");
-  revalidatePath("/booking");
+  revalidatePath("/");
   return NextResponse.json({ ok: true });
 }

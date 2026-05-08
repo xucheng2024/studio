@@ -80,7 +80,7 @@ export default async function OperationsPage({ searchParams }: Props) {
             <DashboardAppLink href="/dashboard/overview" className={ui.btnPrimary}>
               Create studio now
             </DashboardAppLink>
-            <DashboardAppLink href="/booking" className={ui.btnSecondarySm}>
+            <DashboardAppLink href="/" className={ui.btnSecondarySm}>
               Open public booking page
             </DashboardAppLink>
           </div>

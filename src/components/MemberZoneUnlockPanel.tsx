@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Lock } from "lucide-react";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { ui } from "@/lib/ui";
@@ -18,16 +18,12 @@ export function MemberZoneUnlockPanel(props: {
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(props.isAuthenticated));
+  const isLoggedIn = Boolean(props.isAuthenticated);
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const membershipHref = props.membershipHref ?? "/me/memberships";
-
-  useEffect(() => {
-    setIsLoggedIn(Boolean(props.isAuthenticated));
-  }, [props.isAuthenticated]);
 
   const startPurchase = async () => {
     if (!isLoggedIn && !showGuestForm) {

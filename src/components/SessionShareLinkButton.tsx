@@ -4,7 +4,7 @@ import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
-  /** Path starting with `/` (e.g. `/class/...?session_id=`) */
+  /** Path starting with `/` (e.g. `/studio/classes/...?session_id=`) */
   sharePath: string;
   title: string;
   text?: string;

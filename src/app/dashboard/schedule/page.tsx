@@ -203,7 +203,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     const classSlug = cls?.id ? classShareSlugs.get(cls.id) : null;
     const sharePath =
       activeStudio?.public_slug && classSlug
-        ? `/class/${activeStudio.public_slug}/${classSlug}?session_id=${s.id}`
+        ? `/${activeStudio.public_slug}/classes/${classSlug}?session_id=${s.id}`
         : null;
 
     return (

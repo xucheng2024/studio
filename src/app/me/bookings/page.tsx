@@ -13,7 +13,7 @@ export default async function MyBookingsPage() {
   if (!user) redirect("/login");
   const c = await cookies();
   const activeStudioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
-  const browseClassesHref = activeStudioSlug ? `/${activeStudioSlug}#upcoming-classes` : "/booking";
+  const browseClassesHref = activeStudioSlug ? `/${activeStudioSlug}#upcoming-classes` : "/";
   await mergeGuestRecordsForUser(user.id, user.email);
 
   const { data: classBookings } = await supabase
