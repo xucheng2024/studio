@@ -1,7 +1,7 @@
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-type AccessType = "free" | "paid" | "members_only";
+type AccessType = "free" | "paid_only" | "member_only" | "member_or_paid";
 type Scope = "series" | "lesson";
 
 export type MemberZoneAccessResult = {
@@ -13,6 +13,32 @@ export type MemberZoneAccessResult = {
   purchaseScope: Scope;
 };
 
+export function isPurchaseEnabledAccessType(accessType: AccessType) {
+  return accessType === "paid_only" || accessType === "member_or_paid";
+}
+
+export function isMembershipEnabledAccessType(accessType: AccessType) {
+  return accessType === "member_only" || accessType === "member_or_paid";
+}
+
+export function normalizeMemberZoneAccessType(raw: string | null | undefined): AccessType {
+  const value = String(raw ?? "").trim().toLowerCase();
+  if (value === "free" || value === "paid_only" || value === "member_only" || value === "member_or_paid") {
+    return value;
+  }
+  if (value === "paid") return "member_or_paid";
+  if (value === "members_only") return "member_only";
+  return "member_only";
+}
+
+export function normalizeMemberZoneLessonOverride(
+  raw: string | null | undefined,
+): "inherit" | AccessType {
+  const value = String(raw ?? "").trim().toLowerCase();
+  if (value === "inherit") return "inherit";
+  return normalizeMemberZoneAccessType(value);
+}
+
 export function resolveMemberZoneAccessRule(input: {
   seriesAccessType: string | null | undefined;
   seriesPrice: number | null | undefined;
@@ -21,29 +47,25 @@ export function resolveMemberZoneAccessRule(input: {
   lessonOverridePrice: number | null | undefined;
   lessonCurrency: string | null | undefined;
 }) {
-  const override = String(input.lessonAccessOverride ?? "inherit").toLowerCase();
-  const baseType = String(input.seriesAccessType ?? "members_only").toLowerCase();
-  const resolvedAccessType: AccessType =
-    override === "free" || override === "paid" || override === "members_only"
-      ? (override as AccessType)
-      : baseType === "free" || baseType === "paid" || baseType === "members_only"
-        ? (baseType as AccessType)
-        : "members_only";
+  const override = normalizeMemberZoneLessonOverride(input.lessonAccessOverride);
+  const baseType = normalizeMemberZoneAccessType(input.seriesAccessType);
+  const resolvedAccessType: AccessType = override === "inherit" ? baseType : override;
   const resolvedPrice =
-    resolvedAccessType === "paid"
+    isPurchaseEnabledAccessType(resolvedAccessType)
       ? Math.max(
           0,
           Number(
-            override === "paid"
+            override !== "inherit" && isPurchaseEnabledAccessType(override)
               ? input.lessonOverridePrice ?? 0
               : input.seriesPrice ?? 0,
           ),
         )
       : 0;
   const resolvedCurrency = String(
-    (override === "paid" ? input.lessonCurrency : input.seriesCurrency) ?? "SGD",
+    (override !== "inherit" && isPurchaseEnabledAccessType(override) ? input.lessonCurrency : input.seriesCurrency) ?? "SGD",
   ).toUpperCase();
-  const purchaseScope: Scope = override === "paid" ? "lesson" : "series";
+  const purchaseScope: Scope =
+    override !== "inherit" && isPurchaseEnabledAccessType(override) ? "lesson" : "series";
   return { resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
 }
 
@@ -95,6 +117,16 @@ export async function resolveMemberZonePlaybackAccess(
     isMembershipActiveForAccess(row),
   );
   if (hasMembership) {
+    if (!isMembershipEnabledAccessType(resolvedAccessType)) {
+      return {
+        canPlay: false,
+        reason: "purchase_required",
+        resolvedAccessType,
+        resolvedPrice,
+        resolvedCurrency,
+        purchaseScope,
+      };
+    }
     return {
       canPlay: true,
       reason: "membership",

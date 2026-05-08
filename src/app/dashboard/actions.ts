@@ -1040,11 +1040,11 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
   const description = String(formData.get("description") ?? "").trim() || null;
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const promo_video_url = sanitizeVideoUrl(String(formData.get("promo_video_url") ?? "")) || null;
-  const accessTypeRaw = String(formData.get("access_type") ?? "members_only").trim().toLowerCase();
+  const accessTypeRaw = String(formData.get("access_type") ?? "member_only").trim().toLowerCase();
   const access_type =
-    accessTypeRaw === "free" || accessTypeRaw === "paid" || accessTypeRaw === "members_only"
+    accessTypeRaw === "free" || accessTypeRaw === "paid_only" || accessTypeRaw === "member_only" || accessTypeRaw === "member_or_paid"
       ? accessTypeRaw
-      : "members_only";
+      : "member_only";
   const price = sanitizePrice(formData.get("price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
@@ -1060,7 +1060,7 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
     cover_image_url,
     promo_video_url,
     access_type,
-    price: access_type === "paid" ? price : 0,
+    price: access_type === "paid_only" || access_type === "member_or_paid" ? price : 0,
     currency,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
     share_slug,
@@ -1088,11 +1088,11 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
   const description = String(formData.get("description") ?? "").trim() || null;
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const promo_video_url = sanitizeVideoUrl(String(formData.get("promo_video_url") ?? "")) || null;
-  const accessTypeRaw = String(formData.get("access_type") ?? "members_only").trim().toLowerCase();
+  const accessTypeRaw = String(formData.get("access_type") ?? "member_only").trim().toLowerCase();
   const access_type =
-    accessTypeRaw === "free" || accessTypeRaw === "paid" || accessTypeRaw === "members_only"
+    accessTypeRaw === "free" || accessTypeRaw === "paid_only" || accessTypeRaw === "member_only" || accessTypeRaw === "member_or_paid"
       ? accessTypeRaw
-      : "members_only";
+      : "member_only";
   const price = sanitizePrice(formData.get("price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
@@ -1108,7 +1108,7 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
       cover_image_url,
       promo_video_url,
       access_type,
-      price: access_type === "paid" ? price : 0,
+      price: access_type === "paid_only" || access_type === "member_or_paid" ? price : 0,
       currency,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
       is_active,
@@ -1171,7 +1171,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
   const durationMin = Number(formData.get("duration_min") ?? 0);
   const accessOverrideRaw = String(formData.get("access_override") ?? "inherit").trim().toLowerCase();
   const access_override =
-    accessOverrideRaw === "inherit" || accessOverrideRaw === "free" || accessOverrideRaw === "paid" || accessOverrideRaw === "members_only"
+    accessOverrideRaw === "inherit" || accessOverrideRaw === "free" || accessOverrideRaw === "paid_only" || accessOverrideRaw === "member_only" || accessOverrideRaw === "member_or_paid"
       ? accessOverrideRaw
       : "inherit";
   const override_price = sanitizePrice(formData.get("override_price"));
@@ -1188,7 +1188,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
     media_type,
     duration_min: Number.isFinite(durationMin) ? Math.max(0, Math.floor(durationMin)) : 0,
     access_override,
-    override_price: access_override === "paid" ? override_price : 0,
+    override_price: access_override === "paid_only" || access_override === "member_or_paid" ? override_price : 0,
     currency,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
     is_active: true,
@@ -1227,7 +1227,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
   const durationMin = Number(formData.get("duration_min") ?? 0);
   const accessOverrideRaw = String(formData.get("access_override") ?? "inherit").trim().toLowerCase();
   const access_override =
-    accessOverrideRaw === "inherit" || accessOverrideRaw === "free" || accessOverrideRaw === "paid" || accessOverrideRaw === "members_only"
+    accessOverrideRaw === "inherit" || accessOverrideRaw === "free" || accessOverrideRaw === "paid_only" || accessOverrideRaw === "member_only" || accessOverrideRaw === "member_or_paid"
       ? accessOverrideRaw
       : "inherit";
   const override_price = sanitizePrice(formData.get("override_price"));
@@ -1246,7 +1246,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
       media_type,
       duration_min: Number.isFinite(durationMin) ? Math.max(0, Math.floor(durationMin)) : 0,
       access_override,
-      override_price: access_override === "paid" ? override_price : 0,
+      override_price: access_override === "paid_only" || access_override === "member_or_paid" ? override_price : 0,
       currency,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
       is_active,

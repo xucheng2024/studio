@@ -10,7 +10,7 @@ export function MemberZoneUnlockPanel(props: {
   seriesSlug: string;
   seriesId: string;
   lessonId?: string | null;
-  mode: "membership_only" | "purchase";
+  mode: "member_only" | "paid_only" | "member_or_paid";
   amountLabel?: string;
   isAuthenticated?: boolean;
   membershipHref?: string | null;
@@ -65,11 +65,13 @@ export function MemberZoneUnlockPanel(props: {
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/50 dark:bg-amber-950/30">
       <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-        {props.mode === "membership_only"
+        {props.mode === "member_only"
           ? "Subscribe to unlock"
-          : `Buy ${props.amountLabel ?? ""} or subscribe to unlock`.trim()}
+          : props.mode === "member_or_paid"
+            ? `Buy ${props.amountLabel ?? ""} or subscribe to unlock`.trim()
+            : `Buy ${props.amountLabel ?? ""} to unlock`.trim()}
       </p>
-      {!isLoggedIn && props.mode === "purchase" ? (
+      {!isLoggedIn && props.mode !== "member_only" ? (
         <div className="mt-3 grid gap-2">
           <label className="flex flex-col gap-1">
             <span className={ui.label}>Name</span>
@@ -102,7 +104,7 @@ export function MemberZoneUnlockPanel(props: {
         </div>
       ) : null}
       <div className="mt-2 flex flex-wrap gap-2">
-        {props.mode === "purchase" ? (
+        {props.mode !== "member_only" ? (
           <button
             type="button"
             disabled={busy || (!isLoggedIn && (!name.trim() || !email.trim() || !phone.trim()))}
@@ -116,9 +118,11 @@ export function MemberZoneUnlockPanel(props: {
             Subscribe to unlock
           </Link>
         )}
-        <Link href={membershipHref} className={ui.btnSecondarySm}>
-          View membership plans
-        </Link>
+        {props.mode !== "paid_only" ? (
+          <Link href={membershipHref} className={ui.btnSecondarySm}>
+            View membership plans
+          </Link>
+        ) : null}
       </div>
       {msg ? <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">{msg}</p> : null}
     </div>

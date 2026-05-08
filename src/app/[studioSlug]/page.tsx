@@ -904,15 +904,19 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const tag =
                 series.access_type === "free"
                   ? "Free"
-                  : series.access_type === "paid"
-                    ? `${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
-                    : "Members only";
+                  : series.access_type === "paid_only"
+                    ? `Paid only · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    : series.access_type === "member_or_paid"
+                      ? `Member or paid · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                      : "Members only";
               const ctaLabel =
                 series.access_type === "free"
                   ? "Watch free"
-                  : series.access_type === "paid"
-                    ? `Buy · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
-                    : "Subscribe to unlock";
+                  : series.access_type === "paid_only"
+                    ? `Buy only · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    : series.access_type === "member_or_paid"
+                      ? `Buy or subscribe · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                      : "Subscribe to unlock";
               return (
                 <article key={series.id} className={ui.card}>
                   <Link href={href} className="block">

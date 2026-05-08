@@ -7,7 +7,11 @@ import { MemberZoneUnlockPanel } from "@/components/MemberZoneUnlockPanel";
 import { Lock } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
-import { resolveMemberZoneAccessRule } from "@/lib/memberZoneAccess";
+import {
+  isMembershipEnabledAccessType,
+  normalizeMemberZoneAccessType,
+  resolveMemberZoneAccessRule,
+} from "@/lib/memberZoneAccess";
 import type { MemberZoneAccessResult } from "@/lib/memberZoneAccess";
 import { buildMemberZoneShareMetadata } from "@/lib/publicShareOg";
 import { createClient } from "@/lib/supabase/server";
@@ -48,10 +52,14 @@ function renderMedia(url: string, title: string, mediaType: string) {
   );
 }
 
-function accessTypeBadgeLabel(accessType: "free" | "paid" | "members_only", amountLabel?: string) {
+function accessTypeBadgeLabel(
+  accessType: "free" | "paid_only" | "member_only" | "member_or_paid",
+  amountLabel?: string,
+) {
   if (accessType === "free") return "Free";
-  if (accessType === "members_only") return "Members only";
-  return amountLabel ? `Paid · ${amountLabel}` : "Paid";
+  if (accessType === "member_only") return "Members only";
+  if (accessType === "paid_only") return amountLabel ? `Paid only · ${amountLabel}` : "Paid only";
+  return amountLabel ? `Member or paid · ${amountLabel}` : "Member or paid";
 }
 
 export default async function MemberZoneSeriesPage({ params }: Props) {
@@ -106,7 +114,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
   const lessons = lessonRows ?? [];
   const seriesPriceLabel = `${String(seriesData.currency ?? "SGD").toUpperCase()} ${Number(seriesData.price ?? 0).toFixed(2)}`;
   const seriesBadge = accessTypeBadgeLabel(
-    (String(seriesData.access_type ?? "members_only").toLowerCase() as "free" | "paid" | "members_only"),
+    normalizeMemberZoneAccessType(seriesData.access_type),
     seriesPriceLabel,
   );
 
@@ -151,7 +159,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
     if (!user) {
       return { canPlay: false, reason: "auth_required", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
     }
-    if (hasMembership) {
+    if (hasMembership && isMembershipEnabledAccessType(resolvedAccessType)) {
       return { canPlay: true, reason: "membership", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
     }
     if (hasPaidSeries || paidLessonIds.has(lesson.id)) {
@@ -246,8 +254,18 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                               seriesSlug={seriesData.share_slug}
                               seriesId={seriesData.id}
                               lessonId={access.purchaseScope === "lesson" ? lesson.id : null}
-                              mode={access.resolvedAccessType === "members_only" ? "membership_only" : "purchase"}
-                              amountLabel={access.resolvedAccessType === "paid" ? amountLabel : undefined}
+                              mode={
+                                access.resolvedAccessType === "member_only"
+                                  ? "member_only"
+                                  : access.resolvedAccessType === "paid_only"
+                                    ? "paid_only"
+                                    : "member_or_paid"
+                              }
+                              amountLabel={
+                                access.resolvedAccessType === "paid_only" || access.resolvedAccessType === "member_or_paid"
+                                  ? amountLabel
+                                  : undefined
+                              }
                               isAuthenticated={Boolean(user)}
                               membershipHref={membershipHref}
                             />

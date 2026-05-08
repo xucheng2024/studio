@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { ui } from "@/lib/ui";
 
-type AccessType = "free" | "paid" | "members_only";
-type LessonOverride = "inherit" | "free" | "paid" | "members_only";
+type AccessTypeV2 = "free" | "paid_only" | "member_only" | "member_or_paid";
+type LessonOverride = "inherit" | AccessTypeV2;
 
 function formatMoney(currency: string, price: number) {
   const safeCurrency = (currency || "SGD").toUpperCase();
@@ -12,24 +12,26 @@ function formatMoney(currency: string, price: number) {
   return `${safeCurrency} ${safePrice.toFixed(2)}`;
 }
 
-function seriesBadge(accessType: AccessType, currency: string, price: number) {
+function seriesBadge(accessType: AccessTypeV2, currency: string, price: number) {
   if (accessType === "free") return "Free";
-  if (accessType === "members_only") return "Members only";
-  return `Paid · ${formatMoney(currency, price)}`;
+  if (accessType === "member_only") return "Members only";
+  if (accessType === "paid_only") return `Paid only · ${formatMoney(currency, price)}`;
+  return `Member or paid · ${formatMoney(currency, price)}`;
 }
 
-function seriesCta(accessType: AccessType, currency: string, price: number) {
+function seriesCta(accessType: AccessTypeV2, currency: string, price: number) {
   if (accessType === "free") return "Watch free";
-  if (accessType === "members_only") return "Subscribe to unlock";
-  return `Buy · ${formatMoney(currency, price)}`;
+  if (accessType === "member_only") return "Subscribe to unlock";
+  if (accessType === "paid_only") return `Buy only · ${formatMoney(currency, price)}`;
+  return `Buy or subscribe · ${formatMoney(currency, price)}`;
 }
 
 export function SeriesAccessPreview(props: {
-  initialAccessType: AccessType;
+  initialAccessType: AccessTypeV2;
   initialCurrency: string;
   initialPrice: number;
 }) {
-  const [accessType, setAccessType] = useState<AccessType>(props.initialAccessType);
+  const [accessType, setAccessType] = useState<AccessTypeV2>(props.initialAccessType);
   const [currency, setCurrency] = useState(props.initialCurrency || "SGD");
   const [price, setPrice] = useState(props.initialPrice ?? 0);
 
@@ -38,53 +40,24 @@ export function SeriesAccessPreview(props: {
 
   return (
     <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
-      <p className={`text-xs font-medium ${ui.muted}`}>Public preview <span className="font-normal">(standalone widget — does not affect form values)</span></p>
+      <p className={`text-xs font-medium ${ui.muted}`}>Public preview</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>
         <span className={ui.btnPrimarySm}>{cta}</span>
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Access</span>
-          <select
-            className={ui.select}
-            value={accessType}
-            onChange={(e) => setAccessType(e.target.value as AccessType)}
-          >
-            <option value="members_only">Members only</option>
-            <option value="paid">Paid</option>
-            <option value="free">Free</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Currency</span>
-          <input className={ui.input} value={currency} onChange={(e) => setCurrency(e.target.value)} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Price</span>
-          <input
-            className={ui.input}
-            type="number"
-            min={0}
-            step={0.01}
-            value={String(price)}
-            onChange={(e) => setPrice(Number(e.target.value || 0))}
-          />
-        </label>
       </div>
     </div>
   );
 }
 
 export function LessonAccessPreview(props: {
-  initialSeriesAccessType: AccessType;
+  initialSeriesAccessType: AccessTypeV2;
   initialSeriesCurrency: string;
   initialSeriesPrice: number;
   initialOverride: LessonOverride;
   initialOverrideCurrency: string;
   initialOverridePrice: number;
 }) {
-  const [seriesAccessType, setSeriesAccessType] = useState<AccessType>(props.initialSeriesAccessType);
+  const [seriesAccessType, setSeriesAccessType] = useState<AccessTypeV2>(props.initialSeriesAccessType);
   const [seriesCurrency, setSeriesCurrency] = useState(props.initialSeriesCurrency || "SGD");
   const [seriesPrice, setSeriesPrice] = useState(props.initialSeriesPrice ?? 0);
 
@@ -92,10 +65,11 @@ export function LessonAccessPreview(props: {
   const [overrideCurrency, setOverrideCurrency] = useState(props.initialOverrideCurrency || "SGD");
   const [overridePrice, setOverridePrice] = useState(props.initialOverridePrice ?? 0);
 
-  const resolvedAccessType: AccessType =
-    override === "inherit" ? seriesAccessType : (override as AccessType);
-  const resolvedCurrency = override === "paid" ? overrideCurrency : seriesCurrency;
-  const resolvedPrice = override === "paid" ? overridePrice : seriesPrice;
+  const resolvedAccessType: AccessTypeV2 =
+    override === "inherit" ? seriesAccessType : override;
+  const overrideIsPaid = override === "paid_only" || override === "member_or_paid";
+  const resolvedCurrency = overrideIsPaid ? overrideCurrency : seriesCurrency;
+  const resolvedPrice = overrideIsPaid ? overridePrice : seriesPrice;
   const badge = seriesBadge(resolvedAccessType, resolvedCurrency, resolvedPrice);
   const cta = seriesCta(resolvedAccessType, resolvedCurrency, resolvedPrice);
   const hint =
@@ -103,49 +77,12 @@ export function LessonAccessPreview(props: {
 
   return (
     <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
-      <p className={`text-xs font-medium ${ui.muted}`}>Public preview <span className="font-normal">(standalone widget — does not affect form values)</span></p>
+      <p className={`text-xs font-medium ${ui.muted}`}>Public preview</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>
         <span className={ui.btnPrimarySm}>{cta}</span>
       </div>
       <p className={`mt-2 text-xs ${ui.muted}`}>{hint}</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Series access</span>
-          <select className={ui.select} value={seriesAccessType} onChange={(e) => setSeriesAccessType(e.target.value as AccessType)}>
-            <option value="members_only">Members only</option>
-            <option value="paid">Paid</option>
-            <option value="free">Free</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Series currency</span>
-          <input className={ui.input} value={seriesCurrency} onChange={(e) => setSeriesCurrency(e.target.value)} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Series price</span>
-          <input className={ui.input} type="number" min={0} step={0.01} value={String(seriesPrice)} onChange={(e) => setSeriesPrice(Number(e.target.value || 0))} />
-        </label>
-      </div>
-      <div className="mt-2 grid gap-2 sm:grid-cols-3">
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Lesson override</span>
-          <select className={ui.select} value={override} onChange={(e) => setOverride(e.target.value as LessonOverride)}>
-            <option value="inherit">Inherit series</option>
-            <option value="members_only">Members only</option>
-            <option value="paid">Paid</option>
-            <option value="free">Free</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Override currency</span>
-          <input className={ui.input} value={overrideCurrency} onChange={(e) => setOverrideCurrency(e.target.value)} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={ui.label}>Override price</span>
-          <input className={ui.input} type="number" min={0} step={0.01} value={String(overridePrice)} onChange={(e) => setOverridePrice(Number(e.target.value || 0))} />
-        </label>
-      </div>
     </div>
   );
 }

@@ -7,7 +7,10 @@ import {
   generatePaymentReference,
 } from "@/lib/hitpay";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
-import { resolveMemberZoneAccessRule } from "@/lib/memberZoneAccess";
+import {
+  isPurchaseEnabledAccessType,
+  resolveMemberZoneAccessRule,
+} from "@/lib/memberZoneAccess";
 import {
   findClientIdByEmail,
   resolveClientIdByEmail,
@@ -83,7 +86,7 @@ export async function POST(req: Request) {
     lessonOverridePrice: Number(lesson.data?.override_price ?? 0),
     lessonCurrency: lesson.data?.currency ?? "SGD",
   });
-  if (accessRule.resolvedAccessType !== "paid" || accessRule.resolvedPrice <= 0) {
+  if (!isPurchaseEnabledAccessType(accessRule.resolvedAccessType) || accessRule.resolvedPrice <= 0) {
     return NextResponse.json({ error: "item_not_paywalled" }, { status: 409 });
   }
 
