@@ -1,6 +1,49 @@
 import { randomBytes } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+function buildProfilePayload(input: {
+  userId: string;
+  email: string;
+  name?: string | null;
+  phone?: string | null;
+}) {
+  const payload: {
+    id: string;
+    email: string;
+    full_name?: string;
+    phone?: string;
+  } = {
+    id: input.userId,
+    email: input.email.trim().toLowerCase(),
+  };
+  const fullName = input.name?.trim();
+  if (fullName) payload.full_name = fullName;
+  const phone = input.phone?.trim();
+  if (phone) payload.phone = phone;
+  return payload;
+}
+
+async function upsertClientProfile(
+  admin: SupabaseClient,
+  input: { userId: string; email: string; name?: string | null; phone?: string | null },
+) {
+  await admin.from("user_profiles").upsert(buildProfilePayload(input), { onConflict: "id" });
+}
+
+export async function findClientIdByEmail(
+  admin: SupabaseClient,
+  email: string | null | undefined,
+): Promise<string | null> {
+  const normalizedEmail = email?.trim().toLowerCase() ?? "";
+  if (!normalizedEmail) return null;
+  const { data: existing } = await admin
+    .from("users")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .maybeSingle<{ id: string }>();
+  return existing?.id ?? null;
+}
+
 /**
  * Resolves a client_id for booking/payment records.
  * - If email already exists in public.users, reuse that id.
@@ -11,13 +54,17 @@ export async function resolveClientIdByEmail(
   input: { email: string; name?: string | null; phone?: string | null },
 ): Promise<string> {
   const normalizedEmail = input.email.trim().toLowerCase();
-  const { data: existing } = await admin
-    .from("users")
-    .select("id")
-    .eq("email", normalizedEmail)
-    .maybeSingle<{ id: string }>();
+  const existingId = await findClientIdByEmail(admin, normalizedEmail);
 
-  if (existing?.id) return existing.id;
+  if (existingId) {
+    await upsertClientProfile(admin, {
+      userId: existingId,
+      email: normalizedEmail,
+      name: input.name,
+      phone: input.phone,
+    });
+    return existingId;
+  }
 
   const password = randomBytes(24).toString("base64url");
   const { data: created, error } = await admin.auth.admin.createUser({
@@ -33,17 +80,27 @@ export async function resolveClientIdByEmail(
 
   if (error) {
     // Avoid race-condition failures when two requests create the same email.
-    const { data: again } = await admin
-      .from("users")
-      .select("id")
-      .eq("email", normalizedEmail)
-      .maybeSingle<{ id: string }>();
-    if (again?.id) return again.id;
+    const againId = await findClientIdByEmail(admin, normalizedEmail);
+    if (againId) {
+      await upsertClientProfile(admin, {
+        userId: againId,
+        email: normalizedEmail,
+        name: input.name,
+        phone: input.phone,
+      });
+      return againId;
+    }
     throw new Error(error.message || "client_identity_create_failed");
   }
 
   const userId = created.user?.id;
   if (!userId) throw new Error("client_identity_missing_id");
+  await upsertClientProfile(admin, {
+    userId,
+    email: normalizedEmail,
+    name: input.name,
+    phone: input.phone,
+  });
   return userId;
 }
 

@@ -136,7 +136,6 @@ export default async function PublicMembershipPage({ params }: Props) {
               <SubscribeMembershipPanel
                 membershipId={membership.id}
                 studioSlug={studioPublicSlug}
-                membershipSlug={membershipSlugPath}
                 intro={
                   trialDays > 0 && billingStartLabel
                     ? `Free for ${trialDays} days. First charge on ${billingStartLabel}.`

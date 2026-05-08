@@ -83,6 +83,16 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
+  const { data: featuredMembership } = await admin
+    .from("membership_products")
+    .select("share_slug")
+    .eq("studio_id", studio.id)
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .not("share_slug", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const supabase = await createClient();
   const {
@@ -90,6 +100,9 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   const sharePath = `/member-zone/${studio.public_slug}/${seriesData.share_slug}`;
+  const membershipHref = featuredMembership?.share_slug
+    ? `/membership/${studio.public_slug}/${featuredMembership.share_slug}`
+    : "/me/memberships";
   const lessons = lessonRows ?? [];
   const seriesPriceLabel = `${String(seriesData.currency ?? "SGD").toUpperCase()} ${Number(seriesData.price ?? 0).toFixed(2)}`;
   const seriesBadge = accessTypeBadgeLabel(
@@ -236,6 +249,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                               mode={access.resolvedAccessType === "members_only" ? "membership_only" : "purchase"}
                               amountLabel={access.resolvedAccessType === "paid" ? amountLabel : undefined}
                               isAuthenticated={Boolean(user)}
+                              membershipHref={membershipHref}
                             />
                           </div>
                         </div>

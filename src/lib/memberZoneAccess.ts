@@ -107,13 +107,18 @@ export async function resolveMemberZonePlaybackAccess(
 
   const { data: purchaseRows } = await admin
     .from("member_zone_purchases")
-    .select("id")
+    .select("series_id, lesson_id")
     .eq("studio_id", input.studioId)
     .eq("client_id", input.userId)
     .eq("status", "paid")
-    .or(`series_id.eq.${input.seriesId},lesson_id.eq.${input.lessonId}`)
-    .limit(1);
-  if ((purchaseRows ?? []).length > 0) {
+    .or(`and(series_id.eq.${input.seriesId},lesson_id.is.null),lesson_id.eq.${input.lessonId}`);
+  const hasPaidSeries = (purchaseRows ?? []).some(
+    (row) => row.series_id === input.seriesId && !row.lesson_id,
+  );
+  const hasPaidLesson = (purchaseRows ?? []).some(
+    (row) => row.lesson_id === input.lessonId,
+  );
+  if (hasPaidSeries || hasPaidLesson) {
     return {
       canPlay: true,
       reason: "purchased",

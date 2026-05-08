@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { ui } from "@/lib/ui";
 
 export function MemberZoneUnlockPanel(props: {
@@ -13,32 +13,32 @@ export function MemberZoneUnlockPanel(props: {
   mode: "membership_only" | "purchase";
   amountLabel?: string;
   isAuthenticated?: boolean;
+  membershipHref?: string | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const nextPath = `/member-zone/${props.studioSlug}/${props.seriesSlug}`;
-  const authHref = `/m/${props.studioSlug}/auth?next=${encodeURIComponent(nextPath)}`;
-  // /me/memberships uses ACTIVE_MEMBER_STUDIO_COOKIE (set by middleware on this page visit)
-  // to show the correct studio's plans — no need for a #memberships anchor that no longer exists
-  const membershipHref = props.isAuthenticated
-    ? "/me/memberships"
-    : `/m/${props.studioSlug}/auth?next=${encodeURIComponent("/me/memberships")}`;
+  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(props.isAuthenticated));
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const membershipHref = props.membershipHref ?? "/me/memberships";
+
+  useEffect(() => {
+    setIsLoggedIn(Boolean(props.isAuthenticated));
+  }, [props.isAuthenticated]);
 
   const startPurchase = async () => {
     setBusy(true);
     setMsg(null);
-    const supabase = createBrowserSupabase();
-    const { data } = await supabase.auth.getSession();
-    if (!data.session?.user) {
-      window.location.href = authHref;
-      return;
-    }
     const res = await fetch("/api/member-zone/purchase/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         series_id: props.seriesId,
         lesson_id: props.lessonId ?? null,
+        guest_name: isLoggedIn ? undefined : name,
+        guest_email: isLoggedIn ? undefined : email,
+        guest_phone: isLoggedIn ? undefined : (phone.trim() || null),
       }),
     });
     const body = await res.json().catch(() => ({}));
@@ -46,6 +46,14 @@ export function MemberZoneUnlockPanel(props: {
     if (!res.ok) {
       if (body.error === "already_purchased" || body.error === "already_member") {
         window.location.reload();
+        return;
+      }
+      if (body.error === "guest_details_required") {
+        setMsg("Please enter your name, email, and phone number.");
+        return;
+      }
+      if (body.error === "purchase_pending" && body.checkout_url) {
+        window.location.href = body.checkout_url;
         return;
       }
       setMsg(String(body.error ?? "Could not continue to payment."));
@@ -61,23 +69,51 @@ export function MemberZoneUnlockPanel(props: {
           ? "Subscribe to unlock"
           : `Buy ${props.amountLabel ?? ""} or subscribe to unlock`.trim()}
       </p>
+      {!isLoggedIn && props.mode === "purchase" ? (
+        <div className="mt-3 grid gap-2">
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Name</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your full name"
+              autoComplete="name"
+              className={ui.input}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Email</span>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              className={ui.input}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Phone</span>
+            <PhoneNumberInput value={phone} onChange={setPhone} placeholder="9123 4567" required />
+          </label>
+          <p className="text-xs text-amber-800 dark:text-amber-200">
+            We&apos;ll create your access automatically after checkout.
+          </p>
+        </div>
+      ) : null}
       <div className="mt-2 flex flex-wrap gap-2">
         {props.mode === "purchase" ? (
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || (!isLoggedIn && (!name.trim() || !email.trim() || !phone.trim()))}
             className={ui.btnPrimarySm}
             onClick={() => void startPurchase()}
           >
             {busy ? "Processing..." : `Buy ${props.amountLabel ?? ""}`.trim()}
           </button>
-        ) : props.isAuthenticated ? (
+        ) : (
           <Link href={membershipHref} className={ui.btnPrimarySm}>
             Subscribe to unlock
-          </Link>
-        ) : (
-          <Link href={authHref} className={ui.btnPrimarySm}>
-            Sign in to unlock
           </Link>
         )}
         <Link href={membershipHref} className={ui.btnSecondarySm}>

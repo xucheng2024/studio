@@ -6,12 +6,20 @@ import {
   createHitpayPaymentRequest,
   generatePaymentReference,
 } from "@/lib/hitpay";
+import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import { resolveMemberZoneAccessRule } from "@/lib/memberZoneAccess";
+import {
+  findClientIdByEmail,
+  resolveClientIdByEmail,
+} from "@/lib/resolveClientId";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
   series_id: z.string().uuid(),
   lesson_id: z.string().uuid().optional().nullable(),
+  guest_name: z.string().max(120).optional(),
+  guest_email: z.string().email().max(320).optional(),
+  guest_phone: z.string().max(40).optional().nullable(),
 });
 
 export async function POST(req: Request) {
@@ -24,7 +32,12 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guestName = parsed.data.guest_name?.trim();
+  const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
+  const guestPhone = parsed.data.guest_phone?.trim() || null;
+  if (!user && (!guestName || !guestEmail || !guestPhone)) {
+    return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
+  }
 
   const admin = createAdminClient();
   const { data: series } = await admin
@@ -74,30 +87,68 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "item_not_paywalled" }, { status: 409 });
   }
 
-  const { data: activeMembership } = await admin
+  const customerEmail = guestEmail ?? user?.email?.trim().toLowerCase() ?? "";
+  const customerName = guestName ?? null;
+  const existingClientId =
+    user?.id ??
+    (await findClientIdByEmail(admin, customerEmail));
+
+  const { data: membershipRows } = await admin
     .from("customer_subscriptions")
-    .select("id")
+    .select("id, status, cancel_at_period_end, current_period_end")
     .eq("studio_id", series.studio_id)
-    .eq("client_id", user.id)
+    .eq("client_id", existingClientId ?? "__missing__")
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
-    .limit(1);
-  if ((activeMembership ?? []).length > 0) {
+    .limit(10);
+  if ((membershipRows ?? []).some((row) => isMembershipActiveForAccess(row))) {
     return NextResponse.json({ error: "already_member" }, { status: 409 });
   }
 
   const duplicateQuery = admin
     .from("member_zone_purchases")
-    .select("id")
+    .select("id, status")
     .eq("studio_id", series.studio_id)
-    .eq("client_id", user.id)
-    .eq("status", "paid");
-  const { data: dup } =
+    .eq("client_id", existingClientId ?? "__missing__");
+  const { data: dupRows } =
     accessRule.purchaseScope === "lesson" && lessonId
-      ? await duplicateQuery.eq("lesson_id", lessonId).limit(1)
-      : await duplicateQuery.eq("series_id", series.id).is("lesson_id", null).limit(1);
-  if ((dup ?? []).length > 0) {
+      ? await duplicateQuery.eq("lesson_id", lessonId).limit(10)
+      : await duplicateQuery.eq("series_id", series.id).is("lesson_id", null).limit(10);
+  if ((dupRows ?? []).some((row) => row.status === "paid")) {
     return NextResponse.json({ error: "already_purchased" }, { status: 409 });
   }
+  if ((dupRows ?? []).some((row) => row.status === "pending")) {
+    const existingPendingQuery = admin
+      .from("payments")
+      .select("gateway_checkout_url, status, expires_at")
+      .eq("studio_id", series.studio_id)
+      .eq("client_id", existingClientId ?? "__missing__")
+      .eq("source", "member_zone_purchase")
+      .eq("status", "pending");
+    const { data: pendingPayments } =
+      accessRule.purchaseScope === "lesson" && lessonId
+        ? await existingPendingQuery.eq("member_zone_lesson_id", lessonId).limit(10)
+        : await existingPendingQuery.eq("member_zone_series_id", series.id).is("member_zone_lesson_id", null).limit(10);
+    const reusablePending = (pendingPayments ?? []).find((row) => {
+      if (!row.gateway_checkout_url) return false;
+      if (!row.expires_at) return true;
+      return new Date(row.expires_at).getTime() > Date.now();
+    });
+    if (reusablePending?.gateway_checkout_url) {
+      return NextResponse.json({
+        ok: true,
+        already_pending: true,
+        checkout_url: reusablePending.gateway_checkout_url,
+      });
+    }
+    return NextResponse.json({ error: "purchase_pending" }, { status: 409 });
+  }
+  const effectiveClientId =
+    existingClientId ??
+    (await resolveClientIdByEmail(admin, {
+      email: customerEmail,
+      name: customerName,
+      phone: guestPhone,
+    }));
 
   const { data: studioSecrets } = await admin
     .from("studio_payment_secrets")
@@ -119,13 +170,16 @@ export async function POST(req: Request) {
     .from("payments")
     .insert({
       studio_id: series.studio_id,
-      client_id: user.id,
+      client_id: effectiveClientId,
       booking_id: null,
       event_booking_id: null,
       package_id: null,
       membership_product_id: null,
       member_zone_series_id: series.id,
       member_zone_lesson_id: lessonId,
+      guest_name: user ? null : guestName ?? null,
+      guest_email: user ? null : guestEmail ?? null,
+      guest_phone: user ? null : guestPhone,
       amount,
       currency,
       payment_method: "hitpay",
@@ -144,7 +198,7 @@ export async function POST(req: Request) {
 
   const { error: purchaseInsertErr } = await admin.from("member_zone_purchases").insert({
     studio_id: series.studio_id,
-    client_id: user.id,
+    client_id: effectiveClientId,
     series_id: series.id,
     lesson_id: lessonId,
     payment_id: payment.id,
@@ -161,24 +215,32 @@ export async function POST(req: Request) {
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   const redirectUrl = `${baseUrl}/checkout/${payment.id}`;
-  const { data: profile } = await admin
-    .from("user_profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
-  const { data: userRow } = await admin
-    .from("users")
-    .select("email")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profilePromise = user
+    ? admin
+        .from("user_profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle()
+    : Promise.resolve({ data: null });
+  const userRowPromise = user
+    ? admin
+        .from("users")
+        .select("email")
+        .eq("id", user.id)
+        .maybeSingle()
+    : Promise.resolve({ data: null });
+  const [{ data: profile }, { data: userRow }] = await Promise.all([
+    profilePromise,
+    userRowPromise,
+  ]);
 
   try {
     const hitpay = await createHitpayPaymentRequest({
       apiKey: studioSecrets.hitpay_api_key,
       amount: amount.toFixed(2),
       currency,
-      email: userRow?.email ?? null,
-      name: profile?.full_name?.trim() || null,
+      email: guestEmail ?? userRow?.email ?? null,
+      name: guestName ?? (profile?.full_name?.trim() || null),
       reference_number: reference,
       redirect_url: redirectUrl,
       purpose: `Member zone purchase: ${sourceTitle}`,
