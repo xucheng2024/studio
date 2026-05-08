@@ -27,7 +27,7 @@ function buildManifest({
     short_name: name.slice(0, 12) || "Studio",
     description,
     start_url: `/${studioSlug}`,
-    scope: `/${studioSlug}/`,
+    scope: `/${studioSlug}`,
     display: "standalone",
     orientation: "portrait",
     background_color: "#f7f4ef",

@@ -6,10 +6,11 @@ export function StudioPwaRegister({ studioSlug }: { studioSlug: string }) {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    const scope = `/${studioSlug}/`;
     void navigator.serviceWorker
       .register("/sw.js", {
-        scope,
+        // Register at root scope so the storefront start_url `/${studioSlug}`
+        // is controlled offline in iOS home-screen launches as well.
+        scope: "/",
         updateViaCache: "none",
       })
       .catch(() => {
