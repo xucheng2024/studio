@@ -18,7 +18,11 @@ export function MemberZoneUnlockPanel(props: {
   const [msg, setMsg] = useState<string | null>(null);
   const nextPath = `/member-zone/${props.studioSlug}/${props.seriesSlug}`;
   const authHref = `/m/${props.studioSlug}/auth?next=${encodeURIComponent(nextPath)}`;
-  const membershipAnchor = `/${props.studioSlug}#memberships`;
+  // /me/memberships uses ACTIVE_MEMBER_STUDIO_COOKIE (set by middleware on this page visit)
+  // to show the correct studio's plans — no need for a #memberships anchor that no longer exists
+  const membershipHref = props.isAuthenticated
+    ? "/me/memberships"
+    : `/m/${props.studioSlug}/auth?next=${encodeURIComponent("/me/memberships")}`;
 
   const startPurchase = async () => {
     setBusy(true);
@@ -68,7 +72,7 @@ export function MemberZoneUnlockPanel(props: {
             {busy ? "Processing..." : `单独购买 ${props.amountLabel ?? ""}`.trim()}
           </button>
         ) : props.isAuthenticated ? (
-          <Link href={membershipAnchor} className={ui.btnPrimarySm}>
+          <Link href={membershipHref} className={ui.btnPrimarySm}>
             订阅会员解锁
           </Link>
         ) : (
@@ -76,7 +80,7 @@ export function MemberZoneUnlockPanel(props: {
             登录后解锁
           </Link>
         )}
-        <Link href={membershipAnchor} className={ui.btnSecondarySm}>
+        <Link href={membershipHref} className={ui.btnSecondarySm}>
           查看会员计划
         </Link>
       </div>
