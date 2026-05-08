@@ -71,11 +71,9 @@ export async function POST(req: Request) {
     const trialAnchor = new Date(trialAnchorRaw);
     const trialDeadline = new Date(trialAnchor);
     trialDeadline.setDate(trialDeadline.getDate() + Math.max(0, trialDays));
-    if (now.getTime() > trialDeadline.getTime()) {
-      return NextResponse.json({ error: "trial_window_expired" }, { status: 409 });
-    }
+    const withinTrial = now.getTime() <= trialDeadline.getTime();
 
-    if (latestPayment?.status === "paid") {
+    if (withinTrial && latestPayment?.status === "paid") {
       const { data: secrets } = await admin
         .from("studio_payment_secrets")
         .select("hitpay_api_key")
@@ -107,22 +105,25 @@ export async function POST(req: Request) {
       if (!rr?.ok) return NextResponse.json({ error: rr?.error ?? "refund_failed" }, { status: 409 });
     }
 
-    const { error } = await admin
-      .from("customer_subscriptions")
-      .update({
-        status: "canceled",
-        canceled_at: nowIso,
-        cancel_at_period_end: false,
-        cancel_requested_at: nowIso,
-        updated_at: nowIso,
-        cancel_reason: "cancelled_by_member_trial_refund",
-      })
-      .eq("id", sub.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, mode: "trial_refunded" });
+    if (withinTrial) {
+      const { error } = await admin
+        .from("customer_subscriptions")
+        .update({
+          status: "canceled",
+          canceled_at: nowIso,
+          cancel_at_period_end: false,
+          cancel_requested_at: nowIso,
+          updated_at: nowIso,
+          cancel_reason: latestPayment?.status === "paid" ? "cancelled_by_member_trial_refund" : "cancelled_by_member_trial",
+        })
+        .eq("id", sub.id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, mode: latestPayment?.status === "paid" ? "trial_refunded" : "trial" });
+    }
+    // Trial window has passed — fall through to normal period-end cancellation.
   }
 
-  // Already billed (or start date reached): cancel subscription renewals, keep access until period end.
+  // Already billed (or trial window passed): cancel renewals, keep access until period end.
   const interval = (sub as { billing_interval_snapshot?: string | null }).billing_interval_snapshot === "yearly" ? "yearly" : "monthly";
   const derivePeriodEnd = () => {
     const existing = (sub as { current_period_end?: string | null }).current_period_end ?? null;

@@ -3,7 +3,8 @@ import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import { z } from "zod";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { createHitpayRecurringBilling, generatePaymentReference } from "@/lib/hitpay";
-import { verifyMemberStudioAccess } from "@/lib/member-studio";
+import { upsertMemberStudioMembership, verifyMemberStudioAccess } from "@/lib/member-studio";
+import { findClientIdByEmail, resolveClientIdByEmail } from "@/lib/resolveClientId";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,6 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 const bodySchema = z.object({
   membership_id: z.string().uuid(),
   slug: z.string().optional(),
+  guest_name: z.string().max(120).optional(),
+  guest_email: z.string().email().max(320).optional(),
+  guest_phone: z.string().max(40).optional().nullable(),
 });
 
 function todayInSingapore() {
@@ -25,6 +29,21 @@ function todayInSingapore() {
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 
+function startDateInSingapore(trialDays: number) {
+  const today = todayInSingapore();
+  const base = new Date(`${today}T00:00:00+08:00`);
+  const days = Number.isFinite(trialDays) ? Math.max(0, Math.floor(trialDays)) : 0;
+  base.setDate(base.getDate() + days);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(base);
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
@@ -34,7 +53,12 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guestName = parsed.data.guest_name?.trim();
+  const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
+  const guestPhone = parsed.data.guest_phone?.trim() || null;
+  if (!user && (!guestName || !guestEmail || !guestPhone)) {
+    return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
+  }
 
   const admin = createAdminClient();
   const [{ data: membership, error: membershipErr }, { data: account }, { data: profile }] = await Promise.all([
@@ -43,8 +67,8 @@ export async function POST(req: Request) {
       .select("id, studio_id, location_id, name, description, price, currency, billing_interval, trial_days, is_active, deleted_at, share_slug")
       .eq("id", parsed.data.membership_id)
       .maybeSingle(),
-    admin.from("users").select("id, email").eq("id", user.id).maybeSingle(),
-    admin.from("user_profiles").select("full_name, phone").eq("id", user.id).maybeSingle(),
+    user ? admin.from("users").select("id, email").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null }),
+    user ? admin.from("user_profiles").select("full_name, phone").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   if (membershipErr || !membership) {
@@ -55,15 +79,6 @@ export async function POST(req: Request) {
   }
   const blocked = await respondIfStudioContractSuspended(admin, membership.studio_id);
   if (blocked) return blocked;
-
-  const studioAccess = await verifyMemberStudioAccess(admin, {
-    userId: user.id,
-    studioId: membership.studio_id,
-    bootstrapIfMissing: true,
-  });
-  if (!studioAccess.ok) {
-    return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
-  }
 
   const { data: studio } = await admin
     .from("studios")
@@ -85,29 +100,56 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
   }
 
-  const customerEmail = String(account?.email ?? user.email ?? "").trim().toLowerCase();
-  const customerName = String(profile?.full_name ?? "").trim() || customerEmail.split("@")[0] || "Member";
+  const customerEmail = String(guestEmail ?? account?.email ?? user?.email ?? "").trim().toLowerCase();
+  const customerName =
+    String(guestName ?? profile?.full_name ?? "").trim() || customerEmail.split("@")[0] || "Member";
+  const customerPhone = guestPhone ?? profile?.phone?.trim() ?? null;
   if (!customerEmail) return NextResponse.json({ error: "email_required" }, { status: 409 });
+  const existingClientId = user?.id ?? (await findClientIdByEmail(admin, customerEmail));
+
+  if (user) {
+    const studioAccess = await verifyMemberStudioAccess(admin, {
+      userId: existingClientId ?? user.id,
+      studioId: membership.studio_id,
+      bootstrapIfMissing: true,
+    });
+    if (!studioAccess.ok) {
+      return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
+    }
+  }
 
   const { data: existing } = await admin
     .from("customer_subscriptions")
     .select("id, status, cancel_at_period_end, current_period_end")
-    .eq("client_id", user.id)
+    .eq("client_id", existingClientId ?? "__missing__")
     .eq("membership_product_id", membership.id)
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
     .maybeSingle();
   if (existing?.id && isMembershipActiveForAccess(existing)) {
     return NextResponse.json({ error: "subscription_exists" }, { status: 409 });
   }
+  const clientId =
+    existingClientId ??
+    (await resolveClientIdByEmail(admin, {
+      email: customerEmail,
+      name: customerName,
+      phone: customerPhone,
+    }));
+  if (!user) {
+    await upsertMemberStudioMembership(admin, {
+      userId: clientId,
+      studioId: membership.studio_id,
+    });
+  }
 
   const reference = generatePaymentReference();
   const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
-  const startDate = todayInSingapore();
+  const startDate = startDateInSingapore(trialDays);
   const { data: localSubscription, error: insertErr } = await admin
     .from("customer_subscriptions")
     .insert({
       studio_id: membership.studio_id,
-      client_id: user.id,
+      client_id: clientId,
       membership_product_id: membership.id,
       reference_code: reference,
       status: "scheduled",
