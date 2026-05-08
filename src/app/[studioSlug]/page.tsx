@@ -34,56 +34,60 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
 
-  const { data: services } = await admin
-    .from("studio_services")
-    .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, sort_order")
-    .eq("studio_id", studio.id)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: false });
-
   const nowIso = new Date().toISOString();
-  const { data: classes } = await admin
-    .from("class_sessions")
-    .select("id, start_time, spots_left, capacity, guest_price, credits_required, class_title_snapshot, class_description_snapshot, class_image_url_snapshot, classes!inner(title, description, share_slug, image_url, tags, studio_id, is_active, capacity)")
-    .eq("classes.studio_id", studio.id)
-    .eq("classes.is_active", true)
-    .eq("status", "scheduled")
-    .gte("start_time", nowIso)
-    .order("start_time", { ascending: true })
-    .limit(8);
-
-  const { data: packages } = await admin
-    .from("packages")
-    .select("id, name, price, credits, expiry_days, location_id, image_url, video_url, share_slug")
-    .eq("studio_id", studio.id)
-    .eq("is_active", true)
-    .is("deleted_at", null)
-    .order("price", { ascending: true });
-
-  const { data: memberships } = await admin
-    .from("membership_products")
-    .select("id, name, description, price, currency, billing_interval, trial_days, image_url, video_url, share_slug")
-    .eq("studio_id", studio.id)
-    .eq("is_active", true)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-
-  const { data: events } = await admin
-    .from("events")
-    .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
-    .eq("studio_id", studio.id)
-    .eq("is_active", true)
-    .order("start_time", { ascending: true })
-    .limit(12);
-
-  const { data: memberZoneSeries } = await admin
-    .from("member_zone_series")
-    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, sort_order")
-    .eq("studio_id", studio.id)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: false });
+  const [
+    { data: services },
+    { data: classes },
+    { data: packages },
+    { data: memberships },
+    { data: events },
+    { data: memberZoneSeries },
+  ] = await Promise.all([
+    admin
+      .from("studio_services")
+      .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, sort_order")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false }),
+    admin
+      .from("class_sessions")
+      .select("id, start_time, spots_left, capacity, guest_price, credits_required, class_title_snapshot, class_description_snapshot, class_image_url_snapshot, classes!inner(title, description, share_slug, image_url, tags, studio_id, is_active, capacity)")
+      .eq("classes.studio_id", studio.id)
+      .eq("classes.is_active", true)
+      .eq("status", "scheduled")
+      .gte("start_time", nowIso)
+      .order("start_time", { ascending: true })
+      .limit(8),
+    admin
+      .from("packages")
+      .select("id, name, price, credits, expiry_days, location_id, image_url, video_url, share_slug")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .order("price", { ascending: true }),
+    admin
+      .from("membership_products")
+      .select("id, name, description, price, currency, billing_interval, trial_days, image_url, video_url, share_slug")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    admin
+      .from("events")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .order("start_time", { ascending: true })
+      .limit(12),
+    admin
+      .from("member_zone_series")
+      .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, sort_order")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false }),
+  ]);
 
   return {
     studio,

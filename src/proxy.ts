@@ -14,7 +14,9 @@ function isSuperAdminEmail(email: string | null | undefined) {
 }
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
   const studioSlug = parseStudioSlugFromPath(request.nextUrl.pathname);
   const studioCookie = studioSlug
     ? {
@@ -44,18 +46,23 @@ export async function proxy(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
         if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
       },
     },
   });
 
+  const pathname = request.nextUrl.pathname;
+  if (!pathname.startsWith("/dashboard")) {
+    if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
+    return response;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
   if (
     user &&
     isSuperAdminEmail(user.email) &&
