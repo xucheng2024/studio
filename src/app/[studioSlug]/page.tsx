@@ -23,7 +23,9 @@ import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
 
-const getPublicStudioData = cache(async (studioSlugRaw: string) => {
+export const revalidate = 60;
+
+const getPublicStudioShell = cache(async (studioSlugRaw: string) => {
   const slug = normalizeStudioSlug(studioSlugRaw ?? "");
   if (!slug || isReservedPublicSlug(slug)) return null;
   const admin = createAdminClient();
@@ -33,7 +35,14 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     .eq("public_slug", slug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
+  return studio;
+});
 
+const getPublicStudioData = cache(async (studioSlugRaw: string) => {
+  const studio = await getPublicStudioShell(studioSlugRaw);
+  if (!studio) return null;
+
+  const admin = createAdminClient();
   const nowIso = new Date().toISOString();
   const [
     { data: services },
@@ -102,9 +111,8 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug } = await params;
-  const data = await getPublicStudioData(studioSlug);
-  if (!data) return { title: "Studio" };
-  const { studio } = data;
+  const studio = await getPublicStudioShell(studioSlug);
+  if (!studio) return { title: "Studio" };
   const intro = (studio.public_intro ?? "").trim();
   const description = intro || `Explore services at ${studio.name}.`;
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
