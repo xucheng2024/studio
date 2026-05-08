@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AuthPageInner } from "@/app/auth/AuthPageInner";
+import { AuthPageInner } from "@/app/(app)/auth/AuthPageInner";
 
 export default function MemberScopedAuthPage() {
   return (

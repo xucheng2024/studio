@@ -25,6 +25,18 @@ type Props = { params: Promise<{ studioSlug: string }> };
 
 export const revalidate = 60;
 
+export async function generateStaticParams() {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("studios")
+    .select("public_slug")
+    .neq("contract_status", "suspended")
+    .not("public_slug", "is", null);
+  return (data ?? [])
+    .filter((s) => s.public_slug && !isReservedPublicSlug(s.public_slug))
+    .map((s) => ({ studioSlug: s.public_slug as string }));
+}
+
 const getPublicStudioShell = cache(async (studioSlugRaw: string) => {
   const slug = normalizeStudioSlug(studioSlugRaw ?? "");
   if (!slug || isReservedPublicSlug(slug)) return null;

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { UserCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { markAttended } from "@/app/dashboard/actions";
+import { markAttended } from "@/app/(app)/dashboard/actions";
 import { ui } from "@/lib/ui";
 
 export function MarkAttendedButton({ bookingId }: { bookingId: string }) {
