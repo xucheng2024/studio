@@ -58,8 +58,8 @@ export function MemberZoneUnlockPanel(props: {
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/50 dark:bg-amber-950/30">
       <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
         {props.mode === "membership_only"
-          ? "订阅会员解锁"
-          : `单独购买 ${props.amountLabel ?? ""} 或订阅会员解锁`.trim()}
+          ? "Subscribe to unlock"
+          : `Buy ${props.amountLabel ?? ""} or subscribe to unlock`.trim()}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         {props.mode === "purchase" ? (
@@ -69,19 +69,19 @@ export function MemberZoneUnlockPanel(props: {
             className={ui.btnPrimarySm}
             onClick={() => void startPurchase()}
           >
-            {busy ? "Processing..." : `单独购买 ${props.amountLabel ?? ""}`.trim()}
+            {busy ? "Processing..." : `Buy ${props.amountLabel ?? ""}`.trim()}
           </button>
         ) : props.isAuthenticated ? (
           <Link href={membershipHref} className={ui.btnPrimarySm}>
-            订阅会员解锁
+            Subscribe to unlock
           </Link>
         ) : (
           <Link href={authHref} className={ui.btnPrimarySm}>
-            登录后解锁
+            Sign in to unlock
           </Link>
         )}
         <Link href={membershipHref} className={ui.btnSecondarySm}>
-          查看会员计划
+          View membership plans
         </Link>
       </div>
       {msg ? <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">{msg}</p> : null}

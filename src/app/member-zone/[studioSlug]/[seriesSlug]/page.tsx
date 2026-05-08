@@ -49,9 +49,9 @@ function renderMedia(url: string, title: string, mediaType: string) {
 }
 
 function accessTypeBadgeLabel(accessType: "free" | "paid" | "members_only", amountLabel?: string) {
-  if (accessType === "free") return "免费";
-  if (accessType === "members_only") return "会员";
-  return amountLabel ? `付费 ${amountLabel}` : "付费";
+  if (accessType === "free") return "Free";
+  if (accessType === "members_only") return "Members only";
+  return amountLabel ? `Paid · ${amountLabel}` : "Paid";
 }
 
 export default async function MemberZoneSeriesPage({ params }: Props) {
@@ -195,8 +195,8 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                 const lessonBadge = accessTypeBadgeLabel(access.resolvedAccessType, amountLabel);
                 const accessHint =
                   (lesson.access_override ?? "inherit") === "inherit"
-                    ? `继承系列规则（${seriesBadge}）`
-                    : `本节课规则（${lessonBadge}）`;
+                    ? `Inherits series access (${seriesBadge})`
+                    : `Lesson override (${lessonBadge})`;
                 return (
                   <article key={lesson.id} className={ui.card}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -226,7 +226,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                           <div className="relative z-10 p-3">
                             <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-stone-900/80 px-2.5 py-1 text-xs font-medium text-white dark:bg-stone-100/85 dark:text-stone-900">
                               <Lock size={12} />
-                              已锁定内容
+                              Locked
                             </div>
                             <MemberZoneUnlockPanel
                               studioSlug={studio.public_slug}

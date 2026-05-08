@@ -13,15 +13,15 @@ function formatMoney(currency: string, price: number) {
 }
 
 function seriesBadge(accessType: AccessType, currency: string, price: number) {
-  if (accessType === "free") return "免费";
-  if (accessType === "members_only") return "会员";
-  return `付费 ${formatMoney(currency, price)}`;
+  if (accessType === "free") return "Free";
+  if (accessType === "members_only") return "Members only";
+  return `Paid · ${formatMoney(currency, price)}`;
 }
 
 function seriesCta(accessType: AccessType, currency: string, price: number) {
-  if (accessType === "free") return "免费试看";
-  if (accessType === "members_only") return "订阅会员解锁";
-  return `单独购买 ${formatMoney(currency, price)}`;
+  if (accessType === "free") return "Watch free";
+  if (accessType === "members_only") return "Subscribe to unlock";
+  return `Buy · ${formatMoney(currency, price)}`;
 }
 
 export function SeriesAccessPreview(props: {
@@ -38,7 +38,7 @@ export function SeriesAccessPreview(props: {
 
   return (
     <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
-      <p className={`text-xs font-medium ${ui.muted}`}>前台显示预览 <span className="font-normal">（仅用于预览效果，不影响表单保存值）</span></p>
+      <p className={`text-xs font-medium ${ui.muted}`}>Public preview <span className="font-normal">(standalone widget — does not affect form values)</span></p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>
         <span className={ui.btnPrimarySm}>{cta}</span>
@@ -99,11 +99,11 @@ export function LessonAccessPreview(props: {
   const badge = seriesBadge(resolvedAccessType, resolvedCurrency, resolvedPrice);
   const cta = seriesCta(resolvedAccessType, resolvedCurrency, resolvedPrice);
   const hint =
-    override === "inherit" ? `继承系列规则（${badge}）` : `本节课规则（${badge}）`;
+    override === "inherit" ? `Inherits series access (${badge})` : `Lesson override (${badge})`;
 
   return (
     <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
-      <p className={`text-xs font-medium ${ui.muted}`}>前台显示预览 <span className="font-normal">（仅用于预览效果，不影响表单保存值）</span></p>
+      <p className={`text-xs font-medium ${ui.muted}`}>Public preview <span className="font-normal">(standalone widget — does not affect form values)</span></p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>
         <span className={ui.btnPrimarySm}>{cta}</span>

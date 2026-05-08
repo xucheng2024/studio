@@ -903,16 +903,16 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const href = `/member-zone/${studio.public_slug}/${series.share_slug}`;
               const tag =
                 series.access_type === "free"
-                  ? "免费"
+                  ? "Free"
                   : series.access_type === "paid"
-                    ? `付费 ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
-                    : "会员";
+                    ? `${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    : "Members only";
               const ctaLabel =
                 series.access_type === "free"
-                  ? "免费试看"
+                  ? "Watch free"
                   : series.access_type === "paid"
-                    ? `单独购买 ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
-                    : "订阅会员解锁";
+                    ? `Buy · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    : "Subscribe to unlock";
               return (
                 <article key={series.id} className={ui.card}>
                   <Link href={href} className="block">
