@@ -6,7 +6,9 @@ import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { MemberZoneUnlockPanel } from "@/components/MemberZoneUnlockPanel";
 import { Lock } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveMemberZonePlaybackAccess } from "@/lib/memberZoneAccess";
+import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
+import { resolveMemberZoneAccessRule } from "@/lib/memberZoneAccess";
+import type { MemberZoneAccessResult } from "@/lib/memberZoneAccess";
 import { buildMemberZoneShareMetadata } from "@/lib/publicShareOg";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -71,11 +73,13 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
     .eq("is_active", true)
     .maybeSingle();
   if (!series) notFound();
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const seriesData = series!;
 
   const { data: lessonRows } = await admin
     .from("member_zone_lessons")
     .select("id, title, summary, description, media_url, media_type, duration_min, access_override, override_price, currency, sort_order, is_active")
-    .eq("series_id", series.id)
+    .eq("series_id", seriesData.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
@@ -85,46 +89,96 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const sharePath = `/member-zone/${studio.public_slug}/${series.share_slug}`;
+  const sharePath = `/member-zone/${studio.public_slug}/${seriesData.share_slug}`;
   const lessons = lessonRows ?? [];
-  const seriesPriceLabel = `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price ?? 0).toFixed(2)}`;
+  const seriesPriceLabel = `${String(seriesData.currency ?? "SGD").toUpperCase()} ${Number(seriesData.price ?? 0).toFixed(2)}`;
   const seriesBadge = accessTypeBadgeLabel(
-    (String(series.access_type ?? "members_only").toLowerCase() as "free" | "paid" | "members_only"),
+    (String(seriesData.access_type ?? "members_only").toLowerCase() as "free" | "paid" | "members_only"),
     seriesPriceLabel,
   );
+
+  // Batch access resolution: one membership query + one purchases query for all lessons
+  let hasMembership = false;
+  const paidLessonIds = new Set<string>();
+  let hasPaidSeries = false;
+  if (user) {
+    const [{ data: membershipRows }, { data: purchaseRows }] = await Promise.all([
+      admin
+        .from("customer_subscriptions")
+        .select("status, cancel_at_period_end, current_period_end")
+        .eq("studio_id", studio.id)
+        .eq("client_id", user.id)
+        .in("status", ["scheduled", "active", "retrying", "inactive", "paused"]),
+      admin
+        .from("member_zone_purchases")
+        .select("series_id, lesson_id")
+        .eq("studio_id", studio.id)
+        .eq("client_id", user.id)
+        .eq("status", "paid"),
+    ]);
+    hasMembership = (membershipRows ?? []).some((row) => isMembershipActiveForAccess(row));
+    for (const row of purchaseRows ?? []) {
+      if (row.lesson_id) paidLessonIds.add(row.lesson_id);
+      if (!row.lesson_id && row.series_id === seriesData.id) hasPaidSeries = true;
+    }
+  }
+
+  function resolveAccess(lesson: { id: string; access_override: string | null; override_price: number | null; currency: string | null }): MemberZoneAccessResult {
+    const { resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope } = resolveMemberZoneAccessRule({
+      seriesAccessType: seriesData.access_type,
+      seriesPrice: Number(seriesData.price ?? 0),
+      seriesCurrency: seriesData.currency ?? "SGD",
+      lessonAccessOverride: lesson.access_override,
+      lessonOverridePrice: Number(lesson.override_price ?? 0),
+      lessonCurrency: lesson.currency ?? "SGD",
+    });
+    if (resolvedAccessType === "free") {
+      return { canPlay: true, reason: "free", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
+    }
+    if (!user) {
+      return { canPlay: false, reason: "auth_required", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
+    }
+    if (hasMembership) {
+      return { canPlay: true, reason: "membership", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
+    }
+    if (hasPaidSeries || paidLessonIds.has(lesson.id)) {
+      return { canPlay: true, reason: "purchased", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
+    }
+    return { canPlay: false, reason: "purchase_required", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
+  }
 
   return (
     <main className={ui.page}>
       <ShareCoverImage
-        src={series.cover_image_url}
-        alt={series.title}
+        src={seriesData.cover_image_url}
+        alt={seriesData.title}
         sharePath={sharePath}
-        shareTitle={series.title}
-        shareText={`${series.title} · ${studio.name}`}
+        shareTitle={seriesData.title}
+        shareText={`${seriesData.title} · ${studio.name}`}
       />
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className={ui.badge}>Member zone</p>
-          <h1 className={`${ui.h1} mt-3`}>{series.title}</h1>
+          <h1 className={`${ui.h1} mt-3`}>{seriesData.title}</h1>
           <div className="mt-2">
             <span className={ui.badgeNeutral}>{seriesBadge}</span>
           </div>
-          {series.summary ? <p className={`mt-2 ${ui.lead}`}>{series.summary}</p> : null}
+          {seriesData.summary ? <p className={`mt-2 ${ui.lead}`}>{seriesData.summary}</p> : null}
         </div>
         <SessionShareLinkButton
           sharePath={sharePath}
-          title={`${series.title} · ${studio.name}`}
-          text={`Check out this member zone series: ${series.title}`}
+          title={`${seriesData.title} · ${studio.name}`}
+          text={`Check out this member zone series: ${seriesData.title}`}
         />
       </div>
-      {series.description ? (
+      {seriesData.description ? (
         <p className="mt-4 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
-          {series.description}
+          {seriesData.description}
         </p>
       ) : null}
 
-      {series.promo_video_url ? (
-        <div className={`${ui.card} mt-6`}>{renderMedia(series.promo_video_url, `${series.title} intro`, "video")}</div>
+      {seriesData.promo_video_url ? (
+        <div className={`${ui.card} mt-6`}>{renderMedia(seriesData.promo_video_url, `${seriesData.title} intro`, "video")}</div>
       ) : null}
 
       <section className="mt-8">
@@ -135,20 +189,8 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
           </div>
         ) : (
           <div className="mt-3 grid gap-4">
-            {await Promise.all(
-              lessons.map(async (lesson) => {
-                const access = await resolveMemberZonePlaybackAccess(admin, {
-                  userId: user?.id ?? null,
-                  studioId: studio.id,
-                  seriesId: series.id,
-                  lessonId: lesson.id,
-                  seriesAccessType: series.access_type,
-                  seriesPrice: Number(series.price ?? 0),
-                  seriesCurrency: series.currency ?? "SGD",
-                  lessonAccessOverride: lesson.access_override,
-                  lessonOverridePrice: Number(lesson.override_price ?? 0),
-                  lessonCurrency: lesson.currency ?? "SGD",
-                });
+            {lessons.map((lesson) => {
+                const access = resolveAccess(lesson);
                 const amountLabel = `${access.resolvedCurrency} ${access.resolvedPrice.toFixed(2)}`;
                 const lessonBadge = accessTypeBadgeLabel(access.resolvedAccessType, amountLabel);
                 const accessHint =
@@ -188,11 +230,12 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                             </div>
                             <MemberZoneUnlockPanel
                               studioSlug={studio.public_slug}
-                              seriesSlug={series.share_slug}
-                              seriesId={series.id}
+                              seriesSlug={seriesData.share_slug}
+                              seriesId={seriesData.id}
                               lessonId={access.purchaseScope === "lesson" ? lesson.id : null}
                               mode={access.resolvedAccessType === "members_only" ? "membership_only" : "purchase"}
                               amountLabel={access.resolvedAccessType === "paid" ? amountLabel : undefined}
+                              isAuthenticated={Boolean(user)}
                             />
                           </div>
                         </div>
@@ -200,8 +243,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                     </div>
                   </article>
                 );
-              }),
-            )}
+            })}
           </div>
         )}
       </section>

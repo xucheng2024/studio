@@ -38,7 +38,7 @@ export function SeriesAccessPreview(props: {
 
   return (
     <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
-      <p className={`text-xs font-medium ${ui.muted}`}>前台显示预览</p>
+      <p className={`text-xs font-medium ${ui.muted}`}>前台显示预览 <span className="font-normal">（仅用于预览效果，不影响表单保存值）</span></p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>
         <span className={ui.btnPrimarySm}>{cta}</span>
@@ -103,7 +103,7 @@ export function LessonAccessPreview(props: {
 
   return (
     <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
-      <p className={`text-xs font-medium ${ui.muted}`}>前台显示预览</p>
+      <p className={`text-xs font-medium ${ui.muted}`}>前台显示预览 <span className="font-normal">（仅用于预览效果，不影响表单保存值）</span></p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>
         <span className={ui.btnPrimarySm}>{cta}</span>

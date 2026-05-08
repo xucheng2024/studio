@@ -160,7 +160,7 @@ export async function POST(req: Request) {
 
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
-  const redirectUrl = `${baseUrl}/member-zone/${studio.public_slug}/${series.share_slug}`;
+  const redirectUrl = `${baseUrl}/checkout/${payment.id}`;
   const { data: profile } = await admin
     .from("user_profiles")
     .select("full_name")

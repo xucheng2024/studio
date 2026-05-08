@@ -12,6 +12,7 @@ export function MemberZoneUnlockPanel(props: {
   lessonId?: string | null;
   mode: "membership_only" | "purchase";
   amountLabel?: string;
+  isAuthenticated?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -57,9 +58,6 @@ export function MemberZoneUnlockPanel(props: {
           : `单独购买 ${props.amountLabel ?? ""} 或订阅会员解锁`.trim()}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
-        <Link href={membershipAnchor} className={ui.btnSecondarySm}>
-          订阅会员解锁
-        </Link>
         {props.mode === "purchase" ? (
           <button
             type="button"
@@ -69,11 +67,18 @@ export function MemberZoneUnlockPanel(props: {
           >
             {busy ? "Processing..." : `单独购买 ${props.amountLabel ?? ""}`.trim()}
           </button>
+        ) : props.isAuthenticated ? (
+          <Link href={membershipAnchor} className={ui.btnPrimarySm}>
+            订阅会员解锁
+          </Link>
         ) : (
           <Link href={authHref} className={ui.btnPrimarySm}>
             登录后解锁
           </Link>
         )}
+        <Link href={membershipAnchor} className={ui.btnSecondarySm}>
+          查看会员计划
+        </Link>
       </div>
       {msg ? <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">{msg}</p> : null}
     </div>

@@ -20,12 +20,15 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       currency,
       payment_method,
       status,
+      source,
       reference_code,
       expires_at,
       verified_at,
       gateway_checkout_url,
       gateway_status,
-      booking_id
+      booking_id,
+      member_zone_series_id,
+      member_zone_lesson_id
     `,
     )
     .eq("id", payment_id)
@@ -33,6 +36,22 @@ export default async function PaymentCheckoutPage({ params }: Props) {
 
   if (error || !payment) notFound();
   const isHitpay = (payment.payment_method ?? "").toLowerCase() === "hitpay" || Boolean(payment.gateway_checkout_url);
+
+  const memberZoneSeriesId = (payment as { member_zone_series_id?: string | null }).member_zone_series_id ?? null;
+  let memberZoneSeriesPath: string | null = null;
+  if (memberZoneSeriesId) {
+    const { data: mzSeries } = await admin
+      .from("member_zone_series")
+      .select("share_slug, studios(public_slug)")
+      .eq("id", memberZoneSeriesId)
+      .maybeSingle();
+    const studioSlug = mzSeries
+      ? (Array.isArray(mzSeries.studios) ? mzSeries.studios[0]?.public_slug : (mzSeries.studios as { public_slug?: string | null } | null)?.public_slug)
+      : null;
+    if (studioSlug && mzSeries?.share_slug) {
+      memberZoneSeriesPath = `/member-zone/${studioSlug}/${mzSeries.share_slug}`;
+    }
+  }
 
   let ruleLine: string | null = null;
   if (payment.booking_id) {
@@ -96,11 +115,11 @@ export default async function PaymentCheckoutPage({ params }: Props) {
 
         {/* ── Back link ── */}
         <Link
-          href={payment.booking_id ? "/me/bookings" : "/checkout"}
+          href={memberZoneSeriesPath ?? (payment.booking_id ? "/me/bookings" : "/checkout")}
           className={`inline-flex items-center gap-1.5 text-sm ${ui.linkMuted} w-fit`}
         >
           <ArrowLeft size={14} />
-          {payment.booking_id ? "My bookings" : "Browse packages"}
+          {memberZoneSeriesPath ? "Back to series" : payment.booking_id ? "My bookings" : "Browse packages"}
         </Link>
 
         {/* ── Page title (visually hidden, for a11y / SEO) ── */}
@@ -128,10 +147,21 @@ export default async function PaymentCheckoutPage({ params }: Props) {
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-6 text-center dark:border-teal-800/50 dark:bg-teal-950/30">
             <ShieldCheck size={28} className="text-teal-600 dark:text-teal-400" />
             <p className="text-lg font-semibold text-teal-900 dark:text-teal-200">Payment confirmed</p>
-            <p className={`text-sm ${ui.muted}`}>Your booking is locked in. See you at class!</p>
-            <Link href="/me/bookings" className={`mt-2 text-sm ${ui.link}`}>
-              View my bookings →
-            </Link>
+            {memberZoneSeriesPath ? (
+              <>
+                <p className={`text-sm ${ui.muted}`}>Your purchase is confirmed. Enjoy the content!</p>
+                <Link href={memberZoneSeriesPath} className={`mt-2 text-sm ${ui.link}`}>
+                  Watch now →
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className={`text-sm ${ui.muted}`}>Your booking is locked in. See you at class!</p>
+                <Link href="/me/bookings" className={`mt-2 text-sm ${ui.link}`}>
+                  View my bookings →
+                </Link>
+              </>
+            )}
           </div>
         ) : null}
 

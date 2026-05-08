@@ -49,10 +49,10 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
   ]);
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
 
-  const backParams = new URLSearchParams();
-  if (selectedStudioId) backParams.set("studio_id", selectedStudioId);
-  if (selectedLocationId) backParams.set("location_id", selectedLocationId);
-  const backHref = `/dashboard/events${backParams.toString() ? `?${backParams.toString()}` : ""}`;
+  const overviewParams = new URLSearchParams();
+  if (selectedStudioId) overviewParams.set("studio_id", selectedStudioId);
+  if (selectedLocationId) overviewParams.set("location_id", selectedLocationId);
+  const publicHref = studio.public_slug ? `/${studio.public_slug}#member-zone` : null;
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
@@ -61,9 +61,11 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
           <h1 className={ui.h1}>Member zone setup</h1>
           <p className={ui.muted}>Create series and lessons for paid/member-only media learning.</p>
         </div>
-        <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-          Back to events
-        </DashboardAppLink>
+        {publicHref ? (
+          <DashboardAppLink href={publicHref} className={ui.btnSecondarySm}>
+            View public page
+          </DashboardAppLink>
+        ) : null}
       </div>
 
       <details className={`chevron ${ui.card}`}>
