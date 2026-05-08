@@ -252,6 +252,8 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const public_intro = String(formData.get("public_intro") ?? "").trim() || null;
+  const public_brand_name = String(formData.get("public_brand_name") ?? "").trim() || null;
+  const public_logo_url = String(formData.get("public_logo_url") ?? "").trim() || null;
   const public_cover_image_url = String(formData.get("public_cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("public_video_url") ?? "");
   const public_video_url = sanitizeVideoUrl(rawVideo);
@@ -266,10 +268,13 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   if (rawVideo.trim() && !public_video_url) return;
   if (rawWhatsapp.trim() && !whatsapp_number_e164) return;
 
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("studios")
     .update({
       public_intro,
+      public_brand_name,
+      public_logo_url,
       public_cover_image_url,
       public_video_url,
       public_services_title,
@@ -278,6 +283,31 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
       whatsapp_enabled,
       whatsapp_number_e164,
       whatsapp_prefill_text,
+    })
+    .eq("id", studio.id);
+  if (error) {
+    console.error("[updateStudioPublicProfile]", error.message);
+    return;
+  }
+
+  revalidatePath("/dashboard/settings/public-profile");
+  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+}
+
+export async function updateStudioPublicBranding(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  const public_brand_name = String(formData.get("public_brand_name") ?? "").trim() || null;
+  const public_logo_url = String(formData.get("public_logo_url") ?? "").trim() || null;
+
+  const { error } = await supabase
+    .from("studios")
+    .update({
+      public_brand_name,
+      public_logo_url,
     })
     .eq("id", studio.id);
   if (error) {

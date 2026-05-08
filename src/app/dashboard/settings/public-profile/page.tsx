@@ -1,7 +1,11 @@
-import { updateStudioBasics, updateStudioPublicProfile } from "@/app/dashboard/actions";
+import {
+  updateStudioBasics,
+  updateStudioPublicBranding,
+  updateStudioPublicProfile,
+} from "@/app/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { StudioProfileMediaFields } from "@/components/dashboard/PublicMediaFields";
+import { CoverUrlField, StudioProfileMediaFields } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -42,7 +46,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -88,6 +92,45 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         </label>
         <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
           Save basics
+        </SubmitButton>
+      </form>
+
+      <form action={updateStudioPublicBranding} className={`${ui.card} grid gap-4`}>
+        <input type="hidden" name="studio_id" value={studio.id} />
+        <div className="grid gap-4">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Header branding</h2>
+            <p className={`text-xs ${ui.muted}`}>
+              Controls the top row on your public page: left logo and center brand name.
+            </p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+            <div className="grid gap-4">
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Brand name</span>
+                <input
+                  name="public_brand_name"
+                  className={ui.input}
+                  defaultValue={studio.public_brand_name ?? ""}
+                  placeholder={studio.name ?? "Studio name"}
+                />
+                <p className={`text-xs ${ui.muted}`}>
+                  Leave blank to use the studio name. Uploading a logo only updates the preview until you save.
+                </p>
+              </label>
+            </div>
+            <CoverUrlField
+              studioId={studio.id}
+              entityId="public-logo"
+              folder="studios"
+              name="public_logo_url"
+              label="Brand logo"
+              defaultValue={studio.public_logo_url ?? null}
+            />
+          </div>
+        </div>
+        <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Saving...">
+          Save header branding
         </SubmitButton>
       </form>
 

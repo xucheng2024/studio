@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { MemberZoneUnlockPanel } from "@/components/MemberZoneUnlockPanel";
-import { Lock } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import {
@@ -58,8 +57,8 @@ function accessTypeBadgeLabel(
 ) {
   if (accessType === "free") return "Free";
   if (accessType === "member_only") return "Members only";
-  if (accessType === "paid_only") return amountLabel ? `Paid only · ${amountLabel}` : "Paid only";
-  return amountLabel ? `Member or paid · ${amountLabel}` : "Member or paid";
+  if (accessType === "paid_only") return amountLabel ?? "Paid";
+  return amountLabel ? `From ${amountLabel}` : "Member or paid";
 }
 
 export default async function MemberZoneSeriesPage({ params }: Props) {
@@ -179,12 +178,15 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
       />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={ui.badge}>Member zone</p>
-          <h1 className={`${ui.h1} mt-3`}>{seriesData.title}</h1>
-          <div className="mt-2">
+          <p className={ui.badge}>Member zone · {studio.name}</p>
+          <h1 className={`${ui.h1} mt-2`}>{seriesData.title}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className={ui.badgeNeutral}>{seriesBadge}</span>
+            {lessons.length > 0 ? (
+              <span className={ui.badgeNeutral}>{lessons.length} lesson{lessons.length !== 1 ? "s" : ""}</span>
+            ) : null}
           </div>
-          {seriesData.summary ? <p className={`mt-2 ${ui.lead}`}>{seriesData.summary}</p> : null}
+          {seriesData.summary ? <p className={`mt-3 ${ui.lead}`}>{seriesData.summary}</p> : null}
         </div>
         <SessionShareLinkButton
           sharePath={sharePath}
@@ -203,75 +205,84 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
       ) : null}
 
       <section className="mt-8">
-        <h2 className={ui.h2}>Lessons</h2>
+        <div className="flex items-baseline gap-2">
+          <h2 className={ui.h2}>Lessons</h2>
+          {lessons.length > 0 ? (
+            <span className={`text-sm ${ui.muted}`}>{lessons.length} total</span>
+          ) : null}
+        </div>
         {lessons.length === 0 ? (
           <div className={`${ui.emptyState} mt-3`}>
             <p className={`text-sm ${ui.muted}`}>No lessons published yet.</p>
           </div>
         ) : (
-          <div className="mt-3 grid gap-4">
-            {lessons.map((lesson) => {
+          <div className="mt-3 grid gap-3">
+            {lessons.map((lesson, idx) => {
                 const access = resolveAccess(lesson);
                 const amountLabel = `${access.resolvedCurrency} ${access.resolvedPrice.toFixed(2)}`;
-                const lessonBadge = accessTypeBadgeLabel(access.resolvedAccessType, amountLabel);
-                const accessHint =
-                  (lesson.access_override ?? "inherit") === "inherit"
-                    ? `Inherits series access (${seriesBadge})`
-                    : `Lesson override (${lessonBadge})`;
+                const hasOverride = (lesson.access_override ?? "inherit") !== "inherit";
+                const overrideBadge = hasOverride
+                  ? accessTypeBadgeLabel(access.resolvedAccessType, amountLabel)
+                  : null;
                 return (
                   <article key={lesson.id} className={ui.card}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">
-                        {lesson.title}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={ui.badgeNeutral}>
-                          {lesson.duration_min > 0 ? `${lesson.duration_min} min` : "Flexible length"}
-                        </span>
-                        <span className={ui.badgeNeutral}>{lessonBadge}</span>
-                      </div>
-                    </div>
-                    {lesson.summary ? <p className={`mt-1 text-sm ${ui.muted}`}>{lesson.summary}</p> : null}
-                    <p className={`mt-1 text-xs ${ui.muted}`}>{accessHint}</p>
-                    {lesson.description ? (
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
-                        {lesson.description}
-                      </p>
-                    ) : null}
-                    <div className="mt-3">
-                      {access.canPlay ? (
-                        renderMedia(lesson.media_url, lesson.title, lesson.media_type ?? "video")
-                      ) : (
-                        <div className="relative overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
-                          <div className="pointer-events-none absolute inset-0 bg-white/60 backdrop-blur-[1px] dark:bg-stone-900/55" />
-                          <div className="relative z-10 p-3">
-                            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-stone-900/80 px-2.5 py-1 text-xs font-medium text-white dark:bg-stone-100/85 dark:text-stone-900">
-                              <Lock size={12} />
-                              Locked
-                            </div>
-                            <MemberZoneUnlockPanel
-                              studioSlug={studio.public_slug}
-                              seriesSlug={seriesData.share_slug}
-                              seriesId={seriesData.id}
-                              lessonId={access.purchaseScope === "lesson" ? lesson.id : null}
-                              mode={
-                                access.resolvedAccessType === "member_only"
-                                  ? "member_only"
-                                  : access.resolvedAccessType === "paid_only"
-                                    ? "paid_only"
-                                    : "member_or_paid"
-                              }
-                              amountLabel={
-                                access.resolvedAccessType === "paid_only" || access.resolvedAccessType === "member_or_paid"
-                                  ? amountLabel
-                                  : undefined
-                              }
-                              isAuthenticated={Boolean(user)}
-                              membershipHref={membershipHref}
-                            />
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 shrink-0 text-sm tabular-nums text-stone-400 dark:text-stone-500">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">
+                            {lesson.title}
+                          </h3>
+                          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                            {lesson.duration_min > 0 ? (
+                              <span className={ui.badgeNeutral}>{lesson.duration_min} min</span>
+                            ) : null}
+                            {access.canPlay ? (
+                              <span className="inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 ring-1 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300">
+                                Unlocked
+                              </span>
+                            ) : overrideBadge ? (
+                              <span className={ui.badgeNeutral}>{overrideBadge}</span>
+                            ) : null}
                           </div>
                         </div>
-                      )}
+                        {lesson.summary ? (
+                          <p className={`mt-1 text-sm ${ui.muted}`}>{lesson.summary}</p>
+                        ) : null}
+                        {lesson.description ? (
+                          <p className="mt-1.5 whitespace-pre-wrap text-sm text-stone-600 dark:text-stone-400">
+                            {lesson.description}
+                          </p>
+                        ) : null}
+                        <div className="mt-3">
+                          {access.canPlay ? (
+                            renderMedia(lesson.media_url, lesson.title, lesson.media_type ?? "video")
+                          ) : (
+                            <MemberZoneUnlockPanel
+                                studioSlug={studio.public_slug}
+                                seriesSlug={seriesData.share_slug}
+                                seriesId={seriesData.id}
+                                lessonId={access.purchaseScope === "lesson" ? lesson.id : null}
+                                mode={
+                                  access.resolvedAccessType === "member_only"
+                                    ? "member_only"
+                                    : access.resolvedAccessType === "paid_only"
+                                      ? "paid_only"
+                                      : "member_or_paid"
+                                }
+                                amountLabel={
+                                  access.resolvedAccessType === "paid_only" || access.resolvedAccessType === "member_or_paid"
+                                    ? amountLabel
+                                    : undefined
+                                }
+                                isAuthenticated={Boolean(user)}
+                                membershipHref={membershipHref}
+                              />
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </article>
                 );

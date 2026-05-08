@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
+import { StudioSectionTabs } from "@/components/StudioSectionTabs";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -20,7 +21,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, contract_status, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
+    .select("id, name, public_slug, contract_status, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
     .eq("public_slug", slug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -155,19 +156,51 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const pastEvents = (events ?? []).filter((e) => new Date(String(e.end_time)).getTime() < nowMs);
   const visibleEvents = upcomingEvents.slice(0, 4);
   const hiddenEvents = upcomingEvents.slice(4);
-  const lightAnchorBtn =
-    "inline-flex items-center rounded-xl border border-stone-200 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition-colors hover:bg-white hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-stone-100";
   const mediaTagClass =
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
+  const publicBrandName = studio.public_brand_name?.trim() || studio.name;
+  const logoUrl = studio.public_logo_url?.trim() || null;
+  const studioBadgeLabel = publicBrandName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part: string) => part[0]?.toUpperCase() ?? "")
+    .join("") || "S";
+  const sectionTabs = [
+    { href: "#services", label: "Services" },
+    { href: "#upcoming-classes", label: "Classes" },
+    ...(upcomingEvents.length > 0 ? [{ href: "#events", label: "Events" }] : []),
+    ...(memberZoneSeries.length > 0 ? [{ href: "#member-zone", label: "Member zone" }] : []),
+    ...(packages.length > 0 ? [{ href: "#packages", label: "Packages" }] : []),
+  ];
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-2 sm:px-6 sm:pt-4 lg:px-8">
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-        <div className={`${ui.card} relative bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
-          <div className="absolute right-4 top-4 z-20">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-1">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={publicBrandName}
+              className="size-11 rounded-2xl border border-stone-200 bg-white object-cover shadow-sm dark:border-stone-700 dark:bg-stone-900"
+            />
+          ) : (
+            <div className="inline-flex size-11 items-center justify-center rounded-2xl border border-stone-200 bg-white text-sm font-semibold text-stone-700 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200">
+              {studioBadgeLabel}
+            </div>
+          )}
+          <div className="min-w-0 text-center">
+            <p className="truncate text-lg font-semibold text-stone-900 dark:text-stone-100 sm:text-xl">
+              {publicBrandName}
+            </p>
+          </div>
+          <div className="justify-self-end">
             <StudioAccountEntry showMembershipsLink={memberships.length > 0} />
           </div>
+        </div>
+        <div className={`${ui.card} bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
           <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">
             <div className="w-full">
               <PublicVideoCover
@@ -201,36 +234,14 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   Welcome to our studio. Explore services and get in touch.
                 </p>
               )}
-              <div className="mt-5 flex flex-wrap items-start gap-2.5">
-                <a href="#services" className={lightAnchorBtn}>
-                  Services
-                </a>
-                <a href="#upcoming-classes" className={lightAnchorBtn}>
-                  Classes
-                </a>
-                {upcomingEvents.length > 0 ? (
-                  <a href="#events" className={lightAnchorBtn}>
-                    Events
-                  </a>
-                ) : null}
-                {memberZoneSeries.length > 0 ? (
-                  <a href="#member-zone" className={lightAnchorBtn}>
-                    Member zone
-                  </a>
-                ) : null}
-                {packages.length > 0 ? (
-                  <a href="#packages" className={lightAnchorBtn}>
-                    Packages
-                  </a>
-                ) : null}
-              </div>
             </div>
           </div>
         </div>
+        <StudioSectionTabs items={sectionTabs} />
       </section>
 
       {services.length > 0 ? (
-        <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
+        <section id="services" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <h2 className={ui.h2}>{servicesTitle}</h2>
@@ -414,7 +425,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {classes.length > 0 ? (
-        <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="upcoming-classes" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{classesTitle}</h2>
           </div>
@@ -632,7 +643,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {upcomingEvents.length > 0 ? (
-        <section id="events" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="events" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{eventsTitle}</h2>
           </div>
@@ -893,33 +904,34 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {memberZoneSeries.length > 0 ? (
-        <section id="member-zone" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="member-zone" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{memberZoneTitle}</h2>
           </div>
-          <p className={`mt-1 text-sm ${ui.muted}`}>Members can access exclusive audio/video lesson series. Some series also support one-time purchase.</p>
+          <p className={`mt-1 text-sm ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {memberZoneSeries.map((series) => {
               const href = `/member-zone/${studio.public_slug}/${series.share_slug}`;
-              const tag =
+              const priceStr = `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price ?? 0).toFixed(2)}`;
+              const accessTag =
                 series.access_type === "free"
-                  ? "Free"
+                  ? { label: "Free", color: "bg-teal-50 text-teal-700 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300" }
                   : series.access_type === "paid_only"
-                    ? `Paid only · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    ? { label: priceStr, color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" }
                     : series.access_type === "member_or_paid"
-                      ? `Member or paid · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
-                      : "Members only";
+                      ? { label: `From ${priceStr}`, color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" }
+                      : { label: "Members only", color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" };
               const ctaLabel =
                 series.access_type === "free"
                   ? "Watch free"
                   : series.access_type === "paid_only"
-                    ? `Buy only · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
+                    ? `Buy · ${priceStr}`
                     : series.access_type === "member_or_paid"
-                      ? `Buy or subscribe · ${series.currency} ${Number(series.price ?? 0).toFixed(2)}`
-                      : "Subscribe to unlock";
+                      ? "View series"
+                      : "Subscribe to watch";
               return (
-                <article key={series.id} className={ui.card}>
-                  <Link href={href} className="block">
+                <article key={series.id} className={`${ui.card} flex flex-col`}>
+                  <Link href={href} className="block shrink-0">
                     {series.cover_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -932,29 +944,28 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
                     )}
                   </Link>
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
-                      <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
-                        {series.title}
-                      </Link>
-                    </h3>
-                    <span className={ui.badgeNeutral}>{tag}</span>
-                  </div>
-                  {series.summary ? (
-                    <p className={`mt-1 line-clamp-2 text-sm ${ui.muted}`}>{series.summary}</p>
-                  ) : null}
-                  {series.description ? (
-                    <p className="mt-2 line-clamp-3 text-sm text-stone-700 dark:text-stone-300">
-                      {series.description}
-                    </p>
-                  ) : null}
-                  <div className="mt-4 flex items-center justify-between gap-2">
-                    <Link href={href} className={ui.btnPrimarySm}>{ctaLabel}</Link>
-                    <SessionShareLinkButton
-                      sharePath={href}
-                      title={`${series.title} · ${studio.name}`}
-                      text={`Check out this member zone series: ${series.title}`}
-                    />
+                  <div className="mt-3 flex flex-1 flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">
+                        <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                          {series.title}
+                        </Link>
+                      </h3>
+                      <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${accessTag.color}`}>
+                        {accessTag.label}
+                      </span>
+                    </div>
+                    {series.summary ? (
+                      <p className={`mt-1.5 line-clamp-2 text-sm ${ui.muted}`}>{series.summary}</p>
+                    ) : null}
+                    <div className="mt-auto flex items-center justify-between pt-4">
+                      <Link href={href} className={ui.btnPrimarySm}>{ctaLabel}</Link>
+                      <SessionShareLinkButton
+                        sharePath={href}
+                        title={`${series.title} · ${studio.name}`}
+                        text={`Check out this member zone series: ${series.title}`}
+                      />
+                    </div>
                   </div>
                 </article>
               );
@@ -964,7 +975,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {packages.length > 0 ? (
-        <section id="packages" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="packages" className="scroll-mt-14 mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{packagesTitle}</h2>
           </div>
