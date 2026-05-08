@@ -40,12 +40,59 @@ const CFG = {
   seedTag: `THERAPY-SEED-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`,
 };
 
+const randPwd = () => crypto.randomBytes(16).toString("hex") + "Aa1!";
+
 function randSlug(len = 10) {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
   const buf = crypto.randomBytes(len);
   let out = "";
   for (let i = 0; i < len; i += 1) out += alphabet[buf[i] % alphabet.length];
   return out;
+}
+
+async function ensureUserByEmail(email, fullName, phone) {
+  const normalized = String(email ?? "").trim().toLowerCase();
+  if (!normalized) throw new Error("ensureUserByEmail: missing email");
+
+  const { data: existingUserRow, error: findErr } = await admin
+    .from("users")
+    .select("id, email")
+    .eq("email", normalized)
+    .maybeSingle();
+  if (findErr) throw findErr;
+
+  let userId = existingUserRow?.id ?? null;
+  if (!userId) {
+    const { data, error } = await admin.auth.admin.createUser({
+      email: normalized,
+      password: randPwd(),
+      email_confirm: true,
+      user_metadata: { full_name: fullName, phone, role: "client" },
+    });
+    if (error) {
+      const { data: again, error: againErr } = await admin
+        .from("users")
+        .select("id")
+        .eq("email", normalized)
+        .maybeSingle();
+      if (againErr || !again?.id) throw error;
+      userId = again.id;
+    } else {
+      userId = data.user?.id ?? null;
+      if (!userId) throw new Error(`createUser returned no id for ${normalized}`);
+    }
+  }
+
+  const { error: upUsersErr } = await admin.from("users").upsert({ id: userId, email: normalized }, { onConflict: "id" });
+  if (upUsersErr) throw upUsersErr;
+
+  const { error: upProfileErr } = await admin.from("user_profiles").upsert(
+    { id: userId, email: normalized, full_name: fullName, phone, role: "client" },
+    { onConflict: "id" },
+  );
+  if (upProfileErr) throw upProfileErr;
+
+  return userId;
 }
 
 function isoSGT(dateYmd, hh, mm = 0) {
@@ -164,6 +211,7 @@ async function cleanupAllAngleData(ctx) {
     paymentIdsFromBookings.length ? `id.in.(${paymentIdsFromBookings.join(",")})` : null,
     paymentIdsFromEventBookings.length ? `id.in.(${paymentIdsFromEventBookings.join(",")})` : null,
     packageIds.length ? `package_id.in.(${packageIds.join(",")})` : null,
+    `reference_code.like.${CFG.seedTag}%`,
   ].filter(Boolean);
 
   if (paymentFilters.length) {
@@ -173,6 +221,43 @@ async function cleanupAllAngleData(ctx) {
       .eq("studio_id", ctx.studioId)
       .or(paymentFilters.join(","));
     if (pErr) throw pErr;
+  }
+
+  // 4b) member zone cleanup (series/lessons/purchases)
+  // Use share_slug prefix + studio_id to avoid touching real content.
+  const mzLike = `${CFG.seedTag.toLowerCase()}%`;
+  const { data: mzSeries, error: mzSeriesErr } = await admin
+    .from("member_zone_series")
+    .select("id")
+    .eq("studio_id", ctx.studioId)
+    .like("share_slug", mzLike);
+  if (mzSeriesErr && !String(mzSeriesErr.message ?? "").includes("relation")) throw mzSeriesErr;
+  const mzSeriesIds = (mzSeries ?? []).map((r) => r.id);
+  if (mzSeriesIds.length) {
+    const { data: mzLessons } = await admin
+      .from("member_zone_lessons")
+      .select("id")
+      .in("series_id", mzSeriesIds);
+    const mzLessonIds = (mzLessons ?? []).map((r) => r.id);
+    if (mzLessonIds.length) {
+      await admin.from("member_zone_purchases").delete().in("lesson_id", mzLessonIds);
+      await admin.from("member_zone_lessons").delete().in("id", mzLessonIds);
+    }
+    await admin.from("member_zone_purchases").delete().in("series_id", mzSeriesIds);
+    await admin.from("member_zone_series").delete().in("id", mzSeriesIds);
+  }
+
+  // 4c) memberships cleanup (products + subscriptions seeded by tag)
+  const { data: seededMemberships, error: mErr } = await admin
+    .from("membership_products")
+    .select("id")
+    .eq("studio_id", ctx.studioId)
+    .like("share_slug", mzLike);
+  if (mErr && !String(mErr.message ?? "").includes("relation")) throw mErr;
+  const membershipProductIds = (seededMemberships ?? []).map((r) => r.id);
+  if (membershipProductIds.length) {
+    await admin.from("customer_subscriptions").delete().in("membership_product_id", membershipProductIds);
+    await admin.from("membership_products").delete().in("id", membershipProductIds);
   }
 
   // 5) delete client_packages for studio packages (class pass balances)
@@ -222,6 +307,18 @@ async function cleanupAllAngleData(ctx) {
       bookingIds: bookingIds.length,
     },
   };
+}
+
+function ymdInSgFromNow(daysOffset = 0) {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const pick = (t) => parts.find((p) => p.type === t)?.value ?? "";
+  const today = `${pick("year")}-${pick("month")}-${pick("day")}`;
+  const base = new Date(`${today}T00:00:00+08:00`);
+  base.setDate(base.getDate() + Number(daysOffset ?? 0));
+  const parts2 = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(base);
+  const pick2 = (t) => parts2.find((p) => p.type === t)?.value ?? "";
+  return `${pick2("year")}-${pick2("month")}-${pick2("day")}`;
 }
 
 async function seedTherapyData(ctx) {
@@ -694,6 +791,375 @@ async function seedTherapyData(ctx) {
     if (!msg.toLowerCase().includes("relation") && !msg.toLowerCase().includes("does not exist")) throw e;
   }
 
+  // ── Membership products + sample subscriptions + payments ───────────────────
+  const membershipSeedSlugPrefix = CFG.seedTag.toLowerCase();
+  const membershipProducts = [
+    {
+      name: "Angle Wellness Membership · Monthly",
+      description: "Unlimited access to member-only learning content + priority booking windows. Cancel anytime.",
+      price: 39,
+      currency: "SGD",
+      billing_interval: "monthly",
+      trial_days: 7,
+    },
+    {
+      name: "Angle Wellness Membership · Yearly",
+      description: "Best value: 12 months of member access. Includes member-only content and perks.",
+      price: 399,
+      currency: "SGD",
+      billing_interval: "yearly",
+      trial_days: 14,
+    },
+  ];
+  const membershipRows = membershipProducts.map((m, idx) => ({
+    studio_id: ctx.studioId,
+    location_id: ctx.locationId,
+    name: m.name,
+    description: m.description,
+    price: m.price,
+    currency: m.currency,
+    billing_interval: m.billing_interval,
+    trial_days: m.trial_days,
+    is_active: true,
+    share_slug: `${membershipSeedSlugPrefix}-m-${String(idx + 1).padStart(2, "0")}-${randSlug(8)}`,
+    image_url: null,
+    video_url: null,
+    deleted_at: null,
+  }));
+
+  const { data: insertedMemberships, error: insMErr } = await admin
+    .from("membership_products")
+    .insert(membershipRows)
+    .select("id, name, billing_interval, trial_days, share_slug");
+  if (insMErr && !String(insMErr.message ?? "").includes("relation")) throw insMErr;
+
+  const memberships = insertedMemberships ?? [];
+  const monthly = memberships.find((m) => m.billing_interval === "monthly") ?? memberships[0] ?? null;
+  const yearly = memberships.find((m) => m.billing_interval === "yearly") ?? memberships[1] ?? null;
+
+  // create a handful of real users so member zone can show member-linked access
+  const seedMembers = [
+    { full: "Rachel Ng", email: "rachel.ng@angle.demo", phone: "+6590123456" },
+    { full: "Daniel Tan", email: "daniel.tan@angle.demo", phone: "+6590234567" },
+    { full: "Alicia Lim", email: "alicia.lim@angle.demo", phone: "+6590345678" },
+    { full: "Kevin Wong", email: "kevin.wong@angle.demo", phone: "+6590456789" },
+    { full: "Siti Nur Aisyah", email: "siti.aisyah@angle.demo", phone: "+6590567890" },
+  ];
+  const memberIds = [];
+  for (const m of seedMembers) {
+    // eslint-disable-next-line no-await-in-loop
+    const id = await ensureUserByEmail(m.email, m.full, m.phone);
+    memberIds.push({ id, ...m });
+  }
+
+  if (monthly?.id) {
+    // Active monthly member (already charged once)
+    const activeMember = memberIds[0];
+    const subRef = `${CFG.seedTag}-SUB-${randSlug(10)}`;
+    const paidAt = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+    const createdAt = new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: subRow, error: subErr } = await admin
+      .from("customer_subscriptions")
+      .insert({
+        studio_id: ctx.studioId,
+        client_id: activeMember.id,
+        membership_product_id: monthly.id,
+        recurring_billing_id: `${membershipSeedSlugPrefix}-rb-${randSlug(10)}`,
+        reference_code: subRef,
+        status: "active",
+        customer_name_snapshot: activeMember.full,
+        customer_email_snapshot: activeMember.email,
+        membership_name_snapshot: monthly.name ?? "Membership",
+        membership_price_snapshot: 39,
+        billing_interval_snapshot: "monthly",
+        payment_method_attached_at: createdAt,
+        last_charge_at: paidAt,
+        created_at: createdAt,
+        updated_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (subErr && !String(subErr.message ?? "").includes("relation")) throw subErr;
+    if (subRow?.id) {
+      await admin.from("payments").insert({
+        studio_id: ctx.studioId,
+        location_id: ctx.locationId,
+        client_id: activeMember.id,
+        membership_product_id: monthly.id,
+        customer_subscription_id: subRow.id,
+        membership_name_snapshot: monthly.name ?? "Membership",
+        amount: 39,
+        paid_amount: 39,
+        currency: "SGD",
+        payment_method: "hitpay",
+        source: "membership_subscription",
+        type: "subscription",
+        status: "paid",
+        reference_code: `${subRef}:seed1`,
+        gateway_payment_id: `${membershipSeedSlugPrefix}-ch-${randSlug(12)}`,
+        gateway_refund_payment_id: `${membershipSeedSlugPrefix}-ch-${randSlug(12)}`,
+        gateway_status: "completed",
+        created_at: paidAt,
+        paid_at: paidAt,
+        verified_at: new Date(new Date(paidAt).getTime() + 2 * 60 * 1000).toISOString(),
+        verified_by: ctx.ownerId,
+        recon_status: "matched",
+        invoice_status: "issued",
+        invoice_number: `INV-${CFG.seedTag.slice(-8)}-MEM-0001`,
+      });
+    }
+  }
+
+  if (yearly?.id) {
+    // Scheduled yearly trial (method attached, no charge yet)
+    const trialMember = memberIds[1];
+    const subRef = `${CFG.seedTag}-SUB-${randSlug(10)}`;
+    const createdAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const billingStart = ymdInSgFromNow(Number(yearly.trial_days ?? 14));
+    await admin.from("customer_subscriptions").insert({
+      studio_id: ctx.studioId,
+      client_id: trialMember.id,
+      membership_product_id: yearly.id,
+      recurring_billing_id: `${membershipSeedSlugPrefix}-rb-${randSlug(10)}`,
+      reference_code: subRef,
+      status: "scheduled",
+      customer_name_snapshot: trialMember.full,
+      customer_email_snapshot: trialMember.email,
+      membership_name_snapshot: yearly.name ?? "Membership",
+      membership_price_snapshot: 399,
+      billing_interval_snapshot: "yearly",
+      payment_method_attached_at: createdAt,
+      billing_start_date: billingStart,
+      created_at: createdAt,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  // ── Member zone series/lessons + purchases ─────────────────────────────────
+  const mzPrefix = CFG.seedTag.toLowerCase();
+  const seriesRows = [
+    {
+      title: "Breathwork Foundations",
+      summary: "A practical starter series for down-regulation and steady focus.",
+      description: "Short, repeatable sessions you can use daily. Designed for beginners.",
+      access_type: "free",
+      price: 0,
+      currency: "SGD",
+    },
+    {
+      title: "Member Library · Nervous System Reset",
+      summary: "Member-only guided sessions for stress recovery and grounding.",
+      description: "Exclusive member series: 10–15 min practices and a 4-week track.",
+      access_type: "member_only",
+      price: 0,
+      currency: "SGD",
+    },
+    {
+      title: "Deep Dive · CBT Tools for Anxiety",
+      summary: "A structured program with worksheets, examples, and guided practice.",
+      description: "Purchase to unlock. Includes practical CBT exercises and pacing guidance.",
+      access_type: "paid_only",
+      price: 89,
+      currency: "SGD",
+    },
+    {
+      title: "Burnout Recovery Track (Member or purchase)",
+      summary: "A 6-part recovery track. Members get it free; non-members can purchase.",
+      description: "A realistic weekly plan: boundaries, sleep, and recovery rituals.",
+      access_type: "member_or_paid",
+      price: 59,
+      currency: "SGD",
+    },
+  ].map((s, idx) => ({
+    studio_id: ctx.studioId,
+    title: s.title,
+    summary: s.summary,
+    description: s.description,
+    cover_image_url: null,
+    promo_video_url: idx % 2 === 0 ? "https://www.youtube.com/watch?v=O-6f5wQXSu8" : null,
+    access_type: s.access_type,
+    price: s.price,
+    currency: s.currency,
+    is_active: true,
+    sort_order: 100 + idx,
+    share_slug: `${mzPrefix}-mz-${String(idx + 1).padStart(2, "0")}-${randSlug(8)}`,
+  }));
+
+  const { data: insertedSeries, error: insSeriesErr } = await admin
+    .from("member_zone_series")
+    .insert(seriesRows)
+    .select("id, title, access_type, price, currency, share_slug");
+  if (insSeriesErr && !String(insSeriesErr.message ?? "").includes("relation")) throw insSeriesErr;
+  const mzSeries = insertedSeries ?? [];
+
+  const lessonTemplates = [
+    { title: "Box Breathing · 4 minutes", media_type: "audio", duration_min: 4 },
+    { title: "Body Scan · 10 minutes", media_type: "audio", duration_min: 10 },
+    { title: "Grounding · 5-4-3-2-1", media_type: "video", duration_min: 7 },
+    { title: "Thought Record Walkthrough", media_type: "video", duration_min: 12 },
+    { title: "Worry Time Setup", media_type: "video", duration_min: 9 },
+    { title: "Boundary Scripts (work & family)", media_type: "video", duration_min: 11 },
+  ];
+  const mediaFor = (t) =>
+    t.media_type === "audio"
+      ? "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+      : "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+  const lessonsToInsert = [];
+  for (const s of mzSeries) {
+    for (let i = 0; i < 4; i += 1) {
+      const t = lessonTemplates[(i + s.title.length) % lessonTemplates.length];
+      // add a couple of lesson overrides to cover edge cases:
+      // - In paid_only series, first lesson is free preview
+      // - In member_or_paid series, one lesson is paid_only override (standalone)
+      let access_override = "inherit";
+      let override_price = 0;
+      if (String(s.access_type) === "paid_only" && i === 0) {
+        access_override = "free";
+      }
+      if (String(s.access_type) === "member_or_paid" && i === 3) {
+        access_override = "paid_only";
+        override_price = 12;
+      }
+      lessonsToInsert.push({
+        series_id: s.id,
+        title: t.title,
+        summary: "A short practice you can repeat anytime.",
+        description: "Designed for consistency. Try it daily for 7 days.",
+        media_url: mediaFor(t),
+        media_type: t.media_type,
+        duration_min: t.duration_min,
+        access_override,
+        override_price,
+        currency: "SGD",
+        is_active: true,
+        sort_order: 100 + i,
+      });
+    }
+  }
+
+  const { data: insertedLessons, error: insLessonErr } = await admin
+    .from("member_zone_lessons")
+    .insert(lessonsToInsert)
+    .select("id, series_id, title, access_override, override_price");
+  if (insLessonErr && !String(insLessonErr.message ?? "").includes("relation")) throw insLessonErr;
+
+  // Seed purchases (paid-only series purchase + one standalone lesson purchase)
+  const paidOnlySeries = mzSeries.find((s) => String(s.access_type) === "paid_only") ?? null;
+  const memberOrPaidSeries = mzSeries.find((s) => String(s.access_type) === "member_or_paid") ?? null;
+  const lessons = insertedLessons ?? [];
+  const paidOnlySeriesLessons = paidOnlySeries ? lessons.filter((l) => l.series_id === paidOnlySeries.id) : [];
+  const memberOrPaidLessons = memberOrPaidSeries ? lessons.filter((l) => l.series_id === memberOrPaidSeries.id) : [];
+  const standalonePaidLesson = memberOrPaidLessons.find((l) => String(l.access_override) === "paid_only") ?? null;
+
+  // Member purchases paid-only series
+  if (paidOnlySeries?.id && memberIds[2]?.id) {
+    const buyer = memberIds[2];
+    const createdAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const paymentRef = `${CFG.seedTag}-MZ-${randSlug(10)}`;
+    const { data: pay } = await admin
+      .from("payments")
+      .insert({
+        studio_id: ctx.studioId,
+        location_id: ctx.locationId,
+        client_id: buyer.id,
+        booking_id: null,
+        event_booking_id: null,
+        package_id: null,
+        membership_product_id: null,
+        member_zone_series_id: paidOnlySeries.id,
+        member_zone_lesson_id: null,
+        amount: Number(paidOnlySeries.price ?? 89),
+        paid_amount: Number(paidOnlySeries.price ?? 89),
+        currency: String(paidOnlySeries.currency ?? "SGD").toUpperCase(),
+        payment_method: "hitpay",
+        source: "member_zone_purchase",
+        type: "single",
+        status: "paid",
+        reference_code: paymentRef,
+        created_at: createdAt.toISOString(),
+        paid_at: new Date(createdAt.getTime() + 8 * 60 * 1000).toISOString(),
+        verified_at: new Date(createdAt.getTime() + 10 * 60 * 1000).toISOString(),
+        verified_by: ctx.ownerId,
+        recon_status: "matched",
+        invoice_status: "issued",
+        invoice_number: `INV-${CFG.seedTag.slice(-8)}-MZ-0001`,
+        gateway_status: "completed",
+      })
+      .select("id")
+      .single();
+    if (pay?.id) {
+      await admin.from("member_zone_purchases").insert({
+        studio_id: ctx.studioId,
+        client_id: buyer.id,
+        series_id: paidOnlySeries.id,
+        lesson_id: null,
+        payment_id: pay.id,
+        purchase_scope: "series",
+        amount: Number(paidOnlySeries.price ?? 89),
+        currency: String(paidOnlySeries.currency ?? "SGD").toUpperCase(),
+        status: "paid",
+        paid_at: new Date(createdAt.getTime() + 8 * 60 * 1000).toISOString(),
+      });
+    }
+  }
+
+  // Guest purchases standalone paid lesson
+  if (memberOrPaidSeries?.id && standalonePaidLesson?.id) {
+    const guest = { full: "Hannah Chong", email: "hannah.chong@angle.demo", phone: "+6590667788" };
+    const guestId = await ensureUserByEmail(guest.email, guest.full, guest.phone);
+    const createdAt = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
+    const paymentRef = `${CFG.seedTag}-MZ-${randSlug(10)}`;
+    const { data: pay } = await admin
+      .from("payments")
+      .insert({
+        studio_id: ctx.studioId,
+        location_id: ctx.locationId,
+        client_id: guestId,
+        booking_id: null,
+        event_booking_id: null,
+        package_id: null,
+        membership_product_id: null,
+        member_zone_series_id: memberOrPaidSeries.id,
+        member_zone_lesson_id: standalonePaidLesson.id,
+        guest_name: guest.full,
+        guest_email: guest.email,
+        guest_phone: guest.phone,
+        amount: 12,
+        paid_amount: 12,
+        currency: "SGD",
+        payment_method: "hitpay",
+        source: "member_zone_purchase",
+        type: "single",
+        status: "paid",
+        reference_code: paymentRef,
+        created_at: createdAt.toISOString(),
+        paid_at: new Date(createdAt.getTime() + 6 * 60 * 1000).toISOString(),
+        verified_at: new Date(createdAt.getTime() + 8 * 60 * 1000).toISOString(),
+        verified_by: ctx.ownerId,
+        recon_status: "matched",
+        invoice_status: "issued",
+        invoice_number: `INV-${CFG.seedTag.slice(-8)}-MZ-0002`,
+        gateway_status: "completed",
+      })
+      .select("id")
+      .single();
+    if (pay?.id) {
+      await admin.from("member_zone_purchases").insert({
+        studio_id: ctx.studioId,
+        client_id: guestId,
+        series_id: memberOrPaidSeries.id,
+        lesson_id: standalonePaidLesson.id,
+        payment_id: pay.id,
+        purchase_scope: "lesson",
+        amount: 12,
+        currency: "SGD",
+        status: "paid",
+        paid_at: new Date(createdAt.getTime() + 6 * 60 * 1000).toISOString(),
+      });
+    }
+  }
+
   return {
     seedTag: CFG.seedTag,
     inserted: {
@@ -704,6 +1170,8 @@ async function seedTherapyData(ctx) {
       bookings: (insertedBookings ?? []).length,
       payments: (insertedPayments ?? []).length,
       events: insertedEvents.length,
+      membership_products: memberships.length,
+      member_zone_series: mzSeries.length,
     },
   };
 }
