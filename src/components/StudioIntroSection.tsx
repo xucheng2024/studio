@@ -15,14 +15,14 @@ type Props = {
 const LS_KEY = "studio:loggedIn";
 
 export function StudioIntroSection({ studioName, studioMediaCover, embedUrl, videoUrl, intro }: Props) {
-  // Seed from localStorage so we don't flash on cached PWA opens
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(() => {
-    if (typeof window === "undefined") return null;
-    const cached = localStorage.getItem(LS_KEY);
-    return cached === null ? null : cached === "1";
-  });
+  // Always start null to match server-rendered HTML; seed from localStorage after hydration
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Immediately apply the cached value so logged-in users don't see a flash
+    const cached = localStorage.getItem(LS_KEY);
+    if (cached !== null) setIsLoggedIn(cached === "1");
+
     const supabase = createBrowserSupabase();
     supabase.auth.getSession().then(({ data }) => {
       const loggedIn = Boolean(data.session?.user);
