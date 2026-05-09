@@ -64,6 +64,40 @@ async function acceptInviteIfNeeded(userId: string, email: string | null | undef
     .eq("id", invite.id);
 }
 
+async function acceptPendingOwnerInviteIfNeeded(userId: string, email: string | null | undefined) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return;
+  const admin = createAdminClient();
+  const { data: invite } = await admin
+    .from("platform_owner_email_invites")
+    .select("id, invited_by, is_active")
+    .eq("email", normalizedEmail)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!invite?.id) return;
+
+  await admin
+    .from("platform_owner_grants")
+    .upsert(
+      {
+        user_id: userId,
+        is_active: true,
+        created_by: invite.invited_by ?? userId,
+      },
+      { onConflict: "user_id" },
+    );
+
+  await admin
+    .from("platform_owner_email_invites")
+    .update({
+      is_active: false,
+      accepted_user_id: userId,
+      accepted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", invite.id);
+}
+
 export default async function PostAuthPage({ searchParams }: Props) {
   const sp = await searchParams;
   const fromStaffPortal = sp.staff_portal === "1";
@@ -82,6 +116,7 @@ export default async function PostAuthPage({ searchParams }: Props) {
     .maybeSingle();
 
   await acceptInviteIfNeeded(user.id, user.email, sp.invite_token);
+  await acceptPendingOwnerInviteIfNeeded(user.id, user.email);
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
   if (access.ctx.isSuperAdmin) {
     redirect("/dashboard/settings/owners");

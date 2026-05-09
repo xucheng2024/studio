@@ -72,11 +72,11 @@ export async function SiteHeader() {
         ...(showMembershipsLink ? [{ href: "/me/memberships", label: "My memberships" }] : []),
       ];
   const navItems = user
-    ? inStudioContext
-      ? memberNavItems
-      : hasBackofficeAccess
-        ? [{ href: "/dashboard", label: "Dashboard" }]
-        : memberNavItems
+    ? hasBackofficeAccess
+      ? inStudioContext
+        ? [{ href: "/dashboard", label: "Dashboard" }, ...memberNavItems]
+        : [{ href: "/dashboard", label: "Dashboard" }]
+      : memberNavItems
     : [{ href: activeStudioSlug ? studioClassesPath(activeStudioSlug) : "/", label: "Classes" }];
 
   return (

@@ -144,8 +144,14 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
     .limit(50);
 
   const successMsg =
-    sp.owners_success === "grant_email" || sp.owner_success === "granted"
+    sp.owners_success === "grant_email_sent"
+      ? "Owner workspace access granted. OTP email sent."
+      : sp.owners_success === "grant_email" || sp.owner_success === "granted"
       ? "Owner workspace access granted."
+      : sp.owners_success === "invite_pending_email_sent"
+        ? "Owner invite saved. OTP email sent. Access will be granted automatically after OTP sign-in."
+      : sp.owners_success === "invite_pending"
+        ? "Owner invite saved. Access will be granted automatically after first OTP sign-in."
       : sp.owners_success === "grant_on" || sp.owner_grant_updated === "1"
         ? "Owner grant enabled."
         : sp.owners_success === "grant_off"
@@ -164,9 +170,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
       ? "You do not have access to this action."
       : errKey === "invalid_email"
         ? "Please enter a valid email."
-        : errKey === "email_not_registered"
-          ? "Email has no account yet. Ask the user to sign in once first."
-          : errKey === "save_failed"
+      : errKey === "save_failed"
             ? "Could not save changes."
             : errKey === "invalid_user"
               ? "Invalid user reference."
@@ -230,7 +234,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           Grant owner workspace access
         </SubmitButton>
         <p className={`text-xs ${ui.muted}`}>
-          The account must exist (user has signed in at least once). Granting only flips the platform gate — it does not create studios.
+          You can grant by email before first sign-in. The user gets access automatically after OTP login.
         </p>
       </form>
 

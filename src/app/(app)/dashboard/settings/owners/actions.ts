@@ -1,10 +1,12 @@
 "use server";
 
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { writeOperationAudit } from "@/lib/audit";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -21,6 +23,25 @@ async function requireSuperAdmin() {
   return { user };
 }
 
+async function sendOwnerOtpEmail(email: string) {
+  const url = getSupabaseUrl();
+  const anon = getSupabaseAnonKey();
+  if (!url || !anon) return false;
+  const supabase = createSupabaseClient(url, anon, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+  const emailRedirectTo = appUrl ? `${appUrl}/post-auth?staff_portal=1` : undefined;
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      ...(emailRedirectTo ? { emailRedirectTo } : {}),
+    },
+  });
+  return !error;
+}
+
 export async function grantOwnerAccessByEmail(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "")
     .trim()
@@ -33,7 +54,40 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
   const admin = createAdminClient();
   const { data: target } = await admin.from("users").select("id").eq("email", email).maybeSingle();
   if (!target?.id) {
-    redirect("/dashboard/settings/owners?owners_error=email_not_registered");
+    const nowIso = new Date().toISOString();
+    const { data: beforeInvite } = await admin
+      .from("platform_owner_email_invites")
+      .select("id, email, is_active, invited_by, accepted_user_id, accepted_at")
+      .eq("email", email)
+      .maybeSingle();
+    const { error: inviteErr } = await admin
+      .from("platform_owner_email_invites")
+      .upsert(
+        {
+          email,
+          is_active: true,
+          invited_by: user.id,
+          accepted_user_id: null,
+          accepted_at: null,
+          updated_at: nowIso,
+        },
+        { onConflict: "email" },
+      );
+    if (inviteErr) {
+      redirect("/dashboard/settings/owners?owners_error=save_failed");
+    }
+    await writeOperationAudit({
+      actorId: user.id,
+      actorRole: "superadmin",
+      action: "owner_invite_pending_enabled",
+      targetType: "owner_invite",
+      targetId: email,
+      beforeState: beforeInvite ?? null,
+      afterState: { email, is_active: true },
+    });
+    const otpSent = await sendOwnerOtpEmail(email);
+    revalidatePath("/dashboard/settings/owners");
+    redirect(`/dashboard/settings/owners?owners_success=${otpSent ? "invite_pending_email_sent" : "invite_pending"}`);
   }
 
   const { data: beforeRow } = await admin
@@ -58,9 +112,19 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
     beforeState: beforeRow ?? null,
     afterState: { user_id: target.id, is_active: true },
   });
+  await admin
+    .from("platform_owner_email_invites")
+    .update({
+      is_active: false,
+      accepted_user_id: target.id,
+      accepted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("email", email);
+  const otpSent = await sendOwnerOtpEmail(email);
 
   revalidatePath("/dashboard/settings/owners");
-  redirect("/dashboard/settings/owners?owners_success=grant_email");
+  redirect(`/dashboard/settings/owners?owners_success=${otpSent ? "grant_email_sent" : "grant_email"}`);
 }
 
 /** Toggle platform owner grant only (FormData: user_id, is_active = "true"|"false" desired next state). */
