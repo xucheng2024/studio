@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { MemberZoneUnlockPanel } from "@/components/MemberZoneUnlockPanel";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -179,13 +180,28 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
-      <ShareCoverImage
-        src={seriesData.cover_image_url}
-        alt={seriesData.title}
-        sharePath={sharePath}
-        shareTitle={seriesData.title}
-        shareText={`${seriesData.title} · ${studio.name}`}
-      />
+      {(() => {
+        const promoVideoPreview = getVideoPreview(seriesData.promo_video_url ?? "");
+        return promoVideoPreview.embedUrl || seriesData.promo_video_url?.trim() ? (
+          <div className="mb-6">
+            <PublicVideoCover
+              title={seriesData.title}
+              coverUrl={seriesData.cover_image_url ?? promoVideoPreview.thumbnailUrl ?? null}
+              embedUrl={promoVideoPreview.embedUrl}
+              fallbackUrl={seriesData.promo_video_url?.trim() || null}
+              priority
+            />
+          </div>
+        ) : (
+          <ShareCoverImage
+            src={seriesData.cover_image_url}
+            alt={seriesData.title}
+            sharePath={sharePath}
+            shareTitle={seriesData.title}
+            shareText={`${seriesData.title} · ${studio.name}`}
+          />
+        );
+      })()}
       <div>
         <p className={ui.badge}>Member zone · {studio.name}</p>
         <h1 className={`${ui.h1} mt-2`}>{seriesData.title}</h1>
@@ -201,10 +217,6 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
         <p className="mt-4 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">
           {seriesData.description}
         </p>
-      ) : null}
-
-      {seriesData.promo_video_url ? (
-        <div className={`${ui.card} mt-6`}>{renderMedia(seriesData.promo_video_url, `${seriesData.title} intro`, "video")}</div>
       ) : null}
 
       <section className="mt-8">
