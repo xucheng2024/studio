@@ -320,14 +320,16 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             {visibleServices.map((svc) => {
               const serviceWaLink = buildServiceWaLink(svc.title);
               const servicePath = studioServicePath(studio.public_slug, svc.share_slug);
+              const svcVideoPreview = getVideoPreview((svc as { video_url?: string | null }).video_url ?? "");
+              const svcCover = svc.cover_image_url ?? svcVideoPreview.thumbnailUrl ?? null;
               return (
                 <article key={svc.id} className={ui.card}>
                   <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
                     <div className="shrink-0">
                       <Link href={servicePath} className="block">
                         <div className="relative">
-                          {svc.cover_image_url ? (
-                            <Image src={svc.cover_image_url} alt={svc.title} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                          {svcCover ? (
+                            <Image src={svcCover} alt={svc.title} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
@@ -408,14 +410,16 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 {hiddenServices.map((svc) => {
                   const serviceWaLink = buildServiceWaLink(svc.title);
                   const servicePath = studioServicePath(studio.public_slug, svc.share_slug);
+                  const svcVideoPreview = getVideoPreview((svc as { video_url?: string | null }).video_url ?? "");
+                  const svcCover = svc.cover_image_url ?? svcVideoPreview.thumbnailUrl ?? null;
                   return (
                     <article key={svc.id} className={ui.card}>
                       <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
                         <div className="shrink-0">
                           <Link href={servicePath} className="block">
                             <div className="relative">
-                              {svc.cover_image_url ? (
-                                <Image src={svc.cover_image_url} alt={svc.title} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                              {svcCover ? (
+                                <Image src={svcCover} alt={svc.title} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
                               ) : (
                                 <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                               )}
