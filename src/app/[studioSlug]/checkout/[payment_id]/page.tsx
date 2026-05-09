@@ -112,7 +112,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
   const expiryLabel =
     expiresAt && isPending
-      ? expiresAt.toLocaleString("en-SG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      ? expiresAt.toLocaleString("en-SG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" })
       : null;
 
   return (

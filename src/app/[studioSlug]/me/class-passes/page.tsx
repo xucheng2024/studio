@@ -83,7 +83,7 @@ export default async function MyClassPassesPage({ params }: Props) {
                 ? Math.ceil((expiryMs - now) / (1000 * 60 * 60 * 24))
                 : null;
               const expiryLabel = r.expiry_date
-                ? new Date(r.expiry_date).toLocaleDateString("en-SG", { dateStyle: "medium" })
+                ? new Date(r.expiry_date).toLocaleDateString("en-SG", { dateStyle: "medium", timeZone: "Asia/Singapore" })
                 : "No expiry";
               const packageName =
                 (r as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || "Class pass package";
@@ -138,10 +138,10 @@ export default async function MyClassPassesPage({ params }: Props) {
                 const cls = Array.isArray(session?.classes) ? session?.classes[0] : session?.classes;
                 const statusBadge = getUnifiedStatusBadges({ booking_status: u.status }).booking;
                 const when = session?.start_time
-                  ? new Date(session.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
+                  ? new Date(session.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })
                   : "-";
                 const usedAt = u.credit_consumed_at
-                  ? new Date(u.credit_consumed_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
+                  ? new Date(u.credit_consumed_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })
                   : null;
                 return (
                   <li key={u.id} className={ui.card}>

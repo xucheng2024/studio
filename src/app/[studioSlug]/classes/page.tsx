@@ -86,10 +86,10 @@ export default async function StudioBookingPage({ params }: Props) {
           const imageUrl = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
           const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
           const dt = new Date(s.start_time);
-          const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-          const weekday = dt.toLocaleDateString("en-SG", { weekday: "short" });
+          const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
+          const weekday = dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" });
           const dayNum = dt.getDate();
-          const month = dt.toLocaleDateString("en-SG", { month: "short" });
+          const month = dt.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" });
           const creditsRequired = Number(s.credits_required ?? 1);
           const spotsLeft = Number(s.spots_left ?? 0);
           const spotsLow = spotsLeft > 0 && spotsLeft <= 3;

@@ -91,7 +91,7 @@ export default async function MyMembershipsPage({ params }: Props) {
                   !isMembershipEnded(subscription) &&
                   (inTrial || !subscription.cancel_at_period_end);
                 const trialEndLabel = inTrial && billingStartDate
-                  ? new Date(`${billingStartDate}T00:00:00+08:00`).toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" })
+                  ? new Date(`${billingStartDate}T00:00:00+08:00`).toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric", timeZone: "Asia/Singapore" })
                   : null;
                 const displayStatus = getMembershipDisplayStatus(subscription);
                 return (
@@ -107,7 +107,7 @@ export default async function MyMembershipsPage({ params }: Props) {
                         </p>
                         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                           {subscription.created_at ? (
-                            <span>Started {new Date(subscription.created_at).toLocaleDateString("en-SG")}</span>
+                            <span>Started {new Date(subscription.created_at).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })}</span>
                           ) : null}
                           {inTrial && trialEndLabel ? (
                             <span className="font-medium text-blue-600 dark:text-blue-400">
@@ -115,7 +115,7 @@ export default async function MyMembershipsPage({ params }: Props) {
                             </span>
                           ) : null}
                           {!inTrial && subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription) ? (
-                            <span>Active until {new Date(subscription.current_period_end).toLocaleDateString("en-SG")}</span>
+                            <span>Active until {new Date(subscription.current_period_end).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })}</span>
                           ) : null}
                         </div>
                         <p className={`mt-2 text-sm ${ui.muted}`}>
@@ -214,7 +214,7 @@ export default async function MyMembershipsPage({ params }: Props) {
                       <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
                         SGD {Number(subscription.membership_price_snapshot ?? 0).toFixed(2)} ·{" "}
                         {subscription.billing_interval_snapshot === "yearly" ? "Yearly" : "Monthly"}
-                        {subscription.canceled_at ? ` · Cancelled ${new Date(subscription.canceled_at).toLocaleDateString("en-SG")}` : ""}
+                        {subscription.canceled_at ? ` · Cancelled ${new Date(subscription.canceled_at).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })}` : ""}
                       </p>
                     </div>
                     <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusTone.canceled}`}>

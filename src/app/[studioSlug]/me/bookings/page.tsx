@@ -96,11 +96,11 @@ export default async function MyBookingsPage({ params }: Props) {
                 const isPast = session?.start_time ? new Date(session.start_time) < new Date() : false;
                 const dt = session?.start_time ? new Date(session.start_time) : null;
                 const timeLabel = dt
-                  ? dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" })
+                  ? dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" })
                   : null;
-                const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short" }) : "";
+                const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" }) : "";
                 const dayNum = dt ? dt.getDate() : "";
-                const month = dt ? dt.toLocaleDateString("en-SG", { month: "short" }) : "";
+                const month = dt ? dt.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" }) : "";
                 const singleBadge = bookingBadge;
                 return (
                   <li key={`class-${b.id}`} className={`${ui.card} ${isPast ? "opacity-70" : ""}`}>
@@ -139,11 +139,11 @@ export default async function MyBookingsPage({ params }: Props) {
               const dt = event?.start_time ? new Date(event.start_time) : null;
               const isPast = dt ? dt < new Date() : false;
               const timeLabel = dt
-                ? dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" })
+                ? dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" })
                 : null;
-              const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short" }) : "";
+              const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" }) : "";
               const dayNum = dt ? dt.getDate() : "";
-              const month = dt ? dt.toLocaleDateString("en-SG", { month: "short" }) : "";
+              const month = dt ? dt.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" }) : "";
               return (
                 <li key={`event-${b.id}`} className={`${ui.card} ${isPast ? "opacity-70" : ""}`}>
                   <div className="flex items-start gap-3">

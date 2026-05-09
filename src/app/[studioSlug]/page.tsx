@@ -63,6 +63,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     { data: packages },
     { data: memberships },
     { data: events },
+    { data: pastEvents },
     { data: memberZoneSeries },
   ] = await Promise.all([
     admin
@@ -104,6 +105,14 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
       .order("start_time", { ascending: true })
       .limit(12),
     admin
+      .from("events")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .lt("end_time", nowIso)
+      .order("start_time", { ascending: false })
+      .limit(6),
+    admin
       .from("member_zone_series")
       .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, sort_order")
       .eq("studio_id", studio.id)
@@ -119,6 +128,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     packages: packages ?? [],
     memberships: memberships ?? [],
     events: events ?? [],
+    pastEvents: pastEvents ?? [],
     memberZoneSeries: memberZoneSeries ?? [],
   };
 });
@@ -154,7 +164,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const { studioSlug } = await params;
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
-  const { studio, services, classes, packages, memberships, events, memberZoneSeries } = data;
+  const { studio, services, classes, packages, memberships, events, pastEvents, memberZoneSeries } = data;
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -185,11 +195,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const hiddenServices = services.slice(4);
   const visibleClasses = classes.slice(0, 4);
   const hiddenClasses = classes.slice(4);
-  const nowMs = new Date().getTime();
-  const upcomingEvents = (events ?? []).filter((e) => new Date(String(e.end_time)).getTime() >= nowMs);
-  const pastEvents = (events ?? []).filter((e) => new Date(String(e.end_time)).getTime() < nowMs);
-  const visibleEvents = upcomingEvents.slice(0, 4);
-  const hiddenEvents = upcomingEvents.slice(4);
+  const visibleEvents = (events ?? []).slice(0, 4);
+  const hiddenEvents = (events ?? []).slice(4);
   const mediaTagClass =
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
@@ -698,7 +705,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         </section>
       ) : null}
 
-      {upcomingEvents.length > 0 ? (
+      {(events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? (
         <section id="events" className="mx-auto mt-10 w-full max-w-5xl pb-4">
           <div className="flex items-center gap-2">
             <h2 className={ui.h2}>{eventsTitle}</h2>

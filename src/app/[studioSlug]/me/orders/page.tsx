@@ -123,13 +123,13 @@ export default async function MyOrdersPage({ params }: Props) {
             const cls = Array.isArray(sessionRow?.classes) ? sessionRow?.classes[0] : sessionRow?.classes;
             const sessionTitle = cls?.title ?? null;
             const sessionTime = sessionRow?.start_time
-              ? new Date(sessionRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
+              ? new Date(sessionRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })
               : null;
             const eventInfo = eventBooking && "events" in eventBooking ? eventBooking.events : null;
             const eventRow = Array.isArray(eventInfo) ? eventInfo[0] : eventInfo;
             const eventTitle = eventRow?.title ?? null;
             const eventTime = eventRow?.start_time
-              ? new Date(eventRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })
+              ? new Date(eventRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })
               : null;
             const source = (p as { source?: string | null }).source ?? null;
             const sourceBadge =
@@ -162,7 +162,7 @@ export default async function MyOrdersPage({ params }: Props) {
                   {p.payment_method ? <span className="capitalize">{p.payment_method}</span> : null}
                   {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
                   {p.created_at ? (
-                    <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span>
+                    <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })}</span>
                   ) : null}
                 </div>
                 {sessionTitle ? (

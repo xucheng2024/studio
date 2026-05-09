@@ -49,7 +49,7 @@ export default async function PublicMembershipPage({ params }: Props) {
           const today = `${pick("year")}-${pick("month")}-${pick("day")}`;
           const base = new Date(`${today}T00:00:00+08:00`);
           base.setDate(base.getDate() + Math.max(0, Math.floor(trialDays)));
-          return base.toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" });
+          return base.toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric", timeZone: "Asia/Singapore" });
         })()
       : null;
   const intervalShort = intervalLabel.toLowerCase() === "yearly" ? "year" : "month";

@@ -115,15 +115,16 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     const sessionDescription = (s as { class_description_snapshot?: string | null }).class_description_snapshot?.trim() || cls.description || null;
     const sessionCover = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? coverSrc;
     const dt = new Date(s.start_time);
-    const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
-    const monthLabel = dt.toLocaleDateString("en-SG", { month: "short" });
+    const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" });
+    const monthLabel = dt.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" });
     const dateLabel = dt.toLocaleDateString("en-SG", {
       weekday: "long",
       month: "long",
       day: "numeric",
       year: "numeric",
+      timeZone: "Asia/Singapore",
     });
-    const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+    const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
     const hasGuestPrice = s.guest_price != null;
     const price = hasGuestPrice ? Number(s.guest_price).toFixed(2) : null;
     const spotsLeft = Number(s.spots_left ?? 0);
@@ -294,9 +295,9 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
       <ul className="mt-4 flex max-w-2xl flex-col gap-4">
         {listSessions.map((s) => {
           const dt = new Date(s.start_time);
-          const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short" });
-          const monthLabel = dt.toLocaleDateString("en-SG", { month: "short" });
-          const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+          const weekdayLabel = dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" });
+          const monthLabel = dt.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" });
+          const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
           const spotsLeft = Number(s.spots_left ?? 0);
           const sessionCapacity =
             Number(
