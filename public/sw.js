@@ -2,6 +2,7 @@ const SW_VERSION = "studio-pwa-v5";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
+const ONLINE_REQUIRED_URL = "/offline-online-required.html";
 
 const NETWORK_ONLY_SEGMENTS = ["/auth", "/checkout", "/me/", "/member-zone/"];
 const REMOTE_IMAGE_HOSTS = new Set(["image.mux.com", "i.ytimg.com", "i.vimeocdn.com"]);
@@ -10,7 +11,7 @@ self.addEventListener("install", (event) => {
   // Cache offline page but do NOT skipWaiting — let the user choose to refresh
   // via the update banner to avoid clearing caches while old tabs are still open.
   event.waitUntil(
-    caches.open(PAGE_CACHE).then((cache) => cache.add(OFFLINE_URL)),
+    caches.open(PAGE_CACHE).then((cache) => cache.addAll([OFFLINE_URL, ONLINE_REQUIRED_URL])),
   );
 });
 
@@ -81,6 +82,11 @@ function isCacheableHtmlPath(pathname) {
 async function offlineFallback() {
   const cache = await caches.open(PAGE_CACHE);
   return (await cache.match(OFFLINE_URL)) ?? Response.error();
+}
+
+async function onlineRequiredFallback() {
+  const cache = await caches.open(PAGE_CACHE);
+  return (await cache.match(ONLINE_REQUIRED_URL)) ?? (await cache.match(OFFLINE_URL)) ?? Response.error();
 }
 
 async function staleWhileRevalidate(request, cacheName) {
@@ -164,11 +170,38 @@ async function warmupImages(urls) {
   );
 }
 
+async function warmupPages(urls) {
+  const cache = await caches.open(PAGE_CACHE);
+
+  await Promise.all(
+    urls.map(async (rawUrl) => {
+      try {
+        const url = new URL(rawUrl, self.location.origin);
+        if (!isSameOrigin(url) || !isCacheableHtmlPath(url.pathname)) return;
+
+        const request = new Request(url.toString(), {
+          credentials: "same-origin",
+        });
+        const response = await fetch(request);
+        if (isCacheableResponse(response)) {
+          await cache.put(request, response.clone());
+        }
+      } catch {
+        // Ignore per-page warmup failures.
+      }
+    }),
+  );
+}
+
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data) return;
   if (data.type === "PREFETCH_URLS" && Array.isArray(data.urls)) {
     event.waitUntil?.(warmupImages(data.urls));
+    return;
+  }
+  if (data.type === "PREFETCH_PAGES" && Array.isArray(data.urls)) {
+    event.waitUntil?.(warmupPages(data.urls));
     return;
   }
   if (data.type === "SKIP_WAITING") {
@@ -199,6 +232,11 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     if (isNetworkOnlyPath(url.pathname)) {
+      event.respondWith(
+        fetch(request).catch(async () => {
+          return onlineRequiredFallback();
+        }),
+      );
       return;
     }
 

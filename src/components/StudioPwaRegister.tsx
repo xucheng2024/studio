@@ -16,6 +16,19 @@ export function StudioPwaRegister({ studioSlug }: { studioSlug: string }) {
       .catch(() => {
         // Ignore registration failures so the storefront still works normally.
       });
+
+    void navigator.serviceWorker.ready
+      .then((registration) => {
+        const root = `/${studioSlug}`;
+        const pageWarmupPayload = {
+          type: "PREFETCH_PAGES",
+          urls: [root, `${root}/packages`, `${root}/classes`, `${root}/events`],
+        };
+        registration.active?.postMessage(pageWarmupPayload);
+      })
+      .catch(() => {
+        // Ignore warmup failures and continue with normal navigation behavior.
+      });
   }, [studioSlug]);
 
   return null;

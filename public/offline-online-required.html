@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Internet required</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f4ef;
+      color: #1c1917;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem env(safe-area-inset-bottom);
+      text-align: center;
+    }
+    .icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #fef3c7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+    }
+    svg { color: #b45309; }
+    h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #1c1917;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      font-size: 0.875rem;
+      color: #78716c;
+      max-width: 320px;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+    .note {
+      font-size: 0.75rem;
+      color: #a8a29e;
+      margin-bottom: 1.75rem;
+    }
+    button {
+      background: #0f766e;
+      color: #fff;
+      border: none;
+      border-radius: 0.625rem;
+      padding: 0.625rem 1.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #0d6b64; }
+    button:active { background: #0b5e58; }
+  </style>
+</head>
+<body>
+  <div class="icon">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+      <path d="M12 16v-4"/>
+      <path d="M12 8h.01"/>
+      <circle cx="12" cy="12" r="10"/>
+    </svg>
+  </div>
+  <h1>Internet connection required</h1>
+  <p>This page needs a live connection for secure account, member zone, or checkout actions.</p>
+  <p class="note">Try reconnecting and re-opening the page.</p>
+  <button onclick="location.reload()">Try again</button>
+</body>
+</html>
