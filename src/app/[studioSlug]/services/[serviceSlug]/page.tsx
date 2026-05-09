@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MessageCircle, PlayCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
+import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { getCachedServiceShareContext } from "@/lib/cachedSharePages";
@@ -51,13 +52,25 @@ export default async function PublicServicePage({ params }: Props) {
   return (
     <main className={ui.page}>
       <StudioMediaWarmup urls={warmupMediaUrls} />
-      <ShareCoverImage
-        src={service.cover_image_url}
-        alt={service.title}
-        sharePath={sharePath}
-        shareTitle={service.title}
-        shareText={`${service.title} · ${studio.name}`}
-      />
+      {videoPreview.embedUrl || service.video_url?.trim() ? (
+        <div className="mb-6">
+          <PublicVideoCover
+            title={service.title}
+            coverUrl={service.cover_image_url ?? videoPreview.thumbnailUrl ?? null}
+            embedUrl={videoPreview.embedUrl}
+            fallbackUrl={service.video_url?.trim() || null}
+            priority
+          />
+        </div>
+      ) : (
+        <ShareCoverImage
+          src={service.cover_image_url}
+          alt={service.title}
+          sharePath={sharePath}
+          shareTitle={service.title}
+          shareText={`${service.title} · ${studio.name}`}
+        />
+      )}
 
       <div className="max-w-2xl">
         <p className={ui.badge}>Shared service</p>
@@ -84,27 +97,6 @@ export default async function PublicServicePage({ params }: Props) {
           <p className="mt-4 whitespace-pre-wrap leading-relaxed text-stone-700 dark:text-stone-300">
             {service.description}
           </p>
-        ) : null}
-
-        {service.video_url ? (
-          <div className="mt-8">
-            {videoPreview.embedUrl ? (
-              <div className="overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700">
-                <iframe
-                  src={videoPreview.embedUrl}
-                  title={`${service.title} video`}
-                  className="aspect-video w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <a href={service.video_url} target="_blank" rel="noreferrer" className={`${ui.link} gap-1.5`}>
-                <PlayCircle size={15} />
-                Watch service video
-              </a>
-            )}
-          </div>
         ) : null}
 
         <div className="mt-8 flex flex-wrap gap-3">
