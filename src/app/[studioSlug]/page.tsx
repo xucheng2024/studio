@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { cache } from "react";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
@@ -44,7 +43,7 @@ export async function generateStaticParams() {
     .map((s) => ({ studioSlug: s.public_slug as string }));
 }
 
-const getPublicStudioShell = cache(async (studioSlugRaw: string) => {
+const getPublicStudioShell = async (studioSlugRaw: string) => {
   const slug = normalizeStudioSlug(studioSlugRaw ?? "");
   if (!slug || isReservedPublicSlug(slug)) return null;
   const admin = createAdminClient();
@@ -55,9 +54,9 @@ const getPublicStudioShell = cache(async (studioSlugRaw: string) => {
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
   return studio;
-});
+};
 
-const getPublicStudioData = cache(async (studioSlugRaw: string) => {
+const getPublicStudioData = async (studioSlugRaw: string) => {
   const studio = await getPublicStudioShell(studioSlugRaw);
   if (!studio) return null;
 
@@ -90,7 +89,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
       .limit(8),
     admin
       .from("packages")
-      .select("id, name, price, currency, credits, expiry_days, location_id, image_url, video_url, share_slug")
+      .select("id, name, price, credits, expiry_days, location_id, image_url, video_url, share_slug")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .is("deleted_at", null)
@@ -137,7 +136,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
     pastEvents: pastEvents ?? [],
     memberZoneSeries: memberZoneSeries ?? [],
   };
-});
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug } = await params;

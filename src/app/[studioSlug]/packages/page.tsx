@@ -27,7 +27,7 @@ export default async function PublicPackagesPage({ params }: Props) {
 
   const { data: packages } = await admin
     .from("packages")
-    .select("id, name, price, currency, credits, expiry_days, image_url, video_url, share_slug")
+    .select("id, name, price, credits, expiry_days, image_url, video_url, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
