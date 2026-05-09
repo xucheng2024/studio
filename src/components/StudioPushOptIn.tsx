@@ -14,7 +14,6 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
-  const [showCta, setShowCta] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   const [publicKey, setPublicKey] = useState("");
@@ -35,15 +34,16 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
         if (Notification.permission === "granted") {
           setIsEnabled(true);
           void subscribe(studioSlug, key);
-          return;
-        }
-
-        if (Notification.permission === "default") {
-          setShowCta(true);
         }
       })
       .catch(() => null);
   }, [studioSlug]);
+
+  useEffect(() => {
+    const handleOpen = () => setShowPanel(true);
+    window.addEventListener("studio:notifications:open", handleOpen);
+    return () => window.removeEventListener("studio:notifications:open", handleOpen);
+  }, []);
 
   async function subscribe(slug: string, key: string) {
     const registration = await navigator.serviceWorker.ready;
@@ -80,7 +80,6 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
       });
       setIsEnabled(false);
       setShowPanel(false);
-      setShowCta(true);
     } finally {
       setBusy(false);
     }
@@ -95,7 +94,6 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
       if (permission === "granted") {
         await subscribe(studioSlug, publicKey);
         setIsEnabled(true);
-        setShowCta(false);
         setShowPanel(false);
       } else {
         setShowPanel(false);
@@ -105,34 +103,12 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
     }
   }
 
-  if (!showCta && !isEnabled && !showPanel) return null;
+  if (!showPanel) return null;
 
   return (
-    <>
-      {showCta ? (
-        <button
-          type="button"
-          className="fixed bottom-20 right-3 z-40 rounded-full border border-stone-200/80 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-stone-500 opacity-75 shadow-sm backdrop-blur-sm transition hover:opacity-100 dark:border-stone-700/80 dark:bg-stone-900/85 dark:text-stone-400"
-          onClick={() => setShowPanel(true)}
-        >
-          Manage alerts
-        </button>
-      ) : null}
-
-      {isEnabled ? (
-        <button
-          type="button"
-          className="fixed bottom-20 right-3 z-40 rounded-full border border-stone-200/80 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-stone-500 opacity-75 shadow-sm backdrop-blur-sm transition hover:opacity-100 dark:border-stone-700/80 dark:bg-stone-900/85 dark:text-stone-400"
-          onClick={() => setShowPanel(true)}
-        >
-          Manage alerts
-        </button>
-      ) : null}
-
-      {showPanel ? (
-        <div className="fixed bottom-32 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-xl border border-stone-200 bg-white p-3 shadow-lg dark:border-stone-700 dark:bg-stone-900">
+    <div className="fixed bottom-32 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-xl border border-stone-200 bg-white p-3 shadow-lg dark:border-stone-700 dark:bg-stone-900">
           <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
-            {isEnabled ? "Update alerts are enabled" : "Enable update alerts?"}
+            {isEnabled ? "Notifications are enabled" : "Enable notifications?"}
           </p>
           <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
             Get a system notification when this studio publishes new classes, events, packages, or member zone content.
@@ -164,7 +140,7 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
                 setShowPanel(false);
               }}
             >
-              {isEnabled ? "Close" : "Not now"}
+              Close
             </button>
           </div>
           {!isEnabled && permission === "denied" ? (
@@ -172,8 +148,6 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
               Notifications are blocked in browser settings for this site.
             </p>
           ) : null}
-        </div>
-      ) : null}
-    </>
+    </div>
   );
 }

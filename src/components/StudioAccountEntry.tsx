@@ -82,6 +82,16 @@ export function StudioAccountEntry({
                 My memberships
               </Link>
             ) : null}
+            <button
+              type="button"
+              className={`${ui.linkHeaderMenu} w-full text-left`}
+              onClick={() => {
+                window.dispatchEvent(new Event("studio:notifications:open"));
+                setMenuOpen(false);
+              }}
+            >
+              Notifications
+            </button>
             <div className={`mt-1 border-t ${ui.divider} pt-1`}>
               <SignOutButton />
             </div>
