@@ -10,7 +10,7 @@ import { ui } from "@/lib/ui";
 const ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-async function compressImage(file: File, maxDim = 1600, quality = 0.85): Promise<Blob> {
+async function compressImage(file: File, maxDim = 1600, quality = 0.85, preferPng = false): Promise<Blob> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const img = new window.Image();
@@ -29,7 +29,9 @@ async function compressImage(file: File, maxDim = 1600, quality = 0.85): Promise
         return;
       }
       ctx.drawImage(img, 0, 0, cw, ch);
-      const outMime = file.type === "image/png" || file.type === "image/webp" ? "image/webp" : "image/jpeg";
+      const outMime = preferPng
+        ? "image/png"
+        : (file.type === "image/png" || file.type === "image/webp" ? "image/webp" : "image/jpeg");
       canvas.toBlob((blob) => resolve(blob ?? file), outMime, quality);
     };
     img.onerror = () => {
@@ -66,7 +68,7 @@ export function PublicMediaUploader({ studioId, folder, entityId, label = "Uploa
     }
     setBusy(true);
     try {
-      const compressed = await compressImage(file);
+      const compressed = await compressImage(file, 1600, 0.85, cropAspect === 1);
       const uploadFile = compressed.size < file.size ? compressed : file;
       const fd = new FormData();
       fd.set("studio_id", studioId);
@@ -110,7 +112,16 @@ export function PublicMediaUploader({ studioId, folder, entityId, label = "Uploa
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.currentTarget.value = "";
-          if (file) setCropFile(file);
+          if (!file) return;
+          if (!ACCEPTED_TYPES.has(file.type)) {
+            toast.error("Use JPG, PNG, or WebP.");
+            return;
+          }
+          if (file.size > COVER_MAX_BYTES) {
+            toast.error("Image must be 5MB or smaller.");
+            return;
+          }
+          setCropFile(file);
         }}
       />
       {cropFile ? (

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import "react-easy-crop/react-easy-crop.css";
 import "react-international-phone/style.css";
 import { site } from "@/lib/brand";
 import { getAppOriginForOg } from "@/lib/coverMedia";

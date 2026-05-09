@@ -39,7 +39,13 @@ export function CoverUrlField({ studioId, entityId, folder, name, label, default
               : "relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
             }
           >
-            <Image src={value} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
+            <Image
+              src={value}
+              alt=""
+              fill
+              className={cropAspect === 1 ? "object-contain object-center" : "object-cover"}
+              sizes="(max-width: 768px) 100vw, 640px"
+            />
           </div>
           <button type="button" className={ui.btnGhost} onClick={() => setValue("")}>
             Remove image

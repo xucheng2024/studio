@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   const folder = safeSegment(String(formData.get("folder") ?? "studio"), "studio");
   const entityId = safeSegment(String(formData.get("entity_id") ?? "common"), "common");
   const source = Buffer.from(await file.arrayBuffer());
-  const normalized = await normalizeCoverImage(source, file.type);
+  const normalized = await normalizeCoverImage(source, file.type, entityId.includes("logo") ? "logo" : "cover");
   const objectPath = `${folder}/${studioId}/${entityId}-${Date.now()}.${normalized.ext}`;
 
   const admin = createAdminClient();

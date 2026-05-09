@@ -57,7 +57,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
               required
               minLength={3}
               maxLength={60}
-              pattern="[a-zA-Z0-9-]+"
+              pattern="[a-zA-Z0-9\\-]+"
               placeholder="downtown-gym"
               title="Letters, numbers, hyphens only"
               className={`${ui.input} font-mono text-sm`}

@@ -84,7 +84,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
             required
             minLength={3}
             maxLength={60}
-            pattern="[a-zA-Z0-9-]+"
+            pattern="[a-zA-Z0-9\\-]+"
             defaultValue={studio.public_slug ?? ""}
             className={`${ui.input} font-mono text-sm`}
           />
