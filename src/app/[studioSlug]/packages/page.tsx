@@ -11,7 +11,6 @@ import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
 
-export const revalidate = 60;
 
 export default async function PublicPackagesPage({ params }: Props) {
   const { studioSlug: rawSlug } = await params;

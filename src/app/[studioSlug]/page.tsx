@@ -31,7 +31,6 @@ import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
 
-export const revalidate = 60;
 
 export async function generateStaticParams() {
   const admin = createAdminClient();

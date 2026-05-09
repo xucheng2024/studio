@@ -14,7 +14,6 @@ type Props = {
   searchParams?: Promise<{ tab?: string }>;
 };
 
-export const revalidate = 60;
 
 function EventCard({ event, studio }: { event: Record<string, any>; studio: { name: string; public_slug: string }; }) {
   const start = new Date(String(event.start_time));
