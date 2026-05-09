@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
+import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
@@ -50,7 +51,7 @@ export function SubscribeMembershipPanel({
         toast.error("Please enter your name, email, and phone number.");
         return { ok: false as const, message: "Please enter your name, email, and phone number." };
       }
-      const message = body.error ?? "Could not start subscription";
+      const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
       toast.error(message);
       return { ok: false as const, message };
     }

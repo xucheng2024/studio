@@ -15,6 +15,8 @@ import {
   findClientIdByEmail,
   resolveClientIdByEmail,
 } from "@/lib/resolveClientId";
+import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
+import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  await sweepExpiredPendingPayments(admin);
   const { data: series } = await admin
     .from("member_zone_series")
     .select(
@@ -158,9 +161,17 @@ export async function POST(req: Request) {
     .select("hitpay_api_key")
     .eq("studio_id", series.studio_id)
     .maybeSingle();
-  if (!studio?.hitpay_enabled || !studioSecrets?.hitpay_api_key) {
-    return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
+  const configIssue = getHitpayConfigIssue({
+    hitpayEnabled: studio?.hitpay_enabled,
+    merchantApiKey: studioSecrets?.hitpay_api_key,
+  });
+  if (configIssue) {
+    return NextResponse.json(
+      { error: configIssue.error, error_detail: configIssue.error_detail },
+      { status: configIssue.status },
+    );
   }
+  const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
 
   const reference = generatePaymentReference();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
@@ -239,7 +250,7 @@ export async function POST(req: Request) {
 
   try {
     const hitpay = await createHitpayPaymentRequest({
-      apiKey: studioSecrets.hitpay_api_key,
+      apiKey: merchantApiKey,
       amount: amount.toFixed(2),
       currency,
       email: guestEmail ?? userRow?.email ?? null,
@@ -260,9 +271,10 @@ export async function POST(req: Request) {
   } catch (e) {
     await admin.from("member_zone_purchases").update({ status: "failed" }).eq("payment_id", payment.id);
     await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
+    const normalized = normalizeHitpayError(e instanceof Error ? e.message : "hitpay_create_failed");
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "hitpay_create_failed" },
-      { status: 502 },
+      { error: normalized.error, error_detail: normalized.error_detail },
+      { status: normalized.status },
     );
   }
 }

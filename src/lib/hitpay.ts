@@ -62,9 +62,8 @@ const REF_PREFIX = "STU";
 
 function getHitpayPlatformHeaders(apiKey: string) {
   const merchantKey = apiKey.trim();
-  if (!merchantKey || !HITPAY_PLATFORM_KEY) {
-    throw new Error("hitpay_not_configured");
-  }
+  if (!merchantKey) throw new Error("hitpay_merchant_key_missing");
+  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
 
   return {
     "X-BUSINESS-API-KEY": merchantKey,
@@ -87,9 +86,8 @@ export function generatePaymentReference() {
 
 export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
   const apiKey = input.apiKey.trim();
-  if (!apiKey || !HITPAY_PLATFORM_KEY) {
-    throw new Error("hitpay_not_configured");
-  }
+  if (!apiKey) throw new Error("hitpay_merchant_key_missing");
+  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
 
   const body = new URLSearchParams();
   body.set("amount", input.amount);
@@ -135,7 +133,8 @@ export function verifyHitpayWebhookSignature(rawBody: string, signature: string 
 
 export async function createHitpayRecurringBilling(input: HitpayRecurringBillingRequest) {
   const apiKey = input.apiKey.trim();
-  if (!apiKey || !HITPAY_PLATFORM_KEY) throw new Error("hitpay_not_configured");
+  if (!apiKey) throw new Error("hitpay_merchant_key_missing");
+  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
 
   const res = await fetch(`${HITPAY_API_BASE.replace(/\/$/, "")}/v1/recurring-billing`, {
     method: "POST",
@@ -180,7 +179,8 @@ export async function createHitpayRecurringBilling(input: HitpayRecurringBilling
 
 export async function cancelHitpayRecurringBilling(input: { apiKey: string; recurringBillingId: string }) {
   const apiKey = input.apiKey.trim();
-  if (!apiKey || !HITPAY_PLATFORM_KEY) throw new Error("hitpay_not_configured");
+  if (!apiKey) throw new Error("hitpay_merchant_key_missing");
+  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
   if (!input.recurringBillingId) throw new Error("hitpay_recurring_id_missing");
 
   const res = await fetch(
@@ -212,7 +212,8 @@ export async function refundHitpayPayment(input: {
   amount: number;
 }): Promise<HitpayRefundResponse> {
   const apiKey = input.apiKey.trim();
-  if (!apiKey || !HITPAY_PLATFORM_KEY) throw new Error("hitpay_not_configured");
+  if (!apiKey) throw new Error("hitpay_merchant_key_missing");
+  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
   if (!input.paymentId) throw new Error("hitpay_payment_id_missing");
   if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("invalid_refund_amount");
 

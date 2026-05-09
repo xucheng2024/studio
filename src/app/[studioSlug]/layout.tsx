@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { StudioPwaRegister } from "@/components/StudioPwaRegister";
 import { StudioPushOptIn } from "@/components/StudioPushOptIn";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -52,6 +53,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StudioPublicLayout({ children, params }: Props) {
   const { studioSlug: rawStudioSlug } = await params;
   const studioSlug = normalizeStudioSlug(rawStudioSlug);
+  if (studioSlug && !isReservedPublicSlug(studioSlug)) {
+    const admin = createAdminClient();
+    await sweepExpiredPendingPayments(admin);
+  }
 
   return (
     <div className="min-h-dvh flex flex-col bg-white dark:bg-stone-950">

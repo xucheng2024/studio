@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
+import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
@@ -17,12 +18,6 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
       .auth.getSession()
       .then(({ data }) => setIsLoggedIn(!!data.session?.user));
   }, []);
-
-  const friendly = (body: { error?: string }) => {
-    if (body.error === "guest_details_required") return "Please enter your name, email, and phone number.";
-    if (body.error === "hitpay_not_configured") return "Online payment is not configured for this studio yet.";
-    return body.error ?? "Failed";
-  };
 
   const submit = async (payload: EmailFirstCheckoutPayload = {}) => {
     setBusy(true);
@@ -40,7 +35,7 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      const message = friendly(body);
+      const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
       setMsg(message);
       return { ok: false as const, message };
     }

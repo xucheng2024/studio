@@ -5,6 +5,8 @@ import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
+import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,6 +36,7 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  await sweepExpiredPendingPayments(admin);
 
   const { data: pkg, error: pkgErr } = await admin
     .from("packages")
@@ -76,13 +79,21 @@ export async function POST(req: Request) {
     .select("hitpay_api_key")
     .eq("studio_id", pkg.studio_id)
     .maybeSingle();
-  if (!studioHitpay?.hitpay_enabled || !studioSecrets?.hitpay_api_key) {
-    return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
+  const configIssue = getHitpayConfigIssue({
+    hitpayEnabled: studioHitpay?.hitpay_enabled,
+    merchantApiKey: studioSecrets?.hitpay_api_key,
+  });
+  if (configIssue) {
+    return NextResponse.json(
+      { error: configIssue.error, error_detail: configIssue.error_detail },
+      { status: configIssue.status },
+    );
   }
+  const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
 
   const reference = generatePaymentReference();
-  // Package payments have no class start time, so give staff 24 h to confirm.
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  // Keep package checkout short to avoid long stale pending holds.
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
   const { data: payment, error: pErr } = await admin
     .from("payments")
@@ -119,7 +130,7 @@ export async function POST(req: Request) {
   const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;
   try {
     const hitpay = await createHitpayPaymentRequest({
-      apiKey: studioSecrets.hitpay_api_key,
+      apiKey: merchantApiKey,
       amount: Number(pkg.price).toFixed(2),
       currency: "SGD",
       email: guestEmail ?? user?.email ?? null,
@@ -149,11 +160,10 @@ export async function POST(req: Request) {
       p_payment_id: payment.id,
       p_new_status: "failed",
     });
-    const message = e instanceof Error ? e.message : "hitpay_create_failed";
-    const status = message === "hitpay_not_configured" ? 409 : 502;
+    const normalized = normalizeHitpayError(e instanceof Error ? e.message : "hitpay_create_failed");
     return NextResponse.json(
-      { error: message },
-      { status },
+      { error: normalized.error, error_detail: normalized.error_detail },
+      { status: normalized.status },
     );
   }
 }

@@ -3,8 +3,10 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
+import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -33,6 +35,7 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  await sweepExpiredPendingPayments(admin);
   const { data: event, error: eErr } = await admin
     .from("events")
     .select("id, studio_id, is_active, start_time, spots_left, price, currency, studios(public_slug)")
@@ -84,20 +87,28 @@ export async function POST(req: Request) {
     .eq("studio_id", studioId)
     .maybeSingle();
   if (studioContract?.contract_status === "suspended") return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
-  if (!studioContract?.hitpay_enabled || !studioSecrets?.hitpay_api_key) {
-    return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
+  const configIssue = getHitpayConfigIssue({
+    hitpayEnabled: studioContract?.hitpay_enabled,
+    merchantApiKey: studioSecrets?.hitpay_api_key,
+  });
+  if (configIssue) {
+    return NextResponse.json(
+      { error: configIssue.error, error_detail: configIssue.error_detail },
+      { status: configIssue.status },
+    );
   }
+  const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
 
   const reference = generatePaymentReference();
   // Expire before event start to avoid holding reserved seats too long.
-  // Target: 2 hours before start. Clamp to [now+1m, now+24h], and never after start-5m.
+  // Target: now + 15m. Clamp to [now+1m, now+15m], and never after start-5m.
   const eventStart = event.start_time ? new Date(event.start_time as string).getTime() : null;
-  const twoHoursBefore = eventStart ? eventStart - 2 * 60 * 60 * 1000 : null;
+  const holdWindowMs = 15 * 60 * 1000;
   const nowMs = Date.now();
   const minExpiry = nowMs + 60 * 1000;
-  const maxExpiry = nowMs + 24 * 60 * 60 * 1000;
+  const maxExpiry = nowMs + holdWindowMs;
   const hardCap = eventStart ? eventStart - 5 * 60 * 1000 : null;
-  const rawExpiry = twoHoursBefore ?? maxExpiry;
+  const rawExpiry = maxExpiry;
   const upperBound = hardCap != null ? Math.min(maxExpiry, hardCap) : maxExpiry;
   const expiresAt = new Date(Math.max(minExpiry, Math.min(upperBound, rawExpiry))).toISOString();
 
@@ -157,7 +168,7 @@ export async function POST(req: Request) {
 
   try {
     const hitpay = await createHitpayPaymentRequest({
-      apiKey: studioSecrets.hitpay_api_key,
+      apiKey: merchantApiKey,
       amount: amount.toFixed(2),
       currency,
       email: guestDisplayEmail,
@@ -186,8 +197,10 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     await admin.rpc("cancel_pending_event_payment", { p_payment_id: payment.id, p_new_status: "failed" });
-    const message = e instanceof Error ? e.message : "hitpay_create_failed";
-    const status = message === "hitpay_not_configured" ? 409 : 502;
-    return NextResponse.json({ error: message }, { status });
+    const normalized = normalizeHitpayError(e instanceof Error ? e.message : "hitpay_create_failed");
+    return NextResponse.json(
+      { error: normalized.error, error_detail: normalized.error_detail },
+      { status: normalized.status },
+    );
   }
 }

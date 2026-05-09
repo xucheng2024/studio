@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { ui } from "@/lib/ui";
 
 export function BuyPackageButton({
@@ -30,11 +31,7 @@ export function BuyPackageButton({
         const body = await res.json().catch(() => ({}));
         setLoading(false);
         if (!res.ok) {
-          if (body.error === "hitpay_not_configured") {
-            toast.error("Online payment is not configured for this studio yet.");
-          } else {
-            toast.error(body.error ?? "Purchase failed");
-          }
+          toast.error(paymentErrorMessage(String(body.error ?? ""), body.error_detail));
           return;
         }
         if (body.checkout_url) {

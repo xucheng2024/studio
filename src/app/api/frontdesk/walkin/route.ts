@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
+import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
+  await sweepExpiredPendingPayments(admin);
   const { data: session } = await admin
     .from("class_sessions")
     .select("id, location_id, spots_left, classes!inner(studio_id)")

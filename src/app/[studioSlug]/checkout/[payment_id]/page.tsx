@@ -107,6 +107,13 @@ export default async function PaymentCheckoutPage({ params }: Props) {
     gatewayStatus === "completed" ||
     gatewayStatus === "succeeded" ||
     gatewayStatus === "paid";
+  const source = String(payment.source ?? "").toLowerCase();
+  const holdWindowHint =
+    source === "online_booking" || source === "event_booking"
+      ? "Reservations are held for 15 minutes, then released automatically."
+      : source === "package_buy" || source === "member_zone_purchase"
+        ? "This checkout expires in 30 minutes."
+        : null;
 
   // Expiry display
   const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
@@ -217,6 +224,9 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   <p className="mt-3 text-xs text-teal-700 dark:text-teal-400">
                     Link expires at {expiryLabel}
                   </p>
+                ) : null}
+                {holdWindowHint ? (
+                  <p className={`mt-1 text-xs ${ui.muted}`}>{holdWindowHint}</p>
                 ) : null}
               </div>
             ) : null}

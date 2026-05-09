@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { ui } from "@/lib/ui";
 
 export function BookButton({
@@ -15,14 +16,6 @@ export function BookButton({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-
-  const toFriendly = (code: string) => {
-    if (code === "full") return "This class is full. Please pick another time.";
-    if (code === "active_booking_limit_exceeded") return "You already have several active bookings.";
-    if (code === "late_cancel_limit_exceeded") return "Please contact front desk before booking again.";
-    if (code === "hitpay_not_configured") return "Online payment is not configured for this studio yet.";
-    return "Could not create booking. Please try again.";
-  };
 
   if (disabled) return null;
 
@@ -41,7 +34,7 @@ export function BookButton({
           const body = await res.json().catch(() => ({}));
           setLoading(false);
           if (!res.ok) {
-            toast.error(toFriendly(String(body.error ?? "")));
+            toast.error(paymentErrorMessage(String(body.error ?? ""), body.error_detail));
             return;
           }
           if (body.checkout_url) {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Lock } from "lucide-react";
+import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { ui } from "@/lib/ui";
 
@@ -59,7 +60,7 @@ export function MemberZoneUnlockPanel(props: {
         window.location.href = body.checkout_url;
         return;
       }
-      setMsg(String(body.error ?? "Could not continue to payment."));
+      setMsg(paymentErrorMessage(String(body.error ?? ""), body.error_detail));
       return;
     }
     if (body.checkout_url) window.location.href = body.checkout_url;

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2, X, AlertCircle } from "lucide-react";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
+import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
@@ -43,15 +44,6 @@ export function QuickBookPanel({
       .then(({ data }) => setIsLoggedIn(!!data.session?.user));
   }, []);
 
-  const toFriendly = (code: string) => {
-    if (code === "full") return "This class is full. Please choose another session.";
-    if (code === "already_has_booking") return "You already have a booking for this session.";
-    if (code === "hitpay_not_configured")
-      return "This studio has not configured online payment yet. Please contact the front desk.";
-    if (code === "guest_details_required") return "Please enter your name, email, and phone number.";
-    return "Could not continue. Please check your details and try again.";
-  };
-
   const handleSubmit = async (payload: EmailFirstCheckoutPayload = {}) => {
     setLoading(true);
     setError(null);
@@ -67,7 +59,7 @@ export function QuickBookPanel({
       }),
     });
     const body = await res.json().catch(() => ({}));
-    const message = toFriendly(String(body.error ?? ""));
+    const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
     setLoading(false);
     if (!res.ok) {
       setError(message);
