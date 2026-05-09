@@ -12,20 +12,33 @@ type Props = {
   intro: string | null;
 };
 
+const LS_KEY = "studio:loggedIn";
+
 export function StudioIntroSection({ studioName, studioMediaCover, embedUrl, videoUrl, intro }: Props) {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  // Seed from localStorage so we don't flash on cached PWA opens
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(() => {
+    if (typeof window === "undefined") return null;
+    const cached = localStorage.getItem(LS_KEY);
+    return cached === null ? null : cached === "1";
+  });
 
   useEffect(() => {
     const supabase = createBrowserSupabase();
-    supabase.auth.getSession().then(({ data }) => setIsLoggedIn(Boolean(data.session?.user)));
+    supabase.auth.getSession().then(({ data }) => {
+      const loggedIn = Boolean(data.session?.user);
+      setIsLoggedIn(loggedIn);
+      localStorage.setItem(LS_KEY, loggedIn ? "1" : "0");
+    });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(Boolean(session?.user));
+      const loggedIn = Boolean(session?.user);
+      setIsLoggedIn(loggedIn);
+      localStorage.setItem(LS_KEY, loggedIn ? "1" : "0");
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  // While checking, render nothing to avoid flash; once confirmed logged out, show intro
-  if (isLoggedIn === null || isLoggedIn === true) return null;
+  // Still checking on very first ever visit → show intro (safer default)
+  if (isLoggedIn === true) return null;
 
   return (
     <div className="pb-4">

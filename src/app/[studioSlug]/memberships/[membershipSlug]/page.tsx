@@ -5,7 +5,8 @@ import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
 import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
-import { studioMembershipPath } from "@/lib/public-paths";
+import Link from "next/link";
+import { studioHomePath, studioMembershipPath } from "@/lib/public-paths";
 import { buildMembershipShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { ui } from "@/lib/ui";
@@ -56,6 +57,7 @@ export default async function PublicMembershipPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <Link href={studioHomePath(studioPublicSlug)} className={ui.link}>← Home</Link>
       <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">

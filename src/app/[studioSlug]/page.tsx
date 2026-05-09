@@ -611,7 +611,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             ) : null}
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4">
             {visibleMemberZoneSeries.map((series) => {
               const href = studioMemberZonePath(studio.public_slug, series.share_slug);
               const priceStr = `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price ?? 0).toFixed(2)}`;
@@ -634,41 +634,47 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const seriesPromoPreview = getVideoPreview(series.promo_video_url ?? "");
               const seriesCover = series.cover_image_url ?? seriesPromoPreview.thumbnailUrl ?? null;
               return (
-                <article key={series.id} className={`${ui.card} flex flex-col`}>
-                  <Link href={href} className="block shrink-0">
-                    {seriesCover ? (
-                      <Image
-                        src={seriesCover}
-                        alt={series.title}
-                        width={1200}
-                        height={675}
-                        className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-                      />
-                    ) : (
-                      <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
-                    )}
-                  </Link>
-                  <div className="mt-3 flex flex-1 flex-col">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">
-                        <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
-                          {series.title}
-                        </Link>
-                      </h3>
-                      <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${accessTag.color}`}>
-                        {accessTag.label}
-                      </span>
+                <article key={series.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
+                  <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                    <div className="relative shrink-0">
+                      <Link href={href} className="block">
+                        {seriesCover ? (
+                          <Image
+                            src={seriesCover}
+                            alt={series.title}
+                            width={1200}
+                            height={675}
+                            className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                          />
+                        ) : (
+                          <div className="aspect-video w-full rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
+                        )}
+                      </Link>
+                      <div className="absolute bottom-2 right-2 z-20">
+                        <SessionShareLinkButton
+                          sharePath={href}
+                          title={`${series.title} · ${studio.name}`}
+                          text={`Check out this member zone series: ${series.title}`}
+                        />
+                      </div>
                     </div>
-                    {series.summary ? (
-                      <p className={`mt-1.5 line-clamp-2 text-sm ${ui.muted}`}>{series.summary}</p>
-                    ) : null}
-                    <div className="mt-auto flex items-center justify-between pt-4">
-                      <Link href={href} className={ui.btnPrimarySm}>{ctaLabel}</Link>
-                      <SessionShareLinkButton
-                        sharePath={href}
-                        title={`${series.title} · ${studio.name}`}
-                        text={`Check out this member zone series: ${series.title}`}
-                      />
+                    <div className="flex min-w-0 flex-col">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                          <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                            {series.title}
+                          </Link>
+                        </h3>
+                        <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${accessTag.color}`}>
+                          {accessTag.label}
+                        </span>
+                      </div>
+                      {series.summary ? (
+                        <p className={`mt-2 line-clamp-3 text-sm ${ui.muted}`}>{series.summary}</p>
+                      ) : null}
+                      <div className="mt-4">
+                        <Link href={href} className={ui.btnPrimarySm}>{ctaLabel}</Link>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -690,7 +696,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <p className={`mt-1 text-sm ${ui.muted}`}>
             Buy a class pass pack and book any upcoming session.
           </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4">
             {visiblePackages.map((pkg) => {
               const buyHref = pkg.share_slug
                 ? studioPackagePath(studio.public_slug, pkg.share_slug)
@@ -700,76 +706,46 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const pkgVideoPreview = getVideoPreview(pkgVideo ?? "");
               const showVideoCover = Boolean(pkgVideoPreview.embedUrl || pkgVideo?.trim());
               return (
-                <article key={pkg.id} className={`${ui.card} flex flex-col`}>
-                  <div className="mb-4">
-                    {showVideoCover ? (
-                      <PublicVideoCover
-                        title={pkg.name}
-                        coverUrl={pkgImage}
-                        embedUrl={pkgVideoPreview.embedUrl}
-                        fallbackUrl={pkgVideo?.trim() || null}
-                      />
-                    ) : pkgImage ? (
-                      buyHref ? (
-                        <Link href={buyHref} className="block">
-                          <Image
-                            src={pkgImage}
-                            alt={pkg.name}
-                            width={1200}
-                            height={675}
-                            className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-                          />
-                        </Link>
-                      ) : (
-                        <Image
-                          src={pkgImage}
-                          alt={pkg.name}
-                          width={1200}
-                          height={675}
-                          className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                <article key={pkg.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
+                  <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                    <div className="shrink-0">
+                      {showVideoCover ? (
+                        <PublicVideoCover
+                          title={pkg.name}
+                          coverUrl={pkgImage}
+                          embedUrl={pkgVideoPreview.embedUrl}
+                          fallbackUrl={pkgVideo?.trim() || null}
                         />
-                      )
-                    ) : buyHref ? (
-                      <Link
-                        href={buyHref}
-                        className="block aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900"
-                        aria-label={`View ${pkg.name}`}
-                      />
-                    ) : (
-                      <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
-                    )}
-                  </div>
-                  <div className="flex flex-1 flex-col">
-                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
-                      {buyHref ? (
-                        <Link href={buyHref} className="transition hover:text-teal-700 dark:hover:text-teal-400">
-                          {pkg.name}
-                        </Link>
+                      ) : pkgImage ? (
+                        buyHref ? (
+                          <Link href={buyHref} className="block">
+                            <Image src={pkgImage} alt={pkg.name} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                          </Link>
+                        ) : (
+                          <Image src={pkgImage} alt={pkg.name} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                        )
                       ) : (
-                        pkg.name
-                      )}
-                    </h3>
-                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                      <span className={`text-sm ${ui.muted}`}>
-                        {pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}
-                      </span>
-                      {pkg.expiry_days ? (
-                        <span className={`text-sm ${ui.muted}`}>· Expires in {pkg.expiry_days} days</span>
-                      ) : (
-                        <span className={`text-sm ${ui.muted}`}>· No expiry</span>
+                        <div className="aspect-video w-full rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
                       )}
                     </div>
-                    <div className="mt-auto flex items-center justify-between pt-4">
-                      {pkg.price != null ? (
-                        <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
-                          SGD {Number(pkg.price).toFixed(2)}
-                        </span>
-                      ) : null}
-                      {buyHref ? (
-                        <Link href={buyHref} className={ui.btnPrimary}>
-                          Buy now
-                        </Link>
-                      ) : null}
+                    <div className="flex min-w-0 flex-col">
+                      <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                        {buyHref ? (
+                          <Link href={buyHref} className="transition hover:text-teal-700 dark:hover:text-teal-400">{pkg.name}</Link>
+                        ) : pkg.name}
+                      </h3>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span className={`text-sm ${ui.muted}`}>{pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}</span>
+                        <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
+                      </div>
+                      <div className="mt-4 flex items-center gap-4">
+                        {buyHref ? <Link href={buyHref} className={ui.btnPrimarySm}>Buy now</Link> : null}
+                        {pkg.price != null ? (
+                          <span className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                            SGD {Number(pkg.price).toFixed(2)}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </article>

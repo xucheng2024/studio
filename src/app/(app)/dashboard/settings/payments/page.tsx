@@ -182,12 +182,18 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Merchant API key</span>
+          <span className="flex items-center gap-2">
+            <span className={ui.label}>Merchant API key</span>
+            {hasApiKey
+              ? <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-800 dark:bg-teal-950/40 dark:text-teal-300">Configured ✓</span>
+              : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Not set</span>
+            }
+          </span>
           <input
             name="hitpay_api_key"
             type="password"
             defaultValue=""
-            placeholder={hasApiKey ? "Configured (enter new key to rotate)" : "sub-merchant business api key"}
+            placeholder={hasApiKey ? "Leave blank to keep current key, or enter new key to rotate" : "Enter your HitPay merchant API key"}
             className={ui.input}
           />
           <span className={`text-xs ${ui.muted}`}>
@@ -195,12 +201,18 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
           </span>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Webhook salt</span>
+          <span className="flex items-center gap-2">
+            <span className={ui.label}>Webhook salt</span>
+            {hasWebhookSalt
+              ? <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-800 dark:bg-teal-950/40 dark:text-teal-300">Configured ✓</span>
+              : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Not set</span>
+            }
+          </span>
           <input
             name="hitpay_webhook_salt"
             type="password"
             defaultValue=""
-            placeholder={hasWebhookSalt ? "Configured (enter new salt to rotate)" : "webhook-salt"}
+            placeholder={hasWebhookSalt ? "Leave blank to keep current salt, or enter new salt to rotate" : "Enter your HitPay webhook salt"}
             className={ui.input}
           />
           <span className={`text-xs ${ui.muted}`}>This should match the webhook endpoint salt configured for this sub-merchant in HitPay.</span>

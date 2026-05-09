@@ -32,34 +32,31 @@ function buildManifest({
     orientation: "portrait",
     background_color: "#f7f4ef",
     theme_color: "#0f766e",
+    lang: "en",
+    categories: ["health", "fitness", "lifestyle"],
+    prefer_related_applications: false,
     icons: trustedLogoUrl
       ? [
+          // Actual logo — declare real size (800x800 from our crop)
           {
             src: trustedLogoUrl,
-            sizes: "192x192",
+            sizes: "800x800",
             type: "image/png",
             purpose: "any",
           },
-          {
-            src: trustedLogoUrl,
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
         ]
-      : [
-          {
-            src: "/favicon.ico",
-            sizes: "any",
-            type: "image/x-icon",
-          },
-        ],
+      : [],
   };
 }
 
 export async function GET(_: Request, { params }: Props) {
   const { studioSlug: rawStudioSlug } = await params;
   const studioSlug = normalizeStudioSlug(rawStudioSlug);
+
+  const MANIFEST_HEADERS = {
+    "Content-Type": "application/manifest+json; charset=utf-8",
+    "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+  };
 
   if (!studioSlug || isReservedPublicSlug(studioSlug)) {
     return NextResponse.json(
@@ -69,11 +66,7 @@ export async function GET(_: Request, { params }: Props) {
         description: "Studio storefront",
         logoUrl: null,
       }),
-      {
-        headers: {
-          "Content-Type": "application/manifest+json; charset=utf-8",
-        },
-      },
+      { headers: MANIFEST_HEADERS },
     );
   }
 
@@ -92,11 +85,7 @@ export async function GET(_: Request, { params }: Props) {
         description: "Studio storefront",
         logoUrl: null,
       }),
-      {
-        headers: {
-          "Content-Type": "application/manifest+json; charset=utf-8",
-        },
-      },
+      { headers: MANIFEST_HEADERS },
     );
   }
 
@@ -115,10 +104,6 @@ export async function GET(_: Request, { params }: Props) {
       description,
       logoUrl: studio.public_logo_url ?? null,
     }),
-    {
-      headers: {
-        "Content-Type": "application/manifest+json; charset=utf-8",
-      },
-    },
+    { headers: MANIFEST_HEADERS },
   );
 }

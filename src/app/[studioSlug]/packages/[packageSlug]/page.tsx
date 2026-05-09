@@ -5,7 +5,8 @@ import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
-import { studioPackagePath } from "@/lib/public-paths";
+import Link from "next/link";
+import { studioPackagesPath, studioPackagePath } from "@/lib/public-paths";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { ui } from "@/lib/ui";
@@ -40,6 +41,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <Link href={studioPackagesPath(studio.public_slug)} className={ui.link}>← Packages</Link>
       <StudioMediaWarmup urls={warmupMediaUrls} />
       {/* ── Hero cover (full-bleed within page padding) ── */}
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (

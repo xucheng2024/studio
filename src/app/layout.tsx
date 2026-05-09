@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { PwaUpdateBanner } from "@/components/PwaUpdateBanner";
 import "react-easy-crop/react-easy-crop.css";
 import "react-international-phone/style.css";
 import { site } from "@/lib/brand";
@@ -52,6 +53,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col">
         {children}
         <Toaster richColors position="bottom-right" closeButton />
+        <PwaUpdateBanner />
       </body>
     </html>
   );

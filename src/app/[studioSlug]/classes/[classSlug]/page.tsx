@@ -5,7 +5,8 @@ import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
-import { studioClassPath } from "@/lib/public-paths";
+import Link from "next/link";
+import { studioClassesPath, studioClassPath } from "@/lib/public-paths";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -138,9 +139,10 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     const isFull = spotsLeft === 0;
 
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
+        <Link href={studioClassesPath(studioSlug)} className={ui.link}>← Classes</Link>
         <StudioMediaWarmup urls={warmupMediaUrls} />
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:items-start lg:gap-12">
+        <div className="mt-4 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:items-start lg:gap-12">
           {/* ── Left: class info ── */}
           <div className="min-w-0">
             {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
@@ -254,6 +256,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   // ── Multi-session / no-session fallback layout ──
   return (
     <main className={ui.page}>
+      <Link href={studioClassesPath(studioSlug)} className={ui.link}>← Classes</Link>
       <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">

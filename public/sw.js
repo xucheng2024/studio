@@ -1,17 +1,16 @@
-const SW_VERSION = "studio-pwa-v3";
+const SW_VERSION = "studio-pwa-v5";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
 
 const NETWORK_ONLY_SEGMENTS = ["/auth", "/checkout", "/me/", "/member-zone/"];
-const REMOTE_IMAGE_HOSTS = new Set(["image.mux.com", "i.ytimg.com"]);
+const REMOTE_IMAGE_HOSTS = new Set(["image.mux.com", "i.ytimg.com", "i.vimeocdn.com"]);
 
 self.addEventListener("install", (event) => {
+  // Cache offline page but do NOT skipWaiting — let the user choose to refresh
+  // via the update banner to avoid clearing caches while old tabs are still open.
   event.waitUntil(
-    caches
-      .open(PAGE_CACHE)
-      .then((cache) => cache.add(OFFLINE_URL))
-      .then(() => self.skipWaiting()),
+    caches.open(PAGE_CACHE).then((cache) => cache.add(OFFLINE_URL)),
   );
 });
 
@@ -62,6 +61,13 @@ function isCacheableHtmlPath(pathname) {
   if (segments.length === 1) return true;
   // /angle/classes
   if (segments.length === 2 && segments[1] === "classes") return true;
+  // /angle/classes, /angle/events, /angle/services, /angle/packages, /angle/member-zone
+  if (
+    segments.length === 2 &&
+    ["events", "services", "packages", "member-zone"].includes(segments[1])
+  ) {
+    return true;
+  }
   // /angle/classes/yoga, /angle/events/slug, /angle/services/slug, etc.
   if (
     segments.length === 3 &&
@@ -160,8 +166,21 @@ async function warmupImages(urls) {
 
 self.addEventListener("message", (event) => {
   const data = event.data;
-  if (!data || data.type !== "PREFETCH_URLS" || !Array.isArray(data.urls)) return;
-  event.waitUntil?.(warmupImages(data.urls));
+  if (!data) return;
+  if (data.type === "PREFETCH_URLS" && Array.isArray(data.urls)) {
+    event.waitUntil?.(warmupImages(data.urls));
+    return;
+  }
+  if (data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// Notify all open clients when a new SW has taken control
+self.addEventListener("controllerchange", () => {
+  self.clients.matchAll({ type: "window" }).then((clients) => {
+    clients.forEach((client) => client.postMessage({ type: "SW_UPDATED" }));
+  });
 });
 
 self.addEventListener("fetch", (event) => {

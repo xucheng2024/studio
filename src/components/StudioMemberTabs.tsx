@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { studioMePath } from "@/lib/public-paths";
+import { studioHomePath, studioMePath } from "@/lib/public-paths";
 
 const tabs = [
   { key: "bookings", label: "Bookings", section: "bookings" },
@@ -21,6 +21,13 @@ export function StudioMemberTabs({ studioSlug }: { studioSlug: string }) {
       className="sticky top-0 z-20 -mx-4 border-b border-stone-200/80 bg-white/92 px-4 py-3 backdrop-blur dark:border-stone-800 dark:bg-stone-950/88 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
     >
       <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto pb-1">
+        <Link
+          href={studioHomePath(studioSlug)}
+          className="inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+        >
+          ← Home
+        </Link>
+        <span className="my-auto h-4 w-px shrink-0 bg-stone-200 dark:bg-stone-700" />
         {tabs.map((tab) => {
           const href = studioMePath(studioSlug, tab.section);
           const isActive = pathname === href;

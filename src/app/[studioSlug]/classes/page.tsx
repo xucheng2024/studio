@@ -1,7 +1,9 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
+import { studioHomePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -49,8 +51,9 @@ export default async function StudioBookingPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <Link href={studioHomePath(studio.public_slug)} className={ui.link}>← Home</Link>
       {/* ── Studio header ── */}
-      <header className="mb-8 max-w-2xl">
+      <header className="mb-8 mt-4 max-w-2xl">
         <p className={ui.badge}>{studio.name}</p>
         <h1 className={`${ui.h1} mt-3`}>Book a class</h1>
         <p className={`mt-2 ${ui.lead}`}>
