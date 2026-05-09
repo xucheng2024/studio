@@ -140,7 +140,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
     return (
       <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
-        <Link href={studioClassesPath(studioSlug)} className={ui.link}>← Classes</Link>
+        <Link href={studioClassesPath(studioPublicSlug)} className={ui.link}>← Classes</Link>
         <StudioMediaWarmup urls={warmupMediaUrls} />
         <div className="mt-4 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:items-start lg:gap-12">
           {/* ── Left: class info ── */}
@@ -256,7 +256,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   // ── Multi-session / no-session fallback layout ──
   return (
     <main className={ui.page}>
-      <Link href={studioClassesPath(studioSlug)} className={ui.link}>← Classes</Link>
+      <Link href={studioClassesPath(studioPublicSlug)} className={ui.link}>← Classes</Link>
       <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">
