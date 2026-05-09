@@ -53,7 +53,6 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm }: Props) {
   const src = useMemo(() => URL.createObjectURL(file), [file]);
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [minZoom, setMinZoom] = useState(1);
   const [cropPixels, setCropPixels] = useState<Area | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -65,7 +64,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm }: Props) {
 
   const handleReset = () => {
     setCrop({ x: 0, y: 0 });
-    setZoom(minZoom);
+    setZoom(1);
   };
 
   const handleConfirm = async () => {
@@ -82,36 +81,30 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-stone-900">
         <div className="mb-2 text-sm font-semibold">Crop image (16:9)</div>
-        <div className="relative mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-stone-300 bg-black" style={{ aspectRatio: "16 / 9" }}>
+        <div className="relative mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-stone-300 bg-stone-100" style={{ aspectRatio: "16 / 9" }}>
           <Cropper
             image={src}
             crop={crop}
             zoom={zoom}
-            minZoom={minZoom}
-            maxZoom={minZoom + 2}
+            minZoom={1}
+            maxZoom={3}
             aspect={16 / 9}
             restrictPosition
-            objectFit="contain"
+            objectFit="cover"
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
-            onMediaLoaded={({ naturalWidth, naturalHeight }) => {
-              const nextMinZoom = Math.max(OUT_W / naturalWidth, OUT_H / naturalHeight, 1);
-              setMinZoom(nextMinZoom);
-              setZoom(nextMinZoom);
-              setCrop({ x: 0, y: 0 });
-            }}
           />
         </div>
         <div className="mt-3 space-y-3">
           <label className="block text-xs text-stone-600 dark:text-stone-300">Zoom</label>
           <input
             type="range"
-            min={minZoom}
-            max={minZoom + 2}
+            min={1}
+            max={3}
             step={0.01}
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
