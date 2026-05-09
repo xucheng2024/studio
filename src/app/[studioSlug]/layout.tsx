@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { StudioPwaRegister } from "@/components/StudioPwaRegister";
+import { StudioPushOptIn } from "@/components/StudioPushOptIn";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -55,7 +56,10 @@ export default async function StudioPublicLayout({ children, params }: Props) {
   return (
     <div className="min-h-dvh flex flex-col bg-white dark:bg-stone-950">
       {studioSlug && !isReservedPublicSlug(studioSlug) ? (
-        <StudioPwaRegister studioSlug={studioSlug} />
+        <>
+          <StudioPwaRegister studioSlug={studioSlug} />
+          <StudioPushOptIn studioSlug={studioSlug} />
+        </>
       ) : null}
       {children}
     </div>

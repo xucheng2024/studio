@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -92,5 +93,6 @@ export async function PATCH(req: Request, ctx: RouteParams) {
 
   revalidatePath("/dashboard/schedule");
   revalidatePath("/");
+  await recordStudioContentUpdate(cls.studio_id, "classes");
   return NextResponse.json({ ok: true });
 }

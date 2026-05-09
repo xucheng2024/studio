@@ -6,6 +6,7 @@ import { buildAccessContext, resolveAccessContext } from "@/lib/rbac";
 import { parsePublicTagsInput } from "@/lib/publicTags";
 import { generateShareSlugSegment } from "@/lib/shareSlug";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -771,6 +772,7 @@ export async function createSession(formData: FormData): Promise<void> {
     revalidatePath(`/${studio.public_slug}`);
     revalidatePath(`/${studio.public_slug}/classes`);
   }
+  await recordStudioContentUpdate(studio.id, "classes");
 }
 
 export async function createPackage(formData: FormData): Promise<void> {
@@ -814,6 +816,7 @@ export async function createPackage(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/packages");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "packages");
 }
 
 async function generateUniqueMembershipShareSlug(
@@ -952,6 +955,7 @@ export async function createEvent(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/events");
   revalidatePath("/");
+  await recordStudioContentUpdate(studio.id, "events");
 }
 
 export async function updateEvent(formData: FormData): Promise<void> {
@@ -1022,6 +1026,7 @@ export async function updateEvent(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/events");
   revalidatePath("/");
+  await recordStudioContentUpdate(studio.id, "events");
 }
 
 export async function deleteEvent(formData: FormData): Promise<void> {
@@ -1103,6 +1108,7 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
   }
   revalidatePath("/dashboard/member-zone");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
 export async function updateMemberZoneSeries(formData: FormData): Promise<void> {
@@ -1153,6 +1159,7 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
   }
   revalidatePath("/dashboard/member-zone");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
 export async function deleteMemberZoneSeries(formData: FormData): Promise<void> {
@@ -1229,6 +1236,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
     return;
   }
   revalidatePath("/dashboard/member-zone");
+  await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
 export async function updateMemberZoneLesson(formData: FormData): Promise<void> {
@@ -1290,6 +1298,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
     return;
   }
   revalidatePath("/dashboard/member-zone");
+  await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
 export async function deleteMemberZoneLesson(formData: FormData): Promise<void> {

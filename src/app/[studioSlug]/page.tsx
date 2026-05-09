@@ -284,7 +284,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       </section>
 
       {/* ── Sticky section nav ── */}
-      <StudioStickyNav tabs={[
+      <StudioStickyNav studioSlug={studio.public_slug} tabs={[
         ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
         ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
         ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),

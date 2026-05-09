@@ -1,4 +1,4 @@
-const SW_VERSION = "studio-pwa-v5";
+const SW_VERSION = "studio-pwa-v6";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
@@ -214,6 +214,36 @@ self.addEventListener("controllerchange", () => {
   self.clients.matchAll({ type: "window" }).then((clients) => {
     clients.forEach((client) => client.postMessage({ type: "SW_UPDATED" }));
   });
+});
+
+self.addEventListener("push", (event) => {
+  const payload = event.data?.json?.() ?? {};
+  const title = payload.title ?? "Studio update";
+  const options = {
+    body: payload.body ?? "There is new content available.",
+    icon: payload.icon ?? "/favicon.ico",
+    badge: payload.badge ?? "/favicon.ico",
+    tag: payload.tag ?? "studio-update",
+    data: {
+      url: payload.url ?? "/",
+    },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification?.data?.url ?? "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const existing = clientList.find((client) => "focus" in client);
+      if (existing) {
+        existing.navigate?.(targetUrl);
+        return existing.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
 });
 
 self.addEventListener("fetch", (event) => {

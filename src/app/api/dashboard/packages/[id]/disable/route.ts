@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,5 +37,6 @@ export async function POST(_req: Request, ctx: RouteParams) {
 
   revalidatePath("/dashboard/packages");
   revalidatePath("/");
+  await recordStudioContentUpdate(row.studio_id, "packages");
   return NextResponse.json({ ok: true });
 }
