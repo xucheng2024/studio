@@ -249,12 +249,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-1">
           {logoUrl ? (
-            <Image
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={logoUrl}
               alt={publicBrandName}
-              width={44}
-              height={44}
               className="size-11 object-contain object-center"
+              loading="eager"
             />
           ) : (
             <div className="inline-flex size-11 items-center justify-center rounded-2xl text-sm font-semibold text-stone-700 dark:text-stone-200">
