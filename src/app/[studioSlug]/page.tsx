@@ -198,16 +198,16 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const packagesTitle = studio.public_packages_title?.trim() || "Packages";
   const eventsTitle = (studio as { public_events_title?: string | null }).public_events_title?.trim() || "Events";
   const memberZoneTitle = (studio as { public_member_zone_title?: string | null }).public_member_zone_title?.trim() || "Member zone";
-  const visibleServices = services.slice(0, 1);
-  const hiddenServices = services.slice(1);
-  const visibleClasses = classes.slice(0, 1);
-  const hiddenClasses = classes.slice(1);
-  const visibleEvents = (events ?? []).slice(0, 1);
-  const hiddenEvents = (events ?? []).slice(1);
-  const visiblePackages = packages.slice(0, 1);
-  const hiddenPackages = packages.slice(1);
-  const visibleMemberZoneSeries = memberZoneSeries.slice(0, 1);
-  const hiddenMemberZoneSeries = memberZoneSeries.slice(1);
+  const visibleServices = services.slice(0, 3);
+  const hiddenServices = services.slice(3);
+  const visibleClasses = classes.slice(0, 3);
+  const hiddenClasses = classes.slice(3);
+  const visibleEvents = (events ?? []).slice(0, 3);
+  const hiddenEvents = (events ?? []).slice(3);
+  const visiblePackages = packages.slice(0, 3);
+  const hiddenPackages = packages.slice(3);
+  const visibleMemberZoneSeries = memberZoneSeries.slice(0, 3);
+  const hiddenMemberZoneSeries = memberZoneSeries.slice(3);
   const mediaTagClass =
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
@@ -290,7 +290,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
         ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
         ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
-        ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: "Members" }] : []),
+        ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: "Member zone" }] : []),
         ...(packages.length > 0 ? [{ id: "packages", label: "Packages" }] : []),
       ] satisfies StickyNavTab[]} />
 

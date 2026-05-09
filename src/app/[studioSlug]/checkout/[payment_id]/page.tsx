@@ -197,75 +197,74 @@ export default async function PaymentCheckoutPage({ params }: Props) {
         {/* ── Pending: payment instructions ── */}
         {isPending ? (
           <>
-            {/* Step 1 – Start payment */}
+            {/* Primary action: HitPay checkout (when URL exists) */}
             {payment.gateway_checkout_url ? (
-              <div className={`${ui.card} flex flex-col gap-3`}>
-                <div className="flex w-full items-center gap-2">
-                  <StepBadge n={1} />
-                  <p className="font-semibold text-stone-800 dark:text-stone-100">Open secure payment page</p>
-                </div>
+              <div className="rounded-2xl border border-teal-200 bg-teal-50 px-5 py-5 dark:border-teal-800/50 dark:bg-teal-950/30">
+                <p className="text-sm font-semibold text-teal-900 dark:text-teal-200">Complete your payment</p>
+                <p className={`mt-1 text-sm ${ui.muted}`}>
+                  Click below to open the secure checkout. This page updates automatically once payment is confirmed.
+                </p>
                 <a
                   href={payment.gateway_checkout_url}
-                  className={`${ui.btnPrimary} inline-flex w-fit items-center gap-2`}
+                  className={`${ui.btnPrimary} mt-4 inline-flex w-full items-center justify-center gap-2`}
                   target="_blank"
                   rel="noreferrer"
                 >
                   Continue to HitPay
                   <ExternalLink size={14} />
                 </a>
-                <p className={`text-xs ${ui.muted}`}>
-                  Complete payment there and return here; this page auto-refreshes payment status.
-                </p>
+                {expiryLabel ? (
+                  <p className="mt-3 text-xs text-teal-700 dark:text-teal-400">
+                    Link expires at {expiryLabel}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
-            {/* Step 2 – Reference code */}
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 dark:border-amber-800/50 dark:bg-amber-950/20">
-              <div className="mb-3 flex items-center gap-2">
-                <StepBadge n={2} amber />
-                <p className="font-semibold text-amber-900 dark:text-amber-200">Payment reference</p>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <code className="text-2xl font-bold tracking-widest text-stone-900 dark:text-stone-100">
-                  {payment.reference_code}
-                </code>
-                {payment.reference_code ? <CopyRefButton reference={payment.reference_code} /> : null}
-              </div>
-              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                Keep this reference for support and reconciliation.
-              </p>
-            </div>
-
-            {/* Waiting confirmation banner */}
-            <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 dark:border-stone-700 dark:bg-stone-900/40">
-              <div className="flex items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/40">
-                  <Clock size={18} className="animate-pulse text-teal-600 dark:text-teal-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
-                    Waiting for payment confirmation
-                  </p>
-                  <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                    Please complete your transfer. We&apos;ll confirm it shortly after receiving the payment.
-                  </p>
-                  {isGatewayReceived ? (
-                    <p className="mt-1 text-xs font-medium text-teal-700 dark:text-teal-300">
-                      Payment received. We&apos;re confirming your booking now...
+            {/* Waiting confirmation banner (when no checkout URL — e.g. manual bank transfer) */}
+            {!payment.gateway_checkout_url ? (
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 dark:border-stone-700 dark:bg-stone-900/40">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/40">
+                    <Clock size={18} className="animate-pulse text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+                      Waiting for payment confirmation
                     </p>
-                  ) : null}
+                    <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                      {isGatewayReceived
+                        ? "Payment received — confirming your booking now…"
+                        : "Please complete your transfer. We'll confirm it shortly."}
+                    </p>
+                  </div>
                 </div>
+                {expiryLabel ? (
+                  <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
+                    Link expires at {expiryLabel} · This page updates automatically
+                  </p>
+                ) : (
+                  <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
+                    This page updates automatically
+                  </p>
+                )}
               </div>
-              {expiryLabel ? (
-                <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
-                  Link expires at {expiryLabel} · This page updates automatically
-                </p>
-              ) : (
-                <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
-                  This page updates automatically
-                </p>
-              )}
-            </div>
+            ) : null}
+
+            {/* Reference code — secondary, for support use */}
+            {payment.reference_code ? (
+              <details className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-stone-700 dark:bg-stone-900/40">
+                <summary className={`cursor-pointer select-none text-xs font-medium ${ui.muted}`}>
+                  Payment reference (for support)
+                </summary>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <code className="text-xl font-bold tracking-widest text-stone-900 dark:text-stone-100">
+                    {payment.reference_code}
+                  </code>
+                  <CopyRefButton reference={payment.reference_code} />
+                </div>
+              </details>
+            ) : null}
           </>
         ) : null}
 
@@ -281,14 +280,3 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   );
 }
 
-function StepBadge({ n, amber }: { n: number; amber?: boolean }) {
-  return (
-    <span
-      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-        amber ? "bg-amber-500 text-white" : "bg-teal-600 text-white"
-      }`}
-    >
-      {n}
-    </span>
-  );
-}

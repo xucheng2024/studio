@@ -73,7 +73,7 @@ export default async function PublicServicePage({ params }: Props) {
       )}
 
       <div className="max-w-2xl">
-        <p className={ui.badge}>Shared service</p>
+        <p className={ui.badge}>Service</p>
         <h1 className={`${ui.h1} mt-3`}>{service.title}</h1>
         <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
         {service.price != null ? (

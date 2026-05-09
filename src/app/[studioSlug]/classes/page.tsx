@@ -158,17 +158,21 @@ export default async function StudioBookingPage({ params }: Props) {
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-stone-900 dark:text-stone-50">{title}</p>
                       <p className="mt-0.5 text-sm font-medium text-stone-700 dark:text-stone-300">{timeLabel}</p>
-                      <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                         {s.guest_price != null ? (
                           <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
                             ${Number(s.guest_price).toFixed(2)}
                           </span>
                         ) : null}
-                        {s.guest_price != null ? <span className="text-xs text-stone-500 dark:text-stone-400">guest</span> : null}
-                        {s.guest_price != null && creditsRequired != null ? <span>·</span> : null}
-                        {creditsRequired != null ? (
-                          <span className="text-xs text-stone-500 dark:text-stone-400">
-                            {creditsRequired} class pass{creditsRequired !== 1 ? "s" : ""} member
+                        {s.guest_price != null ? (
+                          <span className="text-xs text-stone-500 dark:text-stone-400">/ session</span>
+                        ) : null}
+                        {s.guest_price != null && creditsRequired > 0 ? (
+                          <span className="text-xs text-stone-400 dark:text-stone-500">or</span>
+                        ) : null}
+                        {creditsRequired > 0 ? (
+                          <span className="text-xs font-medium text-stone-600 dark:text-stone-300">
+                            {creditsRequired} class pass{creditsRequired !== 1 ? "es" : ""}
                           </span>
                         ) : null}
                       </div>

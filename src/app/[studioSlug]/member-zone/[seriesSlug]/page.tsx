@@ -17,6 +17,7 @@ import { buildMemberZoneShareMetadata } from "@/lib/publicShareOg";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 import { getVideoPreview } from "@/lib/videoPreview";
+import { Lock } from "lucide-react";
 
 type Props = { params: Promise<{ studioSlug: string; seriesSlug: string }> };
 
@@ -178,6 +179,13 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
     return { canPlay: false, reason: "purchase_required", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
   }
 
+  // Determine if all lessons inherit series access (no per-lesson overrides)
+  const allInherit = lessons.every((l) => (l.access_override ?? "inherit") === "inherit");
+  const seriesAccessNormalized = normalizeMemberZoneAccessType(seriesData.access_type);
+  const firstLessonAccess = lessons.length > 0 ? resolveAccess(lessons[0]) : null;
+  const hasLockedLessons = lessons.some((l) => !resolveAccess(l).canPlay);
+  const showTopUnlockCard = allInherit && seriesAccessNormalized !== "free" && hasLockedLessons;
+
   return (
     <main className={ui.page}>
       {(() => {
@@ -226,6 +234,32 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
             <span className={`text-sm ${ui.muted}`}>{lessons.length} total</span>
           ) : null}
         </div>
+
+        {/* Single top-level unlock card when all lessons share the same rule */}
+        {showTopUnlockCard && firstLessonAccess ? (
+          <div className="mt-4">
+            <MemberZoneUnlockPanel
+              studioSlug={studio.public_slug}
+              seriesSlug={seriesData.share_slug}
+              seriesId={seriesData.id}
+              lessonId={null}
+              mode={
+                firstLessonAccess.resolvedAccessType === "member_only"
+                  ? "member_only"
+                  : firstLessonAccess.resolvedAccessType === "paid_only"
+                    ? "paid_only"
+                    : "member_or_paid"
+              }
+              amountLabel={
+                firstLessonAccess.resolvedAccessType === "paid_only" || firstLessonAccess.resolvedAccessType === "member_or_paid"
+                  ? `${firstLessonAccess.resolvedCurrency} ${firstLessonAccess.resolvedPrice.toFixed(2)}`
+                  : undefined
+              }
+              isAuthenticated={Boolean(user)}
+              membershipHref={membershipHref}
+            />
+          </div>
+        ) : null}
         {lessons.length === 0 ? (
           <div className={`${ui.emptyState} mt-3`}>
             <p className={`text-sm ${ui.muted}`}>No lessons published yet.</p>
@@ -274,6 +308,11 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                         <div className="mt-3">
                           {access.canPlay ? (
                             renderMedia(lesson.media_url, lesson.title, lesson.media_type ?? "video")
+                          ) : showTopUnlockCard ? (
+                            <div className="flex items-center gap-2 rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-500 dark:bg-stone-800/60 dark:text-stone-400">
+                              <Lock size={13} className="shrink-0" />
+                              <span>Unlock the series above to watch</span>
+                            </div>
                           ) : (
                             <MemberZoneUnlockPanel
                                 studioSlug={studio.public_slug}

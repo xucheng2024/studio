@@ -6,7 +6,7 @@ import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { QuickEventBookPanel } from "@/components/QuickEventBookPanel";
 import { getCachedEventShareContext } from "@/lib/cachedSharePages";
-import { studioEventPath } from "@/lib/public-paths";
+import { studioEventPath, studioEventsPath } from "@/lib/public-paths";
 import { buildEventShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { ui } from "@/lib/ui";
@@ -38,6 +38,9 @@ export default async function PublicEventPage({ params }: Props) {
   return (
     <main className={ui.page}>
       <StudioMediaWarmup urls={warmupMediaUrls} />
+      <div className="mb-4">
+        <a href={studioEventsPath(studio.public_slug ?? rawStudio)} className={ui.link}>← Events</a>
+      </div>
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">
           <div className="relative">
@@ -68,36 +71,46 @@ export default async function PublicEventPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">
-          <p className={ui.badge}>Shared event</p>
+          <p className={ui.badge}>Event</p>
           <h1 className={`${ui.h1} mt-3`}>{event.title}</h1>
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
 
-          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
-            <span className="flex items-center gap-1.5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-              {new Date(String(event.start_time)).toLocaleString("en-SG", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Singapore" })}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-              Ends {new Date(String(event.end_time)).toLocaleString("en-SG", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Singapore" })}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-              {Number(event.spots_left ?? 0)} / {Number(event.capacity ?? 0)} spots left
-            </span>
+          <div className="mt-4 flex flex-col gap-4 text-sm text-stone-600 dark:text-stone-300">
+            {/* When */}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">When</p>
+              <div className="flex flex-col gap-1">
+                <span>
+                  {new Date(String(event.start_time)).toLocaleString("en-SG", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Singapore" })}
+                </span>
+                <span className="text-stone-500 dark:text-stone-400">
+                  Ends {new Date(String(event.end_time)).toLocaleString("en-SG", { timeStyle: "short", timeZone: "Asia/Singapore" })}
+                </span>
+              </div>
+            </div>
+
+            {/* Where */}
             {(event as { address?: string | null }).address?.trim() ? (
-              <span className="flex items-start gap-1.5">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-                <span className="min-w-0">
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">Where</p>
+                <div>
                   <span className="block">{String((event as { address: string }).address)}</span>
                   {(event as { address_details?: string | null }).address_details?.trim() ? (
                     <span className="block text-xs text-stone-500 dark:text-stone-400">
                       {String((event as { address_details: string }).address_details)}
                     </span>
                   ) : null}
-                </span>
-              </span>
+                </div>
+              </div>
             ) : null}
+
+            {/* Availability */}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">Availability</p>
+              <span className={Number(event.spots_left ?? 0) === 0 ? "font-semibold text-red-600 dark:text-red-400" : Number(event.spots_left ?? 0) <= 5 ? "font-semibold text-amber-700 dark:text-amber-300" : ""}>
+                {Number(event.spots_left ?? 0)} / {Number(event.capacity ?? 0)} spots left
+              </span>
+            </div>
           </div>
 
           {Array.isArray(event.tags) && event.tags.length ? (
@@ -137,6 +150,7 @@ export default async function PublicEventPage({ params }: Props) {
                 </p>
                 <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
                   {eventCurrency} {Number(event.price ?? 0).toFixed(2)}
+                  <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ ticket</span>
                 </p>
 
                 <div className="mt-5">

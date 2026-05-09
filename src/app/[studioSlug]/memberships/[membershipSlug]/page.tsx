@@ -112,7 +112,7 @@ export default async function PublicMembershipPage({ params }: Props) {
             ) : null}
             <span className="flex items-center gap-1.5">
               <span className="flex size-5 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs dark:bg-teal-900/40 dark:text-teal-300">✓</span>
-              Cancelled by the studio on request
+              Contact the studio anytime for cancellation help
             </span>
           </div>
           {membership.description ? (

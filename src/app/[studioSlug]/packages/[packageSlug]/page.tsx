@@ -66,12 +66,13 @@ export default async function PublicPackageBuyPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">
-          <p className={ui.badge}>Shared package</p>
+          <p className={ui.badge}>Package</p>
           <h1 className={`${ui.h1} mt-3`}>{pkg.name}</h1>
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {pkg.price != null ? (
             <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
               {packageCurrency} {Number(pkg.price).toFixed(2)}
+              <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">one-time</span>
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
@@ -90,7 +91,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
           </div>
           <p className={`mt-3 text-sm ${paymentReady ? ui.muted : ui.error}`}>
             {paymentReady
-              ? "Secure checkout powered by HitPay."
+              ? ""
               : "Online payment is not configured for this studio."}
           </p>
         </div>
@@ -99,10 +100,11 @@ export default async function PublicPackageBuyPage({ params }: Props) {
           <div className={`${ui.card} overflow-hidden sm:p-6`}>
             <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Buy this package</p>
             <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
-              {paymentReady ? "Enter your details and continue to payment." : "Online payment is not configured for this studio."}
+              {paymentReady ? "Secure checkout powered by HitPay." : "Online payment is not configured for this studio."}
             </p>
             <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
               {packageCurrency} {Number(pkg.price ?? 0).toFixed(2)}
+              <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">one-time</span>
             </p>
 
             <div className="mt-5">
