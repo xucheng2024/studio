@@ -1,0 +1,104 @@
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
+import { studioHomePath, studioServicePath } from "@/lib/public-paths";
+import { normalizeStudioSlug } from "@/lib/slug";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { ui } from "@/lib/ui";
+import { getVideoPreview } from "@/lib/videoPreview";
+
+type Props = { params: Promise<{ studioSlug: string }> };
+
+export const revalidate = 60;
+
+export default async function PublicServicesPage({ params }: Props) {
+  const { studioSlug: rawSlug } = await params;
+  const studioSlug = normalizeStudioSlug(rawSlug);
+  if (!studioSlug || isReservedPublicSlug(studioSlug)) notFound();
+
+  const admin = createAdminClient();
+  const { data: studio } = await admin
+    .from("studios")
+    .select("id, name, public_slug, public_services_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, contract_status")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
+  if (!studio || studio.contract_status === "suspended") notFound();
+
+  const { data: services } = await admin
+    .from("studio_services")
+    .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, sort_order")
+    .eq("studio_id", studio.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  const waLink = studioWhatsappLink({
+    enabled: studio.whatsapp_enabled,
+    numberE164: studio.whatsapp_number_e164,
+    prefillText: studio.whatsapp_prefill_text,
+  });
+  const buildServiceWaLink = (serviceTitle: string) => {
+    if (!waLink) return null;
+    try {
+      const url = new URL(waLink);
+      const current = url.searchParams.get("text") ?? "Hi, I’m interested in your services.";
+      url.searchParams.set("text", `${current}\n\nService: ${serviceTitle}`);
+      return url.toString();
+    } catch {
+      return waLink;
+    }
+  };
+
+  return (
+    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
+      <Link href={`${studioHomePath(studio.public_slug)}#services`} className={ui.link}>Back to home</Link>
+      <div className="mt-4">
+        <h1 className={ui.h1}>{studio.public_services_title?.trim() || "Services"}</h1>
+      </div>
+      <div className="mt-5 grid gap-4">
+        {(services ?? []).map((svc) => {
+          const href = studioServicePath(studio.public_slug, svc.share_slug);
+          const preview = getVideoPreview((svc as { video_url?: string | null }).video_url ?? "");
+          const cover = svc.cover_image_url ?? preview.thumbnailUrl ?? null;
+          const serviceWaLink = buildServiceWaLink(svc.title);
+          const tags = Array.isArray((svc as { tags?: string[] | null }).tags) ? (svc as { tags: string[] }).tags : [];
+          return (
+            <article key={svc.id} className={ui.card}>
+              <div className="grid gap-4 sm:grid-cols-[minmax(220px,42%)_1fr]">
+                <Link href={href} className="block">
+                  {cover ? (
+                    <Image src={cover} alt={svc.title} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                  ) : (
+                    <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                  )}
+                </Link>
+                <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                      <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">{svc.title}</Link>
+                    </h2>
+                    {svc.price != null ? <span className="shrink-0 text-sm font-semibold">{svc.currency} {Number(svc.price).toFixed(2)}</span> : null}
+                  </div>
+                  {svc.summary ? <p className={`mt-2 text-sm ${ui.muted}`}>{svc.summary}</p> : null}
+                  {svc.description ? <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">{svc.description}</p> : null}
+                  {tags.length ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {tags.slice(0, 5).map((tag) => <span key={`${svc.id}-${tag}`} className={ui.badgeNeutral}>{tag}</span>)}
+                    </div>
+                  ) : null}
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Link href={href} className={ui.btnPrimarySm}>View details</Link>
+                    {serviceWaLink ? <a href={serviceWaLink} target="_blank" rel="noreferrer" className={ui.btnSecondarySm}>Enquire Now</a> : null}
+                    <SessionShareLinkButton sharePath={href} title={`${svc.title} · ${studio.name}`} text={`Check out this service: ${svc.title}`} />
+                  </div>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </main>
+  );
+}

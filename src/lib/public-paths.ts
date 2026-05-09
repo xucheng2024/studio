@@ -6,6 +6,22 @@ export function studioClassesPath(studioSlug: string) {
   return `/${studioSlug}/classes`;
 }
 
+export function studioEventsPath(studioSlug: string, tab?: "upcoming" | "ended") {
+  return `/${studioSlug}/events${tab === "ended" ? "?tab=ended" : ""}`;
+}
+
+export function studioServicesPath(studioSlug: string) {
+  return `/${studioSlug}/services`;
+}
+
+export function studioPackagesPath(studioSlug: string) {
+  return `/${studioSlug}/packages`;
+}
+
+export function studioMemberZoneListPath(studioSlug: string) {
+  return `/${studioSlug}/member-zone`;
+}
+
 export function studioClassPath(
   studioSlug: string,
   classSlug: string,

@@ -12,10 +12,14 @@ import {
   studioClassPath,
   studioClassesPath,
   studioEventPath,
+  studioEventsPath,
   studioHomePath,
+  studioMemberZoneListPath,
   studioMemberZonePath,
+  studioPackagesPath,
   studioPackagePath,
   studioServicePath,
+  studioServicesPath,
 } from "@/lib/public-paths";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -315,6 +319,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <div className="flex items-center gap-2">
               <h2 className={ui.h2}>{servicesTitle}</h2>
             </div>
+            {hiddenServices.length > 0 ? (
+              <Link href={studioServicesPath(studio.public_slug)} className={ui.link}>
+                See {hiddenServices.length} more &gt;
+              </Link>
+            ) : null}
           </div>
           <div className="mt-4 grid gap-4">
             {visibleServices.map((svc) => {
@@ -400,7 +409,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>
-          {hiddenServices.length > 0 ? (
+          {false && hiddenServices.length > 0 ? (
             <details className="group mt-4">
               <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
                 <span className="group-open:hidden">Show {hiddenServices.length} more services</span>
@@ -497,8 +506,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
 
       {classes.length > 0 ? (
         <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className={ui.h2}>{classesTitle}</h2>
+            {hiddenClasses.length > 0 ? (
+              <Link href={studioClassesPath(studio.public_slug)} className={ui.link}>
+                See {hiddenClasses.length} more &gt;
+              </Link>
+            ) : null}
           </div>
           <div className="mt-4 grid w-full gap-4">
             {visibleClasses.map((s) => {
@@ -601,7 +615,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>
-          {hiddenClasses.length > 0 ? (
+          {false && hiddenClasses.length > 0 ? (
             <details className="group mt-4">
               <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
                 <span className="group-open:hidden">Show {hiddenClasses.length} more classes</span>
@@ -715,8 +729,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
 
       {(events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? (
         <section id="events" className="mx-auto mt-10 w-full max-w-5xl pb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className={ui.h2}>{eventsTitle}</h2>
+            {hiddenEvents.length > 0 || pastEvents.length > 0 ? (
+              <Link href={studioEventsPath(studio.public_slug)} className={ui.link}>
+                See {hiddenEvents.length + pastEvents.length} more &gt;
+              </Link>
+            ) : null}
           </div>
           <div className="mt-4 grid w-full gap-4">
             {visibleEvents.map((e) => {
@@ -801,7 +820,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             })}
           </div>
 
-          {hiddenEvents.length > 0 ? (
+          {false && hiddenEvents.length > 0 ? (
             <details className="group mt-4">
               <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
                 <span className="group-open:hidden">Show {hiddenEvents.length} more events</span>
@@ -892,7 +911,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             </details>
           ) : null}
 
-          {pastEvents.length > 0 ? (
+          {false && pastEvents.length > 0 ? (
             <details className="group mt-4">
               <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
                 <span className="group-open:hidden">Show {pastEvents.length} past events</span>
@@ -982,8 +1001,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
 
       {memberZoneSeries.length > 0 ? (
         <section id="member-zone" className="mx-auto mt-10 w-full max-w-5xl pb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-3">
             <h2 className={ui.h2}>{memberZoneTitle}</h2>
+            {hiddenMemberZoneSeries.length > 0 ? (
+              <Link href={studioMemberZoneListPath(studio.public_slug)} className={`${ui.link} shrink-0`}>
+                See {hiddenMemberZoneSeries.length} more &gt;
+              </Link>
+            ) : null}
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -1050,7 +1074,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>
-          {hiddenMemberZoneSeries.length > 0 ? (
+          {false && hiddenMemberZoneSeries.length > 0 ? (
             <details className="group mt-4">
               <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
                 <span className="group-open:hidden">Show {hiddenMemberZoneSeries.length} more series</span>
@@ -1127,8 +1151,13 @@ export default async function StudioPublicLandingPage({ params }: Props) {
 
       {packages.length > 0 ? (
         <section id="packages" className="mx-auto mt-10 w-full max-w-5xl pb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className={ui.h2}>{packagesTitle}</h2>
+            {hiddenPackages.length > 0 ? (
+              <Link href={studioPackagesPath(studio.public_slug)} className={ui.link}>
+                See {hiddenPackages.length} more &gt;
+              </Link>
+            ) : null}
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>
             Buy a class pass pack and book any upcoming session.
@@ -1219,7 +1248,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>
-          {hiddenPackages.length > 0 ? (
+          {false && hiddenPackages.length > 0 ? (
             <details className="group mt-4">
               <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
                 <span className="group-open:hidden">Show {hiddenPackages.length} more package{hiddenPackages.length !== 1 ? "s" : ""}</span>

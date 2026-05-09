@@ -1,0 +1,126 @@
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { isReservedPublicSlug } from "@/lib/publicStudio";
+import { studioEventPath, studioEventsPath, studioHomePath } from "@/lib/public-paths";
+import { normalizeStudioSlug } from "@/lib/slug";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { ui } from "@/lib/ui";
+import { getVideoPreview } from "@/lib/videoPreview";
+
+type Props = {
+  params: Promise<{ studioSlug: string }>;
+  searchParams?: Promise<{ tab?: string }>;
+};
+
+export const revalidate = 60;
+
+function EventCard({ event, studio }: { event: Record<string, any>; studio: { name: string; public_slug: string }; }) {
+  const start = new Date(String(event.start_time));
+  const end = new Date(String(event.end_time));
+  const isEnded = end.getTime() < Date.now();
+  const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
+  const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
+  const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
+  const href = event.share_slug ? studioEventPath(studio.public_slug, event.share_slug) : studioHomePath(studio.public_slug);
+  const preview = getVideoPreview(String(event.video_url ?? ""));
+  const cover = event.image_url ?? preview.thumbnailUrl ?? null;
+  const spotsLeft = Number(event.spots_left ?? 0);
+  const capacity = Number(event.capacity ?? 0);
+  const spotsText = spotsLeft === 0
+    ? capacity > 0 ? `0/${capacity} spots left` : "Full"
+    : capacity > 0 ? `${spotsLeft}/${capacity} spots left` : `${spotsLeft} spots left`;
+  const tags = Array.isArray(event.tags) ? event.tags : [];
+
+  return (
+    <article className={`${ui.card} transition-shadow hover:border-teal-200 hover:shadow-md dark:hover:border-teal-800`}>
+      <Link href={href} className="block">
+        <div className="grid gap-4 sm:grid-cols-[minmax(220px,42%)_1fr]">
+          <div className="relative">
+            {cover ? (
+              <Image src={cover} alt={String(event.title ?? "Event")} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+            ) : (
+              <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+            )}
+            {event.price != null ? (
+              <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                {String(event.currency ?? "SGD")} {Number(event.price).toFixed(2)}
+              </span>
+            ) : null}
+          </div>
+          <div className="min-w-0">
+            <p className={`text-sm ${ui.muted}`}>{dateLabel} · {timeLabel}-{endLabel}</p>
+            <h2 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{String(event.title ?? "Event")}</h2>
+            {event.description ? <p className="mt-2 line-clamp-3 text-sm text-stone-700 dark:text-stone-300">{String(event.description)}</p> : null}
+            {tags.length ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {tags.slice(0, 5).map((tag: string) => <span key={`${event.id}-${tag}`} className={ui.badgeNeutral}>{tag}</span>)}
+              </div>
+            ) : null}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className={isEnded ? ui.btnSecondarySm : ui.btnPrimarySm}>{isEnded ? "View event" : "Book now"}</span>
+              {!isEnded ? <span className={`text-sm ${ui.muted}`}>{spotsText}</span> : <span className={`text-sm ${ui.muted}`}>Ended</span>}
+            </div>
+          </div>
+        </div>
+      </Link>
+      <div className="mt-3 flex justify-end">
+        <SessionShareLinkButton sharePath={href} title={`${String(event.title ?? "Event")} · ${studio.name}`} text={`Check out this event: ${String(event.title ?? "Event")}`} />
+      </div>
+    </article>
+  );
+}
+
+export default async function PublicEventsPage({ params, searchParams }: Props) {
+  const { studioSlug: rawSlug } = await params;
+  const { tab } = (await searchParams) ?? {};
+  const activeTab = tab === "ended" ? "ended" : "upcoming";
+  const studioSlug = normalizeStudioSlug(rawSlug);
+  if (!studioSlug || isReservedPublicSlug(studioSlug)) notFound();
+
+  const admin = createAdminClient();
+  const { data: studio } = await admin
+    .from("studios")
+    .select("id, name, public_slug, contract_status")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
+  if (!studio || studio.contract_status === "suspended") notFound();
+
+  const nowIso = new Date().toISOString();
+  const [{ data: upcoming }, { data: ended }] = await Promise.all([
+    admin
+      .from("events")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .gte("end_time", nowIso)
+      .order("start_time", { ascending: true }),
+    admin
+      .from("events")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .lt("end_time", nowIso)
+      .order("start_time", { ascending: false }),
+  ]);
+  const items = activeTab === "ended" ? ended ?? [] : upcoming ?? [];
+
+  return (
+    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
+      <Link href={`${studioHomePath(studio.public_slug)}#events`} className={ui.link}>Back to home</Link>
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+        <h1 className={ui.h1}>Events</h1>
+        <div className="inline-flex rounded-lg border border-stone-200 bg-white p-1 shadow-sm dark:border-stone-700 dark:bg-stone-900">
+          <Link href={studioEventsPath(studio.public_slug)} className={activeTab === "upcoming" ? ui.btnPrimarySm : ui.btnSecondarySm}>Upcoming</Link>
+          <Link href={studioEventsPath(studio.public_slug, "ended")} className={activeTab === "ended" ? ui.btnPrimarySm : ui.btnSecondarySm}>Ended</Link>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-4">
+        {items.length ? items.map((event) => <EventCard key={event.id} event={event} studio={studio} />) : (
+          <p className={ui.muted}>{activeTab === "ended" ? "No ended events yet." : "No upcoming events yet."}</p>
+        )}
+      </div>
+    </main>
+  );
+}

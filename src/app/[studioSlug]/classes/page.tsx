@@ -1,9 +1,11 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
 
@@ -12,36 +14,28 @@ export default async function StudioBookingPage({ params }: Props) {
   const slug = normalizeStudioSlug(raw);
   if (!slug) notFound();
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const studioRes = await supabase
     .from("studios")
-    .select("id, name, public_slug, hitpay_enabled")
+    .select("id, name, public_slug, hitpay_enabled, contract_status")
     .eq("public_slug", slug)
     .maybeSingle();
   const { data: studio, error: stErr } = studioRes;
-  if (stErr || !studio) notFound();
+  if (stErr || !studio || studio.contract_status === "suspended") notFound();
   const paymentReady = Boolean(studio.hitpay_enabled);
 
-  const { data: classes } = await supabase
-    .from("classes")
-    .select("id")
-    .eq("studio_id", studio.id);
-  const classIds = (classes ?? []).map((c) => c.id);
-
-  const { data: sessions } =
-    classIds.length > 0
-      ? await supabase
-          .from("class_sessions")
-          .select(
-            `id, location_id, start_time, spots_left, capacity, guest_price, credits_required,
-             class_title_snapshot, class_image_url_snapshot,
-             classes!inner ( title, studio_id, image_url, capacity )`,
-          )
-          .in("class_id", classIds)
-          .eq("status", "scheduled")
-          .gte("start_time", new Date().toISOString())
-          .order("start_time", { ascending: true })
-      : { data: [] as const };
+  const { data: sessions } = await supabase
+    .from("class_sessions")
+    .select(
+      `id, location_id, start_time, spots_left, capacity, guest_price, credits_required,
+       class_title_snapshot, class_image_url_snapshot, class_video_url_snapshot,
+       classes!inner ( title, studio_id, image_url, video_url, capacity, is_active )`,
+    )
+    .eq("classes.studio_id", studio.id)
+    .eq("classes.is_active", true)
+    .eq("status", "scheduled")
+    .gte("start_time", new Date().toISOString())
+    .order("start_time", { ascending: true });
 
   const firstLocationId = (sessions?.[0] as { location_id?: string } | undefined)?.location_id ?? null;
   const rulesQuery = supabase
@@ -81,9 +75,17 @@ export default async function StudioBookingPage({ params }: Props) {
       {/* ── Session list ── */}
       <ul className="flex flex-col gap-4 max-w-2xl">
         {(sessions ?? []).map((s) => {
-          const cls = s.classes as { title?: string; studio_id?: string; image_url?: string | null; capacity?: number | null } | null;
+          const classRow = s.classes as
+            | { title?: string; studio_id?: string; image_url?: string | null; video_url?: string | null; capacity?: number | null }
+            | { title?: string; studio_id?: string; image_url?: string | null; video_url?: string | null; capacity?: number | null }[]
+            | null;
+          const cls = Array.isArray(classRow) ? classRow[0] : classRow;
           const title = (s as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
           const imageUrl = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
+          const videoUrl = (s as { class_video_url_snapshot?: string | null }).class_video_url_snapshot ?? cls?.video_url ?? null;
+          const videoPreview = getVideoPreview(videoUrl ?? "");
+          const coverUrl = imageUrl ?? videoPreview.thumbnailUrl ?? null;
+          const showVideoCover = Boolean(videoPreview.embedUrl || videoUrl?.trim());
           const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
           const dt = new Date(s.start_time);
           const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
@@ -102,15 +104,25 @@ export default async function StudioBookingPage({ params }: Props) {
           return (
             <li key={s.id} className="overflow-hidden rounded-2xl border border-stone-200/90 bg-white/95 shadow-sm dark:border-stone-800/90 dark:bg-stone-900/70">
               {/* Cover image */}
-              {imageUrl ? (
-                <div className="relative h-44 w-full sm:h-52">
-                  <Image
-                    src={imageUrl}
-                    alt={title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, 672px"
-                  />
+              {showVideoCover || coverUrl ? (
+                <div className="relative">
+                  {showVideoCover ? (
+                    <PublicVideoCover
+                      title={title}
+                      coverUrl={coverUrl}
+                      embedUrl={videoPreview.embedUrl}
+                      fallbackUrl={videoUrl?.trim() || null}
+                    />
+                  ) : coverUrl ? (
+                    <Image
+                      src={coverUrl}
+                      alt={title}
+                      width={1200}
+                      height={675}
+                      className="aspect-video w-full object-cover"
+                      sizes="(max-width: 640px) 100vw, 672px"
+                    />
+                  ) : null}
                   <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${
                     spotsLeft === 0
                       ? "bg-red-600/85 text-white"
@@ -155,7 +167,7 @@ export default async function StudioBookingPage({ params }: Props) {
                     </div>
                   </div>
                   {/* Spots badge (no image) */}
-                  {!imageUrl ? (
+                  {!coverUrl && !showVideoCover ? (
                     <span className={`mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
                       spotsLeft === 0
                         ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
