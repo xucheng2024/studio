@@ -2,16 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
+import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageId: string; disabled?: boolean }) {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -21,72 +18,60 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
       .then(({ data }) => setIsLoggedIn(!!data.session?.user));
   }, []);
 
+  const friendly = (body: { error?: string }) => {
+    if (body.error === "guest_details_required") return "Please enter your name, email, and phone number.";
+    if (body.error === "hitpay_not_configured") return "Online payment is not configured for this studio yet.";
+    return body.error ?? "Failed";
+  };
+
+  const submit = async (payload: EmailFirstCheckoutPayload = {}) => {
+    setBusy(true);
+    setMsg(null);
+    const res = await fetch("/api/package/buy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        package_id: packageId,
+        guest_name: isLoggedIn ? undefined : payload.guest_name,
+        guest_email: isLoggedIn ? undefined : payload.guest_email,
+        guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      const message = friendly(body);
+      setMsg(message);
+      return { ok: false as const, message };
+    }
+    if (body.checkout_url) {
+      router.push(body.checkout_url);
+      return { ok: true as const };
+    }
+    setMsg("Payment created");
+    return { ok: true as const };
+  };
+
+  if (isLoggedIn === false) {
+    return (
+      <div className="w-full max-w-md">
+        <EmailFirstCheckout submitLabel="Buy package" busyLabel="Creating..." disabled={disabled} onSubmit={submit} />
+      </div>
+    );
+  }
+
   return (
-    <form
-      className="flex w-full max-w-md flex-col gap-2"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        setMsg(null);
-        const res = await fetch("/api/package/buy", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            package_id: packageId,
-            guest_name: isLoggedIn ? undefined : name,
-            guest_email: isLoggedIn ? undefined : email,
-            guest_phone: isLoggedIn ? undefined : (phone.trim() || null),
-          }),
-        });
-        const body = await res.json().catch(() => ({}));
-        setBusy(false);
-        if (!res.ok) {
-          if (body.error === "guest_details_required") {
-            setMsg("Please enter your name, email, and phone number.");
-          } else if (body.error === "hitpay_not_configured") {
-            setMsg("Online payment is not configured for this studio yet.");
-          } else {
-            setMsg(body.error ?? "Failed");
-          }
-          return;
-        }
-        if (body.checkout_url) {
-          router.push(body.checkout_url);
-          return;
-        }
-        setMsg("Payment created");
-      }}
-    >
-      {isLoggedIn ? (
-        <p className={`text-sm ${ui.muted}`}>You are signed in. Click below to proceed to payment.</p>
-      ) : (
-        <>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="Your name"
-            className={ui.input}
-          />
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            type="email"
-            placeholder="Email"
-            className={ui.input}
-          />
-          <PhoneNumberInput value={phone} onChange={setPhone} placeholder="9123 4567" required />
-        </>
-      )}
+    <div className="flex w-full max-w-md flex-col gap-2">
+      {isLoggedIn ? <p className={`text-sm ${ui.muted}`}>You are signed in. Continue to payment.</p> : null}
       <button
-        type="submit"
-        disabled={busy || disabled || (!isLoggedIn && (!name.trim() || !email.trim() || !phone.trim()))}
+        type="button"
+        disabled={busy || disabled || isLoggedIn === null}
         className={`${ui.btnPrimary} disabled:opacity-50`}
+        onClick={() => void submit()}
       >
         {busy ? "Creating..." : disabled ? "Online payment unavailable" : "Buy package"}
       </button>
       {msg ? <p className={`text-xs ${ui.muted}`}>{msg}</p> : null}
-    </form>
+    </div>
   );
 }

@@ -274,7 +274,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <StudioAccountEntry studioSlug={studio.public_slug} showMembershipsLink={memberships.length > 0} />
           </div>
         </div>
-        <div className={`${ui.card} bg-linear-to-br from-white to-stone-50/70 dark:from-stone-900 dark:to-stone-950`}>
+        <div className="border-b border-stone-200/80 pb-7 dark:border-stone-800">
           <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">
             <div className="w-full">
               <PublicVideoCover
@@ -285,7 +285,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 priority
               />
             </div>
-            <div>
+            <div className="sm:pt-1">
               {studio.public_intro?.trim() ? (
                 <details className="group">
                   <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300">

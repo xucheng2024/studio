@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, Loader2, X } from "lucide-react";
-import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
+import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
@@ -31,9 +31,6 @@ export function QuickEventBookPanel({
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,25 +50,7 @@ export function QuickEventBookPanel({
     return "Could not continue. Please check your details and try again.";
   };
 
-  if (disabled) return null;
-
-  if (!open) {
-    if (embedded) return null;
-    return (
-      <button
-        type="button"
-        className={triggerClassName ?? ui.btnPrimarySm}
-        onClick={() => {
-          setOpen(true);
-          setError(null);
-        }}
-      >
-        {triggerLabel}
-      </button>
-    );
-  }
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (payload: EmailFirstCheckoutPayload = {}) => {
     setLoading(true);
     setError(null);
     const res = await fetch("/api/event/book/create", {
@@ -80,19 +59,49 @@ export function QuickEventBookPanel({
       body: JSON.stringify({
         slug,
         event_id: eventId,
-        guest_name: isLoggedIn ? undefined : name,
-        guest_email: isLoggedIn ? undefined : email,
-        guest_phone: isLoggedIn ? undefined : (phone.trim() || null),
+        guest_name: isLoggedIn ? undefined : payload.guest_name,
+        guest_email: isLoggedIn ? undefined : payload.guest_email,
+        guest_phone: isLoggedIn ? undefined : payload.guest_phone,
       }),
     });
     const body = await res.json().catch(() => ({}));
+    const message = toFriendly(String(body.error ?? ""));
     setLoading(false);
     if (!res.ok) {
-      setError(toFriendly(String(body.error ?? "")));
-      return;
+      setError(message);
+      if (isLoggedIn) setOpen(true);
+      return { ok: false as const, message };
     }
     if (body.checkout_url) router.push(body.checkout_url);
+    return { ok: true as const };
   };
+
+  if (disabled) return null;
+
+  if (!open) {
+    if (embedded) return null;
+    return (
+      <button
+        type="button"
+        className={triggerClassName ?? ui.btnPrimarySm}
+        disabled={loading || isLoggedIn === null}
+        onClick={() => {
+          setError(null);
+          if (isLoggedIn) {
+            void handleSubmit();
+            return;
+          }
+          setOpen(true);
+        }}
+      >
+        {loading ? (
+          <><Loader2 size={15} className="animate-spin" /> Processing...</>
+        ) : (
+          triggerLabel
+        )}
+      </button>
+    );
+  }
 
   const loggedInForm = (
     <div className="flex flex-col gap-3">
@@ -108,7 +117,7 @@ export function QuickEventBookPanel({
           type="button"
           disabled={loading}
           className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
-          onClick={handleSubmit}
+          onClick={() => void handleSubmit()}
         >
           {loading ? (
             <>
@@ -123,61 +132,10 @@ export function QuickEventBookPanel({
   );
 
   const guestForm = (
-    <div className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1">
-        <span className={ui.label}>Name</span>
-        <input
-          className={ui.input}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your full name"
-          autoComplete="name"
-          required
-        />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className={ui.label}>Email</span>
-        <input
-          type="email"
-          className={ui.input}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          autoComplete="email"
-          required
-        />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className={ui.label}>
-          Phone
-        </span>
-        <PhoneNumberInput value={phone} onChange={setPhone} placeholder="9123 4567" required />
-      </label>
-
-      {error ? (
-        <p className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
-          <AlertCircle size={14} className="shrink-0" />
-          {error}
-        </p>
-      ) : null}
-
-      <div className={embedded ? "" : ui.mobileActionBar}>
-        <button
-          type="button"
-          disabled={loading || !name.trim() || !email.trim() || !phone.trim()}
-          className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
-          onClick={handleSubmit}
-        >
-          {loading ? (
-            <>
-              <Loader2 size={15} className="animate-spin" /> Processing…
-            </>
-          ) : (
-            <>Continue to payment</>
-          )}
-        </button>
-      </div>
-    </div>
+    <EmailFirstCheckout
+      submitLabel="Continue to payment"
+      onSubmit={(payload) => handleSubmit(payload)}
+    />
   );
 
   const formFields = isLoggedIn ? loggedInForm : guestForm;
