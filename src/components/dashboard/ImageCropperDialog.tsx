@@ -86,7 +86,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
     <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-stone-900">
         <div className="mb-2 text-sm font-semibold">Crop image ({cropAspect === 1 ? "1:1" : "16:9"})</div>
-        <div className="relative mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-stone-300 bg-stone-100" style={{ aspectRatio: "16 / 9" }}>
+        <div className="relative mx-auto w-full max-w-2xl rounded-lg border border-stone-300 bg-stone-800" style={{ height: "320px" }}>
           <Cropper
             image={src}
             crop={crop}
@@ -99,6 +99,9 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
+            style={{
+              containerStyle: { borderRadius: "0.5rem" },
+            }}
           />
         </div>
         <div className="mt-3 space-y-3">
