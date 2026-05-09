@@ -7,6 +7,8 @@ import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
+import { StudioIntroSection } from "@/components/StudioIntroSection";
+import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import {
   studioClassPath,
@@ -257,7 +259,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <img
               src={logoUrl}
               alt={publicBrandName}
-              className="size-11 object-contain object-center"
+              className="size-8 object-contain object-center"
               loading="eager"
             />
           ) : (
@@ -274,44 +276,23 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <StudioAccountEntry studioSlug={studio.public_slug} showMembershipsLink={memberships.length > 0} />
           </div>
         </div>
-        <div className="border-b border-stone-200/80 pb-7 dark:border-stone-800">
-          <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">
-            <div className="w-full">
-              <PublicVideoCover
-                title={studio.name}
-                coverUrl={studioMediaCover}
-                embedUrl={studioVideoPreview.embedUrl}
-                fallbackUrl={studio.public_video_url ?? null}
-                priority
-              />
-            </div>
-            <div className="sm:pt-1">
-              {studio.public_intro?.trim() ? (
-                <details className="group">
-                  <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300">
-                    <span className="line-clamp-3 whitespace-pre-wrap">
-                      {studio.public_intro.trim()}
-                    </span>
-                    <span className="mt-2 inline-flex text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
-                      Read more
-                    </span>
-                    <span className="mt-2 hidden text-sm font-semibold text-teal-700 group-open:inline-flex dark:text-teal-400">
-                      Show less
-                    </span>
-                  </summary>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-snug text-stone-700 dark:text-stone-300">
-                    {studio.public_intro.trim()}
-                  </p>
-                </details>
-              ) : (
-                <p className="text-sm leading-snug text-stone-700 dark:text-stone-300">
-                  Welcome to our studio. Explore services and get in touch.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        <StudioIntroSection
+          studioName={studio.name}
+          studioMediaCover={studioMediaCover}
+          embedUrl={studioVideoPreview.embedUrl}
+          videoUrl={studio.public_video_url ?? null}
+          intro={studio.public_intro ?? null}
+        />
       </section>
+
+      {/* ── Sticky section nav ── */}
+      <StudioStickyNav tabs={[
+        ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
+        ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
+        ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
+        ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: "Members" }] : []),
+        ...(packages.length > 0 ? [{ id: "packages", label: "Packages" }] : []),
+      ] satisfies StickyNavTab[]} />
 
       {services.length > 0 ? (
         <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
@@ -321,7 +302,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             </div>
             {hiddenServices.length > 0 ? (
               <Link href={studioServicesPath(studio.public_slug)} className={ui.link}>
-                See {hiddenServices.length} more &gt;
+                See {hiddenServices.length}{" "}more &gt;
               </Link>
             ) : null}
           </div>
@@ -510,7 +491,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{classesTitle}</h2>
             {hiddenClasses.length > 0 ? (
               <Link href={studioClassesPath(studio.public_slug)} className={ui.link}>
-                See {hiddenClasses.length} more &gt;
+                See {hiddenClasses.length}{" "}more &gt;
               </Link>
             ) : null}
           </div>
@@ -733,7 +714,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{eventsTitle}</h2>
             {hiddenEvents.length > 0 || pastEvents.length > 0 ? (
               <Link href={studioEventsPath(studio.public_slug)} className={ui.link}>
-                See {hiddenEvents.length + pastEvents.length} more &gt;
+                See {hiddenEvents.length + pastEvents.length}{" "}more &gt;
               </Link>
             ) : null}
           </div>
@@ -1005,7 +986,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{memberZoneTitle}</h2>
             {hiddenMemberZoneSeries.length > 0 ? (
               <Link href={studioMemberZoneListPath(studio.public_slug)} className={`${ui.link} shrink-0`}>
-                See {hiddenMemberZoneSeries.length} more &gt;
+                See {hiddenMemberZoneSeries.length}{" "}more &gt;
               </Link>
             ) : null}
           </div>
@@ -1155,7 +1136,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{packagesTitle}</h2>
             {hiddenPackages.length > 0 ? (
               <Link href={studioPackagesPath(studio.public_slug)} className={ui.link}>
-                See {hiddenPackages.length} more &gt;
+                See {hiddenPackages.length}{" "}more &gt;
               </Link>
             ) : null}
           </div>
