@@ -51,7 +51,7 @@ const getPublicStudioShell = cache(async (studioSlugRaw: string) => {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, contract_status, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
+    .select("id, name, public_slug, contract_status, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
     .eq("public_slug", slug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -196,8 +196,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const servicesTitle = studio.public_services_title?.trim() || "General services";
   const classesTitle = studio.public_classes_title?.trim() || "Upcoming classes";
   const packagesTitle = studio.public_packages_title?.trim() || "Packages";
-  const eventsTitle = "Events";
-  const memberZoneTitle = "Member zone";
+  const eventsTitle = (studio as { public_events_title?: string | null }).public_events_title?.trim() || "Events";
+  const memberZoneTitle = (studio as { public_member_zone_title?: string | null }).public_member_zone_title?.trim() || "Member zone";
   const visibleServices = services.slice(0, 1);
   const hiddenServices = services.slice(1);
   const visibleClasses = classes.slice(0, 1);

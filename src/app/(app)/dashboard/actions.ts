@@ -257,6 +257,8 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const public_services_title = String(formData.get("public_services_title") ?? "").trim() || null;
   const public_classes_title = String(formData.get("public_classes_title") ?? "").trim() || null;
   const public_packages_title = String(formData.get("public_packages_title") ?? "").trim() || null;
+  const public_events_title = String(formData.get("public_events_title") ?? "").trim() || null;
+  const public_member_zone_title = String(formData.get("public_member_zone_title") ?? "").trim() || null;
   const whatsapp_enabled = formData.get("whatsapp_enabled") === "on";
   const rawWhatsapp = String(formData.get("whatsapp_number_e164") ?? "");
   const whatsapp_number_e164 = normalizeE164(rawWhatsapp);
@@ -277,6 +279,8 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
       public_services_title,
       public_classes_title,
       public_packages_title,
+      public_events_title,
+      public_member_zone_title,
       whatsapp_enabled,
       whatsapp_number_e164,
       whatsapp_prefill_text,

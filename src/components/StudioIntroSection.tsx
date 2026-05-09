@@ -16,9 +16,12 @@ export function StudioIntroSection({ studioName, studioMediaCover, embedUrl, vid
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
-    createBrowserSupabase()
-      .auth.getSession()
-      .then(({ data }) => setIsLoggedIn(Boolean(data.session?.user)));
+    const supabase = createBrowserSupabase();
+    supabase.auth.getSession().then(({ data }) => setIsLoggedIn(Boolean(data.session?.user)));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(Boolean(session?.user));
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   // While checking, render nothing to avoid flash; once confirmed logged out, show intro

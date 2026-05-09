@@ -111,9 +111,9 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
       <Link href={`${studioHomePath(studio.public_slug)}#events`} className={ui.link}>Back to home</Link>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
         <h1 className={ui.h1}>Events</h1>
-        <div className="inline-flex rounded-lg border border-stone-200 bg-white p-1 shadow-sm dark:border-stone-700 dark:bg-stone-900">
-          <Link href={studioEventsPath(studio.public_slug)} className={activeTab === "upcoming" ? ui.btnPrimarySm : ui.btnSecondarySm}>Upcoming</Link>
-          <Link href={studioEventsPath(studio.public_slug, "ended")} className={activeTab === "ended" ? ui.btnPrimarySm : ui.btnSecondarySm}>Ended</Link>
+        <div className="flex gap-3 text-sm font-medium">
+          <Link href={studioEventsPath(studio.public_slug)} className={activeTab === "upcoming" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Upcoming</Link>
+          <Link href={studioEventsPath(studio.public_slug, "ended")} className={activeTab === "ended" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Ended</Link>
         </div>
       </div>
       <div className="mt-5 grid gap-4">

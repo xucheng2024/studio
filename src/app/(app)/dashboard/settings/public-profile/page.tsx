@@ -46,7 +46,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -156,30 +156,23 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Services section title</span>
-            <input
-              name="public_services_title"
-              className={ui.input}
-              defaultValue={studio.public_services_title ?? ""}
-              placeholder="General services"
-            />
+            <input name="public_services_title" className={ui.input} defaultValue={studio.public_services_title ?? ""} placeholder="General services" />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Classes section title</span>
-            <input
-              name="public_classes_title"
-              className={ui.input}
-              defaultValue={studio.public_classes_title ?? ""}
-              placeholder="Upcoming classes"
-            />
+            <input name="public_classes_title" className={ui.input} defaultValue={studio.public_classes_title ?? ""} placeholder="Upcoming classes" />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Packages section title</span>
-            <input
-              name="public_packages_title"
-              className={ui.input}
-              defaultValue={studio.public_packages_title ?? ""}
-              placeholder="Packages"
-            />
+            <input name="public_packages_title" className={ui.input} defaultValue={studio.public_packages_title ?? ""} placeholder="Packages" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Events section title</span>
+            <input name="public_events_title" className={ui.input} defaultValue={(studio as { public_events_title?: string | null }).public_events_title ?? ""} placeholder="Events" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Members section title</span>
+            <input name="public_member_zone_title" className={ui.input} defaultValue={(studio as { public_member_zone_title?: string | null }).public_member_zone_title ?? ""} placeholder="Member zone" />
           </label>
         </div>
 
