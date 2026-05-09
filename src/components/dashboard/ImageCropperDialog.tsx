@@ -14,16 +14,16 @@ type Props = {
   cropAspect?: number;
 };
 
-const OUT_W = 1200;
-const OUT_H = 675;
-
-async function exportCroppedImage(src: string, crop: Area, file: File): Promise<File> {
+async function exportCroppedImage(src: string, crop: Area, file: File, cropAspect: number): Promise<File> {
   const img = new Image();
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
     img.onerror = () => reject(new Error("load_failed"));
     img.src = src;
   });
+
+  const OUT_W = cropAspect === 1 ? 800 : 1200;
+  const OUT_H = cropAspect === 1 ? 800 : 675;
 
   const canvas = document.createElement("canvas");
   canvas.width = OUT_W;
@@ -73,7 +73,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
     if (!cropPixels || busy) return;
     setBusy(true);
     try {
-      const output = await exportCroppedImage(src, cropPixels, file);
+      const output = await exportCroppedImage(src, cropPixels, file, cropAspect);
       onConfirm(output);
     } finally {
       setBusy(false);
@@ -95,7 +95,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
             maxZoom={3}
             aspect={cropAspect}
             restrictPosition
-            objectFit="cover"
+            objectFit="contain"
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}

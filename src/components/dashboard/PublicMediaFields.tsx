@@ -33,7 +33,12 @@ export function CoverUrlField({ studioId, entityId, folder, name, label, default
       />
       {value ? (
         <div className="mt-1 space-y-2">
-          <div className="relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
+          <div
+            className={cropAspect === 1
+              ? "relative h-28 w-28 overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
+              : "relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
+            }
+          >
             <Image src={value} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
           </div>
           <button type="button" className={ui.btnGhost} onClick={() => setValue("")}>
