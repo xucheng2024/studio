@@ -192,12 +192,14 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const packagesTitle = studio.public_packages_title?.trim() || "Packages";
   const eventsTitle = "Events";
   const memberZoneTitle = "Member zone";
-  const visibleServices = services.slice(0, 4);
-  const hiddenServices = services.slice(4);
-  const visibleClasses = classes.slice(0, 4);
-  const hiddenClasses = classes.slice(4);
-  const visibleEvents = (events ?? []).slice(0, 4);
-  const hiddenEvents = (events ?? []).slice(4);
+  const visibleServices = services.slice(0, 1);
+  const hiddenServices = services.slice(1);
+  const visibleClasses = classes.slice(0, 1);
+  const hiddenClasses = classes.slice(1);
+  const visibleEvents = (events ?? []).slice(0, 1);
+  const hiddenEvents = (events ?? []).slice(1);
+  const visiblePackages = packages.slice(0, 1);
+  const hiddenPackages = packages.slice(1);
   const mediaTagClass =
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
@@ -1046,7 +1048,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             Buy a class pass pack and book any upcoming session.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {packages.map((pkg) => {
+            {visiblePackages.map((pkg) => {
               const buyHref = pkg.share_slug
                 ? studioPackagePath(studio.public_slug, pkg.share_slug)
                 : null;
@@ -1131,6 +1133,100 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>
+          {hiddenPackages.length > 0 ? (
+            <details className="group mt-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-teal-700 dark:text-teal-400">
+                <span className="group-open:hidden">Show {hiddenPackages.length} more package{hiddenPackages.length !== 1 ? "s" : ""}</span>
+                <span className="hidden group-open:inline">Show fewer packages</span>
+              </summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {hiddenPackages.map((pkg) => {
+                  const buyHref = pkg.share_slug
+                    ? studioPackagePath(studio.public_slug, pkg.share_slug)
+                    : null;
+                  const pkgImage = (pkg as { image_url?: string | null }).image_url ?? null;
+                  const pkgVideo = (pkg as { video_url?: string | null }).video_url ?? null;
+                  const pkgVideoPreview = getVideoPreview(pkgVideo ?? "");
+                  const showVideoCover = Boolean(pkgVideoPreview.embedUrl || pkgVideo?.trim());
+                  return (
+                    <article key={pkg.id} className={`${ui.card} flex flex-col`}>
+                      <div className="mb-4">
+                        {showVideoCover ? (
+                          <PublicVideoCover
+                            title={pkg.name}
+                            coverUrl={pkgImage}
+                            embedUrl={pkgVideoPreview.embedUrl}
+                            fallbackUrl={pkgVideo?.trim() || null}
+                          />
+                        ) : pkgImage ? (
+                          buyHref ? (
+                            <Link href={buyHref} className="block">
+                              <Image
+                                src={pkgImage}
+                                alt={pkg.name}
+                                width={1200}
+                                height={675}
+                                className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                              />
+                            </Link>
+                          ) : (
+                            <Image
+                              src={pkgImage}
+                              alt={pkg.name}
+                              width={1200}
+                              height={675}
+                              className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
+                            />
+                          )
+                        ) : buyHref ? (
+                          <Link
+                            href={buyHref}
+                            className="block aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900"
+                            aria-label={`View ${pkg.name}`}
+                          />
+                        ) : (
+                          <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
+                        )}
+                      </div>
+                      <div className="flex flex-1 flex-col">
+                        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                          {buyHref ? (
+                            <Link href={buyHref} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                              {pkg.name}
+                            </Link>
+                          ) : (
+                            pkg.name
+                          )}
+                        </h3>
+                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                          <span className={`text-sm ${ui.muted}`}>
+                            {pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}
+                          </span>
+                          {pkg.expiry_days ? (
+                            <span className={`text-sm ${ui.muted}`}>· Expires in {pkg.expiry_days} days</span>
+                          ) : (
+                            <span className={`text-sm ${ui.muted}`}>· No expiry</span>
+                          )}
+                        </div>
+                        <div className="mt-auto flex items-center justify-between pt-4">
+                          {pkg.price != null ? (
+                            <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                              SGD {Number(pkg.price).toFixed(2)}
+                            </span>
+                          ) : null}
+                          {buyHref ? (
+                            <Link href={buyHref} className={ui.btnPrimary}>
+                              Buy now
+                            </Link>
+                          ) : null}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
         </section>
       ) : null}
 
