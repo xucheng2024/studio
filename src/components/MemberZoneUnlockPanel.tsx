@@ -144,7 +144,7 @@ export function MemberZoneUnlockPanel(props: {
               ? "Processing…"
               : showGuestForm || isLoggedIn
                 ? `Buy · ${props.amountLabel ?? ""}`
-                : "Buy access"}
+                : "Buy Now"}
           </button>
         ) : null}
         {showMembershipLink ? (
@@ -156,7 +156,7 @@ export function MemberZoneUnlockPanel(props: {
                 : ui.btnSecondarySm
             }
           >
-            {props.mode === "member_only" ? "Subscribe" : "Subscribe instead"}
+            {props.mode === "member_only" ? "Become a Member" : "Become a Member"}
           </Link>
         ) : null}
       </div>

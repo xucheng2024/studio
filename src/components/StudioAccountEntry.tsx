@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CircleUserRound, X } from "lucide-react";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -19,57 +19,75 @@ export function StudioAccountEntry({
   showMembershipsLink?: boolean;
 }) {
   const [showSignIn, setShowSignIn] = useState(false);
-  const [signedIn, setSignedIn] = useState<boolean | null>(typeof isSignedIn === "boolean" ? isSignedIn : null);
+  const [signedIn, setSignedIn] = useState<boolean>(Boolean(isSignedIn));
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
+  // Stay in sync with Supabase auth state reactively (handles post-login refresh)
   useEffect(() => {
-    if (signedIn !== null) return;
-    let cancelled = false;
     const supabase = createBrowserSupabase();
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (!cancelled) setSignedIn(Boolean(data.session?.user));
-      })
-      .catch(() => {
-        if (!cancelled) setSignedIn(false);
-      });
-    return () => {
-      cancelled = true;
+    // Seed current state
+    supabase.auth.getSession().then(({ data }) => {
+      setSignedIn(Boolean(data.session?.user));
+    }).catch(() => null);
+    // React to future changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nowSignedIn = Boolean(session?.user);
+      setSignedIn(nowSignedIn);
+      if (nowSignedIn) setShowSignIn(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
     };
-  }, [signedIn]);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
 
   if (signedIn) {
     return (
-      <details className="relative">
-        <summary
+      <div className="relative" ref={menuRef}>
+        <button
+          type="button"
           aria-label="Account"
+          aria-expanded={menuOpen}
           className="inline-flex size-9 list-none items-center justify-center rounded-full border border-stone-200 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+          onClick={() => setMenuOpen((v) => !v)}
         >
           <CircleUserRound size={18} />
-        </summary>
-        <div className="absolute right-0 top-11 z-50 min-w-52 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
-          <Link href={studioMePath(studioSlug, "bookings")} className={ui.linkHeaderMenu}>
-            My bookings
-          </Link>
-          <Link href={studioMePath(studioSlug, "class-passes")} className={ui.linkHeaderMenu}>
-            My packages
-          </Link>
-          <Link href={studioMePath(studioSlug, "orders")} className={ui.linkHeaderMenu}>
-            My orders
-          </Link>
-          <Link href={studioMePath(studioSlug, "profile")} className={ui.linkHeaderMenu}>
-            Profile
-          </Link>
-          {showMembershipsLink !== false ? (
-            <Link href={studioMePath(studioSlug, "memberships")} className={ui.linkHeaderMenu}>
-              My memberships
+        </button>
+        {menuOpen ? (
+          <div className="absolute right-0 top-11 z-50 min-w-52 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
+            <Link href={studioMePath(studioSlug, "bookings")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
+              My bookings
             </Link>
-          ) : null}
-          <div className={`mt-1 border-t ${ui.divider} pt-1`}>
-            <SignOutButton />
+            <Link href={studioMePath(studioSlug, "class-passes")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
+              My packages
+            </Link>
+            <Link href={studioMePath(studioSlug, "orders")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
+              My orders
+            </Link>
+            <Link href={studioMePath(studioSlug, "profile")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
+              Profile
+            </Link>
+            {showMembershipsLink !== false ? (
+              <Link href={studioMePath(studioSlug, "memberships")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
+                My memberships
+              </Link>
+            ) : null}
+            <div className={`mt-1 border-t ${ui.divider} pt-1`}>
+              <SignOutButton />
+            </div>
           </div>
-        </div>
-      </details>
+        ) : null}
+      </div>
     );
   }
 
@@ -89,7 +107,7 @@ export function StudioAccountEntry({
           <div className="relative w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              aria-label="Close sign-in"
+              aria-label="Close"
               className={`${ui.btnGhost} absolute -top-10 right-0 border border-white/30 bg-black/30 text-white hover:bg-black/50`}
               onClick={() => setShowSignIn(false)}
             >

@@ -1,10 +1,19 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 
 export function SignOutButton() {
   const router = useRouter();
+  const pathname = usePathname() ?? "/";
+
+  // After sign-out, stay on the current studio page if possible.
+  // Strip any /me/* or /auth/* sub-paths so we land on the public studio root.
+  const redirectTo = (() => {
+    const studioMatch = pathname.match(/^\/([a-z0-9-]+)(?:\/|$)/i);
+    if (studioMatch) return `/${studioMatch[1]}`;
+    return "/";
+  })();
 
   return (
     <button
@@ -13,7 +22,7 @@ export function SignOutButton() {
       onClick={async () => {
         const supabase = createBrowserSupabase();
         await supabase.auth.signOut();
-        router.replace("/");
+        router.replace(redirectTo);
         router.refresh();
       }}
     >

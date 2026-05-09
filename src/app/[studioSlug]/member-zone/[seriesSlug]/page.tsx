@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
-import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { MemberZoneUnlockPanel } from "@/components/MemberZoneUnlockPanel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
@@ -187,23 +186,16 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
         shareTitle={seriesData.title}
         shareText={`${seriesData.title} · ${studio.name}`}
       />
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className={ui.badge}>Member zone · {studio.name}</p>
-          <h1 className={`${ui.h1} mt-2`}>{seriesData.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className={ui.badgeNeutral}>{seriesBadge}</span>
-            {lessons.length > 0 ? (
-              <span className={ui.badgeNeutral}>{lessons.length} lesson{lessons.length !== 1 ? "s" : ""}</span>
-            ) : null}
-          </div>
-          {seriesData.summary ? <p className={`mt-3 ${ui.lead}`}>{seriesData.summary}</p> : null}
+      <div>
+        <p className={ui.badge}>Member zone · {studio.name}</p>
+        <h1 className={`${ui.h1} mt-2`}>{seriesData.title}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className={ui.badgeNeutral}>{seriesBadge}</span>
+          {lessons.length > 0 ? (
+            <span className={ui.badgeNeutral}>{lessons.length} lesson{lessons.length !== 1 ? "s" : ""}</span>
+          ) : null}
         </div>
-        <SessionShareLinkButton
-          sharePath={sharePath}
-          title={`${seriesData.title} · ${studio.name}`}
-          text={`Check out this member zone series: ${seriesData.title}`}
-        />
+        {seriesData.summary ? <p className={`mt-3 ${ui.lead}`}>{seriesData.summary}</p> : null}
       </div>
       {seriesData.description ? (
         <p className="mt-4 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">

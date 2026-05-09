@@ -7,7 +7,7 @@ import { detectInAppBrowser } from "@/lib/inAppBrowser";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
-type OtpStep = "request" | "verify";
+type OtpStep = "request" | "verify" | "profile";
 
 function safeReturnPath(pathname: string, search: string) {
   const path = pathname.startsWith("/") ? pathname : "/";
@@ -87,22 +87,6 @@ export function InlineSignInPanel({
 
   return (
     <div className="mt-3 w-full max-w-md rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-900">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Sign in</p>
-        <button
-          type="button"
-          className={`${ui.btnGhost} shrink-0 px-2 py-1 text-xs`}
-          onClick={() => {
-            setOpen(false);
-            setMsg(null);
-            setStep("request");
-            setOtpCode("");
-          }}
-        >
-          Close
-        </button>
-      </div>
-
       {inApp.isInApp ? (
         <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800/50 dark:bg-amber-950/30">
           <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
@@ -130,12 +114,15 @@ export function InlineSignInPanel({
         <p className={`text-xs ${ui.muted}`}>
           {step === "verify"
             ? "Enter the 6-digit code from your email."
-            : inApp.isInApp
-              ? "We will email you a one-time sign-in code."
-              : "Continue with Google, or sign in with email."}
+            : step === "profile"
+              ? "Almost done — a few details to complete your account."
+              : inApp.isInApp
+                ? "We will email you a one-time sign-in code."
+                : "Continue with Google, or use your email."}
         </p>
 
-        {!inApp.isInApp ? (
+        {/* Google OAuth — only on request step */}
+        {step === "request" && !inApp.isInApp ? (
           <button
             type="button"
             className={`${ui.btnSecondary} flex w-full items-center justify-center gap-2 disabled:opacity-60`}
@@ -175,7 +162,7 @@ export function InlineSignInPanel({
           </button>
         ) : null}
 
-        {!inApp.isInApp ? (
+        {step === "request" && !inApp.isInApp ? (
           <div className="relative py-0.5">
             <div className="h-px w-full bg-stone-200 dark:bg-stone-800" />
             <p
@@ -186,173 +173,192 @@ export function InlineSignInPanel({
           </div>
         ) : null}
 
-        <form
-          className="flex flex-col gap-2.5"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setMsg(null);
-            setLoading(true);
-            const supabase = createBrowserSupabase();
-            if (step === "request") {
-              const { error } = await supabase.auth.signInWithOtp({
+        {/* Email + OTP form */}
+        {step !== "profile" ? (
+          <form
+            className="flex flex-col gap-2.5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setMsg(null);
+              setLoading(true);
+              const supabase = createBrowserSupabase();
+
+              if (step === "request") {
+                const { error } = await supabase.auth.signInWithOtp({
+                  email: email.trim(),
+                  options: { shouldCreateUser: true },
+                });
+                setLoading(false);
+                if (error) {
+                  setMsg(error.message);
+                  return;
+                }
+                setStep("verify");
+                setMsg("Code sent — check your inbox.");
+                return;
+              }
+
+              if (otpCode.trim().length !== 6) {
+                setLoading(false);
+                setMsg("Please enter the 6-digit code.");
+                return;
+              }
+              const { data, error } = await supabase.auth.verifyOtp({
                 email: email.trim(),
-                options: {
-                  shouldCreateUser: true,
-                  data: {
-                    ...(name.trim() ? { full_name: name.trim() } : {}),
-                    phone: phone.trim(),
-                  },
-                },
+                token: otpCode.trim(),
+                type: "email",
               });
               setLoading(false);
               if (error) {
                 setMsg(error.message);
                 return;
               }
-              setStep("verify");
-              setMsg("Code sent — check your inbox.");
-              return;
-            }
-            if (otpCode.trim().length !== 6) {
-              setLoading(false);
-              setMsg("Please enter the 6-digit code.");
-              return;
-            }
-            const { error } = await supabase.auth.verifyOtp({
-              email: email.trim(),
-              token: otpCode.trim(),
-              type: "email",
-            });
-            setLoading(false);
-            if (error) {
-              setMsg(error.message);
-              return;
-            }
-            if (phone.trim()) {
-              await fetch("/api/account/profile", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  full_name: name.trim() || null,
-                  phone: phone.trim(),
-                }),
-              }).catch(() => null);
-            }
-            await afterSignedIn();
-          }}
-        >
-          {step === "request" ? (
+              // New user: no name/phone yet → collect profile info
+              const meta = data.user?.user_metadata ?? {};
+              const isNewUser = !meta.full_name && !meta.phone;
+              if (isNewUser) {
+                setStep("profile");
+                setMsg(null);
+              } else {
+                await afterSignedIn();
+              }
+            }}
+          >
             <label className="flex flex-col gap-1">
-              <span className={ui.label}>
-                Name <span className={`font-normal ${ui.muted}`}>(new accounts)</span>
-              </span>
+              <span className={ui.label}>Email</span>
+              <input
+                type="email"
+                className={ui.input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                disabled={step === "verify"}
+              />
+            </label>
+            {step === "verify" ? (
+              <label className="flex flex-col gap-1">
+                <span className={ui.label}>6-digit code</span>
+                <input
+                  className={`${ui.input} text-center tracking-[0.3em] text-lg font-semibold`}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="······"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  required
+                  autoFocus
+                />
+              </label>
+            ) : null}
+            {msg ? (
+              <p
+                className={`rounded-lg border px-2.5 py-2 text-xs ${
+                  msg.toLowerCase().includes("sent") || msg.toLowerCase().includes("new code")
+                    ? "border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-800/50 dark:bg-teal-950/30 dark:text-teal-200"
+                    : "border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-300"
+                }`}
+              >
+                {msg}
+              </p>
+            ) : null}
+            <button
+              type="submit"
+              disabled={loading}
+              className={`${ui.btnPrimary} w-full disabled:opacity-50`}
+            >
+              {loading ? "Please wait…" : step === "request" ? "Send code" : "Verify and sign in"}
+            </button>
+            {step === "verify" ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className={`text-xs ${ui.link}`}
+                  onClick={async () => {
+                    setMsg(null);
+                    setLoading(true);
+                    const supabase = createBrowserSupabase();
+                    const { error } = await supabase.auth.signInWithOtp({
+                      email: email.trim(),
+                      options: { shouldCreateUser: true },
+                    });
+                    setLoading(false);
+                    if (error) setMsg(error.message);
+                    else setMsg("New code sent.");
+                  }}
+                >
+                  Resend code
+                </button>
+                <button
+                  type="button"
+                  className={`text-xs ${ui.muted}`}
+                  onClick={() => {
+                    setStep("request");
+                    setOtpCode("");
+                    setMsg(null);
+                  }}
+                >
+                  Change email
+                </button>
+              </div>
+            ) : null}
+          </form>
+        ) : null}
+
+        {/* Profile step — new users only */}
+        {step === "profile" ? (
+          <form
+            className="flex flex-col gap-2.5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setLoading(true);
+              if (name.trim() || phone.trim()) {
+                await fetch("/api/account/profile", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    full_name: name.trim() || null,
+                    phone: phone.trim() || null,
+                  }),
+                }).catch(() => null);
+              }
+              setLoading(false);
+              await afterSignedIn();
+            }}
+          >
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Name</span>
               <input
                 className={ui.input}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Alex Kim"
                 autoComplete="name"
-              />
-            </label>
-          ) : null}
-          <label className="flex flex-col gap-1">
-            <span className={ui.label}>Email</span>
-            <input
-              type="email"
-              className={ui.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-              disabled={step === "verify"}
-            />
-          </label>
-          {step === "request" ? (
-            <label className="flex flex-col gap-1">
-              <span className={ui.label}>Phone</span>
-              <PhoneNumberInput
-                value={phone}
-                onChange={setPhone}
-                placeholder="9123 4567"
-                required
-              />
-            </label>
-          ) : null}
-          {step === "verify" ? (
-            <label className="flex flex-col gap-1">
-              <span className={ui.label}>6-digit code</span>
-              <input
-                className={`${ui.input} text-center tracking-[0.3em] text-lg font-semibold`}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                placeholder="······"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                required
                 autoFocus
               />
             </label>
-          ) : null}
-          {msg ? (
-            <p
-              className={`rounded-lg border px-2.5 py-2 text-xs ${
-                msg.toLowerCase().includes("sent") || msg.toLowerCase().includes("new code")
-                  ? "border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-800/50 dark:bg-teal-950/30 dark:text-teal-200"
-                  : "border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-300"
-              }`}
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Phone</span>
+              <PhoneNumberInput value={phone} onChange={setPhone} placeholder="9123 4567" />
+            </label>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`${ui.btnPrimary} w-full disabled:opacity-50`}
             >
-              {msg}
-            </p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={loading || (step === "request" && !phone.trim())}
-            className={`${ui.btnPrimary} w-full disabled:opacity-50`}
-          >
-            {loading ? "Please wait…" : step === "request" ? "Send code" : "Verify and sign in"}
-          </button>
-          {step === "verify" ? (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <button
-                type="button"
-                className={`text-xs ${ui.link}`}
-                onClick={async () => {
-                  setMsg(null);
-                  setLoading(true);
-                  const supabase = createBrowserSupabase();
-                  const { error } = await supabase.auth.signInWithOtp({
-                    email: email.trim(),
-                    options: {
-                      shouldCreateUser: true,
-                      data: {
-                        ...(name.trim() ? { full_name: name.trim() } : {}),
-                        phone: phone.trim(),
-                      },
-                    },
-                  });
-                  setLoading(false);
-                  if (error) setMsg(error.message);
-                  else setMsg("New code sent.");
-                }}
-              >
-                Resend code
-              </button>
-              <button
-                type="button"
-                className={`text-xs ${ui.muted}`}
-                onClick={() => {
-                  setStep("request");
-                  setOtpCode("");
-                  setMsg(null);
-                }}
-              >
-                Change email
-              </button>
-            </div>
-          ) : null}
-        </form>
+              {loading ? "Please wait…" : "Complete setup"}
+            </button>
+            <button
+              type="button"
+              className={`text-xs ${ui.muted} text-center`}
+              onClick={() => void afterSignedIn()}
+            >
+              Skip for now
+            </button>
+          </form>
+        ) : null}
       </div>
     </div>
   );

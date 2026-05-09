@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { site } from "@/lib/brand";
-import { SignOutButton } from "@/components/SignOutButton";
 import { MobileMenu } from "@/components/MobileMenu";
+import { SiteHeaderAccountDropdown } from "@/components/SiteHeaderAccountDropdown";
 import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { studioClassesPath, studioMePath } from "@/lib/public-paths";
 import { resolveAccessContext } from "@/lib/rbac";
@@ -95,26 +95,7 @@ export async function SiteHeader() {
             </Link>
           ))}
           {user ? (
-            <details className="relative ml-1">
-              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-stone-100 dark:hover:bg-stone-800">
-                <span className="inline-flex size-7 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800 dark:bg-teal-900/60 dark:text-teal-100">
-                  {userInitial}
-                </span>
-                <span className="text-xs font-medium text-stone-600 dark:text-stone-400">
-                  Account
-                </span>
-              </summary>
-              <div className="absolute right-0 top-11 z-50 min-w-44 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
-                {navItems.map((item) => (
-                  <Link key={item.href} href={item.href} className={ui.linkHeaderMenu}>
-                    {item.label}
-                  </Link>
-                ))}
-                <div className={`mt-1 border-t ${ui.divider} pt-1`}>
-                  <SignOutButton />
-                </div>
-              </div>
-            </details>
+            <SiteHeaderAccountDropdown userInitial={userInitial} navItems={navItems} />
           ) : (
             <Link href="/auth" className={`${ui.btnPrimarySm} ml-1 py-1!`}>
               Sign in
