@@ -44,6 +44,7 @@ export function PublicVideoCover({
         className="object-cover"
         sizes="(max-width: 768px) 100vw, 720px"
         priority={priority}
+        loading={priority ? "eager" : "lazy"}
       />
     </div>
   ) : (
