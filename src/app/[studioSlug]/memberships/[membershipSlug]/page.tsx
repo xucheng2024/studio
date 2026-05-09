@@ -30,6 +30,7 @@ export default async function PublicMembershipPage({ params }: Props) {
   const videoPreview = getVideoPreview(videoUrl ?? "");
   const studioPublicSlug = studio.public_slug ?? rawStudio;
   const membershipSlugPath = (membership as { share_slug?: string | null }).share_slug ?? rawMembership;
+  const membershipCurrency = String((membership as { currency?: string | null }).currency ?? "SGD").toUpperCase();
   const sharePath = studioMembershipPath(studioPublicSlug, membershipSlugPath);
   const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
     .map((url) => String(url ?? "").trim())
@@ -89,12 +90,12 @@ export default async function PublicMembershipPage({ params }: Props) {
             </p>
           ) : null}
           <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-            SGD {Number(membership.price ?? 0).toFixed(2)}
+            {membershipCurrency} {Number(membership.price ?? 0).toFixed(2)}
             <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ {intervalLabel.toLowerCase().replace("ly", "")}</span>
           </p>
           {trialDays > 0 && billingStartLabel ? (
             <p className={`mt-2 text-sm ${ui.muted}`}>
-              You won’t be charged today. Your first payment will be on <span className="font-medium text-stone-700 dark:text-stone-200">{billingStartLabel}</span>, then SGD{" "}
+              You won’t be charged today. Your first payment will be on <span className="font-medium text-stone-700 dark:text-stone-200">{billingStartLabel}</span>, then {membershipCurrency}{" "}
               {Number(membership.price ?? 0).toFixed(2)} per {intervalShort} after that.
             </p>
           ) : null}
@@ -137,7 +138,7 @@ export default async function PublicMembershipPage({ params }: Props) {
                 : "Online payment is not configured for this studio."}
             </p>
             <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-              SGD {Number(membership.price ?? 0).toFixed(2)}
+              {membershipCurrency} {Number(membership.price ?? 0).toFixed(2)}
             </p>
             <p className={`mt-1 text-sm ${ui.muted}`}>{intervalLabel} membership</p>
             <div className="mt-5">

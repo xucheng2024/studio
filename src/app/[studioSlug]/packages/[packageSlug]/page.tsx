@@ -31,6 +31,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
 
   const coverSrc = (pkg as { image_url?: string | null }).image_url ?? null;
   const videoUrl = (pkg as { video_url?: string | null }).video_url ?? null;
+  const packageCurrency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
   const videoPreview = getVideoPreview(videoUrl ?? "");
   const studioPublicSlug = studio.public_slug ?? rawStudio;
   const pkgSlugPath = (pkg as { share_slug?: string | null }).share_slug ?? rawPkg;
@@ -70,7 +71,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {pkg.price != null ? (
             <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-              SGD {Number(pkg.price).toFixed(2)}
+              {packageCurrency} {Number(pkg.price).toFixed(2)}
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
@@ -101,7 +102,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
               {paymentReady ? "Enter your details and continue to payment." : "Online payment is not configured for this studio."}
             </p>
             <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-              SGD {Number(pkg.price ?? 0).toFixed(2)}
+              {packageCurrency} {Number(pkg.price ?? 0).toFixed(2)}
             </p>
 
             <div className="mt-5">

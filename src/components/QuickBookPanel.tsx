@@ -10,6 +10,7 @@ import { ui } from "@/lib/ui";
 type Props = {
   slug: string;
   sessionId: string;
+  payLabel?: string;
   disabled?: boolean;
   triggerClassName?: string;
   triggerLabel?: string;
@@ -22,6 +23,7 @@ type Props = {
 export function QuickBookPanel({
   slug,
   sessionId,
+  payLabel = "Pay now",
   disabled,
   triggerClassName,
   triggerLabel = "Book now",
@@ -107,7 +109,6 @@ export function QuickBookPanel({
 
   const loggedInForm = (
     <div className="flex flex-col gap-3">
-      <p className={`text-sm ${ui.muted}`}>You are signed in. Click below to proceed to payment.</p>
       {error ? (
         <p className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
           <AlertCircle size={14} className="shrink-0" />
@@ -125,7 +126,7 @@ export function QuickBookPanel({
           {loading ? (
             <><Loader2 size={15} className="animate-spin" /> Processing…</>
           ) : (
-            <>Continue to payment</>
+            <>{payLabel}</>
           )}
         </button>
       </div>
@@ -134,7 +135,7 @@ export function QuickBookPanel({
 
   const guestForm = (
     <EmailFirstCheckout
-      submitLabel="Continue to payment"
+      submitLabel={payLabel}
       onSubmit={(payload) => handleSubmit(payload)}
     />
   );
@@ -145,9 +146,8 @@ export function QuickBookPanel({
 
   return (
     <div className="w-full rounded-2xl border border-stone-200 bg-white p-3 shadow-sm dark:border-stone-700 dark:bg-stone-900 sm:p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your details</p>
-        {hideClose ? null : (
+      {hideClose ? null : (
+        <div className="mb-3 flex justify-end">
           <button
             type="button"
             className={`${ui.btnGhost} p-1`}
@@ -156,8 +156,8 @@ export function QuickBookPanel({
           >
             <X size={14} />
           </button>
-        )}
-      </div>
+        </div>
+      )}
       {formFields}
     </div>
   );

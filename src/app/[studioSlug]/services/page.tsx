@@ -60,6 +60,7 @@ export default async function PublicServicesPage({ params }: Props) {
       <div className="mt-5 grid gap-4">
         {(services ?? []).map((svc) => {
           const href = studioServicePath(studio.public_slug, svc.share_slug);
+          const serviceCurrency = String(svc.currency ?? "SGD").toUpperCase();
           const preview = getVideoPreview((svc as { video_url?: string | null }).video_url ?? "");
           const cover = svc.cover_image_url ?? preview.thumbnailUrl ?? null;
           const serviceWaLink = buildServiceWaLink(svc.title);
@@ -79,7 +80,7 @@ export default async function PublicServicesPage({ params }: Props) {
                     <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
                       <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">{svc.title}</Link>
                     </h2>
-                    {svc.price != null ? <span className="shrink-0 text-sm font-semibold">{svc.currency} {Number(svc.price).toFixed(2)}</span> : null}
+                    {svc.price != null ? <span className="shrink-0 text-lg font-bold tabular-nums text-stone-900 dark:text-stone-50">{serviceCurrency} {Number(svc.price).toFixed(2)}</span> : null}
                   </div>
                   {svc.summary ? <p className={`mt-2 text-sm ${ui.muted}`}>{svc.summary}</p> : null}
                   {svc.description ? <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">{svc.description}</p> : null}

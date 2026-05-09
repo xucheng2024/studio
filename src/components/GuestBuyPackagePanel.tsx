@@ -62,7 +62,6 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
 
   return (
     <div className="flex w-full max-w-md flex-col gap-2">
-      {isLoggedIn ? <p className={`text-sm ${ui.muted}`}>You are signed in. Continue to payment.</p> : null}
       <button
         type="button"
         disabled={busy || disabled || isLoggedIn === null}

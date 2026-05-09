@@ -28,8 +28,12 @@ export function SessionBookingActions({
   const router = useRouter();
   const [busyPass, setBusyPass] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
-  const [showPayForm, setShowPayForm] = useState(false);
+  const [showPayForm, setShowPayForm] = useState(isSignedIn);
   const [passError, setPassError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isSignedIn) setShowPayForm(true);
+  }, [isSignedIn]);
 
   const toFriendly = (code: string) => {
     if (code === "full") return "This class is full. Please pick another session.";
@@ -79,8 +83,15 @@ export function SessionBookingActions({
         <div className="flex flex-col gap-3">
           {showPayForm ? (
             <>
-              <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your details</p>
-              <QuickBookPanel slug={slug} sessionId={sessionId} disabled={!paymentReady} defaultOpen hideClose embedded />
+              <QuickBookPanel
+                slug={slug}
+                sessionId={sessionId}
+                payLabel={`Pay $${guestPrice.toFixed(2)}`}
+                disabled={!paymentReady}
+                defaultOpen
+                hideClose
+                embedded
+              />
             </>
           ) : (
             <button
@@ -137,17 +148,17 @@ export function SessionBookingActions({
         {/* ── Divider ── */}
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
-          <span className="text-xs text-stone-400 dark:text-stone-500">or pay online</span>
+          <span className="text-xs text-stone-400 dark:text-stone-500">or</span>
           <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
         </div>
 
         {/* ── Secondary: Pay (expands to form) ── */}
         {showPayForm ? (
           <div className="flex flex-col gap-3">
-            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your details</p>
             <QuickBookPanel
               slug={slug}
               sessionId={sessionId}
+              payLabel={`Pay $${guestPrice.toFixed(2)}`}
               disabled={!paymentReady}
               defaultOpen
               hideClose

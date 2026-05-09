@@ -91,7 +91,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
       .limit(8),
     admin
       .from("packages")
-      .select("id, name, price, credits, expiry_days, location_id, image_url, video_url, share_slug")
+      .select("id, name, price, currency, credits, expiry_days, location_id, image_url, video_url, share_slug")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .is("deleted_at", null)
@@ -417,6 +417,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
               const spotsLeft = Number(s.spots_left ?? 0);
               const creditsRequired = Number(s.credits_required ?? 0);
+              const classCurrency = String((s as { currency?: string | null }).currency ?? "SGD").toUpperCase();
               const spotsText = spotsLeft === 0
                 ? sessionCapacity > 0 ? `0/${sessionCapacity} spots left` : "Full"
                 : sessionCapacity > 0
@@ -448,7 +449,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           )}
                           {s.guest_price != null ? (
                             <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                              SGD {Number(s.guest_price).toFixed(2)}
+                              {classCurrency} {Number(s.guest_price).toFixed(2)}
                             </span>
                           ) : null}
                           {creditsRequired > 0 ? (
@@ -701,6 +702,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const buyHref = pkg.share_slug
                 ? studioPackagePath(studio.public_slug, pkg.share_slug)
                 : null;
+              const packageCurrency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
               const pkgImage = (pkg as { image_url?: string | null }).image_url ?? null;
               const pkgVideo = (pkg as { video_url?: string | null }).video_url ?? null;
               const pkgVideoPreview = getVideoPreview(pkgVideo ?? "");
@@ -742,7 +744,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         {buyHref ? <Link href={buyHref} className={ui.btnPrimarySm}>Buy now</Link> : null}
                         {pkg.price != null ? (
                           <span className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-50">
-                            SGD {Number(pkg.price).toFixed(2)}
+                            {packageCurrency} {Number(pkg.price).toFixed(2)}
                           </span>
                         ) : null}
                       </div>

@@ -1,10 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ui } from "@/lib/ui";
 
 type AccessTypeV2 = "free" | "paid_only" | "member_only" | "member_or_paid";
 type LessonOverride = "inherit" | AccessTypeV2;
+
+function readFieldValue(form: HTMLFormElement, name: string, fallback: string): string {
+  const field = form.elements.namedItem(name);
+  if (!field) return fallback;
+  if (field instanceof RadioNodeList) return String(field.value || fallback);
+  if ("value" in field) return String((field as HTMLInputElement | HTMLSelectElement).value ?? fallback);
+  return fallback;
+}
+
+function readPriceValue(form: HTMLFormElement, name: string, fallback: number): number {
+  const raw = readFieldValue(form, name, String(fallback));
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 function formatMoney(currency: string, price: number) {
   const safeCurrency = (currency || "SGD").toUpperCase();
@@ -31,15 +45,38 @@ export function SeriesAccessPreview(props: {
   initialCurrency: string;
   initialPrice: number;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [accessType, setAccessType] = useState<AccessTypeV2>(props.initialAccessType);
   const [currency, setCurrency] = useState(props.initialCurrency || "SGD");
   const [price, setPrice] = useState(props.initialPrice ?? 0);
+
+  useEffect(() => {
+    const form = containerRef.current?.closest("form");
+    if (!form) return;
+
+    const syncFromForm = () => {
+      const nextAccessType = readFieldValue(form, "access_type", props.initialAccessType) as AccessTypeV2;
+      const nextCurrency = readFieldValue(form, "currency", props.initialCurrency || "SGD");
+      const nextPrice = readPriceValue(form, "price", props.initialPrice ?? 0);
+      setAccessType(nextAccessType);
+      setCurrency(nextCurrency);
+      setPrice(nextPrice);
+    };
+
+    syncFromForm();
+    form.addEventListener("input", syncFromForm);
+    form.addEventListener("change", syncFromForm);
+    return () => {
+      form.removeEventListener("input", syncFromForm);
+      form.removeEventListener("change", syncFromForm);
+    };
+  }, [props.initialAccessType, props.initialCurrency, props.initialPrice]);
 
   const badge = useMemo(() => seriesBadge(accessType, currency, price), [accessType, currency, price]);
   const cta = useMemo(() => seriesCta(accessType, currency, price), [accessType, currency, price]);
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
+    <div ref={containerRef} className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
       <p className={`text-xs font-medium ${ui.muted}`}>Public preview</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>
@@ -57,6 +94,7 @@ export function LessonAccessPreview(props: {
   initialOverrideCurrency: string;
   initialOverridePrice: number;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [seriesAccessType, setSeriesAccessType] = useState<AccessTypeV2>(props.initialSeriesAccessType);
   const [seriesCurrency, setSeriesCurrency] = useState(props.initialSeriesCurrency || "SGD");
   const [seriesPrice, setSeriesPrice] = useState(props.initialSeriesPrice ?? 0);
@@ -64,6 +102,42 @@ export function LessonAccessPreview(props: {
   const [override, setOverride] = useState<LessonOverride>(props.initialOverride);
   const [overrideCurrency, setOverrideCurrency] = useState(props.initialOverrideCurrency || "SGD");
   const [overridePrice, setOverridePrice] = useState(props.initialOverridePrice ?? 0);
+
+  useEffect(() => {
+    const form = containerRef.current?.closest("form");
+    if (!form) return;
+
+    const syncFromForm = () => {
+      const nextSeriesAccessType = readFieldValue(form, "access_type", props.initialSeriesAccessType) as AccessTypeV2;
+      const nextSeriesCurrency = readFieldValue(form, "series_currency", props.initialSeriesCurrency || "SGD");
+      const nextSeriesPrice = readPriceValue(form, "series_price", props.initialSeriesPrice ?? 0);
+      const nextOverride = readFieldValue(form, "access_override", props.initialOverride) as LessonOverride;
+      const nextOverrideCurrency = readFieldValue(form, "currency", props.initialOverrideCurrency || "SGD");
+      const nextOverridePrice = readPriceValue(form, "override_price", props.initialOverridePrice ?? 0);
+
+      setSeriesAccessType(nextSeriesAccessType);
+      setSeriesCurrency(nextSeriesCurrency);
+      setSeriesPrice(nextSeriesPrice);
+      setOverride(nextOverride);
+      setOverrideCurrency(nextOverrideCurrency);
+      setOverridePrice(nextOverridePrice);
+    };
+
+    syncFromForm();
+    form.addEventListener("input", syncFromForm);
+    form.addEventListener("change", syncFromForm);
+    return () => {
+      form.removeEventListener("input", syncFromForm);
+      form.removeEventListener("change", syncFromForm);
+    };
+  }, [
+    props.initialSeriesAccessType,
+    props.initialSeriesCurrency,
+    props.initialSeriesPrice,
+    props.initialOverride,
+    props.initialOverrideCurrency,
+    props.initialOverridePrice,
+  ]);
 
   const resolvedAccessType: AccessTypeV2 =
     override === "inherit" ? seriesAccessType : override;
@@ -76,7 +150,7 @@ export function LessonAccessPreview(props: {
     override === "inherit" ? `Inherits series access (${badge})` : `Lesson override (${badge})`;
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
+    <div ref={containerRef} className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
       <p className={`text-xs font-medium ${ui.muted}`}>Public preview</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={ui.badgeNeutral}>{badge}</span>

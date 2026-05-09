@@ -28,7 +28,7 @@ export default async function PublicPackagesPage({ params }: Props) {
 
   const { data: packages } = await admin
     .from("packages")
-    .select("id, name, price, credits, expiry_days, image_url, video_url, share_slug")
+    .select("id, name, price, currency, credits, expiry_days, image_url, video_url, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
@@ -44,6 +44,7 @@ export default async function PublicPackagesPage({ params }: Props) {
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {(packages ?? []).map((pkg) => {
           const href = pkg.share_slug ? studioPackagePath(studio.public_slug, pkg.share_slug) : null;
+          const currency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
           const image = (pkg as { image_url?: string | null }).image_url ?? null;
           const video = (pkg as { video_url?: string | null }).video_url ?? null;
           const preview = getVideoPreview(video ?? "");
@@ -74,7 +75,7 @@ export default async function PublicPackagesPage({ params }: Props) {
                   <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
                 </div>
                 <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-                  {pkg.price != null ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">SGD {Number(pkg.price).toFixed(2)}</span> : null}
+                  {pkg.price != null ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">{currency} {Number(pkg.price).toFixed(2)}</span> : null}
                   {href ? <Link href={href} className={ui.btnPrimary}>Buy now</Link> : null}
                 </div>
               </div>

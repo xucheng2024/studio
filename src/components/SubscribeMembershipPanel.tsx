@@ -72,8 +72,6 @@ export function SubscribeMembershipPanel({
           disabled={disabled}
           onSubmit={(payload) => start(payload)}
         />
-      ) : isLoggedIn ? (
-        <p className={`text-sm ${ui.muted}`}>You are signed in. We&apos;ll attach this membership to your account.</p>
       ) : null}
       {isLoggedIn !== false ? <div className="flex flex-wrap gap-2">
         <button

@@ -158,11 +158,16 @@ export default async function StudioBookingPage({ params }: Props) {
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-stone-900 dark:text-stone-50">{title}</p>
                       <p className="mt-0.5 text-sm font-medium text-stone-700 dark:text-stone-300">{timeLabel}</p>
-                      <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-stone-500 dark:text-stone-400">
-                        {s.guest_price != null ? <span>${Number(s.guest_price).toFixed(2)} guest</span> : null}
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        {s.guest_price != null ? (
+                          <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
+                            ${Number(s.guest_price).toFixed(2)}
+                          </span>
+                        ) : null}
+                        {s.guest_price != null ? <span className="text-xs text-stone-500 dark:text-stone-400">guest</span> : null}
                         {s.guest_price != null && creditsRequired != null ? <span>·</span> : null}
                         {creditsRequired != null ? (
-                          <span>
+                          <span className="text-xs text-stone-500 dark:text-stone-400">
                             {creditsRequired} class pass{creditsRequired !== 1 ? "s" : ""} member
                           </span>
                         ) : null}
@@ -177,7 +182,12 @@ export default async function StudioBookingPage({ params }: Props) {
                   {spotsLeft === 0 ? (
                     <span className={`text-sm ${ui.muted}`}>This class is full</span>
                   ) : (
-                    <QuickBookPanel slug={slug} sessionId={s.id} disabled={!paymentReady} />
+                    <QuickBookPanel
+                      slug={slug}
+                      sessionId={s.id}
+                      payLabel={`Pay $${Number(s.guest_price ?? 0).toFixed(2)}`}
+                      disabled={!paymentReady}
+                    />
                   )}
                 </div>
               </div>
