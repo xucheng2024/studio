@@ -103,37 +103,37 @@ export default async function StudioBookingPage({ params }: Props) {
 
           return (
             <li key={s.id} className="overflow-hidden rounded-2xl border border-stone-200/90 bg-white/95 shadow-sm dark:border-stone-800/90 dark:bg-stone-900/70">
-              {/* Cover image */}
-              {showVideoCover || coverUrl ? (
-                <div className="relative">
-                  {showVideoCover ? (
-                    <PublicVideoCover
-                      title={title}
-                      coverUrl={coverUrl}
-                      embedUrl={videoPreview.embedUrl}
-                      fallbackUrl={videoUrl?.trim() || null}
-                    />
-                  ) : coverUrl ? (
-                    <Image
-                      src={coverUrl}
-                      alt={title}
-                      width={1200}
-                      height={675}
-                      className="aspect-video w-full object-cover"
-                      sizes="(max-width: 640px) 100vw, 672px"
-                    />
-                  ) : null}
-                  <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${
-                    spotsLeft === 0
-                      ? "bg-red-600/85 text-white"
-                      : spotsLow
-                        ? "bg-amber-500/85 text-white"
-                        : "bg-teal-600/85 text-white"
-                  }`}>
-                    {spotsText}
-                  </span>
-                </div>
-              ) : null}
+              {/* Cover image / video / placeholder */}
+              <div className="relative">
+                {showVideoCover ? (
+                  <PublicVideoCover
+                    title={title}
+                    coverUrl={coverUrl}
+                    embedUrl={videoPreview.embedUrl}
+                    fallbackUrl={videoUrl?.trim() || null}
+                  />
+                ) : coverUrl ? (
+                  <Image
+                    src={coverUrl}
+                    alt={title}
+                    width={1200}
+                    height={675}
+                    className="aspect-video w-full object-cover"
+                    sizes="(max-width: 640px) 100vw, 672px"
+                  />
+                ) : (
+                  <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900" />
+                )}
+                <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${
+                  spotsLeft === 0
+                    ? "bg-red-600/85 text-white"
+                    : spotsLow
+                      ? "bg-amber-500/85 text-white"
+                      : "bg-teal-600/85 text-white"
+                }`}>
+                  {spotsText}
+                </span>
+              </div>
 
               <div className="p-4">
                 {/* Date + info */}
@@ -166,18 +166,7 @@ export default async function StudioBookingPage({ params }: Props) {
                       </div>
                     </div>
                   </div>
-                  {/* Spots badge (no image) */}
-                  {!coverUrl && !showVideoCover ? (
-                    <span className={`mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      spotsLeft === 0
-                        ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                        : spotsLow
-                          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                          : "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                    }`}>
-                      {spotsText}
-                    </span>
-                  ) : null}
+                  {/* intentionally empty — spots badge is shown on the cover */}
                 </div>
 
                 {/* Actions */}
