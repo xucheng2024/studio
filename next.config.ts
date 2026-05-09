@@ -45,6 +45,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "image.mux.com",
       },
+      // YouTube video thumbnails
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
+      // Vimeo video thumbnails
+      {
+        protocol: "https",
+        hostname: "i.vimeocdn.com",
+      },
       // Custom-domain Supabase deployments (read from env at build time)
       ...(host && !host.endsWith(".supabase.co")
         ? [
