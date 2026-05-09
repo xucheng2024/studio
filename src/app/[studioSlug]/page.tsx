@@ -100,6 +100,7 @@ const getPublicStudioData = cache(async (studioSlugRaw: string) => {
       .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
+      .gte("end_time", nowIso)
       .order("start_time", { ascending: true })
       .limit(12),
     admin
