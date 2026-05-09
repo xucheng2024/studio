@@ -732,15 +732,17 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const eSpotsText = eSpotsLeft === 0
                 ? eCapacity > 0 ? `0/${eCapacity} spots left` : "Full"
                 : eCapacity > 0 ? `${eSpotsLeft}/${eCapacity} spots left` : `${eSpotsLeft} spots left`;
+              const eVideoPreview = getVideoPreview(String((e as { video_url?: string | null }).video_url ?? ""));
+              const eCover = (e as { image_url?: string | null }).image_url ?? eVideoPreview.thumbnailUrl ?? null;
               return (
                 <article key={e.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
                   <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
                     <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
                       <div className="shrink-0">
                         <div className="relative">
-                          {(e as { image_url?: string | null }).image_url ? (
+                          {eCover ? (
                             <Image
-                              src={String((e as { image_url?: string | null }).image_url)}
+                              src={eCover}
                               alt={String(e.title ?? "")}
                               width={1200}
                               height={675}
@@ -819,15 +821,17 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   const eSpotsText = eSpotsLeft === 0
                     ? eCapacity > 0 ? `0/${eCapacity} spots left` : "Full"
                     : eCapacity > 0 ? `${eSpotsLeft}/${eCapacity} spots left` : `${eSpotsLeft} spots left`;
+                  const eVideoPreview = getVideoPreview(String((e as { video_url?: string | null }).video_url ?? ""));
+                  const eCover = (e as { image_url?: string | null }).image_url ?? eVideoPreview.thumbnailUrl ?? null;
                   return (
                     <article key={e.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
                       <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
                         <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
                           <div className="shrink-0">
                             <div className="relative">
-                              {(e as { image_url?: string | null }).image_url ? (
+                              {eCover ? (
                                 <Image
-                                  src={String((e as { image_url?: string | null }).image_url)}
+                                  src={eCover}
                                   alt={String(e.title ?? "")}
                                   width={1200}
                                   height={675}
@@ -903,15 +907,17 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
                   const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
                   const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
+                  const eVideoPreview = getVideoPreview(String((e as { video_url?: string | null }).video_url ?? ""));
+                  const eCover = (e as { image_url?: string | null }).image_url ?? eVideoPreview.thumbnailUrl ?? null;
                   return (
                     <article key={e.id} className={`${ui.card} opacity-70`}>
                       <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
                         <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
                           <div className="shrink-0">
                             <div className="relative">
-                              {(e as { image_url?: string | null }).image_url ? (
+                              {eCover ? (
                                 <Image
-                                  src={String((e as { image_url?: string | null }).image_url)}
+                                  src={eCover}
                                   alt={String(e.title ?? "")}
                                   width={1200}
                                   height={675}
@@ -1000,12 +1006,14 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                     : series.access_type === "member_or_paid"
                       ? "View series"
                       : "Subscribe to watch";
+              const seriesPromoPreview = getVideoPreview(series.promo_video_url ?? "");
+              const seriesCover = series.cover_image_url ?? seriesPromoPreview.thumbnailUrl ?? null;
               return (
                 <article key={series.id} className={`${ui.card} flex flex-col`}>
                   <Link href={href} className="block shrink-0">
-                    {series.cover_image_url ? (
+                    {seriesCover ? (
                       <Image
-                        src={series.cover_image_url}
+                        src={seriesCover}
                         alt={series.title}
                         width={1200}
                         height={675}
@@ -1068,12 +1076,14 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         : series.access_type === "member_or_paid"
                           ? "View series"
                           : "Subscribe to watch";
+                  const seriesPromoPreview = getVideoPreview(series.promo_video_url ?? "");
+                  const seriesCover = series.cover_image_url ?? seriesPromoPreview.thumbnailUrl ?? null;
                   return (
                     <article key={series.id} className={`${ui.card} flex flex-col`}>
                       <Link href={href} className="block shrink-0">
-                        {series.cover_image_url ? (
+                        {seriesCover ? (
                           <Image
-                            src={series.cover_image_url}
+                            src={seriesCover}
                             alt={series.title}
                             width={1200}
                             height={675}
