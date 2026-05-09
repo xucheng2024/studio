@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { PublicMediaUploader } from "@/components/dashboard/PublicMediaUploader";
 import { getVideoPreview } from "@/lib/videoPreview";
@@ -30,8 +31,9 @@ export function CoverUrlField({ studioId, entityId, folder, name, label, default
       />
       {value ? (
         <div className="mt-1 space-y-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="h-28 w-full rounded-lg border border-stone-200 object-cover dark:border-stone-700" />
+          <div className="relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
+            <Image src={value} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
+          </div>
           <button type="button" className={ui.btnGhost} onClick={() => setValue("")}>
             Remove image
           </button>
@@ -83,8 +85,9 @@ export function StudioProfileMediaFields({
             />
             {coverValue ? (
               <div className="mt-1 space-y-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={coverValue} alt="" className="h-28 w-full rounded-lg border border-stone-200 object-cover dark:border-stone-700" />
+                <div className="relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
+                  <Image src={coverValue} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
+                </div>
                 <button type="button" className={ui.btnGhost} onClick={() => setCoverValue("")}>
                   Remove image
                 </button>
@@ -167,8 +170,9 @@ export function CoverVideoFields({
             />
             {coverValue ? (
               <div className="mt-1 space-y-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={coverValue} alt="" className="h-28 w-full rounded-lg border border-stone-200 object-cover dark:border-stone-700" />
+                <div className="relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
+                  <Image src={coverValue} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
+                </div>
                 <button type="button" className={ui.btnGhost} onClick={() => setCoverValue("")}>
                   Remove image
                 </button>

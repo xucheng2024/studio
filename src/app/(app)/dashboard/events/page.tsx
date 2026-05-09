@@ -1,4 +1,5 @@
 import { createEvent, deleteEvent, updateEvent } from "@/app/(app)/dashboard/actions";
+import Image from "next/image";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
@@ -92,8 +93,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             {/* Thumbnail */}
             <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
               {(e as { image_url?: string | null }).image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={String((e as { image_url?: string | null }).image_url)} alt="" className="size-full object-cover" loading="lazy" />
+                <Image src={String((e as { image_url?: string | null }).image_url)} alt="" width={72} height={72} className="size-full object-cover" />
               ) : null}
             </div>
             {/* Info */}

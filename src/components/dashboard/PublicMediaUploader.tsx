@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { COVER_MAX_BYTES } from "@/lib/coverMedia";
+import { ImageCropperDialog } from "@/components/dashboard/ImageCropperDialog";
 import { ui } from "@/lib/ui";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
@@ -50,6 +51,7 @@ type Props = {
 export function PublicMediaUploader({ studioId, folder, entityId, label = "Upload image", onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
 
   const onPick = async (file: File | null | undefined) => {
     if (!file) return;
@@ -107,9 +109,20 @@ export function PublicMediaUploader({ studioId, folder, entityId, label = "Uploa
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.currentTarget.value = "";
-          void onPick(file);
+          if (file) setCropFile(file);
         }}
       />
+      {cropFile ? (
+        <ImageCropperDialog
+          file={cropFile}
+          open
+          onCancel={() => setCropFile(null)}
+          onConfirm={(f) => {
+            setCropFile(null);
+            void onPick(f);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

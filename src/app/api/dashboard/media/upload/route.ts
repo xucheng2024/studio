@@ -8,6 +8,7 @@ import {
 } from "@/lib/coverMedia";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeCoverImage } from "@/lib/imageTransform";
 import { createClient } from "@/lib/supabase/server";
 
 function safeSegment(raw: string, fallback: string): string {
@@ -41,8 +42,7 @@ export async function POST(req: Request) {
   if (!COVER_ALLOWED_MIME.has(file.type || "")) {
     return NextResponse.json({ error: "invalid_file_type" }, { status: 400 });
   }
-  const ext = extensionForMime(file.type);
-  if (!ext) return NextResponse.json({ error: "invalid_file_type" }, { status: 400 });
+  if (!extensionForMime(file.type)) return NextResponse.json({ error: "invalid_file_type" }, { status: 400 });
 
   const scope = await requireStaffScope({
     userId: user.id,
@@ -53,12 +53,13 @@ export async function POST(req: Request) {
 
   const folder = safeSegment(String(formData.get("folder") ?? "studio"), "studio");
   const entityId = safeSegment(String(formData.get("entity_id") ?? "common"), "common");
-  const objectPath = `${folder}/${studioId}/${entityId}-${Date.now()}.${ext}`;
+  const source = Buffer.from(await file.arrayBuffer());
+  const normalized = await normalizeCoverImage(source, file.type);
+  const objectPath = `${folder}/${studioId}/${entityId}-${Date.now()}.${normalized.ext}`;
 
   const admin = createAdminClient();
-  const buf = Buffer.from(await file.arrayBuffer());
-  const { error: upErr } = await admin.storage.from(COVER_MEDIA_BUCKET).upload(objectPath, buf, {
-    contentType: file.type,
+  const { error: upErr } = await admin.storage.from(COVER_MEDIA_BUCKET).upload(objectPath, normalized.buffer, {
+    contentType: normalized.mime,
     upsert: false,
   });
   if (upErr) {

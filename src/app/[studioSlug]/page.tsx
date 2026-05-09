@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
@@ -244,10 +245,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-1">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={logoUrl}
               alt={publicBrandName}
+              width={44}
+              height={44}
               className="size-11 object-contain object-center"
             />
           ) : (
@@ -321,8 +323,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       <Link href={servicePath} className="block">
                         <div className="relative">
                           {svc.cover_image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={svc.cover_image_url} alt={svc.title} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                            <Image src={svc.cover_image_url} alt={svc.title} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
@@ -410,8 +411,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           <Link href={servicePath} className="block">
                             <div className="relative">
                               {svc.cover_image_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={svc.cover_image_url} alt={svc.title} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
+                                <Image src={svc.cover_image_url} alt={svc.title} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
                               ) : (
                                 <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                               )}
@@ -526,12 +526,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       <div className="shrink-0">
                         <div className="relative">
                           {classImage ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
+                            <Image
                               src={classImage}
                               alt={classTitle}
+                              width={1200}
+                              height={675}
                               className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                              loading="lazy"
                             />
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
@@ -633,12 +633,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           <div className="shrink-0">
                             <div className="relative">
                               {classImage ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
+                                <Image
                                   src={classImage}
                                   alt={classTitle}
+                                  width={1200}
+                                  height={675}
                                   className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
@@ -731,12 +731,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       <div className="shrink-0">
                         <div className="relative">
                           {(e as { image_url?: string | null }).image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
+                            <Image
                               src={String((e as { image_url?: string | null }).image_url)}
                               alt={String(e.title ?? "")}
+                              width={1200}
+                              height={675}
                               className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                              loading="lazy"
                             />
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
@@ -818,12 +818,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           <div className="shrink-0">
                             <div className="relative">
                               {(e as { image_url?: string | null }).image_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
+                                <Image
                                   src={String((e as { image_url?: string | null }).image_url)}
                                   alt={String(e.title ?? "")}
+                                  width={1200}
+                                  height={675}
                                   className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
@@ -902,12 +902,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           <div className="shrink-0">
                             <div className="relative">
                               {(e as { image_url?: string | null }).image_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
+                                <Image
                                   src={String((e as { image_url?: string | null }).image_url)}
                                   alt={String(e.title ?? "")}
+                                  width={1200}
+                                  height={675}
                                   className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
@@ -996,12 +996,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 <article key={series.id} className={`${ui.card} flex flex-col`}>
                   <Link href={href} className="block shrink-0">
                     {series.cover_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={series.cover_image_url}
                         alt={series.title}
+                        width={1200}
+                        height={675}
                         className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-                        loading="lazy"
                       />
                     ) : (
                       <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
@@ -1067,21 +1067,21 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                     ) : pkgImage ? (
                       buyHref ? (
                         <Link href={buyHref} className="block">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
+                          <Image
                             src={pkgImage}
                             alt={pkg.name}
+                            width={1200}
+                            height={675}
                             className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-                            loading="lazy"
                           />
                         </Link>
                       ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={pkgImage}
                           alt={pkg.name}
+                          width={1200}
+                          height={675}
                           className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-                          loading="lazy"
                         />
                       )
                     ) : buyHref ? (

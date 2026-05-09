@@ -1,4 +1,5 @@
 import { createStudioService, deleteStudioService, updateStudioService } from "@/app/(app)/dashboard/actions";
+import Image from "next/image";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
@@ -141,8 +142,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
                     {(svc.cover_image_url as string | null) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={String(svc.cover_image_url)} alt="" className="size-full object-cover" loading="lazy" />
+                      <Image src={String(svc.cover_image_url)} alt="" width={72} height={72} className="size-full object-cover" />
                     ) : null}
                   </div>
                   <div className="min-w-0">

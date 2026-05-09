@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { COVER_MAX_BYTES } from "@/lib/coverMedia";
+import { ImageCropperDialog } from "@/components/dashboard/ImageCropperDialog";
 import { ui } from "@/lib/ui";
 
 /**
@@ -57,6 +59,7 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const dragCounter = useRef(0);
 
   useEffect(() => { setImageUrl(initialUrl); }, [initialUrl]);
@@ -88,7 +91,7 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) void processFile(file);
+    if (file) setCropFile(file);
   };
 
   const onDragEnter = (e: React.DragEvent) => {
@@ -111,7 +114,7 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
     setDragging(false);
     if (busy) return;
     const file = e.dataTransfer.files?.[0];
-    if (file) void processFile(file);
+    if (file) setCropFile(file);
   };
 
   const onRemove = async () => {
@@ -133,17 +136,15 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
     if (!imageUrl) return null;
     if (size === "thumb") {
       return (
-        <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt="" className="size-full object-cover" loading="lazy" />
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-700 dark:bg-stone-900 sm:size-[72px]">
+          <Image src={imageUrl} alt="" fill className="object-cover" sizes="72px" />
         </div>
       );
     }
     return (
       <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
-        <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt="" className="size-full object-cover" loading="lazy" />
+        <div className="relative aspect-video w-full bg-stone-100 dark:bg-stone-900">
+          <Image src={imageUrl} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 720px" />
         </div>
       </div>
     );
@@ -171,12 +172,12 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
         >
           {imageUrl ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={imageUrl}
                 alt=""
-                className={`size-full object-cover transition-opacity ${dragging ? "opacity-40" : "group-hover:opacity-60"}`}
-                loading="lazy"
+                fill
+                sizes="72px"
+                className={`object-cover transition-opacity ${dragging ? "opacity-40" : "group-hover:opacity-60"}`}
               />
               <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                 {busy
@@ -214,6 +215,7 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
 
   // ── Full (default) mode ─────────────────────────────────────────────
   return (
+    <>
     <div className="space-y-2">
       {imageUrl ? (
         /* Has cover: show image; drag or click to replace */
@@ -230,12 +232,12 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
           {...dragHandlers}
         >
           <div className="aspect-video w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={imageUrl}
               alt=""
-              className={`size-full object-cover transition-opacity ${dragging ? "opacity-40" : "group-hover:opacity-80"}`}
-              loading="lazy"
+              fill
+              sizes="(max-width: 768px) 100vw, 720px"
+              className={`object-cover transition-opacity ${dragging ? "opacity-40" : "group-hover:opacity-80"}`}
             />
           </div>
           <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
@@ -306,5 +308,17 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
         </p>
       ) : null}
     </div>
+    {cropFile ? (
+      <ImageCropperDialog
+        file={cropFile}
+        open
+        onCancel={() => setCropFile(null)}
+        onConfirm={(f) => {
+          setCropFile(null);
+          void processFile(f);
+        }}
+      />
+    ) : null}
+    </>
   );
 }

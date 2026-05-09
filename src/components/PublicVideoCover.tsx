@@ -1,5 +1,6 @@
 'use client'
 
+import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { useState } from "react";
 
@@ -35,15 +36,16 @@ export function PublicVideoCover({
   }
 
   const media = coverUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={coverUrl}
-      alt={`${title} cover`}
-      className="aspect-video w-full object-cover"
-      loading={priority ? "eager" : "lazy"}
-      fetchPriority={priority ? "high" : "auto"}
-      decoding="async"
-    />
+    <div className="relative aspect-video w-full">
+      <Image
+        src={coverUrl}
+        alt={`${title} cover`}
+        fill
+        className="object-cover"
+        sizes="(max-width: 768px) 100vw, 720px"
+        priority={priority}
+      />
+    </div>
   ) : (
     <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900" />
   );

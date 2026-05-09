@@ -9,6 +9,7 @@ import {
   storagePathFromCoverUrl,
 } from "@/lib/coverMedia";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeCoverImage } from "@/lib/imageTransform";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -59,14 +60,14 @@ export async function POST(req: Request, ctx: RouteParams) {
   if (!COVER_ALLOWED_MIME.has(mime)) {
     return NextResponse.json({ error: "invalid_file_type" }, { status: 400 });
   }
-  const ext = extensionForMime(mime);
-  if (!ext) return NextResponse.json({ error: "invalid_file_type" }, { status: 400 });
+  if (!extensionForMime(mime)) return NextResponse.json({ error: "invalid_file_type" }, { status: 400 });
+  const source = Buffer.from(await file.arrayBuffer());
+  const normalized = await normalizeCoverImage(source, mime);
 
   // 1. Upload new file first — if this fails, the old image is untouched.
-  const objectPath = `packages/${id}/cover-${Date.now()}.${ext}`;
-  const buf = Buffer.from(await file.arrayBuffer());
-  const { error: upErr } = await admin.storage.from(COVER_MEDIA_BUCKET).upload(objectPath, buf, {
-    contentType: mime,
+  const objectPath = `packages/${id}/cover-${Date.now()}.${normalized.ext}`;
+  const { error: upErr } = await admin.storage.from(COVER_MEDIA_BUCKET).upload(objectPath, normalized.buffer, {
+    contentType: normalized.mime,
     upsert: false,
   });
   if (upErr) {
