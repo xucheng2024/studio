@@ -488,8 +488,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <div className="mt-4 grid w-full gap-4">
             {visibleClasses.map((s) => {
               const dt = new Date(s.start_time);
-              const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
-              const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+              const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
+              const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
               const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
               const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot?.trim() || cls?.title || "Class";
               const classDescription =
@@ -595,8 +595,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               <div className="mt-4 grid w-full gap-4">
                 {hiddenClasses.map((s) => {
                   const dt = new Date(s.start_time);
-                  const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
-                  const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
+                  const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
                   const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
                   const classTitle = (s as { class_title_snapshot?: string | null }).class_title_snapshot?.trim() || cls?.title || "Class";
                   const classDescription =
@@ -707,9 +707,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             {visibleEvents.map((e) => {
               const start = new Date(String(e.start_time));
               const end = new Date(String(e.end_time));
-              const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
-              const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-              const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+              const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
+              const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
+              const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
               const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
               const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
               const eSpotsLeft = Number(e.spots_left ?? 0);
@@ -794,9 +794,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 {hiddenEvents.map((e) => {
                   const start = new Date(String(e.start_time));
                   const end = new Date(String(e.end_time));
-                  const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
-                  const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-                  const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
+                  const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
+                  const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
                   const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
                   const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
                   const eSpotsLeft = Number(e.spots_left ?? 0);
@@ -883,9 +883,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 {pastEvents.map((e) => {
                   const start = new Date(String(e.start_time));
                   const end = new Date(String(e.end_time));
-                  const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short" });
-                  const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
-                  const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit" });
+                  const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
+                  const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
+                  const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
                   const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
                   const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
                   return (
