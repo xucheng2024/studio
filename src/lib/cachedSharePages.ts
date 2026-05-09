@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { normalizeStudioSlug } from "@/lib/slug";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function normalizeShareSlug(raw: string) {
   return String(raw ?? "")
@@ -18,7 +18,7 @@ export const getCachedClassShareContext = cache(async (studioSlugRaw: string, cl
   const classSlug = normalizeShareSlug(classSlugRaw);
   if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(classSlug)) return null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
     .select("id, name, public_slug, contract_status, hitpay_enabled")
@@ -46,7 +46,7 @@ export const getCachedPackageShareContext = cache(async (studioSlugRaw: string, 
   const pkgSlug = normalizeShareSlug(packageSlugRaw);
   if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(pkgSlug)) return null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
     .select("id, name, public_slug, contract_status, hitpay_enabled")
@@ -72,7 +72,7 @@ export const getCachedMembershipShareContext = cache(async (studioSlugRaw: strin
   const membershipSlug = normalizeShareSlug(membershipSlugRaw);
   if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(membershipSlug)) return null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
     .select("id, name, public_slug, contract_status, hitpay_enabled")
@@ -98,7 +98,7 @@ export const getCachedServiceShareContext = cache(async (studioSlugRaw: string, 
   const serviceSlug = normalizeShareSlug(serviceSlugRaw);
   if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(serviceSlug)) return null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
     .select("id, name, public_slug, contract_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
@@ -123,7 +123,7 @@ export const getCachedEventShareContext = cache(async (studioSlugRaw: string, ev
   const eventSlug = normalizeShareSlug(eventSlugRaw);
   if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(eventSlug)) return null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
     .select("id, name, public_slug, contract_status, hitpay_enabled")
@@ -148,7 +148,7 @@ export const getCachedMemberZoneShareContext = cache(async (studioSlugRaw: strin
   const seriesSlug = normalizeShareSlug(seriesSlugRaw);
   if (!studioSlug || !/^[a-z0-9-]{6,80}$/.test(seriesSlug)) return null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
     .select("id, name, public_slug, contract_status")
