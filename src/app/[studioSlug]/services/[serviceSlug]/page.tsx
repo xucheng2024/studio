@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MessageCircle, PlayCircle } from "lucide-react";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { getCachedServiceShareContext } from "@/lib/cachedSharePages";
 import { studioHomePath, studioServicePath } from "@/lib/public-paths";
 import { buildServiceShareMetadata } from "@/lib/publicShareOg";
@@ -26,6 +27,9 @@ export default async function PublicServicePage({ params }: Props) {
   const videoPreview = getVideoPreview(service.video_url);
   const serviceSlugPath = service.share_slug;
   const sharePath = studioServicePath(studio.public_slug ?? rawStudio, serviceSlugPath);
+  const warmupMediaUrls = [service.cover_image_url, videoPreview.thumbnailUrl]
+    .map((url) => String(url ?? "").trim())
+    .filter(Boolean);
   const waLink = studioWhatsappLink({
     enabled: studio.whatsapp_enabled,
     numberE164: studio.whatsapp_number_e164,
@@ -46,6 +50,7 @@ export default async function PublicServicePage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <StudioMediaWarmup urls={warmupMediaUrls} />
       <ShareCoverImage
         src={service.cover_image_url}
         alt={service.title}

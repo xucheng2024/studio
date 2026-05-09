@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
+import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
@@ -193,6 +194,35 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
   const publicBrandName = studio.public_brand_name?.trim() || studio.name;
   const logoUrl = studio.public_logo_url?.trim() || null;
+  const warmupMediaUrls = Array.from(
+    new Set(
+      [
+        logoUrl,
+        studioMediaCover,
+        ...visibleServices.map((svc) => svc.cover_image_url ?? null),
+        ...visibleClasses.map((s) => {
+          const cls = Array.isArray(s.classes) ? s.classes[0] : s.classes;
+          return (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
+        }),
+        ...visibleEvents.map((e) => (e as { image_url?: string | null }).image_url ?? null),
+        ...packages.slice(0, 2).map((pkg) => {
+          const imageUrl = (pkg as { image_url?: string | null }).image_url ?? null;
+          const videoUrl = (pkg as { video_url?: string | null }).video_url ?? null;
+          return imageUrl ?? getVideoPreview(videoUrl ?? "").thumbnailUrl ?? null;
+        }),
+        ...memberships.slice(0, 2).map((membership) => {
+          const imageUrl = (membership as { image_url?: string | null }).image_url ?? null;
+          const videoUrl = (membership as { video_url?: string | null }).video_url ?? null;
+          return imageUrl ?? getVideoPreview(videoUrl ?? "").thumbnailUrl ?? null;
+        }),
+        ...memberZoneSeries.slice(0, 2).map((series) => {
+          return series.cover_image_url ?? getVideoPreview(series.promo_video_url ?? "").thumbnailUrl ?? null;
+        }),
+      ]
+        .map((url) => String(url ?? "").trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 12);
   const studioBadgeLabel = publicBrandName
     .split(/\s+/)
     .filter(Boolean)
@@ -202,6 +232,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-2 sm:px-6 sm:pt-4 lg:px-8">
+      <StudioMediaWarmup urls={warmupMediaUrls} />
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-1">
           {logoUrl ? (

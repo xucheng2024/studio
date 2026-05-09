@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { QuickEventBookPanel } from "@/components/QuickEventBookPanel";
@@ -29,9 +30,13 @@ export default async function PublicEventPage({ params }: Props) {
   const videoUrl = (event as { video_url?: string | null }).video_url ?? null;
   const videoPreview = getVideoPreview(videoUrl ?? "");
   const sharePath = studioEventPath(studio.public_slug ?? rawStudio, event.share_slug ?? rawEvent);
+  const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
+    .map((url) => String(url ?? "").trim())
+    .filter(Boolean);
 
   return (
     <main className={ui.page}>
+      <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">
           <div className="relative">

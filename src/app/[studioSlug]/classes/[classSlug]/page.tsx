@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SessionBookingActions } from "@/components/SessionBookingActions";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
 import { studioClassPath } from "@/lib/public-paths";
@@ -88,6 +89,19 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     sessionQuery = `?session=${encodeURIComponent(sp.session)}`;
   }
   const classSharePath = studioClassPath(studioPublicSlug, classSlugPath, sessionQuery);
+  const warmupMediaUrls = Array.from(
+    new Set(
+      [
+        coverSrc,
+        videoPreview.thumbnailUrl,
+        ...orderedSessions
+          .slice(0, 4)
+          .map((session) => (session as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? coverSrc ?? null),
+      ]
+        .map((url) => String(url ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
 
   const isSessionShareView = Boolean(requestedSessionId);
   const listSessions = isSessionShareView
@@ -124,6 +138,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
     return (
       <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
+        <StudioMediaWarmup urls={warmupMediaUrls} />
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:items-start lg:gap-12">
           {/* ── Left: class info ── */}
           <div className="min-w-0">
@@ -238,6 +253,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   // ── Multi-session / no-session fallback layout ──
   return (
     <main className={ui.page}>
+      <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">
           <PublicVideoCover

@@ -467,6 +467,84 @@ async function seedTherapyData(ctx) {
     .select("id, name, credits, price, share_slug");
   if (insPkgErr) throw insPkgErr;
 
+  // Services: public storefront items (1:1 or group offerings)
+  // Services feature may not exist in older databases; skip gracefully.
+  try {
+    const serviceRows = [
+      {
+        title: "1:1 Therapy · Initial Consultation (50 min)",
+        summary: "A first session to clarify goals and agree on next steps.",
+        description:
+          "We’ll map your current challenges, define outcomes, and pick 1–2 practical tools you can start using immediately.",
+        price: 150,
+        currency: "SGD",
+        cover_image_url: null,
+        video_url: null,
+        tags: therapyTags.intake,
+        is_active: true,
+        sort_order: 100,
+      },
+      {
+        title: "1:1 Therapy · CBT for Anxiety (60 min)",
+        summary: "Evidence-based tools for panic, worry loops, and avoidance.",
+        description:
+          "Structured CBT session with practical exercises and a simple take-home plan tailored to your triggers and context.",
+        price: 190,
+        currency: "SGD",
+        cover_image_url: null,
+        video_url: null,
+        tags: therapyTags.anxiety,
+        is_active: true,
+        sort_order: 110,
+      },
+      {
+        title: "1:1 Therapy · Stress & Burnout Recovery (60 min)",
+        summary: "Rebuild boundaries and design a sustainable weekly recovery plan.",
+        description:
+          "Identify burnout patterns, reduce overload, and set up a realistic routine (sleep, work boundaries, micro-recovery).",
+        price: 210,
+        currency: "SGD",
+        cover_image_url: null,
+        video_url: "https://www.youtube.com/watch?v=O-6f5wQXSu8",
+        tags: uniqTags([...therapyTags.stress, ...therapyTags.burnout]),
+        is_active: true,
+        sort_order: 120,
+      },
+      {
+        title: "Couples Session · Communication & Repair (75 min)",
+        summary: "Guided conflict repair, needs language, and shared agreements.",
+        description:
+          "A structured couples session with live coaching and practice. Leave with a small set of agreements to try this week.",
+        price: 280,
+        currency: "SGD",
+        cover_image_url: null,
+        video_url: "https://vimeo.com/76979871",
+        tags: therapyTags.couples,
+        is_active: true,
+        sort_order: 130,
+      },
+    ].map((s, idx) => ({
+      studio_id: ctx.studioId,
+      title: s.title,
+      summary: s.summary,
+      description: s.description,
+      price: s.price,
+      currency: s.currency,
+      cover_image_url: s.cover_image_url,
+      video_url: s.video_url,
+      tags: s.tags,
+      is_active: s.is_active,
+      sort_order: s.sort_order,
+      share_slug: `${CFG.seedTag.toLowerCase()}-svc-${String(idx + 1).padStart(3, "0")}-${randSlug(6)}`,
+    }));
+
+    const { error: insSvcErr } = await admin.from("studio_services").insert(serviceRows);
+    if (insSvcErr) throw insSvcErr;
+  } catch (err) {
+    const msg = String(err?.message ?? err ?? "");
+    if (!msg.includes("relation") && !msg.includes("studio_services")) throw err;
+  }
+
   // Sessions: generate next 14 days, a mix of 1:1 and group.
   const today = new Date();
   const y = today.getFullYear();

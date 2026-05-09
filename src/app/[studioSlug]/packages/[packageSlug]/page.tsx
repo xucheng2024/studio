@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import { studioPackagePath } from "@/lib/public-paths";
@@ -33,9 +34,13 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   const studioPublicSlug = studio.public_slug ?? rawStudio;
   const pkgSlugPath = (pkg as { share_slug?: string | null }).share_slug ?? rawPkg;
   const packageSharePath = studioPackagePath(studioPublicSlug, pkgSlugPath);
+  const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
+    .map((url) => String(url ?? "").trim())
+    .filter(Boolean);
 
   return (
     <main className={ui.page}>
+      <StudioMediaWarmup urls={warmupMediaUrls} />
       {/* ── Hero cover (full-bleed within page padding) ── */}
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">

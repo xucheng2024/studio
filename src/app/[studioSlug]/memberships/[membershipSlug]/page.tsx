@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
+import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
 import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
 import { studioMembershipPath } from "@/lib/public-paths";
@@ -29,6 +30,9 @@ export default async function PublicMembershipPage({ params }: Props) {
   const studioPublicSlug = studio.public_slug ?? rawStudio;
   const membershipSlugPath = (membership as { share_slug?: string | null }).share_slug ?? rawMembership;
   const sharePath = studioMembershipPath(studioPublicSlug, membershipSlugPath);
+  const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
+    .map((url) => String(url ?? "").trim())
+    .filter(Boolean);
   const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
   const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
   const billingStartLabel =
@@ -52,6 +56,7 @@ export default async function PublicMembershipPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">
           <PublicVideoCover

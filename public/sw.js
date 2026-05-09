@@ -1,9 +1,10 @@
-const SW_VERSION = "studio-pwa-v2";
+const SW_VERSION = "studio-pwa-v3";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
 
 const NETWORK_ONLY_SEGMENTS = ["/auth", "/checkout", "/me/", "/member-zone/"];
+const REMOTE_IMAGE_HOSTS = new Set(["image.mux.com", "i.ytimg.com"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -30,6 +31,16 @@ self.addEventListener("activate", (event) => {
 
 function isSameOrigin(url) {
   return url.origin === self.location.origin;
+}
+
+function isTrustedRemoteImage(url) {
+  if (url.protocol !== "https:") return false;
+  if (REMOTE_IMAGE_HOSTS.has(url.hostname)) return true;
+  return url.pathname.includes("/storage/v1/object/public/");
+}
+
+function isCacheableResponse(response) {
+  return Boolean(response) && (response.ok || response.type === "opaque");
 }
 
 function isBypassedPath(pathname) {
@@ -71,7 +82,7 @@ async function staleWhileRevalidate(request, cacheName) {
   const cached = await cache.match(request);
   const networkPromise = fetch(request)
     .then((response) => {
-      if (response && response.ok) {
+      if (isCacheableResponse(response)) {
         void cache.put(request, response.clone());
       }
       return response;
@@ -93,7 +104,7 @@ async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    if (isCacheableResponse(response)) {
       void cache.put(request, response.clone());
     }
     return response;
@@ -110,7 +121,7 @@ async function cacheFirst(request, cacheName) {
 
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    if (isCacheableResponse(response)) {
       void cache.put(request, response.clone());
     }
     return response;
@@ -119,11 +130,51 @@ async function cacheFirst(request, cacheName) {
   }
 }
 
+async function warmupImages(urls) {
+  const cache = await caches.open(ASSET_CACHE);
+
+  await Promise.all(
+    urls.map(async (rawUrl) => {
+      try {
+        const url = new URL(rawUrl, self.location.origin);
+        if (!isSameOrigin(url) && !isTrustedRemoteImage(url)) return;
+
+        const request = new Request(url.toString(), {
+          mode: isSameOrigin(url) ? "same-origin" : "no-cors",
+          credentials: "omit",
+        });
+
+        const existing = await cache.match(request);
+        if (existing) return;
+
+        const response = await fetch(request);
+        if (isCacheableResponse(response)) {
+          await cache.put(request, response.clone());
+        }
+      } catch {
+        // Ignore per-image warmup failures.
+      }
+    }),
+  );
+}
+
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (!data || data.type !== "PREFETCH_URLS" || !Array.isArray(data.urls)) return;
+  event.waitUntil?.(warmupImages(data.urls));
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
+
+  if (request.destination === "image" && (isSameOrigin(url) || isTrustedRemoteImage(url))) {
+    event.respondWith(cacheFirst(request, ASSET_CACHE));
+    return;
+  }
+
   if (!isSameOrigin(url)) return;
   if (isBypassedPath(url.pathname)) return;
 
@@ -149,8 +200,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(staleWhileRevalidate(request, ASSET_CACHE));
     return;
   }
-
-  if (request.destination === "image" || request.destination === "font") {
+  if (request.destination === "font") {
     event.respondWith(cacheFirst(request, ASSET_CACHE));
   }
 });
