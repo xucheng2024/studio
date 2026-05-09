@@ -40,6 +40,11 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      // Mux video thumbnails
+      {
+        protocol: "https",
+        hostname: "image.mux.com",
+      },
       // Custom-domain Supabase deployments (read from env at build time)
       ...(host && !host.endsWith(".supabase.co")
         ? [
