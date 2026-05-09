@@ -248,10 +248,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <img
               src={logoUrl}
               alt={publicBrandName}
-              className="size-11 rounded-2xl border border-stone-200 bg-white object-cover shadow-sm dark:border-stone-700 dark:bg-stone-900"
+              className="size-11 object-contain object-center"
             />
           ) : (
-            <div className="inline-flex size-11 items-center justify-center rounded-2xl border border-stone-200 bg-white text-sm font-semibold text-stone-700 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200">
+            <div className="inline-flex size-11 items-center justify-center rounded-2xl text-sm font-semibold text-stone-700 dark:text-stone-200">
               {studioBadgeLabel}
             </div>
           )}

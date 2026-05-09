@@ -53,11 +53,11 @@ export default async function StudioPublicLayout({ children, params }: Props) {
   const studioSlug = normalizeStudioSlug(rawStudioSlug);
 
   return (
-    <>
+    <div className="min-h-dvh flex flex-col bg-white dark:bg-stone-950">
       {studioSlug && !isReservedPublicSlug(studioSlug) ? (
         <StudioPwaRegister studioSlug={studioSlug} />
       ) : null}
       {children}
-    </>
+    </div>
   );
 }
