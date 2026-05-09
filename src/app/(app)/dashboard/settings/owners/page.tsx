@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import {
+  deleteOwnerInvite,
+  setOwnerInviteStatus,
   disableOwnerAndSuspendStudios,
   grantOwnerAccessByEmail,
   resumeStudio,
@@ -43,6 +45,16 @@ type OwnerAggRow = {
   activeStudioCount: number;
   suspendedStudioCount: number;
   studios: StudioRow[];
+};
+
+type OwnerInviteRow = {
+  id: string;
+  email: string;
+  is_active: boolean;
+  accepted_user_id: string | null;
+  accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 function formatDatetimeLocal(iso: string | null) {
@@ -107,6 +119,11 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
   const studios = (studioRows ?? []) as StudioRow[];
 
   const { data: grants } = await admin.from("platform_owner_grants").select("user_id, is_active, created_at");
+  const { data: inviteRowsRaw } = await admin
+    .from("platform_owner_email_invites")
+    .select("id, email, is_active, accepted_user_id, accepted_at, created_at, updated_at")
+    .order("created_at", { ascending: false });
+  const ownerInvites = (inviteRowsRaw ?? []) as OwnerInviteRow[];
 
   const ownerIds = new Set<string>();
   for (const g of grants ?? []) ownerIds.add(g.user_id);
@@ -144,14 +161,16 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
     .limit(50);
 
   const successMsg =
-    sp.owners_success === "grant_email_sent"
-      ? "Owner workspace access granted. OTP email sent."
-      : sp.owners_success === "grant_email" || sp.owner_success === "granted"
+    sp.owners_success === "grant_email" || sp.owner_success === "granted"
       ? "Owner workspace access granted."
-      : sp.owners_success === "invite_pending_email_sent"
-        ? "Owner invite saved. OTP email sent. Access will be granted automatically after OTP sign-in."
       : sp.owners_success === "invite_pending"
-        ? "Owner invite saved. Access will be granted automatically after first OTP sign-in."
+        ? "Owner invite saved. Ask the user to sign in at /auth. Access will be granted automatically after first sign-in."
+      : sp.owners_success === "invite_cancelled"
+        ? "Owner invite cancelled."
+      : sp.owners_success === "invite_reenabled"
+        ? "Owner invite re-enabled."
+      : sp.owners_success === "invite_deleted"
+        ? "Owner invite deleted."
       : sp.owners_success === "grant_on" || sp.owner_grant_updated === "1"
         ? "Owner grant enabled."
         : sp.owners_success === "grant_off"
@@ -172,6 +191,8 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
         ? "Please enter a valid email."
       : errKey === "save_failed"
             ? "Could not save changes."
+      : errKey === "invalid_invite"
+              ? "Invite not found."
             : errKey === "invalid_user"
               ? "Invalid user reference."
               : errKey === "invalid_studio" || errKey === "unknown_studio"
@@ -234,9 +255,106 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           Grant owner workspace access
         </SubmitButton>
         <p className={`text-xs ${ui.muted}`}>
-          You can grant by email before first sign-in. The user gets access automatically after OTP login.
+          You can grant by email before first sign-in. Share your login page URL (for example, /auth), and access will be granted automatically after first sign-in.
         </p>
       </form>
+
+      <div className="flex flex-col gap-4">
+        <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Owner invite queue</h2>
+        {ownerInvites.length === 0 ? (
+          <p className={ui.muted}>No invite rows yet.</p>
+        ) : (
+          <div className={`${ui.card} overflow-x-auto`}>
+            <table className="min-w-[760px] w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200 text-left text-stone-500 dark:border-stone-800">
+                  <th className="pb-2 pr-3 font-medium">Email</th>
+                  <th className="pb-2 pr-3 font-medium">Status</th>
+                  <th className="pb-2 pr-3 font-medium">Accepted user</th>
+                  <th className="pb-2 pr-3 font-medium">Created</th>
+                  <th className="pb-2 font-medium">Accepted at</th>
+                  <th className="pb-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ownerInvites.map((row) => {
+                  const statusLabel = row.is_active
+                    ? "Pending first sign-in"
+                    : row.accepted_user_id
+                      ? "Activated"
+                      : "Inactive";
+                  const statusClass = row.is_active
+                    ? "rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+                    : row.accepted_user_id
+                      ? "rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200"
+                      : "rounded-md bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-300";
+                  return (
+                    <tr key={row.id} className="border-t border-stone-200/80 dark:border-stone-800/80 align-top">
+                      <td className="py-2.5 pr-3">
+                        <p className="font-medium text-stone-900 dark:text-stone-100">{row.email}</p>
+                        <p className="font-mono text-[11px] text-stone-500">{row.id}</p>
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        <span className={statusClass}>{statusLabel}</span>
+                      </td>
+                      <td className="py-2.5 pr-3 font-mono text-[11px] text-stone-500">
+                        {row.accepted_user_id ?? "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 text-xs text-stone-600 dark:text-stone-400">
+                        {new Date(row.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                      </td>
+                      <td className="py-2.5 text-xs text-stone-600 dark:text-stone-400">
+                        {row.accepted_at
+                          ? new Date(row.accepted_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+                          : "—"}
+                      </td>
+                      <td className="py-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {row.is_active ? (
+                            <ConfirmForm
+                              action={setOwnerInviteStatus}
+                              confirmMessage={`Cancel pending invite for ${row.email}? They will no longer auto-receive owner access on first sign-in.`}
+                              className="inline"
+                            >
+                              <input type="hidden" name="invite_id" value={row.id} />
+                              <input type="hidden" name="is_active" value="false" />
+                              <SubmitButton className={ui.btnSecondarySm} pendingText="Saving…">
+                                Cancel
+                              </SubmitButton>
+                            </ConfirmForm>
+                          ) : (
+                            <ConfirmForm
+                              action={setOwnerInviteStatus}
+                              confirmMessage={`Re-enable invite for ${row.email}? Owner access will be granted on first sign-in.`}
+                              className="inline"
+                            >
+                              <input type="hidden" name="invite_id" value={row.id} />
+                              <input type="hidden" name="is_active" value="true" />
+                              <SubmitButton className={ui.btnSecondarySm} pendingText="Saving…">
+                                Re-enable
+                              </SubmitButton>
+                            </ConfirmForm>
+                          )}
+                          <ConfirmForm
+                            action={deleteOwnerInvite}
+                            confirmMessage={`Delete invite record for ${row.email}? This removes the queue row.`}
+                            className="inline"
+                          >
+                            <input type="hidden" name="invite_id" value={row.id} />
+                            <SubmitButton className={ui.btnSecondarySm} pendingText="Deleting…">
+                              Delete
+                            </SubmitButton>
+                          </ConfirmForm>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col gap-4">
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Owners &amp; studios</h2>

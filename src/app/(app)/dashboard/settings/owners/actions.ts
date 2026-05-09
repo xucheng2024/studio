@@ -1,12 +1,10 @@
 "use server";
 
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { writeOperationAudit } from "@/lib/audit";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -21,25 +19,6 @@ async function requireSuperAdmin() {
     redirect("/dashboard/settings/owners?owners_error=forbidden");
   }
   return { user };
-}
-
-async function sendOwnerOtpEmail(email: string) {
-  const url = getSupabaseUrl();
-  const anon = getSupabaseAnonKey();
-  if (!url || !anon) return false;
-  const supabase = createSupabaseClient(url, anon, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
-  const emailRedirectTo = appUrl ? `${appUrl}/post-auth?staff_portal=1` : undefined;
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: true,
-      ...(emailRedirectTo ? { emailRedirectTo } : {}),
-    },
-  });
-  return !error;
 }
 
 export async function grantOwnerAccessByEmail(formData: FormData): Promise<void> {
@@ -85,9 +64,8 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
       beforeState: beforeInvite ?? null,
       afterState: { email, is_active: true },
     });
-    const otpSent = await sendOwnerOtpEmail(email);
     revalidatePath("/dashboard/settings/owners");
-    redirect(`/dashboard/settings/owners?owners_success=${otpSent ? "invite_pending_email_sent" : "invite_pending"}`);
+    redirect("/dashboard/settings/owners?owners_success=invite_pending");
   }
 
   const { data: beforeRow } = await admin
@@ -121,10 +99,9 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
       updated_at: new Date().toISOString(),
     })
     .eq("email", email);
-  const otpSent = await sendOwnerOtpEmail(email);
 
   revalidatePath("/dashboard/settings/owners");
-  redirect(`/dashboard/settings/owners?owners_success=${otpSent ? "grant_email_sent" : "grant_email"}`);
+  redirect("/dashboard/settings/owners?owners_success=grant_email");
 }
 
 /** Toggle platform owner grant only (FormData: user_id, is_active = "true"|"false" desired next state). */
@@ -330,4 +307,86 @@ export async function disableOwnerAndSuspendStudios(formData: FormData): Promise
   revalidatePath("/dashboard/operations");
   revalidatePath("/dashboard/settings/owners");
   redirect("/dashboard/settings/owners?owners_success=disable_owner_suspend_all");
+}
+
+export async function setOwnerInviteStatus(formData: FormData): Promise<void> {
+  const inviteId = String(formData.get("invite_id") ?? "").trim();
+  const nextActive = String(formData.get("is_active") ?? "").trim() === "true";
+  const { user } = await requireSuperAdmin();
+  if (!inviteId || !UUID_RE.test(inviteId)) {
+    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
+  }
+
+  const admin = createAdminClient();
+  const { data: beforeRow } = await admin
+    .from("platform_owner_email_invites")
+    .select("id, email, is_active, accepted_user_id, accepted_at")
+    .eq("id", inviteId)
+    .maybeSingle();
+  if (!beforeRow) {
+    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
+  }
+
+  const { error } = await admin
+    .from("platform_owner_email_invites")
+    .update({
+      is_active: nextActive,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", inviteId);
+  if (error) {
+    redirect("/dashboard/settings/owners?owners_error=save_failed");
+  }
+
+  await writeOperationAudit({
+    actorId: user.id,
+    actorRole: "superadmin",
+    action: nextActive ? "owner_invite_reenabled" : "owner_invite_cancelled",
+    targetType: "owner_invite",
+    targetId: inviteId,
+    beforeState: beforeRow,
+    afterState: {
+      ...beforeRow,
+      is_active: nextActive,
+    },
+  });
+
+  revalidatePath("/dashboard/settings/owners");
+  redirect(`/dashboard/settings/owners?owners_success=${nextActive ? "invite_reenabled" : "invite_cancelled"}`);
+}
+
+export async function deleteOwnerInvite(formData: FormData): Promise<void> {
+  const inviteId = String(formData.get("invite_id") ?? "").trim();
+  const { user } = await requireSuperAdmin();
+  if (!inviteId || !UUID_RE.test(inviteId)) {
+    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
+  }
+
+  const admin = createAdminClient();
+  const { data: beforeRow } = await admin
+    .from("platform_owner_email_invites")
+    .select("id, email, is_active, accepted_user_id, accepted_at")
+    .eq("id", inviteId)
+    .maybeSingle();
+  if (!beforeRow) {
+    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
+  }
+
+  const { error } = await admin.from("platform_owner_email_invites").delete().eq("id", inviteId);
+  if (error) {
+    redirect("/dashboard/settings/owners?owners_error=save_failed");
+  }
+
+  await writeOperationAudit({
+    actorId: user.id,
+    actorRole: "superadmin",
+    action: "owner_invite_deleted",
+    targetType: "owner_invite",
+    targetId: inviteId,
+    beforeState: beforeRow,
+    afterState: null,
+  });
+
+  revalidatePath("/dashboard/settings/owners");
+  redirect("/dashboard/settings/owners?owners_success=invite_deleted");
 }
