@@ -46,7 +46,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
         <div className="mb-6">
           <PublicVideoCover
             title={pkg.name}
-            coverUrl={coverSrc}
+            coverUrl={coverSrc ?? videoPreview.thumbnailUrl ?? null}
             embedUrl={videoPreview.embedUrl}
             fallbackUrl={videoUrl?.trim() || null}
           />

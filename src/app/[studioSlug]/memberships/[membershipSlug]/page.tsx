@@ -61,7 +61,7 @@ export default async function PublicMembershipPage({ params }: Props) {
         <div className="mb-6">
           <PublicVideoCover
             title={membership.name}
-            coverUrl={coverSrc}
+            coverUrl={coverSrc ?? videoPreview.thumbnailUrl ?? null}
             embedUrl={videoPreview.embedUrl}
             fallbackUrl={videoUrl?.trim() || null}
           />

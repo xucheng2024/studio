@@ -42,7 +42,7 @@ export default async function PublicEventPage({ params }: Props) {
           <div className="relative">
             <PublicVideoCover
               title={event.title}
-              coverUrl={coverSrc}
+              coverUrl={coverSrc ?? videoPreview.thumbnailUrl ?? null}
               embedUrl={videoPreview.embedUrl}
               fallbackUrl={videoUrl?.trim() || null}
             />
