@@ -10,6 +10,8 @@ type Props = {
   open: boolean;
   onCancel: () => void;
   onConfirm: (file: File) => void;
+  /** Crop aspect ratio. Defaults to 16/9 for cover images. Pass 1 for logos. */
+  cropAspect?: number;
 };
 
 const OUT_W = 1200;
@@ -49,7 +51,7 @@ async function exportCroppedImage(src: string, crop: Area, file: File): Promise<
   return new File([blob], file.name, { type: outType });
 }
 
-export function ImageCropperDialog({ file, open, onCancel, onConfirm }: Props) {
+export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect = 16 / 9 }: Props) {
   const src = useMemo(() => URL.createObjectURL(file), [file]);
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -83,7 +85,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm }: Props) {
   return (
     <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-stone-900">
-        <div className="mb-2 text-sm font-semibold">Crop image (16:9)</div>
+        <div className="mb-2 text-sm font-semibold">Crop image ({cropAspect === 1 ? "1:1" : "16:9"})</div>
         <div className="relative mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-stone-300 bg-stone-100" style={{ aspectRatio: "16 / 9" }}>
           <Cropper
             image={src}
@@ -91,7 +93,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm }: Props) {
             zoom={zoom}
             minZoom={1}
             maxZoom={3}
-            aspect={16 / 9}
+            aspect={cropAspect}
             restrictPosition
             objectFit="cover"
             onCropChange={setCrop}

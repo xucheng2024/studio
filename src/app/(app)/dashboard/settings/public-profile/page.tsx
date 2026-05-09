@@ -126,6 +126,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
               name="public_logo_url"
               label="Brand logo"
               defaultValue={studio.public_logo_url ?? null}
+              cropAspect={1}
             />
           </div>
         </div>

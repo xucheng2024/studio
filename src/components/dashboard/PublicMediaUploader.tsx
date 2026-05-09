@@ -46,9 +46,10 @@ type Props = {
   entityId: string;
   label?: string;
   onUploaded: (url: string) => void;
+  cropAspect?: number;
 };
 
-export function PublicMediaUploader({ studioId, folder, entityId, label = "Upload image", onUploaded }: Props) {
+export function PublicMediaUploader({ studioId, folder, entityId, label = "Upload image", onUploaded, cropAspect }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -116,6 +117,7 @@ export function PublicMediaUploader({ studioId, folder, entityId, label = "Uploa
         <ImageCropperDialog
           file={cropFile}
           open
+          cropAspect={cropAspect}
           onCancel={() => setCropFile(null)}
           onConfirm={(f) => {
             setCropFile(null);

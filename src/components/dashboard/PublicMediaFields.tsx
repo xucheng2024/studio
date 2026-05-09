@@ -14,9 +14,10 @@ type CoverFieldProps = {
   name: string;
   label: string;
   defaultValue: string | null;
+  cropAspect?: number;
 };
 
-export function CoverUrlField({ studioId, entityId, folder, name, label, defaultValue }: CoverFieldProps) {
+export function CoverUrlField({ studioId, entityId, folder, name, label, defaultValue, cropAspect }: CoverFieldProps) {
   const [value, setValue] = useState(defaultValue ?? "");
   return (
     <div className="flex flex-col gap-1.5">
@@ -28,6 +29,7 @@ export function CoverUrlField({ studioId, entityId, folder, name, label, default
         entityId={entityId}
         label={value ? "Replace image" : "Upload image"}
         onUploaded={(url) => setValue(url)}
+        cropAspect={cropAspect}
       />
       {value ? (
         <div className="mt-1 space-y-2">
