@@ -117,12 +117,14 @@ export function MemberZoneUnlockPanel(props: {
       });
       const rawText = await res.text();
       const body = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
+      const errorCode = String(body.error ?? "");
+      const errorDetail = typeof body.error_detail === "string" ? body.error_detail : undefined;
       if (!res.ok) {
-        if (body.error === "already_purchased" || body.error === "already_member") {
+        if (errorCode === "already_purchased" || errorCode === "already_member") {
           window.location.reload();
           return;
         }
-        if (body.error === "guest_details_required") {
+        if (errorCode === "guest_details_required") {
           setShowGuestForm(true);
           const hint = hasBrowserSession
             ? "Your login could not be verified by the server. Refresh the page or complete the form below."
@@ -131,18 +133,18 @@ export function MemberZoneUnlockPanel(props: {
           toast.error(hint);
           return;
         }
-        if (body.error === "purchase_pending" && body.checkout_url) {
+        if (errorCode === "purchase_pending" && body.checkout_url) {
           goToCheckout(body.checkout_url);
           return;
         }
-        const errText = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
+        const errText = paymentErrorMessage(errorCode, errorDetail);
         setMsg(errText);
         setDebugInfo(
           [
             `status=${res.status}`,
-            `error=${String(body.error ?? "unknown")}`,
-            body.error_detail ? `detail=${String(body.error_detail)}` : null,
-            rawText && !body.error ? `raw=${rawText.slice(0, 300)}` : null,
+            `error=${errorCode || "unknown"}`,
+            errorDetail ? `detail=${errorDetail}` : null,
+            rawText && !errorCode ? `raw=${rawText.slice(0, 300)}` : null,
           ]
             .filter(Boolean)
             .join(" | "),
