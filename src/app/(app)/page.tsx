@@ -72,7 +72,7 @@ export default async function Home({ searchParams }: Props) {
                 </span>
               </h1>
               <p className="mt-5 text-lg leading-relaxed text-stone-600 dark:text-stone-300">
-                Hosted booking pages, automatic payment reconciliation, and a real-time front desk dashboard — built for Singapore health &amp; wellness studios.
+                Hosted booking pages, automatic payment reconciliation, and a real-time front desk dashboard — built for health &amp; wellness studios.
               </p>
               <ul className="mt-6 space-y-2">
                 {[
@@ -449,7 +449,7 @@ export default async function Home({ searchParams }: Props) {
                 Leave your details below and we&apos;ll reach out to walk you through setup. Most studios are running the same day.
               </p>
               <p className="mt-4 text-sm text-teal-200/80">
-                Singapore-based support · No setup fee · We onboard you personally
+                No setup fee · We onboard you personally
               </p>
             </div>
             <div className="flex justify-center lg:justify-end">
@@ -464,7 +464,7 @@ export default async function Home({ searchParams }: Props) {
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">{site.name}</span>
-            <span className="text-xs text-stone-400">Built for health &amp; wellness studios in Singapore.</span>
+            <span className="text-xs text-stone-400">Built for health &amp; wellness studios.</span>
             <div className="flex items-center gap-4 text-xs">
               <a
                 href={`mailto:${site.contactEmail}`}
