@@ -21,7 +21,6 @@ export function MemberZoneUnlockPanel(props: {
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   /** Browser session can disagree with SSR `isAuthenticated` (CDN/cache). */
   const [browserLoggedIn, setBrowserLoggedIn] = useState<boolean | null>(null);
   const isLoggedInUi = Boolean(props.isAuthenticated) || browserLoggedIn === true;
@@ -116,14 +115,10 @@ export function MemberZoneUnlockPanel(props: {
     }
     setBusy(true);
     setMsg(null);
-    setDebugInfo(null);
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 12_000);
     try {
       const res = await fetch("/api/member-zone/purchase/create", {
         method: "POST",
         credentials: "same-origin",
-        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           series_id: props.seriesId,
@@ -157,17 +152,6 @@ export function MemberZoneUnlockPanel(props: {
         }
         const errText = paymentErrorMessage(errorCode, errorDetail);
         setMsg(errText);
-        setDebugInfo(
-          [
-            `status=${res.status}`,
-            `error=${errorCode || "unknown"}`,
-            errorDetail ? `detail=${errorDetail}` : null,
-            typeof body.elapsed_ms === "number" ? `elapsed_ms=${body.elapsed_ms}` : null,
-            rawText && !errorCode ? `raw=${rawText.slice(0, 300)}` : null,
-          ]
-            .filter(Boolean)
-            .join(" | "),
-        );
         toast.error(errText);
         return;
       }
@@ -177,27 +161,12 @@ export function MemberZoneUnlockPanel(props: {
       }
       const fallback = "Checkout could not be started. Please try again.";
       setMsg(fallback);
-      setDebugInfo(
-        [
-          `status=${res.status}`,
-          "missing_checkout_url",
-          typeof body.elapsed_ms === "number" ? `elapsed_ms=${body.elapsed_ms}` : null,
-        ]
-          .filter(Boolean)
-          .join(" | "),
-      );
       toast.error(fallback);
-    } catch (error) {
+    } catch {
       const net = "Network error. Check your connection and try again.";
       setMsg(net);
-      setDebugInfo(
-        error instanceof DOMException && error.name === "AbortError"
-          ? "exception=request_timeout_12s"
-          : `exception=${error instanceof Error ? error.message : "unknown_error"}`,
-      );
       toast.error(net);
     } finally {
-      window.clearTimeout(timeout);
       setBusy(false);
     }
   };
@@ -299,11 +268,6 @@ export function MemberZoneUnlockPanel(props: {
       </div>
 
       {msg ? <p className={`mt-2 text-xs ${ui.error}`}>{msg}</p> : null}
-      {debugInfo ? (
-        <p className="mt-1 wrap-break-word font-mono text-[11px] text-stone-500 dark:text-stone-400">
-          debug: {debugInfo}
-        </p>
-      ) : null}
     </div>
   );
 }
