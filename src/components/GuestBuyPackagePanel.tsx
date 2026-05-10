@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { createBrowserSupabase } from "@/lib/supabase/client";
@@ -18,31 +19,38 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
   }, []);
 
   const submit = async (payload: EmailFirstCheckoutPayload = {}) => {
-    setBusy(true);
-    setMsg(null);
-    const res = await fetch("/api/package/buy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        package_id: packageId,
-        guest_name: isLoggedIn ? undefined : payload.guest_name,
-        guest_email: isLoggedIn ? undefined : payload.guest_email,
-        guest_phone: isLoggedIn ? undefined : payload.guest_phone,
-      }),
-    });
-    const body = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) {
-      const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
+    try {
+      setBusy(true);
+      setMsg(null);
+      const res = await fetch("/api/package/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          package_id: packageId,
+          guest_name: isLoggedIn ? undefined : payload.guest_name,
+          guest_email: isLoggedIn ? undefined : payload.guest_email,
+          guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
+        setMsg(message);
+        return { ok: false as const, message };
+      }
+      if (body.checkout_url) {
+        window.location.href = body.checkout_url;
+        return { ok: true as const };
+      }
+      setMsg("Payment created");
+      return { ok: true as const };
+    } catch {
+      const message = "Network error. Check your connection and try again.";
       setMsg(message);
       return { ok: false as const, message };
+    } finally {
+      setBusy(false);
     }
-    if (body.checkout_url) {
-      window.location.href = body.checkout_url;
-      return { ok: true as const };
-    }
-    setMsg("Payment created");
-    return { ok: true as const };
   };
 
   if (isLoggedIn === false) {
@@ -61,7 +69,7 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
         className={`${ui.btnPrimary} disabled:opacity-50`}
         onClick={() => void submit()}
       >
-        {busy ? "Creating..." : disabled ? "Online payment unavailable" : "Buy package"}
+        {busy ? <><Loader2 size={15} className="animate-spin" /> Processing…</> : disabled ? "Online payment unavailable" : "Buy package"}
       </button>
       {msg ? <p className={`text-xs ${ui.muted}`}>{msg}</p> : null}
     </div>

@@ -37,6 +37,8 @@ export function SubscribeMembershipButton({
       if (body.checkout_url) {
         window.location.href = body.checkout_url;
       }
+    } catch {
+      toast.error("Network error. Check your connection and try again.");
     } finally {
       setBusy(false);
     }

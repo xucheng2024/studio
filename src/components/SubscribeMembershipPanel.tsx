@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
@@ -28,37 +29,44 @@ export function SubscribeMembershipPanel({
   }, []);
 
   const start = async (payload: EmailFirstCheckoutPayload = {}) => {
-    setBusy(true);
-    const res = await fetch("/api/membership/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        membership_id: membershipId,
-        slug: studioSlug,
-        guest_name: isLoggedIn ? undefined : payload.guest_name,
-        guest_email: isLoggedIn ? undefined : payload.guest_email,
-        guest_phone: isLoggedIn ? undefined : payload.guest_phone,
-      }),
-    });
-    const body = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) {
-      if (body.error === "subscription_exists") {
-        toast.info("You already have an active or pending membership for this plan.");
-        return { ok: false as const, message: "You already have an active or pending membership for this plan." };
+    try {
+      setBusy(true);
+      const res = await fetch("/api/membership/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membership_id: membershipId,
+          slug: studioSlug,
+          guest_name: isLoggedIn ? undefined : payload.guest_name,
+          guest_email: isLoggedIn ? undefined : payload.guest_email,
+          guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (body.error === "subscription_exists") {
+          toast.info("You already have an active or pending membership for this plan.");
+          return { ok: false as const, message: "You already have an active or pending membership for this plan." };
+        }
+        if (body.error === "guest_details_required") {
+          toast.error("Please enter your name, email, and phone number.");
+          return { ok: false as const, message: "Please enter your name, email, and phone number." };
+        }
+        const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
+        toast.error(message);
+        return { ok: false as const, message };
       }
-      if (body.error === "guest_details_required") {
-        toast.error("Please enter your name, email, and phone number.");
-        return { ok: false as const, message: "Please enter your name, email, and phone number." };
+      if (body.checkout_url) {
+        window.location.href = body.checkout_url;
       }
-      const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
+      return { ok: true as const };
+    } catch {
+      const message = "Network error. Check your connection and try again.";
       toast.error(message);
       return { ok: false as const, message };
+    } finally {
+      setBusy(false);
     }
-    if (body.checkout_url) {
-      window.location.href = body.checkout_url;
-    }
-    return { ok: true as const };
   };
 
   return (
@@ -82,7 +90,7 @@ export function SubscribeMembershipPanel({
           className={ui.btnPrimary}
           onClick={() => void start()}
         >
-          {busy ? "Continuing…" : "Start membership"}
+          {busy ? <><Loader2 size={15} className="animate-spin" /> Processing…</> : "Start membership"}
         </button>
       </div> : null}
     </div>

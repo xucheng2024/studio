@@ -46,31 +46,39 @@ export function QuickBookPanel({
   }, []);
 
   const handleSubmit = async (payload: EmailFirstCheckoutPayload = {}) => {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/book/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slug,
-        session_id: sessionId,
-        guest_name: isLoggedIn ? undefined : payload.guest_name,
-        guest_email: isLoggedIn ? undefined : payload.guest_email,
-        guest_phone: isLoggedIn ? undefined : payload.guest_phone,
-      }),
-    });
-    const body = await res.json().catch(() => ({}));
-    const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
-    setLoading(false);
-    if (!res.ok) {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/book/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          session_id: sessionId,
+          guest_name: isLoggedIn ? undefined : payload.guest_name,
+          guest_email: isLoggedIn ? undefined : payload.guest_email,
+          guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
+      if (!res.ok) {
+        setError(message);
+        if (isLoggedIn) setOpen(true);
+        return { ok: false as const, message };
+      }
+      if (body.checkout_url) {
+        router.push(body.checkout_url);
+      }
+      return { ok: true as const };
+    } catch {
+      const message = "Network error. Check your connection and try again.";
       setError(message);
       if (isLoggedIn) setOpen(true);
       return { ok: false as const, message };
+    } finally {
+      setLoading(false);
     }
-    if (body.checkout_url) {
-      router.push(body.checkout_url);
-    }
-    return { ok: true as const };
   };
 
   if (disabled) return null;
@@ -92,7 +100,7 @@ export function QuickBookPanel({
         }}
       >
         {loading ? (
-          <><Loader2 size={15} className="animate-spin" /> Processing...</>
+          <><Loader2 size={15} className="animate-spin" /> Processing…</>
         ) : (
           collapsedLabel
         )}

@@ -38,6 +38,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#0f766e",
 };
 
 export default function RootLayout({
@@ -51,7 +52,10 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      <body
+        className="flex min-h-full flex-col bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-50"
+        style={{ backgroundColor: "#f8fafc", color: "#1c1917" }}
+      >
         {children}
         <Toaster richColors position="bottom-right" closeButton />
         <PwaUpdateBanner />
