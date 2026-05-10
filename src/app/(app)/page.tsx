@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { site } from "@/lib/brand";
 import { ui } from "@/lib/ui";
+import { ContactForm } from "@/components/ContactForm";
 
 type Props = {
   searchParams: Promise<{
@@ -59,38 +60,42 @@ export default async function Home({ searchParams }: Props) {
         {/* Glow */}
         <div className="pointer-events-none absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-linear-to-b from-teal-400/20 to-transparent blur-3xl dark:from-teal-500/10" />
 
-        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-32">
-          {/* Badge */}
-          <div className="flex justify-center">
-            <span className={ui.badge}>{site.badge}</span>
+        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            {/* Left: copy */}
+            <div>
+              <span className={ui.badge}>{site.badge}</span>
+              <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-stone-900 dark:text-white sm:text-5xl">
+                Run your studio without{" "}
+                <span className="bg-linear-to-r from-teal-600 to-cyan-500 bg-clip-text text-transparent dark:from-teal-400 dark:to-cyan-400">
+                  the admin pile
+                </span>
+              </h1>
+              <p className="mt-5 text-lg leading-relaxed text-stone-600 dark:text-stone-300">
+                Hosted booking pages, automatic payment reconciliation, and a real-time front desk dashboard — built for Singapore fitness studios.
+              </p>
+              <ul className="mt-6 space-y-2">
+                {[
+                  "Replace WhatsApp payments & manual spreadsheets",
+                  "Members book & pay online — no app needed",
+                  "Real-time front desk dashboard, zero training",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm text-stone-600 dark:text-stone-400">
+                    <CheckCircle size={15} className="mt-0.5 shrink-0 text-teal-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 text-sm text-stone-500 dark:text-stone-400">
+                Interested? Leave your details and we&apos;ll reach out to get you set up.
+              </p>
+            </div>
+
+            {/* Right: contact form */}
+            <div className="flex justify-center lg:justify-end">
+              <ContactForm />
+            </div>
           </div>
-
-          {/* Headline */}
-          <h1 className="mx-auto mt-6 max-w-3xl text-center text-4xl font-bold leading-tight tracking-tight text-stone-900 dark:text-white sm:text-5xl lg:text-6xl">
-            Run your studio without{" "}
-            <span className="bg-linear-to-r from-teal-600 to-cyan-500 bg-clip-text text-transparent dark:from-teal-400 dark:to-cyan-400">
-              the admin pile
-            </span>
-          </h1>
-
-          <p className="mx-auto mt-6 max-w-xl text-center text-lg leading-relaxed text-stone-600 dark:text-stone-300">
-            Hosted booking pages, automatic payment reconciliation, and a real-time front desk dashboard — built for Singapore fitness studios.
-          </p>
-
-          {/* CTA buttons */}
-          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link href="/auth" className={ui.btnPrimary}>
-              Get started free <ArrowRight size={16} />
-            </Link>
-            <Link href="/" className={ui.btnSecondary}>
-              View live example
-            </Link>
-          </div>
-
-          {/* Trust signals */}
-          <p className="mt-5 text-center text-xs text-stone-400 dark:text-stone-500">
-            No credit card required · Setup in under 10 minutes · Cancel anytime
-          </p>
 
           {/* Dashboard mockup card */}
           <div className="mx-auto mt-16 max-w-4xl">
@@ -433,31 +438,24 @@ export default async function Home({ searchParams }: Props) {
             backgroundSize: "60px 60px",
           }}
         />
-        <div className="relative mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 lg:px-8">
-          <Star size={24} className="mx-auto text-teal-200/70" />
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Ready to end the admin pile?
-          </h2>
-          <p className="mx-auto mt-4 max-w-lg text-lg text-teal-100">
-            Set up your studio in under 10 minutes. Share your booking link the same day.
-          </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link
-              href="/auth"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-teal-700 shadow-lg shadow-teal-900/20 transition hover:bg-teal-50 active:scale-[0.98]"
-            >
-              Get started free <ArrowRight size={16} />
-            </Link>
-            <Link
-              href="/dashboard"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-teal-400/50 bg-transparent px-6 py-3 text-sm font-medium text-white transition hover:bg-white/10 active:scale-[0.98]"
-            >
-              Go to dashboard
-            </Link>
+        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div>
+              <Star size={22} className="text-teal-200/70" />
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                Ready to end the admin pile?
+              </h2>
+              <p className="mt-4 text-lg text-teal-100">
+                Leave your details below and we&apos;ll reach out to walk you through setup. Most studios are running the same day.
+              </p>
+              <p className="mt-4 text-sm text-teal-200/80">
+                Singapore-based support · No setup fee · We onboard you personally
+              </p>
+            </div>
+            <div className="flex justify-center lg:justify-end">
+              <ContactForm />
+            </div>
           </div>
-          <p className="mt-5 text-xs text-teal-200/80">
-            Free to start · No credit card · Singapore-based support
-          </p>
         </div>
       </section>
 
