@@ -30,6 +30,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const startedAt = Date.now();
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success)
@@ -160,6 +161,7 @@ export async function POST(req: Request) {
         ok: true,
         already_pending: true,
         checkout_url: reusablePending.gateway_checkout_url,
+        elapsed_ms: Date.now() - startedAt,
       });
     }
     // No reusable pending payment found. The member_zone_purchases row is stale
@@ -207,8 +209,6 @@ export async function POST(req: Request) {
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const amount = Number(accessRule.resolvedPrice.toFixed(2));
   const currency = accessRule.resolvedCurrency;
-  const sourceTitle =
-    accessRule.purchaseScope === "lesson" ? lesson.data?.title ?? series.title : series.title;
 
   const { data: payment } = await admin
     .from("payments")
@@ -270,7 +270,8 @@ export async function POST(req: Request) {
       name: guestName ?? null,
       reference_number: reference,
       redirect_url: redirectUrl,
-      purpose: `Member zone purchase: ${sourceTitle}`,
+      // Keep purpose short/ascii-only to avoid third-party checkout rendering quirks.
+      purpose: "Member zone purchase",
     });
     await admin
       .from("payments")
@@ -280,7 +281,11 @@ export async function POST(req: Request) {
         gateway_status: hitpay.providerStatus,
       })
       .eq("id", payment.id);
-    return NextResponse.json({ ok: true, checkout_url: hitpay.checkoutUrl });
+    return NextResponse.json({
+      ok: true,
+      checkout_url: hitpay.checkoutUrl,
+      elapsed_ms: Date.now() - startedAt,
+    });
   } catch (e) {
     await admin.from("member_zone_purchases").update({ status: "failed" }).eq("payment_id", payment.id);
     await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);

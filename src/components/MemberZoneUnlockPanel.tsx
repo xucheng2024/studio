@@ -63,6 +63,19 @@ export function MemberZoneUnlockPanel(props: {
         toast.error(bad);
         return;
       }
+      // PWA standalone browsers can break third-party secure checkout scripts.
+      // In standalone mode, prefer opening checkout in an external browser tab.
+      const standalone =
+        window.matchMedia?.("(display-mode: standalone)")?.matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      if (standalone) {
+        const opened = window.open(parsed.href, "_blank", "noopener,noreferrer");
+        if (!opened) {
+          // Fallback when popup/open is blocked.
+          window.location.href = parsed.href;
+        }
+        return;
+      }
       window.location.href = parsed.href;
     } catch {
       const bad = "Checkout link was invalid. Please try again.";
@@ -102,10 +115,13 @@ export function MemberZoneUnlockPanel(props: {
     setBusy(true);
     setMsg(null);
     setDebugInfo(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12_000);
     try {
       const res = await fetch("/api/member-zone/purchase/create", {
         method: "POST",
         credentials: "same-origin",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           series_id: props.seriesId,
@@ -144,6 +160,7 @@ export function MemberZoneUnlockPanel(props: {
             `status=${res.status}`,
             `error=${errorCode || "unknown"}`,
             errorDetail ? `detail=${errorDetail}` : null,
+            typeof body.elapsed_ms === "number" ? `elapsed_ms=${body.elapsed_ms}` : null,
             rawText && !errorCode ? `raw=${rawText.slice(0, 300)}` : null,
           ]
             .filter(Boolean)
@@ -158,14 +175,27 @@ export function MemberZoneUnlockPanel(props: {
       }
       const fallback = "Checkout could not be started. Please try again.";
       setMsg(fallback);
-      setDebugInfo(`status=${res.status} | missing_checkout_url`);
+      setDebugInfo(
+        [
+          `status=${res.status}`,
+          "missing_checkout_url",
+          typeof body.elapsed_ms === "number" ? `elapsed_ms=${body.elapsed_ms}` : null,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+      );
       toast.error(fallback);
     } catch (error) {
       const net = "Network error. Check your connection and try again.";
       setMsg(net);
-      setDebugInfo(`exception=${error instanceof Error ? error.message : "unknown_error"}`);
+      setDebugInfo(
+        error instanceof DOMException && error.name === "AbortError"
+          ? "exception=request_timeout_12s"
+          : `exception=${error instanceof Error ? error.message : "unknown_error"}`,
+      );
       toast.error(net);
     } finally {
+      window.clearTimeout(timeout);
       setBusy(false);
     }
   };
