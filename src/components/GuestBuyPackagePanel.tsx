@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
@@ -8,7 +7,6 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageId: string; disabled?: boolean }) {
-  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -40,7 +38,7 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
       return { ok: false as const, message };
     }
     if (body.checkout_url) {
-      router.push(body.checkout_url);
+      window.location.href = body.checkout_url;
       return { ok: true as const };
     }
     setMsg("Payment created");

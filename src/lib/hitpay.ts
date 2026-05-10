@@ -264,3 +264,55 @@ export async function refundHitpayPayment(input: {
 
   return payload;
 }
+
+type HitpayGetPaymentRequestResponse = {
+  id?: string;
+  status?: string;
+  message?: string;
+  payments?: Array<{ id?: string; status?: string }>;
+};
+
+/**
+ * GET /v1/payment-requests/{id} — used to reconcile status when webhooks are delayed or misconfigured.
+ */
+export async function getHitpayPaymentRequest(input: { apiKey: string; requestId: string }): Promise<{
+  status: string;
+  requestId: string;
+  payload: HitpayGetPaymentRequestResponse;
+}> {
+  const apiKey = input.apiKey.trim();
+  if (!apiKey) throw new Error("hitpay_merchant_key_missing");
+  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
+  const rid = input.requestId.trim();
+  if (!rid) throw new Error("hitpay_request_id_missing");
+
+  const res = await fetch(
+    `${HITPAY_API_BASE.replace(/\/$/, "")}/v1/payment-requests/${encodeURIComponent(rid)}`,
+    {
+      method: "GET",
+      headers: {
+        ...getHitpayPlatformHeaders(apiKey),
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    },
+  );
+
+  const payload = (await res.json().catch(() => ({}))) as HitpayGetPaymentRequestResponse;
+  if (!res.ok) {
+    throw new Error(String(payload?.message ?? "hitpay_get_payment_failed"));
+  }
+
+  let status = String(payload.status ?? "").trim().toLowerCase();
+  const firstPay = Array.isArray(payload.payments) ? payload.payments[0] : null;
+  const paySt = String(firstPay?.status ?? "").trim().toLowerCase();
+  if (paySt === "succeeded" || paySt === "completed") {
+    status = "completed";
+  }
+
+  return {
+    status,
+    requestId: String(payload.id ?? rid),
+    payload,
+  };
+}

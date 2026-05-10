@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { isMembershipEnded } from "@/lib/membership-subscription";
-import { upsertMemberStudioMembership } from "@/lib/member-studio";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
-import { ensurePaymentClientId } from "@/lib/resolveClientId";
+import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
 
 type HitpayWebhookPayload = {
   id?: string;
@@ -76,6 +75,26 @@ function normalizeRecurringPaymentStatus(raw: string | null | undefined) {
   if (status === "failed" || status === "canceled" || status === "cancelled" || status === "expired") return "failed";
   return null;
 }
+
+/** Docs say `Hitpay-Signature`; some payloads use `X-Hitpay-Signature`. */
+function getHitpaySignatureHeader(req: Request): string | null {
+  return (
+    req.headers.get("x-hitpay-signature") ??
+    req.headers.get("hitpay-signature") ??
+    req.headers.get("Hitpay-Signature")
+  );
+}
+
+type WebhookPaymentLookupRow = {
+  id: string;
+  status: string;
+  reference_code?: string | null;
+  gateway_payment_id?: string | null;
+  studio_id: string;
+  booking_id?: string | null;
+  event_booking_id?: string | null;
+  studios?: { owner_id?: string | null } | { owner_id?: string | null }[] | null;
+};
 
 type RecurringSubscriptionContext = {
   id: string;
@@ -158,7 +177,7 @@ async function resolveRecurringWebhookContext(args: {
 }
 
 async function handleRecurringWebhook(req: Request, rawBody: string, payload: HitpayWebhookPayload) {
-  const signature = req.headers.get("x-hitpay-signature");
+  const signature = getHitpaySignatureHeader(req);
   const eventType = (req.headers.get("hitpay-event-type") ?? "").trim().toLowerCase();
   const eventObject = (req.headers.get("hitpay-event-object") ?? "").trim().toLowerCase();
   const referenceCode = payload.reference_number?.trim() || payload.reference?.trim() || null;
@@ -222,7 +241,6 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
   const amount = Number(payload.amount ?? 0);
   const currency = String(payload.currency ?? "SGD").toUpperCase();
   const effectiveAt = payload.closed_at ?? payload.created_at ?? new Date().toISOString();
-  const gatewayMethod = payload.payment_provider?.charge?.method ?? "card";
   const gatewayStatus = String(payload.status ?? "").trim().toLowerCase() || null;
   const currentPeriodEnd = addMembershipPeriod(effectiveAt, subscription.billing_interval_snapshot);
 
@@ -287,7 +305,7 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
-  const signature = req.headers.get("x-hitpay-signature");
+  const signature = getHitpaySignatureHeader(req);
   const payload = parseWebhookPayload(rawBody);
   const eventObject = (req.headers.get("hitpay-event-object") ?? "").trim().toLowerCase();
   const eventType = (req.headers.get("hitpay-event-type") ?? "").trim().toLowerCase();
@@ -303,27 +321,37 @@ export async function POST(req: Request) {
     return handleRecurringWebhook(req, rawBody, payload);
   }
 
-  const providerId = payload.id?.trim() || payload.payment_request_id?.trim() || null;
+  const providerRequestId = payload.payment_request_id?.trim() || null;
+  const providerId = providerRequestId || payload.id?.trim() || null;
   const firstSettledPayment = Array.isArray(payload.payments) ? payload.payments[0] : null;
   const providerPaymentId =
     firstSettledPayment?.id?.trim() || payload.payment_id?.trim() || payload.charge_id?.trim() || null;
-  const referenceCode = payload.reference_number?.trim() || null;
+  const referenceCode = payload.reference_number?.trim() || payload.reference?.trim() || null;
   const providerStatus = (payload.status ?? "").trim().toLowerCase();
   if (!providerId && !referenceCode) {
     return NextResponse.json({ error: "missing_payment_reference" }, { status: 400 });
   }
 
   const admin = createAdminClient();
-  let query = admin
-    .from("payments")
-    .select("id, status, reference_code, gateway_payment_id, studio_id, booking_id, event_booking_id, studios(owner_id)")
-    .limit(1);
+  let payment: WebhookPaymentLookupRow | null = null;
   if (providerId) {
-    query = query.eq("gateway_payment_id", providerId);
-  } else {
-    query = query.eq("reference_code", referenceCode);
+    const { data } = await admin
+      .from("payments")
+      .select("id, status, reference_code, gateway_payment_id, studio_id, booking_id, event_booking_id, studios(owner_id)")
+      .eq("gateway_payment_id", providerId)
+      .limit(1)
+      .maybeSingle();
+    payment = data as WebhookPaymentLookupRow | null;
   }
-  const { data: payment } = await query.maybeSingle();
+  if (!payment?.id && referenceCode) {
+    const { data } = await admin
+      .from("payments")
+      .select("id, status, reference_code, gateway_payment_id, studio_id, booking_id, event_booking_id, studios(owner_id)")
+      .eq("reference_code", referenceCode)
+      .limit(1)
+      .maybeSingle();
+    payment = data as WebhookPaymentLookupRow | null;
+  }
   if (!payment?.id) {
     return NextResponse.json({ ok: true });
   }
@@ -342,103 +370,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
 
-  await admin
-    .from("payments")
-    .update({
-      gateway_status: providerStatus || null,
-      gateway_payload: rawBody,
-      gateway_refund_payment_id: providerPaymentId,
-    })
-    .eq("id", payment.id);
-
-  if (providerStatus === "completed" || providerStatus === "succeeded") {
-    const clientId = await ensurePaymentClientId(admin, payment.id);
-    if (clientId) {
-      await upsertMemberStudioMembership(admin, {
-        userId: clientId,
-        studioId: payment.studio_id,
-      });
-    }
-    const ownerId = studio?.owner_id ?? null;
-    if (ownerId) {
-      if ((payment as { event_booking_id?: string | null }).event_booking_id) {
-        await admin.rpc("confirm_event_payment_with_invoice", {
-          p_payment_id: payment.id,
-          p_verified_by: ownerId,
-        });
-      } else {
-        await admin.rpc("confirm_payment_with_invoice", {
-          p_payment_id: payment.id,
-          p_verified_by: ownerId,
-        });
-      }
-    } else {
-      if ((payment as { event_booking_id?: string | null }).event_booking_id) {
-        await admin.rpc("confirm_event_payment", {
-          p_payment_id: payment.id,
-        });
-      } else {
-        await admin.rpc("confirm_payment", {
-          p_payment_id: payment.id,
-        });
-      }
-    }
-    await admin
-      .from("member_zone_purchases")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", payment.id);
-    return NextResponse.json({ ok: true });
-  }
-
-  if (providerStatus === "failed" || providerStatus === "canceled" || providerStatus === "cancelled") {
-    if ((payment as { event_booking_id?: string | null }).event_booking_id) {
-      await admin.rpc("cancel_pending_event_payment", { p_payment_id: payment.id, p_new_status: "failed" });
-    } else {
-      await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "failed" });
-    }
-    await admin
-      .from("member_zone_purchases")
-      .update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("payment_id", payment.id);
-    return NextResponse.json({ ok: true });
-  }
-
-  if (providerStatus === "expired") {
-    if ((payment as { event_booking_id?: string | null }).event_booking_id) {
-      await admin.rpc("cancel_pending_event_payment", { p_payment_id: payment.id, p_new_status: "expired" });
-    } else {
-      await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "expired" });
-    }
-    await admin
-      .from("member_zone_purchases")
-      .update({ status: "expired", updated_at: new Date().toISOString() })
-      .eq("payment_id", payment.id);
-    return NextResponse.json({ ok: true });
-  }
-
-  if (providerStatus === "refunded") {
-    const ownerId = studio?.owner_id ?? null;
-    if (ownerId) {
-      await admin.rpc("refund_payment_with_invoice_void", {
-        p_payment_id: payment.id,
-        p_operator_id: ownerId,
-        p_reason: "hitpay_webhook_refund",
-      });
-    }
-    await admin
-      .from("member_zone_purchases")
-      .update({
-        status: "refunded",
-        refunded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", payment.id);
-    return NextResponse.json({ ok: true });
-  }
-
+  await applyHitpayPaymentRequestStatus(
+    admin,
+    payment,
+    studio,
+    providerStatus,
+    rawBody,
+    providerPaymentId,
+  );
   return NextResponse.json({ ok: true });
 }

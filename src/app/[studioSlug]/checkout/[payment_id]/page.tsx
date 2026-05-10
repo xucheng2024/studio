@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, ExternalLink, ShieldCheck, XCircle } from "lucide-react";
 import { CopyRefButton } from "@/components/CopyRefButton";
+import { HitpayCheckoutSync } from "@/components/HitpayCheckoutSync";
 import { PaymentStatusPoller } from "@/components/PaymentStatusPoller";
 import { studioClassesPath, studioMemberZonePath, studioMePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -29,6 +30,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       expires_at,
       verified_at,
       gateway_checkout_url,
+      gateway_payment_id,
       gateway_status,
       booking_id,
       member_zone_series_id,
@@ -126,6 +128,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
     <main className="mx-auto w-full max-w-md px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
       {/* Auto-refresh every 5 s while payment is still pending */}
       <PaymentStatusPoller stop={!isPending} />
+      <HitpayCheckoutSync
+        paymentId={payment_id}
+        enabled={isPending && Boolean(payment.gateway_payment_id)}
+      />
 
       <div className="flex flex-col gap-5">
 
