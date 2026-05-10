@@ -162,7 +162,21 @@ export async function POST(req: Request) {
         checkout_url: reusablePending.gateway_checkout_url,
       });
     }
-    return NextResponse.json({ error: "purchase_pending" }, { status: 409 });
+    // No reusable pending payment found. The member_zone_purchases row is stale
+    // (its payment has expired/failed but expire_pending_payments didn't clean it up).
+    // Expire the stale purchase records so the user can retry.
+    const expireStaleQuery = admin
+      .from("member_zone_purchases")
+      .update({ status: "expired" })
+      .eq("studio_id", series.studio_id)
+      .eq("client_id", existingClientId ?? "__missing__")
+      .eq("status", "pending");
+    if (accessRule.purchaseScope === "lesson" && lessonId) {
+      await expireStaleQuery.eq("lesson_id", lessonId);
+    } else {
+      await expireStaleQuery.eq("series_id", series.id).is("lesson_id", null);
+    }
+    // Fall through to create a new purchase below.
   }
   const effectiveClientId =
     existingClientId ??
@@ -245,32 +259,15 @@ export async function POST(req: Request) {
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   const redirectUrl = `${baseUrl}/${studio.public_slug}/checkout/${payment.id}`;
-  const profilePromise = user
-    ? admin
-        .from("user_profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .maybeSingle()
-    : Promise.resolve({ data: null });
-  const userRowPromise = user
-    ? admin
-        .from("users")
-        .select("email")
-        .eq("id", user.id)
-        .maybeSingle()
-    : Promise.resolve({ data: null });
-  const [{ data: profile }, { data: userRow }] = await Promise.all([
-    profilePromise,
-    userRowPromise,
-  ]);
 
   try {
     const hitpay = await createHitpayPaymentRequest({
       apiKey: merchantApiKey,
       amount: amount.toFixed(2),
       currency,
-      email: guestEmail ?? userRow?.email ?? null,
-      name: guestName ?? (profile?.full_name?.trim() || null),
+      email: guestEmail ?? user?.email ?? null,
+      // Keep member-zone aligned with package/session payload shape for logged-in users.
+      name: guestName ?? null,
       reference_number: reference,
       redirect_url: redirectUrl,
       purpose: `Member zone purchase: ${sourceTitle}`,
