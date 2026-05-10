@@ -622,9 +622,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   ? "Watch free"
                   : series.access_type === "paid_only"
                     ? `Buy · ${priceStr}`
-                    : series.access_type === "member_or_paid"
-                      ? "View series"
-                      : "Subscribe to watch";
+                    : "View series";
               const seriesPromoPreview = getVideoPreview(series.promo_video_url ?? "");
               const seriesCover = series.cover_image_url ?? seriesPromoPreview.thumbnailUrl ?? null;
               return (

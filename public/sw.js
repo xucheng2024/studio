@@ -1,4 +1,4 @@
-const SW_VERSION = "studio-pwa-v6";
+const SW_VERSION = "studio-pwa-v7";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
@@ -53,6 +53,25 @@ function isBypassedPath(pathname) {
 
 function isNetworkOnlyPath(pathname) {
   return NETWORK_ONLY_SEGMENTS.some((segment) => pathname.includes(segment));
+}
+
+/** Pull-to-refresh, address-bar Reload, etc. use cache mode `reload` so we must not serve stale HTML first. */
+function isReloadNavigation(request) {
+  return request.cache === "reload";
+}
+
+async function networkNavigateThenCache(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request);
+    if (isCacheableResponse(response)) {
+      void cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    return cached ?? offlineFallback();
+  }
 }
 
 function isCacheableHtmlPath(pathname) {
@@ -267,6 +286,11 @@ self.addEventListener("fetch", (event) => {
           return onlineRequiredFallback();
         }),
       );
+      return;
+    }
+
+    if (isReloadNavigation(request)) {
+      event.respondWith(networkNavigateThenCache(request, PAGE_CACHE));
       return;
     }
 

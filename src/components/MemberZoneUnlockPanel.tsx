@@ -71,8 +71,18 @@ export function MemberZoneUnlockPanel(props: {
   }
 
   const startPurchase = async () => {
-    const { data: sessionData } = await createBrowserSupabase().auth.getSession();
+    const supabase = createBrowserSupabase();
+    let { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.user && props.isAuthenticated) {
+      try {
+        await supabase.auth.refreshSession();
+        sessionData = (await supabase.auth.getSession()).data;
+      } catch {
+        /* keep prior sessionData */
+      }
+    }
     const hasBrowserSession = Boolean(sessionData.session?.user);
+    setBrowserLoggedIn(hasBrowserSession);
     if (hasBrowserSession) setShowGuestForm(false);
 
     if (!hasBrowserSession && !showGuestForm) {
@@ -161,7 +171,7 @@ export function MemberZoneUnlockPanel(props: {
         : "Buy once, or unlock everything with a membership.";
 
   return (
-    <div className="rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50/70 to-white px-4 py-4 dark:border-teal-900/40 dark:from-teal-950/30 dark:to-stone-900/60">
+    <div className="relative z-10 rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50/70 to-white px-4 py-4 dark:border-teal-900/40 dark:from-teal-950/30 dark:to-stone-900/60">
       {/* Header */}
       <div className="flex items-center gap-2.5">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
@@ -173,8 +183,8 @@ export function MemberZoneUnlockPanel(props: {
         </div>
       </div>
 
-      {/* Guest form — revealed on "Buy" click for non-logged-in users */}
-      {showGuestForm && !isLoggedInUi && showPurchaseButton ? (
+      {/* Guest form — do not gate on SSR isAuthenticated; it can disagree with getSession() (PWA / ITP / partitions). */}
+      {showGuestForm && showPurchaseButton ? (
         <div className="mt-4 grid gap-2">
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
