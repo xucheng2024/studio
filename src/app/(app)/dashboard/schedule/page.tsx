@@ -20,7 +20,7 @@ type Props = {
   searchParams: Promise<{
     location_id?: string;
     studio_id?: string;
-    session_status?: "all" | "scheduled" | "cancelled";
+    session_status?: "all" | "scheduled" | "cancelled" | "completed";
     date_from?: string;
     date_to?: string;
   }>;
@@ -146,7 +146,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     .limit(300);
   if (selectedLocationId) sessionQuery = sessionQuery.eq("location_id", selectedLocationId);
   const { data: sessions } = await sessionQuery;
-  const sessionStatusFilter = sp.session_status ?? "all";
+  const sessionStatusFilter = sp.session_status ?? "scheduled";
   const sessionRows = sessions ?? [];
   const { data: activeStudio } = await supabase
     .from("studios")
@@ -191,6 +191,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
     const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
     const isCancelled = sessionStatus === "cancelled";
+    const isCompleted = sessionStatus === "completed";
     const bookings = (s.bookings ?? []) as {
       id: string;
       client_id: string | null;
@@ -215,6 +216,11 @@ export default async function SchedulePage({ searchParams }: Props) {
               {isCancelled ? (
                 <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
                   Cancelled
+                </span>
+              ) : null}
+              {isCompleted ? (
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
+                  Completed
                 </span>
               ) : null}
             </div>
@@ -409,6 +415,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             <select name="session_status" className={ui.select} defaultValue={sessionStatusFilter}>
               <option value="all">All</option>
               <option value="scheduled">Scheduled</option>
+              <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </label>

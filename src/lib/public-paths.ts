@@ -43,6 +43,10 @@ export function studioPackagePath(studioSlug: string, packageSlug: string) {
   return `/${studioSlug}/packages/${packageSlug}`;
 }
 
+export function studioMembershipsPath(studioSlug: string) {
+  return `/${studioSlug}/memberships`;
+}
+
 export function studioMembershipPath(studioSlug: string, membershipSlug: string) {
   return `/${studioSlug}/memberships/${membershipSlug}`;
 }

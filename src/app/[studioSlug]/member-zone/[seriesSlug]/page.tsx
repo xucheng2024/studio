@@ -12,7 +12,7 @@ import {
   resolveMemberZoneAccessRule,
 } from "@/lib/memberZoneAccess";
 import type { MemberZoneAccessResult } from "@/lib/memberZoneAccess";
-import { studioMemberZoneListPath, studioMemberZonePath, studioMembershipPath, studioMePath } from "@/lib/public-paths";
+import { studioMemberZoneListPath, studioMemberZonePath, studioMembershipsPath, studioMePath } from "@/lib/public-paths";
 import { buildMemberZoneShareMetadata } from "@/lib/publicShareOg";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -102,16 +102,13 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
-  const { data: featuredMembership } = await admin
+  const { count: publicMembershipCount } = await admin
     .from("membership_products")
-    .select("share_slug")
+    .select("id", { count: "exact", head: true })
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
-    .not("share_slug", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .not("share_slug", "is", null);
 
   const supabase = await createClient();
   const {
@@ -119,9 +116,10 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   const sharePath = studioMemberZonePath(studio.public_slug, seriesData.share_slug);
-  const membershipHref = featuredMembership?.share_slug
-    ? studioMembershipPath(studio.public_slug, featuredMembership.share_slug)
-    : studioMePath(studio.public_slug, "memberships");
+  const membershipHref =
+    publicMembershipCount && publicMembershipCount > 0
+      ? studioMembershipsPath(studio.public_slug)
+      : studioMePath(studio.public_slug, "memberships");
   const lessons = lessonRows ?? [];
   const seriesPriceLabel = `${String(seriesData.currency ?? "SGD").toUpperCase()} ${Number(seriesData.price ?? 0).toFixed(2)}`;
   const seriesBadge = accessTypeBadgeLabel(

@@ -11,11 +11,20 @@ import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarRange, Clock3, Ticket } from "lucide-react";
 
+type EventStatusFilter = "all" | "scheduled" | "completed" | "cancelled";
+
+function resolveEventStatusFilter(raw: string | undefined): EventStatusFilter {
+  if (raw === "all" || raw === "scheduled" || raw === "completed" || raw === "cancelled") return raw;
+  if (raw === "active") return "scheduled";
+  if (raw === "inactive") return "cancelled";
+  return "scheduled";
+}
+
 type Props = {
   searchParams: Promise<{
     location_id?: string;
     studio_id?: string;
-    event_status?: "all" | "active" | "inactive";
+    event_status?: EventStatusFilter | "active" | "inactive";
     date_from?: string;
     date_to?: string;
   }>;
@@ -48,7 +57,8 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const fallbackDateTo = dayRangeEndInclusiveIso(defaultEndDate)!;
   const dateFrom = dayRangeStartIso(sp.date_from ?? defaultDate) ?? fallbackDateFrom;
   const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultEndDate) ?? fallbackDateTo;
-  const eventStatusFilter = sp.event_status ?? "all";
+  const eventStatusFilter = resolveEventStatusFilter(sp.event_status);
+  const nowMs = Date.now();
 
   const eventsQuery = supabase
     .from("events")
@@ -71,8 +81,12 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
 
   const studioEvents = (events ?? []).filter((e) => String(e.studio_id) === studioId);
   const filteredEvents = studioEvents.filter((event) => {
-    if (eventStatusFilter === "active") return event.is_active !== false;
-    if (eventStatusFilter === "inactive") return event.is_active === false;
+    const endMs = new Date(String(event.end_time)).getTime();
+    const isCatalogActive = event.is_active !== false;
+    if (eventStatusFilter === "all") return true;
+    if (eventStatusFilter === "scheduled") return isCatalogActive && endMs >= nowMs;
+    if (eventStatusFilter === "completed") return isCatalogActive && endMs < nowMs;
+    if (eventStatusFilter === "cancelled") return !isCatalogActive;
     return true;
   });
   const activeCount = filteredEvents.filter((event) => event.is_active !== false).length;
@@ -82,8 +96,12 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const renderEventCard = (e: NonNullable<typeof events>[number]) => {
     const href = studioPublicSlug && e.share_slug ? `/${studioPublicSlug}/events/${e.share_slug}` : null;
     const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
+    const endMs = new Date(String(e.end_time)).getTime();
+    const isCatalogActive = e.is_active !== false;
+    const isCompleted = isCatalogActive && endMs < nowMs;
+    const isCancelled = !isCatalogActive;
     return (
-      <form key={e.id} action={updateEvent} className={ui.card}>
+      <form key={e.id} action={updateEvent} className={`${ui.card} ${isCancelled ? "opacity-60" : ""}`}>
         <input type="hidden" name="studio_id" value={studioId} />
         <input type="hidden" name="event_id" value={e.id} />
 
@@ -100,9 +118,14 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="font-semibold text-stone-900 dark:text-stone-100">{e.title}</p>
-                {e.is_active === false ? (
+                {isCancelled ? (
                   <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
-                    Inactive
+                    Cancelled
+                  </span>
+                ) : null}
+                {isCompleted ? (
+                  <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
+                    Completed
                   </span>
                 ) : null}
               </div>
@@ -258,7 +281,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
               {filteredEvents.length}
             </p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>{activeCount} active · {inactiveCount} inactive</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>{activeCount} live · {inactiveCount} cancelled</p>
           </div>
         </section>
         <section className={`${ui.statCard} flex items-center gap-4`}>
@@ -278,11 +301,11 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <Clock3 size={18} />
           </span>
           <div>
-            <p className={`text-xs font-medium ${ui.muted}`}>Inactive events</p>
+            <p className={`text-xs font-medium ${ui.muted}`}>Cancelled</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
               {inactiveCount}
             </p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>Hidden from booking until reactivated</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Deactivated (hidden from booking)</p>
           </div>
         </section>
       </div>
@@ -362,8 +385,9 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <span className={ui.label}>Event status</span>
             <select name="event_status" className={ui.select} defaultValue={eventStatusFilter}>
               <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </label>
           <label className="flex flex-col gap-1.5">

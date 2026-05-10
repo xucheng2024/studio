@@ -53,8 +53,9 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
   revalidatePath("/dashboard/memberships");
-  if (studio?.public_slug && row.share_slug) {
-    revalidatePath(`/${studio.public_slug}/memberships/${row.share_slug}`);
+  if (studio?.public_slug) {
+    revalidatePath(`/${studio.public_slug}/memberships`);
+    if (row.share_slug) revalidatePath(`/${studio.public_slug}/memberships/${row.share_slug}`);
     revalidatePath(`/${studio.public_slug}`);
   }
   return NextResponse.json({ ok: true });
@@ -92,6 +93,10 @@ export async function DELETE(_req: Request, { params }: Params) {
 
   const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
   revalidatePath("/dashboard/memberships");
-  if (studio?.public_slug) revalidatePath(`/${studio.public_slug}`);
+  if (studio?.public_slug) {
+    revalidatePath(`/${studio.public_slug}/memberships`);
+    if (row.share_slug) revalidatePath(`/${studio.public_slug}/memberships/${row.share_slug}`);
+    revalidatePath(`/${studio.public_slug}`);
+  }
   return NextResponse.json({ ok: true });
 }

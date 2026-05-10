@@ -874,6 +874,7 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
   revalidatePath("/dashboard/memberships");
   if (studio.public_slug) {
     revalidatePath(`/${studio.public_slug}`);
+    revalidatePath(`/${studio.public_slug}/memberships`);
     revalidatePath(`/${studio.public_slug}/memberships/${share_slug}`);
   }
 }

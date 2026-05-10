@@ -103,6 +103,7 @@ export async function POST(req: Request) {
     }
 
     const url = `${base}/${studio.public_slug}/memberships/${slugResult.slug}`;
+    revalidatePath(`/${studio.public_slug}/memberships`);
     revalidatePath(`/${studio.public_slug}/memberships/${slugResult.slug}`);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }

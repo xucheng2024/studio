@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
-import { studioHomePath } from "@/lib/public-paths";
+import { studioMembershipsPath } from "@/lib/public-paths";
 import { buildMembershipShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
 
@@ -48,7 +48,7 @@ export default async function PublicMembershipPage({ params }: Props) {
   return (
     <main className={ui.page}>
       <div className="mb-4">
-        <StudioPublicBackNav href={studioHomePath(studioPublicSlug)}>Back to studio</StudioPublicBackNav>
+        <StudioPublicBackNav href={studioMembershipsPath(studioPublicSlug)}>Back to memberships</StudioPublicBackNav>
       </div>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
