@@ -72,7 +72,7 @@ export default async function Home({ searchParams }: Props) {
                 </span>
               </h1>
               <p className="mt-5 text-lg leading-relaxed text-stone-600 dark:text-stone-300">
-                Hosted booking pages, automatic payment reconciliation, and a real-time front desk dashboard — built for <strong>Health and Wellness Studios</strong>.
+                Hosted booking pages, automatic payment reconciliation, and a real-time front desk dashboard — built for <span className="text-stone-900 dark:text-stone-100">Health and Wellness Studios</span>.
               </p>
               <ul className="mt-6 space-y-2">
                 {[
