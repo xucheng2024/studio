@@ -357,9 +357,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         </p>
                       ) : null}
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <Link href={servicePath} className={ui.btnPrimarySm}>
-                          Book now
-                        </Link>
                         {serviceWaLink ? (
                           <a
                             href={serviceWaLink}

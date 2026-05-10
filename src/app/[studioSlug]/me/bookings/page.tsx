@@ -57,6 +57,18 @@ export default async function MyBookingsPage({ params }: Props) {
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
+  const classLocationIds = Array.from(
+    new Set(
+      (classBookings ?? [])
+        .map((b) => b.location_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  );
+  const { data: locationRows } = classLocationIds.length
+    ? await supabase.from("locations").select("id, name").in("id", classLocationIds)
+    : { data: [] as { id: string; name: string | null }[] };
+  const locationMap = new Map((locationRows ?? []).map((loc) => [loc.id, loc.name ?? "Selected branch"]));
+
   const items = [
     ...(classBookings ?? []).map((b) => ({ kind: "class" as const, created_at: b.created_at, data: b })),
     ...(eventBookings ?? []).map((b) => ({ kind: "event" as const, created_at: b.created_at, data: b })),
@@ -98,6 +110,19 @@ export default async function MyBookingsPage({ params }: Props) {
                 const timeLabel = dt
                   ? dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" })
                   : null;
+                const bookedAtLabel = b.created_at
+                  ? new Date(b.created_at).toLocaleString("en-SG", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Asia/Singapore",
+                    })
+                  : null;
+                const locationLabel = b.location_id
+                  ? (locationMap.get(b.location_id) ?? "Selected branch")
+                  : "All locations";
                 const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" }) : "";
                 const dayNum = dt ? dt.getDate() : "";
                 const month = dt ? dt.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" }) : "";
@@ -117,16 +142,20 @@ export default async function MyBookingsPage({ params }: Props) {
                         </div>
                       ) : null}
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <p className="font-semibold text-stone-900 dark:text-stone-100">{cls?.title ?? "Class"}</p>
-                            <p className={`mt-0.5 text-xs ${ui.muted}`}>Class</p>
+                            <p className="font-semibold leading-tight text-stone-900 dark:text-stone-100">{cls?.title ?? "Class"}</p>
+                            {timeLabel ? <p className={`mt-0.5 text-sm ${ui.muted}`}>{timeLabel}</p> : null}
                           </div>
                           <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeToneClass(singleBadge.tone)}`}>
                             {singleBadge.text}
                           </span>
                         </div>
-                        {timeLabel ? <p className={`mt-0.5 text-sm ${ui.muted}`}>{timeLabel}</p> : null}
+                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs ${ui.muted}`}>
+                          <span>Class</span>
+                          <span>Location: {locationLabel}</span>
+                        </div>
+                        {bookedAtLabel ? <p className={`mt-1 text-xs ${ui.muted}`}>Booked on {bookedAtLabel}</p> : null}
                       </div>
                     </div>
                   </li>
@@ -140,6 +169,16 @@ export default async function MyBookingsPage({ params }: Props) {
               const isPast = dt ? dt < new Date() : false;
               const timeLabel = dt
                 ? dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" })
+                : null;
+              const bookedAtLabel = b.created_at
+                ? new Date(b.created_at).toLocaleString("en-SG", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Singapore",
+                  })
                 : null;
               const weekday = dt ? dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" }) : "";
               const dayNum = dt ? dt.getDate() : "";
@@ -161,16 +200,17 @@ export default async function MyBookingsPage({ params }: Props) {
                       </div>
                     ) : null}
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="font-semibold text-stone-900 dark:text-stone-100">{event?.title ?? "Event"}</p>
-                          <p className={`mt-0.5 text-xs ${ui.muted}`}>Event</p>
+                          <p className="font-semibold leading-tight text-stone-900 dark:text-stone-100">{event?.title ?? "Event"}</p>
+                          {timeLabel ? <p className={`mt-0.5 text-sm ${ui.muted}`}>{timeLabel}</p> : null}
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeToneClass(bookingBadge.tone)}`}>
                           {bookingBadge.text}
                         </span>
                       </div>
-                      {timeLabel ? <p className={`mt-0.5 text-sm ${ui.muted}`}>{timeLabel}</p> : null}
+                      <p className={`mt-1.5 text-xs ${ui.muted}`}>Event</p>
+                      {bookedAtLabel ? <p className={`mt-0.5 text-xs ${ui.muted}`}>Booked on {bookedAtLabel}</p> : null}
                     </div>
                   </div>
                 </li>

@@ -28,5 +28,6 @@ export function isMembershipActiveForAccess(
   const status = String(subscription.status ?? "").toLowerCase();
   if (status === "canceled") return false;
   if (isMembershipEnded(subscription, now)) return false;
-  return ["scheduled", "active", "retrying", "inactive", "paused"].includes(status);
+  // Do not grant access for "scheduled" subscriptions until checkout succeeds.
+  return ["active", "retrying", "inactive", "paused"].includes(status);
 }
