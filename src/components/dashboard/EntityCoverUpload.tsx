@@ -44,7 +44,6 @@ const ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 type Props = {
-  entity: "class" | "package";
   entityId: string;
   imageUrl: string | null;
   canEdit: boolean;
@@ -52,7 +51,7 @@ type Props = {
   size?: "full" | "thumb";
 };
 
-export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canEdit, size = "full" }: Props) {
+export function EntityCoverUpload({ entityId, imageUrl: initialUrl, canEdit, size = "full" }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState(initialUrl);
@@ -64,9 +63,7 @@ export function EntityCoverUpload({ entity, entityId, imageUrl: initialUrl, canE
 
   useEffect(() => { setImageUrl(initialUrl); }, [initialUrl]);
 
-  const apiBase = entity === "class"
-    ? `/api/dashboard/classes/${entityId}/image`
-    : `/api/dashboard/packages/${entityId}/image`;
+  const apiBase = `/api/dashboard/classes/${entityId}/image`;
 
   const processFile = async (file: File) => {
     setError(null);

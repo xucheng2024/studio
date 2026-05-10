@@ -792,8 +792,6 @@ export async function createPackage(formData: FormData): Promise<void> {
     expiry_days_raw === "" || expiry_days_raw === null
       ? null
       : Number(expiry_days_raw);
-  const image_url = String(formData.get("image_url") ?? "").trim() || null;
-  const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
 
   if (!name) return;
   if (!Number.isFinite(credits) || credits <= 0) return;
@@ -807,8 +805,6 @@ export async function createPackage(formData: FormData): Promise<void> {
     price,
     expiry_days: expiry_days != null && Number.isFinite(expiry_days) ? expiry_days : null,
     type: "class_pack",
-    image_url,
-    video_url,
   });
   if (error) {
     console.error(error.message);

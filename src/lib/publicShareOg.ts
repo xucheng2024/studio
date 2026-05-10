@@ -39,7 +39,7 @@ export async function buildPackageShareMetadata(
   if (!ctx) return { title: "Package" };
   const { studio, pkg } = ctx;
 
-  const img = pkg.image_url && isTrustedCoverImageUrl(pkg.image_url) ? pkg.image_url : absolutePlaceholderCoverUrl();
+  const img = absolutePlaceholderCoverUrl();
   const desc = `${studio.name} · ${pkg.credits} class passes · $${pkg.price}`;
 
   return {
@@ -68,9 +68,7 @@ export async function buildMembershipShareMetadata(
   if (!ctx) return { title: "Membership" };
   const { studio, membership } = ctx;
 
-  const img = membership.image_url && isTrustedCoverImageUrl(membership.image_url)
-    ? membership.image_url
-    : absolutePlaceholderCoverUrl();
+  const img = absolutePlaceholderCoverUrl();
   const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
   const desc = `${studio.name} · ${intervalLabel} membership · $${membership.price}`;
 

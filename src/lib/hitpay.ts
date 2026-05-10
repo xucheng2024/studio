@@ -45,6 +45,29 @@ type HitpayRecurringBillingRequest = {
   sendEmail?: boolean;
 };
 
+/** HitPay POST /v1/recurring-billing `payment_methods` enum (see API docs). */
+const HITPAY_RECURRING_METHODS_ALLOWED = new Set(["card", "giro", "shopee_recurring"]);
+
+/**
+ * Resolves recurring-billing payment methods. Merchant dashboards only enable a subset;
+ * sending e.g. ["card"] when only GIRO is enabled yields 422 ("must be one of: giro").
+ *
+ * - `HITPAY_RECURRING_PAYMENT_METHODS`: comma-separated (e.g. `giro` or `card,giro`).
+ * - If unset: SGD defaults to `giro` (common for SG recurring); other currencies default to `card`.
+ */
+export function getHitpayRecurringPaymentMethods(currency: string): string[] {
+  const raw = process.env.HITPAY_RECURRING_PAYMENT_METHODS?.trim();
+  if (raw) {
+    const list = raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => HITPAY_RECURRING_METHODS_ALLOWED.has(s));
+    if (list.length > 0) return list;
+  }
+  if (String(currency ?? "").toUpperCase() === "SGD") return ["giro"];
+  return ["card"];
+}
+
 type HitpayRecurringBillingResponse = {
   id?: string;
   status?: string;
@@ -156,7 +179,10 @@ export async function createHitpayRecurringBilling(input: HitpayRecurringBilling
       cycle: input.cycle,
       redirect_url: input.redirectUrl,
       reference: input.reference,
-      payment_methods: input.paymentMethods?.length ? input.paymentMethods : ["card"],
+      payment_methods:
+        input.paymentMethods && input.paymentMethods.length > 0
+          ? input.paymentMethods
+          : getHitpayRecurringPaymentMethods(input.currency),
       send_email: input.sendEmail ? "true" : "false",
     }),
     cache: "no-store",

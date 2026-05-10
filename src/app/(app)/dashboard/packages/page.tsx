@@ -2,7 +2,6 @@ import { createPackage } from "@/app/(app)/dashboard/actions";
 import { PackageLifecycleRow } from "@/components/dashboard/PackageLifecycleRow";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -38,7 +37,7 @@ export default async function PackagesPage({ searchParams }: Props) {
   let packagesQuery = supabase
     .from("packages")
     .select(
-      "id, name, credits, price, expiry_days, studio_id, location_id, is_active, share_slug, image_url, video_url, studios ( public_slug )",
+      "id, name, credits, price, expiry_days, studio_id, location_id, is_active, share_slug, studios ( public_slug )",
     )
     .in("studio_id", studioIds)
     .is("deleted_at", null)
@@ -100,20 +99,6 @@ export default async function PackagesPage({ searchParams }: Props) {
                 <input name="expiry_days" type="number" min={1} className={ui.input} placeholder="Leave empty for no expiry" />
                 <p className={`text-xs ${ui.muted}`}>Empty means no expiry.</p>
               </label>
-              <div className="sm:col-span-2">
-                <CoverVideoFields
-                  studioId={studioId}
-                  folder="packages"
-                  entityId="new-package"
-                  title="Package media"
-                  coverName="image_url"
-                  videoName="video_url"
-                  coverDefaultValue={null}
-                  videoDefaultValue={null}
-                  coverLabel="Cover image"
-                  videoLabel="Promo video URL"
-                />
-              </div>
               <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Saving...">
                 Save package
               </SubmitButton>
@@ -145,14 +130,12 @@ export default async function PackagesPage({ searchParams }: Props) {
                 shareSlug={p.share_slug ?? null}
                 canEdit={canEdit}
                 canCopyLink={canCopyLink}
-                coverImageUrl={(p as { image_url?: string | null }).image_url ?? null}
                 initial={{
                   name: p.name,
                   credits: p.credits,
                   price: Number(p.price),
                   expiry_days: p.expiry_days,
                   location_id: p.location_id,
-                  video_url: (p as { video_url?: string | null }).video_url ?? null,
                 }}
                 locations={locsForStudio}
               />

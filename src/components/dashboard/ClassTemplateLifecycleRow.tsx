@@ -126,7 +126,6 @@ export function ClassTemplateLifecycleRow({
       <div className="flex items-start gap-3">
         {/* Thumbnail */}
         <EntityCoverUpload
-          entity="class"
           entityId={classId}
           imageUrl={coverImageUrl}
           canEdit={canEdit}
@@ -235,7 +234,6 @@ export function ClassTemplateLifecycleRow({
               <span className={ui.label}>Cover image</span>
               <div className="mt-2">
                 <EntityCoverUpload
-                  entity="class"
                   entityId={classId}
                   imageUrl={coverImageUrl}
                   canEdit={canEdit}

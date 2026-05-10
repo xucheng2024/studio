@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
-import { ShareCoverImage } from "@/components/ShareCoverImage";
-import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
-import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import Link from "next/link";
-import { studioPackagesPath, studioPackagePath } from "@/lib/public-paths";
+import { studioPackagesPath } from "@/lib/public-paths";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
-import { getVideoPreview } from "@/lib/videoPreview";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string; packageSlug: string }> };
@@ -29,40 +25,11 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   const loc = pkg.locations as { name?: string } | { name?: string }[] | null;
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
-  const coverSrc = (pkg as { image_url?: string | null }).image_url ?? null;
-  const videoUrl = (pkg as { video_url?: string | null }).video_url ?? null;
   const packageCurrency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
-  const videoPreview = getVideoPreview(videoUrl ?? "");
-  const studioPublicSlug = studio.public_slug ?? rawStudio;
-  const pkgSlugPath = (pkg as { share_slug?: string | null }).share_slug ?? rawPkg;
-  const packageSharePath = studioPackagePath(studioPublicSlug, pkgSlugPath);
-  const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
-    .map((url) => String(url ?? "").trim())
-    .filter(Boolean);
 
   return (
     <main className={ui.page}>
       <Link href={studioPackagesPath(studio.public_slug)} className={ui.link}>← Packages</Link>
-      <StudioMediaWarmup urls={warmupMediaUrls} />
-      {/* ── Hero cover (full-bleed within page padding) ── */}
-      {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
-        <div className="mb-6">
-          <PublicVideoCover
-            title={pkg.name}
-            coverUrl={coverSrc ?? videoPreview.thumbnailUrl ?? null}
-            embedUrl={videoPreview.embedUrl}
-            fallbackUrl={videoUrl?.trim() || null}
-          />
-        </div>
-      ) : (
-        <ShareCoverImage
-          src={coverSrc}
-          alt={pkg.name}
-          sharePath={packageSharePath}
-          shareTitle={pkg.name}
-          shareText={`${pkg.name} · ${studio.name} · ${pkg.credits} class passes`}
-        />
-      )}
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">

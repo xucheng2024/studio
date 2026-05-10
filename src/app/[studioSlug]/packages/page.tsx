@@ -1,13 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioPackagePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
-import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
 
@@ -27,7 +24,7 @@ export default async function PublicPackagesPage({ params }: Props) {
 
   const { data: packages } = await admin
     .from("packages")
-    .select("id, name, price, credits, expiry_days, image_url, video_url, share_slug")
+    .select("id, name, price, credits, expiry_days, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
@@ -44,27 +41,9 @@ export default async function PublicPackagesPage({ params }: Props) {
         {(packages ?? []).map((pkg) => {
           const href = pkg.share_slug ? studioPackagePath(studio.public_slug, pkg.share_slug) : null;
           const currency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
-          const image = (pkg as { image_url?: string | null }).image_url ?? null;
-          const video = (pkg as { video_url?: string | null }).video_url ?? null;
-          const preview = getVideoPreview(video ?? "");
-          const showVideoCover = Boolean(preview.embedUrl || video?.trim());
           return (
             <article key={pkg.id} className={`${ui.card} flex flex-col`}>
-              <div className="mb-4">
-                {showVideoCover ? (
-                  <PublicVideoCover title={pkg.name} coverUrl={image} embedUrl={preview.embedUrl} fallbackUrl={video?.trim() || null} />
-                ) : image ? (
-                  href ? (
-                    <Link href={href} className="block">
-                      <Image src={image} alt={pkg.name} width={1200} height={675} className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800" />
-                    </Link>
-                  ) : (
-                    <Image src={image} alt={pkg.name} width={1200} height={675} className="aspect-video w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800" />
-                  )
-                ) : (
-                  <div className="aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
-                )}
-              </div>
+              <div className="mb-4 aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" aria-hidden />
               <div className="flex flex-1 flex-col">
                 <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
                   {href ? <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">{pkg.name}</Link> : pkg.name}

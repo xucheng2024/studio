@@ -56,7 +56,7 @@ export const getCachedPackageShareContext = cache(async (studioSlugRaw: string, 
 
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, name, credits, price, expiry_days, location_id, is_active, image_url, video_url, share_slug, locations ( name )")
+    .select("id, name, credits, price, expiry_days, location_id, is_active, share_slug, locations ( name )")
     .eq("studio_id", studio.id)
     .eq("share_slug", pkgSlug)
     .eq("is_active", true)
@@ -82,7 +82,7 @@ export const getCachedMembershipShareContext = cache(async (studioSlugRaw: strin
 
   const { data: membership } = await supabase
     .from("membership_products")
-    .select("id, name, description, price, currency, billing_interval, trial_days, image_url, video_url, share_slug, is_active")
+    .select("id, name, description, price, currency, billing_interval, trial_days, share_slug, is_active")
     .eq("studio_id", studio.id)
     .eq("share_slug", membershipSlug)
     .eq("is_active", true)

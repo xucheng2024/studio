@@ -202,7 +202,6 @@ export async function POST(req: Request) {
       cycle: membership.billing_interval === "yearly" ? "yearly" : "monthly",
       redirectUrl,
       reference,
-      paymentMethods: ["card"],
     });
 
     await admin

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
@@ -89,14 +88,14 @@ const getPublicStudioData = async (studioSlugRaw: string) => {
       .limit(8),
     admin
       .from("packages")
-      .select("id, name, price, credits, expiry_days, location_id, image_url, video_url, share_slug")
+      .select("id, name, price, credits, expiry_days, location_id, share_slug")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .is("deleted_at", null)
       .order("price", { ascending: true }),
     admin
       .from("membership_products")
-      .select("id, name, description, price, currency, billing_interval, trial_days, image_url, video_url, share_slug")
+      .select("id, name, description, price, currency, billing_interval, trial_days, share_slug")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .is("deleted_at", null)
@@ -222,16 +221,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           return (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
         }),
         ...visibleEvents.map((e) => (e as { image_url?: string | null }).image_url ?? null),
-        ...packages.slice(0, 2).map((pkg) => {
-          const imageUrl = (pkg as { image_url?: string | null }).image_url ?? null;
-          const videoUrl = (pkg as { video_url?: string | null }).video_url ?? null;
-          return imageUrl ?? getVideoPreview(videoUrl ?? "").thumbnailUrl ?? null;
-        }),
-        ...memberships.slice(0, 2).map((membership) => {
-          const imageUrl = (membership as { image_url?: string | null }).image_url ?? null;
-          const videoUrl = (membership as { video_url?: string | null }).video_url ?? null;
-          return imageUrl ?? getVideoPreview(videoUrl ?? "").thumbnailUrl ?? null;
-        }),
         ...memberZoneSeries.slice(0, 2).map((series) => {
           return series.cover_image_url ?? getVideoPreview(series.promo_video_url ?? "").thumbnailUrl ?? null;
         }),
@@ -707,32 +696,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 ? studioPackagePath(studio.public_slug, pkg.share_slug)
                 : null;
               const packageCurrency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
-              const pkgImage = (pkg as { image_url?: string | null }).image_url ?? null;
-              const pkgVideo = (pkg as { video_url?: string | null }).video_url ?? null;
-              const pkgVideoPreview = getVideoPreview(pkgVideo ?? "");
-              const showVideoCover = Boolean(pkgVideoPreview.embedUrl || pkgVideo?.trim());
               return (
                 <article key={pkg.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
                   <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
                     <div className="shrink-0">
-                      {showVideoCover ? (
-                        <PublicVideoCover
-                          title={pkg.name}
-                          coverUrl={pkgImage}
-                          embedUrl={pkgVideoPreview.embedUrl}
-                          fallbackUrl={pkgVideo?.trim() || null}
-                        />
-                      ) : pkgImage ? (
-                        buyHref ? (
-                          <Link href={buyHref} className="block">
-                            <Image src={pkgImage} alt={pkg.name} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
-                          </Link>
-                        ) : (
-                          <Image src={pkgImage} alt={pkg.name} width={1200} height={675} className="aspect-video w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800" />
-                        )
-                      ) : (
-                        <div className="aspect-video w-full rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
-                      )}
+                      <div className="aspect-video w-full rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" aria-hidden />
                     </div>
                     <div className="flex min-w-0 flex-col">
                       <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
