@@ -95,7 +95,9 @@ export function MemberZoneUnlockPanel(props: {
         /* keep prior sessionData */
       }
     }
-    const hasBrowserSession = Boolean(sessionData.session?.user);
+    // In PWA/ITP contexts, browser SDK session can be temporarily unavailable
+    // even when SSR already identified an authenticated user.
+    const hasBrowserSession = Boolean(sessionData.session?.user) || Boolean(props.isAuthenticated);
     setBrowserLoggedIn(hasBrowserSession);
     if (hasBrowserSession) setShowGuestForm(false);
 
