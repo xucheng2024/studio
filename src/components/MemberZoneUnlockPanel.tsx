@@ -21,6 +21,7 @@ export function MemberZoneUnlockPanel(props: {
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   /** Browser session can disagree with SSR `isAuthenticated` (CDN/cache). */
   const [browserLoggedIn, setBrowserLoggedIn] = useState<boolean | null>(null);
   const isLoggedInUi = Boolean(props.isAuthenticated) || browserLoggedIn === true;
@@ -100,6 +101,7 @@ export function MemberZoneUnlockPanel(props: {
     }
     setBusy(true);
     setMsg(null);
+    setDebugInfo(null);
     try {
       const res = await fetch("/api/member-zone/purchase/create", {
         method: "POST",
@@ -113,7 +115,8 @@ export function MemberZoneUnlockPanel(props: {
           guest_phone: hasBrowserSession ? undefined : (phone.trim() || null),
         }),
       });
-      const body = await res.json().catch(() => ({}));
+      const rawText = await res.text();
+      const body = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
       if (!res.ok) {
         if (body.error === "already_purchased" || body.error === "already_member") {
           window.location.reload();
@@ -134,6 +137,16 @@ export function MemberZoneUnlockPanel(props: {
         }
         const errText = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
         setMsg(errText);
+        setDebugInfo(
+          [
+            `status=${res.status}`,
+            `error=${String(body.error ?? "unknown")}`,
+            body.error_detail ? `detail=${String(body.error_detail)}` : null,
+            rawText && !body.error ? `raw=${rawText.slice(0, 300)}` : null,
+          ]
+            .filter(Boolean)
+            .join(" | "),
+        );
         toast.error(errText);
         return;
       }
@@ -143,10 +156,12 @@ export function MemberZoneUnlockPanel(props: {
       }
       const fallback = "Checkout could not be started. Please try again.";
       setMsg(fallback);
+      setDebugInfo(`status=${res.status} | missing_checkout_url`);
       toast.error(fallback);
-    } catch {
+    } catch (error) {
       const net = "Network error. Check your connection and try again.";
       setMsg(net);
+      setDebugInfo(`exception=${error instanceof Error ? error.message : "unknown_error"}`);
       toast.error(net);
     } finally {
       setBusy(false);
@@ -250,6 +265,11 @@ export function MemberZoneUnlockPanel(props: {
       </div>
 
       {msg ? <p className={`mt-2 text-xs ${ui.error}`}>{msg}</p> : null}
+      {debugInfo ? (
+        <p className="mt-1 wrap-break-word font-mono text-[11px] text-stone-500 dark:text-stone-400">
+          debug: {debugInfo}
+        </p>
+      ) : null}
     </div>
   );
 }
