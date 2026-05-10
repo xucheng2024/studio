@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioPackagePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -32,7 +33,7 @@ export default async function PublicPackagesPage({ params }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
-      <Link href={`${studioHomePath(studio.public_slug)}#packages`} className={ui.link}>Back to home</Link>
+      <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#packages`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4">
         <h1 className={ui.h1}>{studio.public_packages_title?.trim() || "Packages"}</h1>
         <p className={`mt-1 ${ui.muted}`}>Buy a class pass pack and book any upcoming session.</p>

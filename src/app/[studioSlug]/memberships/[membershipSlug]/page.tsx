@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
-import Link from "next/link";
 import { studioHomePath } from "@/lib/public-paths";
 import { buildMembershipShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
@@ -47,7 +47,9 @@ export default async function PublicMembershipPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
-      <Link href={studioHomePath(studioPublicSlug)} className={ui.link}>← Home</Link>
+      <div className="mb-4">
+        <StudioPublicBackNav href={studioHomePath(studioPublicSlug)}>Back to studio</StudioPublicBackNav>
+      </div>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">
@@ -83,7 +85,9 @@ export default async function PublicMembershipPage({ params }: Props) {
           <div className={`${ui.card} overflow-hidden sm:p-6`}>
             <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Subscribe</p>
             <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
-              {paymentReady ? "Secure checkout powered by HitPay." : "Online payment is not configured for this studio."}
+              {paymentReady
+                ? "Recurring billing is set up on HitPay with a card."
+                : "Online payment is not configured for this studio."}
             </p>
             <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
               {membershipCurrency} {Number(membership.price ?? 0).toFixed(2)}

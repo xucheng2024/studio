@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { MemberZoneUnlockPanel } from "@/components/MemberZoneUnlockPanel";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import {
@@ -12,7 +12,7 @@ import {
   resolveMemberZoneAccessRule,
 } from "@/lib/memberZoneAccess";
 import type { MemberZoneAccessResult } from "@/lib/memberZoneAccess";
-import { studioHomePath, studioMemberZonePath, studioMembershipPath, studioMePath } from "@/lib/public-paths";
+import { studioMemberZoneListPath, studioMemberZonePath, studioMembershipPath, studioMePath } from "@/lib/public-paths";
 import { buildMemberZoneShareMetadata } from "@/lib/publicShareOg";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -188,6 +188,9 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <div className="mb-4">
+        <StudioPublicBackNav href={studioMemberZoneListPath(studio.public_slug)}>Back to member zone</StudioPublicBackNav>
+      </div>
       {(() => {
         const promoVideoPreview = getVideoPreview(seriesData.promo_video_url ?? "");
         return promoVideoPreview.embedUrl || seriesData.promo_video_url?.trim() ? (
@@ -344,12 +347,6 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
           </div>
         )}
       </section>
-
-      <div className="mt-6">
-        <Link href={studioHomePath(studio.public_slug)} className={ui.btnSecondarySm}>
-          Back to studio page
-        </Link>
-      </div>
     </main>
   );
 }

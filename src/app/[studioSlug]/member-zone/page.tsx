@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioMemberZonePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -35,7 +36,7 @@ export default async function PublicMemberZonePage({ params }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
-      <Link href={`${studioHomePath(studio.public_slug)}#member-zone`} className={ui.link}>Back to home</Link>
+      <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#member-zone`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4">
         <h1 className={ui.h1}>Member zone</h1>
         <p className={`mt-1 ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>

@@ -52,19 +52,21 @@ const HITPAY_RECURRING_METHODS_ALLOWED = new Set(["card", "giro", "shopee_recurr
  * Resolves recurring-billing payment methods. Merchant dashboards only enable a subset;
  * sending e.g. ["card"] when only GIRO is enabled yields 422 ("must be one of: giro").
  *
- * - `HITPAY_RECURRING_PAYMENT_METHODS`: comma-separated (e.g. `giro` or `card,giro`).
- * - If unset: SGD defaults to `giro` (common for SG recurring); other currencies default to `card`.
+ * Product policy: memberships use card (and optional shopee_recurring via env), not GIRO.
+ *
+ * - `HITPAY_RECURRING_PAYMENT_METHODS`: comma-separated subset of `card`, `shopee_recurring` (`giro` is ignored).
+ * - If unset or only invalid values: `["card"]`.
  */
-export function getHitpayRecurringPaymentMethods(currency: string): string[] {
+export function getHitpayRecurringPaymentMethods(_currency: string): string[] {
   const raw = process.env.HITPAY_RECURRING_PAYMENT_METHODS?.trim();
   if (raw) {
     const list = raw
       .split(",")
       .map((s) => s.trim().toLowerCase())
-      .filter((s) => HITPAY_RECURRING_METHODS_ALLOWED.has(s));
+      .filter((s) => HITPAY_RECURRING_METHODS_ALLOWED.has(s))
+      .filter((s) => s !== "giro");
     if (list.length > 0) return list;
   }
-  if (String(currency ?? "").toUpperCase() === "SGD") return ["giro"];
   return ["card"];
 }
 

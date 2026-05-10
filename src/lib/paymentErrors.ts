@@ -97,7 +97,15 @@ export function paymentErrorMessage(error: string, detail?: string) {
                             ? "HitPay returned an invalid response."
                             : error === "hitpay_gateway_error"
                               ? "HitPay rejected this payment request."
-                              : "Could not continue payment.";
+                              : error === "studio_forbidden"
+                                ? "You cannot purchase from this studio with your current account."
+                                : error === "studio_context_mismatch"
+                                  ? "You are signed in under a different studio. Open this studio’s site and try again."
+                                  : error === "studio_suspended"
+                                    ? "This studio is not accepting payments right now."
+                                    : error === "studio_not_found"
+                                      ? "Studio not found."
+                                      : "Could not continue payment.";
   if (!detail) return base;
   return `${base} (${detail})`;
 }

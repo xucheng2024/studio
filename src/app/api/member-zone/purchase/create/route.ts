@@ -17,6 +17,8 @@ import {
 } from "@/lib/resolveClientId";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import { verifyMemberStudioAccess } from "@/lib/member-studio";
+import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -79,6 +81,20 @@ export async function POST(req: Request) {
   const studio = Array.isArray(studioRaw) ? studioRaw[0] : studioRaw;
   if (!studio?.public_slug || studio.contract_status === "suspended") {
     return NextResponse.json({ error: "studio_unavailable" }, { status: 409 });
+  }
+
+  const blocked = await respondIfStudioContractSuspended(admin, series.studio_id);
+  if (blocked) return blocked;
+
+  if (user) {
+    const studioAccess = await verifyMemberStudioAccess(admin, {
+      userId: user.id,
+      studioId: series.studio_id,
+      bootstrapIfMissing: true,
+    });
+    if (!studioAccess.ok) {
+      return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
+    }
   }
 
   const accessRule = resolveMemberZoneAccessRule({

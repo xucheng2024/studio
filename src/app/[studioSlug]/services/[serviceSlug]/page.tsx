@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedServiceShareContext } from "@/lib/cachedSharePages";
-import { studioHomePath, studioServicePath } from "@/lib/public-paths";
+import { studioServicePath, studioServicesPath } from "@/lib/public-paths";
 import { buildServiceShareMetadata } from "@/lib/publicShareOg";
 import { studioWhatsappLink } from "@/lib/publicStudio";
 import { ui } from "@/lib/ui";
@@ -51,6 +51,9 @@ export default async function PublicServicePage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <div className="mb-4">
+        <StudioPublicBackNav href={studioServicesPath(studio.public_slug ?? rawStudio)}>Back to services</StudioPublicBackNav>
+      </div>
       <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || service.video_url?.trim() ? (
         <div className="mb-6">
@@ -106,9 +109,6 @@ export default async function PublicServicePage({ params }: Props) {
               Enquire now
             </a>
           ) : null}
-          <Link href={`${studioHomePath(studio.public_slug ?? rawStudio)}#services`} className={ui.btnSecondary}>
-            Back to services
-          </Link>
         </div>
       </div>
     </main>

@@ -5,6 +5,7 @@ import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { QuickEventBookPanel } from "@/components/QuickEventBookPanel";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedEventShareContext } from "@/lib/cachedSharePages";
 import { studioEventPath, studioEventsPath } from "@/lib/public-paths";
 import { buildEventShareMetadata } from "@/lib/publicShareOg";
@@ -39,7 +40,7 @@ export default async function PublicEventPage({ params }: Props) {
     <main className={ui.page}>
       <StudioMediaWarmup urls={warmupMediaUrls} />
       <div className="mb-4">
-        <a href={studioEventsPath(studio.public_slug ?? rawStudio)} className={ui.link}>← Events</a>
+        <StudioPublicBackNav href={studioEventsPath(studio.public_slug ?? rawStudio)}>Back to events</StudioPublicBackNav>
       </div>
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">

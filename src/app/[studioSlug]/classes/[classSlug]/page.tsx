@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SessionBookingActions } from "@/components/SessionBookingActions";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
-import Link from "next/link";
 import { studioClassesPath, studioClassPath } from "@/lib/public-paths";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
@@ -140,7 +140,9 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
 
     return (
       <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
-        <Link href={studioClassesPath(studioPublicSlug)} className={ui.link}>← Classes</Link>
+        <div className="mb-4">
+          <StudioPublicBackNav href={studioClassesPath(studioPublicSlug)}>Back to classes</StudioPublicBackNav>
+        </div>
         <StudioMediaWarmup urls={warmupMediaUrls} />
         <div className="mt-4 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:items-start lg:gap-12">
           {/* ── Left: class info ── */}
@@ -256,7 +258,9 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   // ── Multi-session / no-session fallback layout ──
   return (
     <main className={ui.page}>
-      <Link href={studioClassesPath(studioPublicSlug)} className={ui.link}>← Classes</Link>
+      <div className="mb-4">
+        <StudioPublicBackNav href={studioClassesPath(studioPublicSlug)}>Back to classes</StudioPublicBackNav>
+      </div>
       <StudioMediaWarmup urls={warmupMediaUrls} />
       {videoPreview.embedUrl || (videoUrl && videoUrl.trim()) ? (
         <div className="mb-6">

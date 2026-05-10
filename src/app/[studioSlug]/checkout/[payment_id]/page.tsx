@@ -104,24 +104,24 @@ function checkoutNavContext(
     return { fallbackHref: memberZoneSeriesPath, fallbackLabel: "Back to series" };
   }
   if (payment.booking_id) {
-    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "My bookings" };
+    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "Back to bookings" };
   }
   if (payment.event_booking_id) {
-    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "My bookings" };
+    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "Back to bookings" };
   }
   if (source === "package_buy") {
     if (packageDetailPath) {
-      return { fallbackHref: packageDetailPath, fallbackLabel: "View package" };
+      return { fallbackHref: packageDetailPath, fallbackLabel: "Back to package" };
     }
-    return { fallbackHref: studioMePath(studioSlug, "class-passes"), fallbackLabel: "My class passes" };
+    return { fallbackHref: studioMePath(studioSlug, "class-passes"), fallbackLabel: "Back to passes" };
   }
   if (source === "member_zone_purchase") {
-    return { fallbackHref: studioMemberZoneListPath(studioSlug), fallbackLabel: "Member zone" };
+    return { fallbackHref: studioMemberZoneListPath(studioSlug), fallbackLabel: "Back to member zone" };
   }
   if (source === "event_booking") {
-    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "My bookings" };
+    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "Back to bookings" };
   }
-  return { fallbackHref: studioHomePath(studioSlug), fallbackLabel: "Studio home" };
+  return { fallbackHref: studioHomePath(studioSlug), fallbackLabel: "Back to studio" };
 }
 
 export default async function PaymentCheckoutPage({ params }: Props) {

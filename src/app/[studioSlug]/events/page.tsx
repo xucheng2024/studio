@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioEventPath, studioEventsPath, studioHomePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -107,7 +108,7 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
-      <Link href={`${studioHomePath(studio.public_slug)}#events`} className={ui.link}>Back to home</Link>
+      <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#events`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
         <h1 className={ui.h1}>Events</h1>
         <div className="flex gap-3 text-sm font-medium">

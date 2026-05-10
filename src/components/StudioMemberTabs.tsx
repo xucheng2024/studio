@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { studioHomePath, studioMePath } from "@/lib/public-paths";
 
@@ -23,9 +24,10 @@ export function StudioMemberTabs({ studioSlug }: { studioSlug: string }) {
       <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto pb-1">
         <Link
           href={studioHomePath(studioSlug)}
-          className="inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 underline-offset-4 transition hover:bg-stone-100 hover:text-stone-900 hover:underline dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
         >
-          ← Home
+          <ArrowLeft size={14} aria-hidden className="shrink-0 opacity-80" />
+          Back to studio
         </Link>
         <span className="my-auto h-4 w-px shrink-0 bg-stone-200 dark:bg-stone-700" />
         {tabs.map((tab) => {

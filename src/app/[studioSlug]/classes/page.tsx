@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { studioClassPath, studioHomePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -49,7 +50,9 @@ export default async function StudioBookingPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
-      <Link href={studioHomePath(studio.public_slug)} className={ui.link}>← Home</Link>
+      <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#upcoming-classes`}>
+        Back to studio
+      </StudioPublicBackNav>
       {/* ── Studio header ── */}
       <header className="mb-8 mt-4 max-w-2xl">
         <p className={ui.badge}>{studio.name}</p>

@@ -64,7 +64,8 @@ export function SubscribeMembershipPanel({
   return (
     <div className="space-y-3">
       <p className={`text-sm ${ui.muted}`}>
-        {intro ?? "Attach a payment method and start automatic billing for this membership."}
+        {intro ??
+          "You’ll open HitPay to add a card for automatic renewals. One-time studio payments may still use PayNow elsewhere."}
       </p>
       {isLoggedIn === false ? (
         <EmailFirstCheckout

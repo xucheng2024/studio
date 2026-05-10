@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { site } from "@/lib/brand";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
+import { studioHomePath } from "@/lib/public-paths";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
@@ -98,6 +100,11 @@ export function AuthPageInner() {
 
   return (
     <main className={`${ui.page} max-w-5xl`}>
+      {isMemberAuth && memberScopedSlug ? (
+        <div className="mb-4">
+          <StudioPublicBackNav href={studioHomePath(memberScopedSlug)}>Back to studio</StudioPublicBackNav>
+        </div>
+      ) : null}
       <div className="grid gap-6 md:grid-cols-5 md:items-stretch">
         <section className={`${ui.card} h-full md:col-span-3 md:order-1 order-2`}>
           {isMemberAuth ? (

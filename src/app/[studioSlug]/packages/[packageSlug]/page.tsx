@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
-import Link from "next/link";
 import { studioPackagesPath } from "@/lib/public-paths";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
@@ -29,7 +29,9 @@ export default async function PublicPackageBuyPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
-      <Link href={studioPackagesPath(studio.public_slug)} className={ui.link}>← Packages</Link>
+      <div className="mb-4">
+        <StudioPublicBackNav href={studioPackagesPath(studio.public_slug)}>Back to packages</StudioPublicBackNav>
+      </div>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">

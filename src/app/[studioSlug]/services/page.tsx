@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { studioHomePath, studioServicePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -52,7 +53,7 @@ export default async function PublicServicesPage({ params }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
-      <Link href={`${studioHomePath(studio.public_slug)}#services`} className={ui.link}>Back to home</Link>
+      <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#services`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4">
         <h1 className={ui.h1}>{studio.public_services_title?.trim() || "Services"}</h1>
       </div>

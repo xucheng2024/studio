@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
+import { toast } from "sonner";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { ui } from "@/lib/ui";
 
@@ -19,51 +21,126 @@ export function MemberZoneUnlockPanel(props: {
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const isLoggedIn = Boolean(props.isAuthenticated);
+  /** Browser session can disagree with SSR `isAuthenticated` (CDN/cache). */
+  const [browserLoggedIn, setBrowserLoggedIn] = useState<boolean | null>(null);
+  const isLoggedInUi = Boolean(props.isAuthenticated) || browserLoggedIn === true;
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const membershipHref = props.membershipHref ?? "/me/memberships";
 
-  const startPurchase = async () => {
-    if (!isLoggedIn && !showGuestForm) {
-      setShowGuestForm(true);
+  useEffect(() => {
+    let cancelled = false;
+    createBrowserSupabase()
+      .auth.getSession()
+      .then(({ data }) => {
+        if (!cancelled) setBrowserLoggedIn(Boolean(data.session?.user));
+      })
+      .catch(() => {
+        if (!cancelled) setBrowserLoggedIn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Match package buy: trust HitPay absolute URLs; validate with URL() instead of a strict regex. */
+  function goToCheckout(url: unknown) {
+    const raw = String(url ?? "").trim();
+    if (!raw) {
+      const bad = "Checkout could not be started. Please try again.";
+      setMsg(bad);
+      toast.error(bad);
       return;
+    }
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        const bad = "Checkout link was invalid. Please try again.";
+        setMsg(bad);
+        toast.error(bad);
+        return;
+      }
+      window.location.href = parsed.href;
+    } catch {
+      const bad = "Checkout link was invalid. Please try again.";
+      setMsg(bad);
+      toast.error(bad);
+    }
+  }
+
+  const startPurchase = async () => {
+    const { data: sessionData } = await createBrowserSupabase().auth.getSession();
+    const hasBrowserSession = Boolean(sessionData.session?.user);
+    if (hasBrowserSession) setShowGuestForm(false);
+
+    if (!hasBrowserSession && !showGuestForm) {
+      setShowGuestForm(true);
+      setMsg("Enter your details below, then tap Buy again.");
+      return;
+    }
+    if (!hasBrowserSession && showGuestForm) {
+      if (!name.trim() || !email.trim() || !phone.trim()) {
+        const hint = "Please fill in name, email, and phone to continue.";
+        setMsg(hint);
+        toast.error(hint);
+        return;
+      }
     }
     setBusy(true);
     setMsg(null);
-    const res = await fetch("/api/member-zone/purchase/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        series_id: props.seriesId,
-        lesson_id: props.lessonId ?? null,
-        guest_name: isLoggedIn ? undefined : name,
-        guest_email: isLoggedIn ? undefined : email,
-        guest_phone: isLoggedIn ? undefined : (phone.trim() || null),
-      }),
-    });
-    const body = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) {
-      if (body.error === "already_purchased" || body.error === "already_member") {
-        window.location.reload();
+    try {
+      const res = await fetch("/api/member-zone/purchase/create", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          series_id: props.seriesId,
+          lesson_id: props.lessonId ?? null,
+          guest_name: hasBrowserSession ? undefined : name,
+          guest_email: hasBrowserSession ? undefined : email,
+          guest_phone: hasBrowserSession ? undefined : (phone.trim() || null),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (body.error === "already_purchased" || body.error === "already_member") {
+          window.location.reload();
+          return;
+        }
+        if (body.error === "guest_details_required") {
+          setShowGuestForm(true);
+          const hint = hasBrowserSession
+            ? "Your login could not be verified by the server. Refresh the page or complete the form below."
+            : "Please fill in all fields.";
+          setMsg(hint);
+          toast.error(hint);
+          return;
+        }
+        if (body.error === "purchase_pending" && body.checkout_url) {
+          goToCheckout(body.checkout_url);
+          return;
+        }
+        const errText = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
+        setMsg(errText);
+        toast.error(errText);
         return;
       }
-      if (body.error === "guest_details_required") {
-        setShowGuestForm(true);
-        setMsg("Please fill in all fields.");
+      if (body.checkout_url) {
+        goToCheckout(body.checkout_url);
         return;
       }
-      if (body.error === "purchase_pending" && body.checkout_url) {
-        window.location.href = body.checkout_url;
-        return;
-      }
-      setMsg(paymentErrorMessage(String(body.error ?? ""), body.error_detail));
-      return;
+      const fallback = "Checkout could not be started. Please try again.";
+      setMsg(fallback);
+      toast.error(fallback);
+    } catch {
+      const net = "Network error. Check your connection and try again.";
+      setMsg(net);
+      toast.error(net);
+    } finally {
+      setBusy(false);
     }
-    if (body.checkout_url) window.location.href = body.checkout_url;
   };
 
   const showPurchaseButton = props.mode !== "member_only";
@@ -97,7 +174,7 @@ export function MemberZoneUnlockPanel(props: {
       </div>
 
       {/* Guest form — revealed on "Buy" click for non-logged-in users */}
-      {showGuestForm && !isLoggedIn && showPurchaseButton ? (
+      {showGuestForm && !isLoggedInUi && showPurchaseButton ? (
         <div className="mt-4 grid gap-2">
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
@@ -137,13 +214,13 @@ export function MemberZoneUnlockPanel(props: {
         {showPurchaseButton ? (
           <button
             type="button"
-            disabled={busy || (showGuestForm && !isLoggedIn && (!name.trim() || !email.trim() || !phone.trim()))}
+            disabled={busy}
             className={ui.btnPrimarySm}
             onClick={() => void startPurchase()}
           >
             {busy
               ? "Processing…"
-              : showGuestForm || isLoggedIn
+              : showGuestForm || isLoggedInUi
                 ? `Buy · ${props.amountLabel ?? ""}`
                 : "Buy Now"}
           </button>
