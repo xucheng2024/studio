@@ -248,7 +248,7 @@ function InvoicePdf({ payload }: { payload: InvoicePayload }) {
           </View>
           <View style={styles.totalDivider} />
           <View style={styles.totalBandRow}>
-            <Text style={styles.totalBandLabel}>Total Due</Text>
+            <Text style={styles.totalBandLabel}>Total Paid</Text>
             <Text style={styles.totalBandValue}>
               {payload.currency} {payload.amount.toFixed(2)}
             </Text>
