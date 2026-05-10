@@ -139,7 +139,11 @@ export async function POST(req: Request) {
     .eq("membership_product_id", membership.id)
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
     .maybeSingle();
-  if (existing?.id && isMembershipActiveForAccess(existing)) {
+  const existingStatus = String(existing?.status ?? "").toLowerCase();
+  const hasPendingOrActiveSubscription =
+    existing?.id != null &&
+    (existingStatus === "scheduled" || isMembershipActiveForAccess(existing));
+  if (hasPendingOrActiveSubscription) {
     return NextResponse.json({ error: "subscription_exists" }, { status: 409 });
   }
   const clientId =

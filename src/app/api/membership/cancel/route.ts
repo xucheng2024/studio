@@ -32,6 +32,7 @@ export async function POST(req: Request) {
 
   const now = new Date();
   const nowIso = now.toISOString();
+  let recurringCancelFallback = false;
 
   if (sub.recurring_billing_id) {
     const { data: secrets } = await admin
@@ -51,8 +52,38 @@ export async function POST(req: Request) {
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : "hitpay_recurring_cancel_failed";
-      return NextResponse.json({ error: message }, { status: 409 });
+      const pendingUncharged =
+        String(sub.status ?? "").toLowerCase() === "scheduled" &&
+        !(sub as { last_charge_at?: string | null }).last_charge_at;
+      if (!pendingUncharged) {
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
+      recurringCancelFallback = true;
     }
+  }
+
+  // Pending activation with no successful charge should be cancellable locally
+  // even when upstream recurring cancellation cannot be confirmed.
+  if (
+    String(sub.status ?? "").toLowerCase() === "scheduled" &&
+    !(sub as { last_charge_at?: string | null }).last_charge_at
+  ) {
+    const { error } = await admin
+      .from("customer_subscriptions")
+      .update({
+        status: "canceled",
+        canceled_at: nowIso,
+        cancel_at_period_end: false,
+        cancel_requested_at: nowIso,
+        current_period_end: nowIso,
+        updated_at: nowIso,
+        cancel_reason: recurringCancelFallback
+          ? "cancelled_pending_activation_local_fallback"
+          : "cancelled_pending_activation",
+      })
+      .eq("id", sub.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, mode: "pending_activation" });
   }
 
   if (trialDays > 0) {

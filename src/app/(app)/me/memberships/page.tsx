@@ -31,11 +31,20 @@ export default async function MyMembershipsPage() {
     .order("created_at", { ascending: false });
   const subscriptions = subscriptionsRaw ?? [];
 
+  const pendingSubs = subscriptions.filter((s) => String(s.status ?? "").toLowerCase() === "scheduled");
   const activeSubs = subscriptions.filter((s) => isMembershipActiveForAccess(s));
-  const pastSubs = subscriptions.filter((s) => !isMembershipActiveForAccess(s) && (getMembershipDisplayStatus(s) === "canceled" || isMembershipEnded(s)));
+  const currentSubs = [...activeSubs, ...pendingSubs].sort(
+    (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+  );
+  const pastSubs = subscriptions.filter(
+    (s) =>
+      !isMembershipActiveForAccess(s) &&
+      String(s.status ?? "").toLowerCase() !== "scheduled" &&
+      (getMembershipDisplayStatus(s) === "canceled" || isMembershipEnded(s)),
+  );
 
   // IDs with active subscription — don't show "subscribe" for these
-  const activeProductIds = new Set(activeSubs.map((s) => String(s.membership_product_id ?? "")));
+  const activeProductIds = new Set(currentSubs.map((s) => String(s.membership_product_id ?? "")));
 
   // ── 2. Available membership products ────────────────────────────────────
   const c = await cookies();
@@ -81,13 +90,14 @@ export default async function MyMembershipsPage() {
         </div>
 
         {/* ── Active subscriptions ────────────────────────────────────────── */}
-        {activeSubs.length > 0 ? (
+        {currentSubs.length > 0 ? (
           <section className="space-y-3">
-            <h2 className={ui.h2}>Active</h2>
+            <h2 className={ui.h2}>Current</h2>
             <ul className="flex flex-col gap-3">
-              {activeSubs.map((subscription) => {
+              {currentSubs.map((subscription) => {
                 const billingStartDate = (subscription as { billing_start_date?: string | null }).billing_start_date ?? null;
                 const lastCharge = (subscription as { last_charge_at?: string | null }).last_charge_at ?? null;
+                const isPendingActivation = String(subscription.status ?? "").toLowerCase() === "scheduled";
                 const inTrial = Boolean(billingStartDate && !lastCharge && getMembershipDisplayStatus(subscription) !== "canceled");
                 const canSelfCancel =
                   getMembershipDisplayStatus(subscription) !== "canceled" &&
@@ -97,6 +107,8 @@ export default async function MyMembershipsPage() {
                   ? new Date(`${billingStartDate}T00:00:00+08:00`).toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" })
                   : null;
                 const displayStatus = getMembershipDisplayStatus(subscription);
+                const displayStatusLabel =
+                  displayStatus === "scheduled" ? "pending activation" : displayStatus;
                 return (
                   <li key={subscription.id} className={ui.card}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -122,7 +134,9 @@ export default async function MyMembershipsPage() {
                           ) : null}
                         </div>
                         <p className={`mt-2 text-sm ${ui.muted}`}>
-                          {inTrial
+                          {isPendingActivation
+                            ? "Complete checkout to activate membership and start your trial period."
+                            : inTrial
                             ? "You're in your free trial. Cancel any time before the first charge at no cost."
                             : subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription)
                               ? "Cancellation scheduled — access continues until the end of this period."
@@ -141,7 +155,7 @@ export default async function MyMembershipsPage() {
                         ) : null}
                       </div>
                       <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusTone[displayStatus] ?? statusTone.scheduled}`}>
-                        {displayStatus}
+                        {displayStatusLabel}
                       </span>
                     </div>
                   </li>
@@ -154,7 +168,7 @@ export default async function MyMembershipsPage() {
         {/* ── Available plans ─────────────────────────────────────────────── */}
         {availableProducts.length > 0 ? (
           <section className="space-y-3">
-            <h2 className={ui.h2}>{activeSubs.length ? "Other plans" : "Available plans"}</h2>
+            <h2 className={ui.h2}>{currentSubs.length ? "Other plans" : "Available plans"}</h2>
             <ul className="flex flex-col gap-3">
               {availableProducts.map((m) => {
                 const studioSlug = getStudioSlug(m);
@@ -196,7 +210,7 @@ export default async function MyMembershipsPage() {
               })}
             </ul>
           </section>
-        ) : activeSubs.length === 0 ? (
+        ) : currentSubs.length === 0 ? (
           <div className={ui.emptyState}>
             <p className={`text-sm ${ui.muted}`}>No membership plans available yet.</p>
           </div>
