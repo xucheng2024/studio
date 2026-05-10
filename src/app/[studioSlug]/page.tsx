@@ -698,28 +698,23 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const packageCurrency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
               return (
                 <article key={pkg.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
-                  <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
-                    <div className="shrink-0">
-                      <div className="aspect-video w-full rounded-lg border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" aria-hidden />
+                  <div className="flex min-w-0 flex-col">
+                    <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+                      {buyHref ? (
+                        <Link href={buyHref} className="transition hover:text-teal-700 dark:hover:text-teal-400">{pkg.name}</Link>
+                      ) : pkg.name}
+                    </h3>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span className={`text-sm ${ui.muted}`}>{pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}</span>
+                      <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
                     </div>
-                    <div className="flex min-w-0 flex-col">
-                      <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
-                        {buyHref ? (
-                          <Link href={buyHref} className="transition hover:text-teal-700 dark:hover:text-teal-400">{pkg.name}</Link>
-                        ) : pkg.name}
-                      </h3>
-                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span className={`text-sm ${ui.muted}`}>{pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}</span>
-                        <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
-                      </div>
-                      <div className="mt-4 flex items-center gap-4">
-                        {buyHref ? <Link href={buyHref} className={ui.btnPrimarySm}>Buy now</Link> : null}
-                        {pkg.price != null ? (
-                          <span className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-50">
-                            {packageCurrency} {Number(pkg.price).toFixed(2)}
-                          </span>
-                        ) : null}
-                      </div>
+                    <div className="mt-4 flex items-center gap-4">
+                      {buyHref ? <Link href={buyHref} className={ui.btnPrimarySm}>Buy now</Link> : null}
+                      {pkg.price != null ? (
+                        <span className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-50">
+                          {packageCurrency} {Number(pkg.price).toFixed(2)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </article>

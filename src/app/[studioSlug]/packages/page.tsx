@@ -43,7 +43,6 @@ export default async function PublicPackagesPage({ params }: Props) {
           const currency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
           return (
             <article key={pkg.id} className={`${ui.card} flex flex-col`}>
-              <div className="mb-4 aspect-video w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" aria-hidden />
               <div className="flex flex-1 flex-col">
                 <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
                   {href ? <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">{pkg.name}</Link> : pkg.name}

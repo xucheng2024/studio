@@ -3,9 +3,6 @@ import { ui } from "@/lib/ui";
 export default function PackageShareLoading() {
   return (
     <main className={ui.page}>
-      <div className="mb-6 w-full overflow-hidden rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
-        <div className="aspect-video w-full animate-pulse" aria-hidden="true" />
-      </div>
       <div className="max-w-2xl space-y-3">
         <div className="h-5 w-28 rounded bg-stone-200 dark:bg-stone-700" />
         <div className="h-9 w-4/5 max-w-md rounded bg-stone-200 dark:bg-stone-700" />

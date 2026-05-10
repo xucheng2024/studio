@@ -1,15 +1,128 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, ExternalLink, ShieldCheck, XCircle } from "lucide-react";
+import { Clock, ExternalLink, ShieldCheck, XCircle } from "lucide-react";
+import { CheckoutPaidSuccessRegion } from "@/components/CheckoutPaidSuccessRegion";
+import { CheckoutRefreshStatusButton } from "@/components/CheckoutRefreshStatusButton";
+import { CheckoutReturnNav } from "@/components/CheckoutReturnNav";
 import { CopyRefButton } from "@/components/CopyRefButton";
 import { HitpayCheckoutSync } from "@/components/HitpayCheckoutSync";
 import { PaymentStatusPoller } from "@/components/PaymentStatusPoller";
-import { studioClassesPath, studioMemberZonePath, studioMePath } from "@/lib/public-paths";
+import {
+  studioClassesPath,
+  studioEventsPath,
+  studioHomePath,
+  studioMemberZoneListPath,
+  studioMemberZonePath,
+  studioMePath,
+  studioPackagePath,
+  studioPackagesPath,
+} from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Props = { params: Promise<{ studioSlug: string; payment_id: string }> };
+
+const CHECKOUT_LOCALE = "en-SG";
+const CHECKOUT_TZ = "Asia/Singapore";
+
+function formatExpiryLabel(iso: string | null | undefined) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString(CHECKOUT_LOCALE, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: CHECKOUT_TZ,
+  });
+}
+
+function formatVerifiedAt(iso: string | null | undefined) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString(CHECKOUT_LOCALE, { timeZone: CHECKOUT_TZ });
+}
+
+function paymentMethodLabel(method: string | null | undefined, hasGatewayCheckout: boolean): string {
+  const m = (method ?? "").toLowerCase();
+  if (m === "hitpay" || hasGatewayCheckout) return "HitPay (PayNow, etc.)";
+  if (m === "cash") return "Cash";
+  if (m === "card") return "Card";
+  if (m === "paynow") return "PayNow";
+  if (m === "bank_transfer" || m === "transfer" || m === "bank") return "Bank transfer";
+  if (!method) return "—";
+  return method;
+}
+
+function paymentFailureTitle(status: string): string {
+  if (status === "failed") return "Payment failed";
+  if (status === "expired") return "Payment expired";
+  if (status === "refunded") return "Refunded";
+  return `Payment status: ${status}`;
+}
+
+function failedStateDescription(source: string, status: string): string {
+  if (status === "refunded") return "This payment has been refunded.";
+  const base = "This payment was not completed or the link is no longer valid.";
+  if (source === "package_buy")
+    return `${base} You have not been charged. You can return to packages and try again.`;
+  if (source === "member_zone_purchase")
+    return `${base} You can start a new purchase from the member zone.`;
+  if (source === "online_booking")
+    return `${base} Your hold will be released after the time limit — book again from classes.`;
+  if (source === "event_booking")
+    return `${base} Please place a new order from the event page.`;
+  return `${base} Go back or return to the studio home and try again.`;
+}
+
+function failedPrimaryHref(
+  studioSlug: string,
+  source: string,
+): { href: string; label: string } {
+  if (source === "package_buy") {
+    return { href: studioPackagesPath(studioSlug), label: "Browse packages" };
+  }
+  if (source === "member_zone_purchase") {
+    return { href: studioMemberZoneListPath(studioSlug), label: "Member zone" };
+  }
+  if (source === "event_booking") {
+    return { href: studioEventsPath(studioSlug), label: "Browse events" };
+  }
+  return { href: studioClassesPath(studioSlug), label: "Browse classes" };
+}
+
+function checkoutNavContext(
+  studioSlug: string,
+  source: string,
+  payment: {
+    booking_id?: string | null;
+    event_booking_id?: string | null;
+  },
+  memberZoneSeriesPath: string | null,
+  packageDetailPath: string | null,
+): { fallbackHref: string; fallbackLabel: string } {
+  if (memberZoneSeriesPath) {
+    return { fallbackHref: memberZoneSeriesPath, fallbackLabel: "Back to series" };
+  }
+  if (payment.booking_id) {
+    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "My bookings" };
+  }
+  if (payment.event_booking_id) {
+    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "My bookings" };
+  }
+  if (source === "package_buy") {
+    if (packageDetailPath) {
+      return { fallbackHref: packageDetailPath, fallbackLabel: "View package" };
+    }
+    return { fallbackHref: studioMePath(studioSlug, "class-passes"), fallbackLabel: "My class passes" };
+  }
+  if (source === "member_zone_purchase") {
+    return { fallbackHref: studioMemberZoneListPath(studioSlug), fallbackLabel: "Member zone" };
+  }
+  if (source === "event_booking") {
+    return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "My bookings" };
+  }
+  return { fallbackHref: studioHomePath(studioSlug), fallbackLabel: "Studio home" };
+}
 
 export default async function PaymentCheckoutPage({ params }: Props) {
   const { studioSlug: rawStudioSlug, payment_id } = await params;
@@ -29,10 +142,13 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       reference_code,
       expires_at,
       verified_at,
+      package_id,
+      package_name_snapshot,
       gateway_checkout_url,
       gateway_payment_id,
       gateway_status,
       booking_id,
+      event_booking_id,
       member_zone_series_id,
       member_zone_lesson_id,
       studios(public_slug)
@@ -48,6 +164,16 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   if (!studioSlug || studioSlug !== routeStudioSlug) notFound();
   const isHitpay = (payment.payment_method ?? "").toLowerCase() === "hitpay" || Boolean(payment.gateway_checkout_url);
 
+  const source = String(payment.source ?? "").toLowerCase();
+  const packageId = (payment as { package_id?: string | null }).package_id ?? null;
+  let packageDetailPath: string | null = null;
+  if (packageId && source === "package_buy") {
+    const { data: pkgRow } = await admin.from("packages").select("share_slug").eq("id", packageId).maybeSingle();
+    if (pkgRow?.share_slug) {
+      packageDetailPath = studioPackagePath(studioSlug, pkgRow.share_slug);
+    }
+  }
+
   const memberZoneSeriesId = (payment as { member_zone_series_id?: string | null }).member_zone_series_id ?? null;
   let memberZoneSeriesPath: string | null = null;
   if (memberZoneSeriesId) {
@@ -56,11 +182,11 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       .select("share_slug, studios(public_slug)")
       .eq("id", memberZoneSeriesId)
       .maybeSingle();
-    const studioSlug = mzSeries
+    const mzStudioSlug = mzSeries
       ? (Array.isArray(mzSeries.studios) ? mzSeries.studios[0]?.public_slug : (mzSeries.studios as { public_slug?: string | null } | null)?.public_slug)
       : null;
-    if (studioSlug && mzSeries?.share_slug) {
-      memberZoneSeriesPath = studioMemberZonePath(studioSlug, mzSeries.share_slug);
+    if (mzStudioSlug && mzSeries?.share_slug) {
+      memberZoneSeriesPath = studioMemberZonePath(mzStudioSlug, mzSeries.share_slug);
     }
   }
 
@@ -89,7 +215,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
         ? await q.eq("location_id", locationId).maybeSingle()
         : await q.is("location_id", null).maybeSingle();
       if (r) {
-        ruleLine = `Cancel ≥${r.cancel_cutoff_hours ?? 12}h before class · Late-cancel ${
+        ruleLine = `Cancel ≥${r.cancel_cutoff_hours ?? 12}h before class · Late cancel ${
           r.late_cancel_deduct_credit ? "deducts" : "returns"
         } a class pass · No-show after ${r.no_show_buffer_min ?? 15}m ${
           r.no_show_deduct_credit ? "deducts" : "returns"
@@ -109,113 +235,178 @@ export default async function PaymentCheckoutPage({ params }: Props) {
     gatewayStatus === "completed" ||
     gatewayStatus === "succeeded" ||
     gatewayStatus === "paid";
-  const source = String(payment.source ?? "").toLowerCase();
   const holdWindowHint =
     source === "online_booking" || source === "event_booking"
       ? "Reservations are held for 15 minutes, then released automatically."
       : source === "package_buy" || source === "member_zone_purchase"
-        ? "This checkout expires in 30 minutes."
+        ? "This checkout link expires in about 30 minutes."
         : null;
 
-  // Expiry display
+  const nav = checkoutNavContext(
+    studioSlug,
+    source,
+    payment as { booking_id?: string | null; event_booking_id?: string | null },
+    memberZoneSeriesPath,
+    packageDetailPath,
+  );
+
   const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
-  const expiryLabel =
-    expiresAt && isPending
-      ? expiresAt.toLocaleString("en-SG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" })
-      : null;
+  const expiryLabel = expiresAt && isPending ? formatExpiryLabel(payment.expires_at) : null;
+  const packageNameSnapshot = (payment as { package_name_snapshot?: string | null }).package_name_snapshot ?? null;
+  const failedNav = failedPrimaryHref(studioSlug, source);
 
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
-      {/* Auto-refresh every 5 s while payment is still pending */}
-      <PaymentStatusPoller stop={!isPending} />
-      <HitpayCheckoutSync
-        paymentId={payment_id}
-        enabled={isPending && Boolean(payment.gateway_payment_id)}
-      />
-
       <div className="flex flex-col gap-5">
+        <CheckoutReturnNav fallbackHref={nav.fallbackHref} fallbackLabel={nav.fallbackLabel} />
 
-        {/* ── Back link ── */}
-        <Link
-          href={memberZoneSeriesPath ?? (payment.booking_id ? studioMePath(studioSlug, "bookings") : studioClassesPath(studioSlug))}
-          className={`inline-flex items-center gap-1.5 text-sm ${ui.linkMuted} w-fit`}
-        >
-          <ArrowLeft size={14} />
-          {memberZoneSeriesPath ? "Back to series" : payment.booking_id ? "My bookings" : "Browse packages"}
-        </Link>
-
-        {/* ── Page title (visually hidden, for a11y / SEO) ── */}
         <h1 className="sr-only">
-          {isPaid ? "Payment confirmed" : isFailed ? `Payment ${payment.status}` : "Complete your payment"}
+          {isPaid ? "Payment confirmed" : isFailed ? paymentFailureTitle(payment.status) : "Complete your payment"}
         </h1>
 
-        {/* ── Amount hero ── */}
         <div className="rounded-2xl bg-linear-to-br from-teal-600 to-teal-700 px-6 py-7 text-center shadow-lg shadow-teal-900/20 dark:from-teal-700 dark:to-teal-800">
-          <p className="text-sm font-medium text-teal-100">Amount due</p>
+          <p className="text-sm font-medium text-teal-100">{isPaid ? "Amount paid" : "Amount due"}</p>
           <p className="mt-1 text-5xl font-bold tabular-nums tracking-tight text-white">
             {payment.currency} {Number(payment.amount).toFixed(2)}
           </p>
-          <p className="mt-2 text-sm text-teal-200">
-            Pay to:{" "}
-            <span className="font-semibold">
-              {isHitpay ? "HitPay Checkout" : "Studio"}
-            </span>
-          </p>
-          <p className="text-xs text-teal-300">Secure hosted payment page</p>
+          {isPaid ? (
+            <p className="mt-2 text-sm font-medium text-teal-100">Thank you — you&apos;re all set.</p>
+          ) : (
+            <>
+              <p className="mt-2 text-sm text-teal-200">
+                Pay to:{" "}
+                <span className="font-semibold">
+                  {isHitpay ? "HitPay checkout" : "Studio"}
+                </span>
+              </p>
+              <p className="text-xs text-teal-300">Secure hosted payment page</p>
+            </>
+          )}
         </div>
 
-        {/* ── Terminal: paid ── */}
-        {isPaid ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-6 text-center dark:border-teal-800/50 dark:bg-teal-950/30">
-            <ShieldCheck size={28} className="text-teal-600 dark:text-teal-400" />
-            <p className="text-lg font-semibold text-teal-900 dark:text-teal-200">Payment confirmed</p>
-            {memberZoneSeriesPath ? (
-              <>
-                <p className={`text-sm ${ui.muted}`}>Your purchase is confirmed. Enjoy the content!</p>
-                <Link href={memberZoneSeriesPath} className={`mt-2 text-sm ${ui.link}`}>
-                  Watch now →
-                </Link>
-              </>
-            ) : (
-              <>
-                <p className={`text-sm ${ui.muted}`}>Your booking is locked in. See you at class!</p>
-                <Link href={studioMePath(studioSlug, "bookings")} className={`mt-2 text-sm ${ui.link}`}>
-                  View my bookings →
-                </Link>
-              </>
-            )}
-          </div>
+        {isPending ? (
+          <>
+            <PaymentStatusPoller stop={false} showHint />
+            <HitpayCheckoutSync
+              paymentId={payment_id}
+              enabled={Boolean(payment.gateway_payment_id)}
+            />
+          </>
         ) : null}
 
-        {/* ── Terminal: failed / expired / refunded ── */}
+        {isPaid ? (
+          <CheckoutPaidSuccessRegion className="flex flex-col items-stretch gap-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-6 text-center outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 dark:border-teal-800/50 dark:bg-teal-950/30">
+            <div className="flex flex-col items-center gap-2">
+              <ShieldCheck size={28} className="text-teal-600 dark:text-teal-400" aria-hidden />
+              <p className="text-lg font-semibold text-teal-900 dark:text-teal-200">Payment confirmed</p>
+              {memberZoneSeriesPath ? (
+                <>
+                  <p className={`text-sm ${ui.muted}`}>Your purchase is confirmed. Enjoy the content.</p>
+                  <Link href={memberZoneSeriesPath} className={`${ui.btnPrimary} mt-1 inline-flex justify-center`}>
+                    Continue to series
+                  </Link>
+                </>
+              ) : source === "package_buy" ? (
+                <>
+                  <p className={`text-sm ${ui.muted}`}>
+                    Your class passes are on your account. You can book sessions anytime.
+                  </p>
+                  <div className="mt-1 flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+                    {packageDetailPath ? (
+                      <Link href={packageDetailPath} className={`${ui.btnPrimary} inline-flex justify-center sm:min-w-40`}>
+                        View this package
+                      </Link>
+                    ) : null}
+                    <Link
+                      href={studioMePath(studioSlug, "class-passes")}
+                      className={`${packageDetailPath ? ui.btnSecondary : ui.btnPrimary} inline-flex justify-center sm:min-w-40`}
+                    >
+                      My class passes
+                    </Link>
+                    <Link href={studioPackagesPath(studioSlug)} className={`${ui.btnSecondary} inline-flex justify-center sm:min-w-40`}>
+                      Browse packages
+                    </Link>
+                  </div>
+                </>
+              ) : source === "event_booking" ? (
+                <>
+                  <p className={`text-sm ${ui.muted}`}>Your event booking is confirmed.</p>
+                  <Link href={studioMePath(studioSlug, "bookings")} className={`${ui.btnPrimary} mt-1 inline-flex justify-center`}>
+                    My bookings
+                  </Link>
+                </>
+              ) : payment.booking_id ? (
+                <>
+                  <p className={`text-sm ${ui.muted}`}>Your class booking is confirmed. See you there.</p>
+                  <Link href={studioMePath(studioSlug, "bookings")} className={`${ui.btnPrimary} mt-1 inline-flex justify-center`}>
+                    My bookings
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className={`text-sm ${ui.muted}`}>Your payment was successful.</p>
+                  <Link href={studioMePath(studioSlug, "orders")} className={`${ui.btnPrimary} mt-1 inline-flex justify-center`}>
+                    My orders
+                  </Link>
+                </>
+              )}
+
+              <dl className="mt-4 w-full space-y-2 border-t border-teal-200/80 pt-4 text-left text-xs dark:border-teal-800/50">
+                {packageNameSnapshot ? (
+                  <>
+                    <dt className={ui.muted}>Item</dt>
+                    <dd className="text-teal-900 dark:text-teal-100">{packageNameSnapshot}</dd>
+                  </>
+                ) : null}
+                {payment.reference_code ? (
+                  <>
+                    <dt className={ui.muted}>Reference (support)</dt>
+                    <dd className="font-mono font-medium text-teal-900 dark:text-teal-100">{payment.reference_code}</dd>
+                  </>
+                ) : null}
+                <dt className={ui.muted}>Payment method</dt>
+                <dd className="text-teal-900 dark:text-teal-100">
+                  {paymentMethodLabel(payment.payment_method, Boolean(payment.gateway_checkout_url))}
+                </dd>
+                {formatVerifiedAt(payment.verified_at) ? (
+                  <>
+                    <dt className={ui.muted}>Confirmed at</dt>
+                    <dd className="text-teal-900 dark:text-teal-100">{formatVerifiedAt(payment.verified_at)}</dd>
+                  </>
+                ) : null}
+              </dl>
+            </div>
+            <div className="border-t border-teal-200/80 pt-4 dark:border-teal-800/50">
+              <CheckoutReturnNav variant="footer" fallbackHref={nav.fallbackHref} fallbackLabel={nav.fallbackLabel} />
+            </div>
+          </CheckoutPaidSuccessRegion>
+        ) : null}
+
         {isFailed ? (
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-center dark:border-red-800/50 dark:bg-red-950/20">
             <XCircle size={28} className="text-red-500 dark:text-red-400" />
-            <p className="text-lg font-semibold text-red-800 dark:text-red-300 capitalize">
-              Payment {payment.status}
-            </p>
-            <p className={`text-sm ${ui.muted}`}>
-              {payment.status === "refunded"
-                ? "This payment has been refunded."
-                : "This payment link has expired or failed. Please start a new booking."}
-            </p>
+            <p className="text-lg font-semibold text-red-800 dark:text-red-300">{paymentFailureTitle(payment.status)}</p>
+            <p className={`text-sm ${ui.muted}`}>{failedStateDescription(source, payment.status)}</p>
             {payment.status !== "refunded" ? (
-              <Link href={studioClassesPath(studioSlug)} className={`mt-2 text-sm ${ui.link}`}>
-                ← Browse sessions
-              </Link>
+              <div className="mt-3 flex w-full flex-col items-center gap-3">
+                <Link href={failedNav.href} className={`${ui.btnSecondary} inline-flex justify-center`}>
+                  {failedNav.label}
+                </Link>
+                <CheckoutReturnNav variant="footer" fallbackHref={nav.fallbackHref} fallbackLabel={nav.fallbackLabel} />
+              </div>
             ) : null}
           </div>
         ) : null}
 
-        {/* ── Pending: payment instructions ── */}
         {isPending ? (
           <>
-            {/* Primary action: HitPay checkout (when URL exists) */}
             {payment.gateway_checkout_url ? (
               <div className="rounded-2xl border border-teal-200 bg-teal-50 px-5 py-5 dark:border-teal-800/50 dark:bg-teal-950/30">
                 <p className="text-sm font-semibold text-teal-900 dark:text-teal-200">Complete your payment</p>
                 <p className={`mt-1 text-sm ${ui.muted}`}>
-                  Click below to open the secure checkout. This page updates automatically once payment is confirmed.
+                  The button below opens HitPay in a new tab. When you&apos;re done, return to{" "}
+                  <strong className="font-medium text-teal-800 dark:text-teal-200">this tab</strong>
+                  — we&apos;ll update automatically. If nothing changes, refresh the page or use the button below.
                 </p>
                 <a
                   href={payment.gateway_checkout_url}
@@ -226,9 +417,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   Continue to HitPay
                   <ExternalLink size={14} />
                 </a>
+                <CheckoutRefreshStatusButton />
                 {expiryLabel ? (
                   <p className="mt-3 text-xs text-teal-700 dark:text-teal-400">
-                    Link expires at {expiryLabel}
+                    Link expires {expiryLabel} (Singapore time)
                   </p>
                 ) : null}
                 {holdWindowHint ? (
@@ -237,7 +429,6 @@ export default async function PaymentCheckoutPage({ params }: Props) {
               </div>
             ) : null}
 
-            {/* Waiting confirmation banner (when no checkout URL — e.g. manual bank transfer) */}
             {!payment.gateway_checkout_url ? (
               <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 dark:border-stone-700 dark:bg-stone-900/40">
                 <div className="flex items-center gap-3">
@@ -245,29 +436,26 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                     <Clock size={18} className="animate-pulse text-teal-600 dark:text-teal-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
-                      Waiting for payment confirmation
-                    </p>
+                    <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">Waiting for payment confirmation</p>
                     <p className={`mt-0.5 text-xs ${ui.muted}`}>
                       {isGatewayReceived
-                        ? "Payment received — confirming your booking now…"
-                        : "Please complete your transfer. We'll confirm it shortly."}
+                        ? "Payment received — confirming your order…"
+                        : "Complete your transfer. We&apos;ll update this page once it&apos;s confirmed."}
                     </p>
                   </div>
                 </div>
                 {expiryLabel ? (
                   <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
-                    Link expires at {expiryLabel} · This page updates automatically
+                    Link expires {expiryLabel} (Singapore time) · This page refreshes automatically
                   </p>
                 ) : (
                   <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
-                    This page updates automatically
+                    This page refreshes automatically
                   </p>
                 )}
               </div>
             ) : null}
 
-            {/* Reference code — secondary, for support use */}
             {payment.reference_code ? (
               <details className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-stone-700 dark:bg-stone-900/40">
                 <summary className={`cursor-pointer select-none text-xs font-medium ${ui.muted}`}>
@@ -284,15 +472,12 @@ export default async function PaymentCheckoutPage({ params }: Props) {
           </>
         ) : null}
 
-        {/* ── Booking policy ── */}
         {ruleLine ? (
           <p className={`rounded-xl border border-stone-100 px-3 py-2 text-xs ${ui.muted} dark:border-stone-800`}>
             {ruleLine}
           </p>
         ) : null}
-
       </div>
     </main>
   );
 }
-
