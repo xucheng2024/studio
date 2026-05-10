@@ -77,7 +77,7 @@ export const ui = {
 
   /* ── Badges / pills ─────────────────────────────────────────────── */
   badge:
-    "inline-flex items-center rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-medium text-teal-900 dark:border-teal-800/60 dark:bg-teal-950/60 dark:text-teal-100",
+    "inline-flex items-center rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-900 dark:border-teal-800/60 dark:bg-teal-950/60 dark:text-teal-100",
   badgeNeutral:
     "inline-flex items-center rounded-full border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300",
   badgeAmber:
