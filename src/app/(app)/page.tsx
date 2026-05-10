@@ -463,10 +463,20 @@ export default async function Home({ searchParams }: Props) {
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer className="border-t border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-950">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-xs text-stone-400 sm:flex-row sm:px-6 lg:px-8">
-          <span className="font-semibold text-stone-700 dark:text-stone-300">{site.name}</span>
-          <span>Built for gyms, yoga &amp; wellness studios in Singapore.</span>
-          <Link href="/auth" className={ui.linkMuted}>Sign in →</Link>
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">{site.name}</span>
+            <span className="text-xs text-stone-400">Built for gyms, yoga &amp; wellness studios in Singapore.</span>
+            <div className="flex items-center gap-4 text-xs">
+              <a
+                href={`mailto:${site.contactEmail}`}
+                className={ui.linkMuted}
+              >
+                {site.contactEmail}
+              </a>
+              <Link href="/auth" className={ui.linkMuted}>Sign in →</Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

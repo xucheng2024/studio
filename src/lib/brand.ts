@@ -3,6 +3,7 @@
 export const site = {
   name: "Studio",
   title: "Studio — Bookings Made Simple",
+  contactEmail: "business@sgmystudio.com",
   description:
     "Hosted checkout booking, automatic payment tracking, and a front desk dashboard for Singapore fitness studios.",
   badge: "For gyms, yoga & wellness studios · Singapore",
