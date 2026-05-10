@@ -6,7 +6,7 @@ export const site = {
   contactEmail: "business@sgmystudio.com",
   description:
     "Hosted checkout booking, automatic payment tracking, and a front desk dashboard for Singapore fitness studios.",
-  badge: "For gyms, yoga & wellness studios · Singapore",
+  badge: "For health & wellness studios · Singapore",
   homeHeadline: "Run your studio without the admin pile",
   homeLead:
     "Hosted booking links, automatic payment tracking, and a front desk dashboard — built for Singapore studios. No more manual transfer matching.",
