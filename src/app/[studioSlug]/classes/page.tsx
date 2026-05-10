@@ -2,8 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
-import { QuickBookPanel } from "@/components/QuickBookPanel";
-import { studioHomePath } from "@/lib/public-paths";
+import { studioClassPath, studioHomePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,19 +18,18 @@ export default async function StudioBookingPage({ params }: Props) {
   const supabase = createAdminClient();
   const studioRes = await supabase
     .from("studios")
-    .select("id, name, public_slug, hitpay_enabled, contract_status")
+    .select("id, name, public_slug, contract_status")
     .eq("public_slug", slug)
     .maybeSingle();
   const { data: studio, error: stErr } = studioRes;
   if (stErr || !studio || studio.contract_status === "suspended") notFound();
-  const paymentReady = Boolean(studio.hitpay_enabled);
 
   const { data: sessions } = await supabase
     .from("class_sessions")
     .select(
       `id, location_id, start_time, spots_left, capacity, guest_price, credits_required,
        class_title_snapshot, class_image_url_snapshot, class_video_url_snapshot,
-       classes!inner ( title, studio_id, image_url, video_url, capacity, is_active )`,
+       classes!inner ( title, studio_id, image_url, video_url, capacity, is_active, share_slug )`,
     )
     .eq("classes.studio_id", studio.id)
     .eq("classes.is_active", true)
@@ -57,7 +55,7 @@ export default async function StudioBookingPage({ params }: Props) {
         <p className={ui.badge}>{studio.name}</p>
         <h1 className={`${ui.h1} mt-3`}>Book a class</h1>
         <p className={`mt-2 ${ui.lead}`}>
-          Pick a session and continue to secure checkout.
+          Pick a session to open its page and complete booking or checkout.
         </p>
 
         {/* Policy summary */}
@@ -67,10 +65,6 @@ export default async function StudioBookingPage({ params }: Props) {
             Late cancel {rules.late_cancel_deduct_credit ? "uses" : "does not use"} a class pass ·
             No-show after {rules.no_show_buffer_min ?? 15} min {rules.no_show_deduct_credit ? "uses" : "does not use"} a class pass
           </p>
-        ) : null}
-
-        {!paymentReady ? (
-          <p className={`mt-2 text-xs ${ui.error}`}>Online payment is not configured for this deployment.</p>
         ) : null}
 
       </header>
@@ -83,6 +77,17 @@ export default async function StudioBookingPage({ params }: Props) {
             | { title?: string; studio_id?: string; image_url?: string | null; video_url?: string | null; capacity?: number | null }[]
             | null;
           const cls = Array.isArray(classRow) ? classRow[0] : classRow;
+          const classShareSlug = String((cls as { share_slug?: string | null } | undefined)?.share_slug ?? "")
+            .trim()
+            .toLowerCase();
+          const canLinkToClass =
+            classShareSlug.length >= 6 &&
+            classShareSlug.length <= 80 &&
+            /^[a-z0-9-]+$/.test(classShareSlug);
+          const studioPublicSlug = String(studio.public_slug ?? slug);
+          const detailHref = canLinkToClass
+            ? studioClassPath(studioPublicSlug, classShareSlug, `session_id=${s.id}`)
+            : null;
           const title = (s as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
           const imageUrl = (s as { class_image_url_snapshot?: string | null }).class_image_url_snapshot ?? cls?.image_url ?? null;
           const videoUrl = (s as { class_video_url_snapshot?: string | null }).class_video_url_snapshot ?? cls?.video_url ?? null;
@@ -181,17 +186,19 @@ export default async function StudioBookingPage({ params }: Props) {
                   {/* intentionally empty — spots badge is shown on the cover */}
                 </div>
 
-                {/* Actions */}
+                {/* Actions — booking only on class detail page */}
                 <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
-                  {spotsLeft === 0 ? (
-                    <span className={`text-sm ${ui.muted}`}>This class is full</span>
+                  {detailHref ? (
+                    <Link
+                      href={detailHref}
+                      className={`${ui.btnPrimary} flex w-full justify-center no-underline`}
+                    >
+                      Book now
+                    </Link>
                   ) : (
-                    <QuickBookPanel
-                      slug={slug}
-                      sessionId={s.id}
-                      payLabel={`Pay $${Number(s.guest_price ?? 0).toFixed(2)}`}
-                      disabled={!paymentReady}
-                    />
+                    <p className={`text-sm ${ui.muted}`}>
+                      This class does not have a public link yet. Ask the studio to publish it in the dashboard.
+                    </p>
                   )}
                 </div>
               </div>

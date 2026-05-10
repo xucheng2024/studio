@@ -89,7 +89,7 @@ export default async function PublicServicesPage({ params }: Props) {
                     </div>
                   ) : null}
                   <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <Link href={href} className={ui.btnPrimarySm}>View details</Link>
+                    <Link href={href} className={ui.btnPrimarySm}>Book now</Link>
                     {serviceWaLink ? <a href={serviceWaLink} target="_blank" rel="noreferrer" className={ui.btnSecondarySm}>Enquire Now</a> : null}
                     <SessionShareLinkButton sharePath={href} title={`${svc.title} · ${studio.name}`} text={`Check out this service: ${svc.title}`} />
                   </div>

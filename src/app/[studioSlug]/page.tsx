@@ -369,7 +369,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       ) : null}
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Link href={servicePath} className={ui.btnPrimarySm}>
-                          View details
+                          Book now
                         </Link>
                         {serviceWaLink ? (
                           <a
@@ -421,9 +421,15 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 : sessionCapacity > 0
                   ? `${spotsLeft}/${sessionCapacity} spots left`
                   : `${spotsLeft} spots left`;
-              const classSlug = cls?.share_slug;
-              const href = classSlug
-                ? studioClassPath(studio.public_slug, classSlug, `session_id=${s.id}`)
+              const classShareSlug = String(cls?.share_slug ?? "")
+                .trim()
+                .toLowerCase();
+              const canLinkToClass =
+                classShareSlug.length >= 6 &&
+                classShareSlug.length <= 80 &&
+                /^[a-z0-9-]+$/.test(classShareSlug);
+              const href = canLinkToClass
+                ? studioClassPath(studio.public_slug, classShareSlug, `session_id=${s.id}`)
                 : studioClassesPath(studio.public_slug);
               return (
                 <article

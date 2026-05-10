@@ -26,11 +26,12 @@ export function QuickEventBookPanel({
   payLabel = "Pay now",
   disabled,
   triggerClassName,
-  triggerLabel = "Book now",
+  triggerLabel,
   defaultOpen = false,
   hideClose = false,
   embedded = false,
 }: Props) {
+  const collapsedLabel = triggerLabel ?? payLabel;
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -90,7 +91,7 @@ export function QuickEventBookPanel({
         {loading ? (
           <><Loader2 size={15} className="animate-spin" /> Processing...</>
         ) : (
-          triggerLabel
+          collapsedLabel
         )}
       </button>
     );
