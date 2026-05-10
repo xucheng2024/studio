@@ -617,12 +617,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                     : series.access_type === "member_or_paid"
                       ? { label: `From ${priceStr}`, color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" }
                       : { label: "Members only", color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" };
-              const ctaLabel =
-                series.access_type === "free"
-                  ? "Watch free"
-                  : series.access_type === "paid_only"
-                    ? `Buy · ${priceStr}`
-                    : "View series";
+              const ctaLabel = "View series";
               const seriesPromoPreview = getVideoPreview(series.promo_video_url ?? "");
               const seriesCover = series.cover_image_url ?? seriesPromoPreview.thumbnailUrl ?? null;
               return (
