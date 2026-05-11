@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { cancelHitpayRecurringBilling, refundHitpayPayment } from "@/lib/hitpay";
+import { cancelHitpayRecurringBilling, isHitpayPlatformMerchantKeyConflict, refundHitpayPayment } from "@/lib/hitpay";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,10 +55,27 @@ export async function POST(req: Request) {
       const pendingUncharged =
         String(sub.status ?? "").toLowerCase() === "scheduled" &&
         !(sub as { last_charge_at?: string | null }).last_charge_at;
-      if (!pendingUncharged) {
-        return NextResponse.json({ error: message }, { status: 409 });
+      const platformKeyConflict = isHitpayPlatformMerchantKeyConflict(message);
+      /** Allow finishing cancel locally when HitPay recurring DELETE cannot run (e.g. pending checkout, or trial cancel when DELETE rejects duplicate platform/merchant keys). */
+      const allowLocalWithoutRemoteCancel =
+        pendingUncharged || (platformKeyConflict && trialDays > 0);
+
+      if (allowLocalWithoutRemoteCancel) {
+        recurringCancelFallback = true;
+      } else {
+        return NextResponse.json(
+          {
+            error: message,
+            ...(platformKeyConflict
+              ? {
+                  error_detail:
+                    "HitPay platform mode requires different values for env HITPAY_PLATFORM_API_KEY (platform) and the studio merchant API key. They must not be identical. Fix keys or cancel the subscription in the HitPay dashboard.",
+                }
+              : {}),
+          },
+          { status: 409 },
+        );
       }
-      recurringCancelFallback = true;
     }
   }
 
@@ -123,7 +140,19 @@ export async function POST(req: Request) {
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : "hitpay_refund_failed";
-        return NextResponse.json({ error: message }, { status: 409 });
+        const platformKeyConflict = isHitpayPlatformMerchantKeyConflict(message);
+        return NextResponse.json(
+          {
+            error: message,
+            ...(platformKeyConflict
+              ? {
+                  error_detail:
+                    "HitPay refund rejected: platform and merchant API keys must differ (see env HITPAY_PLATFORM_API_KEY vs studio merchant key). Fix keys or process refund in HitPay dashboard.",
+                }
+              : {}),
+          },
+          { status: 409 },
+        );
       }
 
       const { data: refundResult, error: refundErr } = await admin.rpc("refund_payment_with_invoice_void", {

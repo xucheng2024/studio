@@ -97,6 +97,19 @@ function getHitpayPlatformHeaders(apiKey: string) {
   };
 }
 
+/**
+ * HitPay platform mode requires distinct Platform and Business API keys; identical keys yield HTTP errors with this wording.
+ * Some endpoints may still succeed in sandbox while DELETE/recurring-cancel surfaces the error.
+ */
+export function isHitpayPlatformMerchantKeyConflict(message: string): boolean {
+  const m = String(message ?? "").toLowerCase();
+  return (
+    m.includes("same business") ||
+    m.includes("cannot be the same") ||
+    m.includes("platform cannot")
+  );
+}
+
 export function generatePaymentReference() {
   const date = new Date();
   const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
