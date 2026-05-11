@@ -73,7 +73,7 @@ export function SubscribeMembershipButton({
       </button>
       {inline === "exists" && (
         <p className="text-right text-xs text-stone-500 dark:text-stone-400">
-          Already subscribed.{" "}
+          You already have an active membership.{" "}
           <Link href={myMembershipsHref} className="underline underline-offset-2">
             View my memberships →
           </Link>

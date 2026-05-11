@@ -188,9 +188,9 @@ export default async function MyMembershipsPage({ params }: Props) {
         ) : null}
 
         {/* ── Available plans ─────────────────────────────────────────────── */}
-        {availableProducts.length > 0 ? (
+        {availableProducts.length > 0 && currentSubs.length === 0 ? (
           <section className="space-y-3">
-            <h2 className={ui.h2}>{currentSubs.length ? "Other plans" : "Available plans"}</h2>
+            <h2 className={ui.h2}>Available plans</h2>
             <ul className="flex flex-col gap-3">
               {availableProducts.map((m) => {
                 const studioSlug = getStudioSlug(m);
@@ -236,6 +236,13 @@ export default async function MyMembershipsPage({ params }: Props) {
           <div className={ui.emptyState}>
             <p className={`text-sm ${ui.muted}`}>No membership plans available yet.</p>
           </div>
+        ) : availableProducts.length > 0 ? (
+          <section className="space-y-2">
+            <h2 className={ui.h2}>Other plans</h2>
+            <p className={`text-sm ${ui.muted}`}>
+              You already have an active membership. Other plans become available once your current membership ends or is cancelled.
+            </p>
+          </section>
         ) : null}
 
         {/* ── Past / cancelled ────────────────────────────────────────────── */}

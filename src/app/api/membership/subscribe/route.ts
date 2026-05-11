@@ -133,19 +133,25 @@ export async function POST(req: Request) {
     }
   }
 
-  const { data: existing } = await admin
+  /** Block if user already has any active or pending subscription at this studio (not just the same plan). */
+  const { data: existingAnySub } = await admin
     .from("customer_subscriptions")
-    .select("id, status, cancel_at_period_end, current_period_end")
+    .select("id, status, cancel_at_period_end, current_period_end, membership_product_id")
     .eq("client_id", existingClientId ?? "__missing__")
-    .eq("membership_product_id", membership.id)
+    .eq("studio_id", membership.studio_id)
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
+    .limit(1)
     .maybeSingle();
-  const existingStatus = String(existing?.status ?? "").toLowerCase();
+  const existingAnyStatus = String(existingAnySub?.status ?? "").toLowerCase();
   const hasPendingOrActiveSubscription =
-    existing?.id != null &&
-    (existingStatus === "scheduled" || isMembershipActiveForAccess(existing));
+    existingAnySub?.id != null &&
+    (existingAnyStatus === "scheduled" || isMembershipActiveForAccess(existingAnySub));
   if (hasPendingOrActiveSubscription) {
-    return NextResponse.json({ error: "subscription_exists" }, { status: 409 });
+    const isSamePlan = existingAnySub?.membership_product_id === membership.id;
+    return NextResponse.json(
+      { error: "subscription_exists", same_plan: isSamePlan },
+      { status: 409 },
+    );
   }
   const clientId =
     existingClientId ??

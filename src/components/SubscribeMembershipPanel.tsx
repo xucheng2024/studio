@@ -117,7 +117,7 @@ export function SubscribeMembershipPanel({
 
       {inline.type === "exists" && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-300">
-          You already have an active or pending membership for this plan.{" "}
+          You already have an active membership at this studio. You can subscribe to another plan once your current membership ends or is cancelled.{" "}
           <Link href={myMembershipsHref} className="font-medium underline underline-offset-2">
             View my memberships →
           </Link>
