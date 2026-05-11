@@ -27,7 +27,7 @@ export default async function MyMembershipsPage() {
   // ── 1. User's subscriptions ──────────────────────────────────────────────
   const { data: subscriptionsRaw } = await supabase
     .from("customer_subscriptions")
-    .select("id, status, membership_product_id, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, canceled_at, current_period_end, cancel_at_period_end, cancel_requested_at, billing_start_date, last_charge_at")
+    .select("id, status, membership_product_id, membership_name_snapshot, membership_price_snapshot, billing_interval_snapshot, created_at, canceled_at, current_period_end, cancel_at_period_end, cancel_requested_at, billing_start_date, last_charge_at, checkout_url")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
   const subscriptions = subscriptionsRaw ?? [];
@@ -99,8 +99,12 @@ export default async function MyMembershipsPage() {
                 const billingStartDate = (subscription as { billing_start_date?: string | null }).billing_start_date ?? null;
                 const lastCharge = (subscription as { last_charge_at?: string | null }).last_charge_at ?? null;
                 const isPendingActivation = String(subscription.status ?? "").toLowerCase() === "scheduled";
-                const inTrial = Boolean(billingStartDate && !lastCharge && getMembershipDisplayStatus(subscription) !== "canceled");
+                const checkoutUrl = String((subscription as { checkout_url?: string | null }).checkout_url ?? "").trim() || null;
+                const inTrial =
+                  !isPendingActivation &&
+                  Boolean(billingStartDate && !lastCharge && getMembershipDisplayStatus(subscription) !== "canceled");
                 const canSelfCancel =
+                  !isPendingActivation &&
                   getMembershipDisplayStatus(subscription) !== "canceled" &&
                   !isMembershipEnded(subscription) &&
                   (inTrial || !subscription.cancel_at_period_end);
@@ -144,6 +148,16 @@ export default async function MyMembershipsPage() {
                               : "To cancel or change billing, use the button below or contact the studio."}
                         </p>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {isPendingActivation && checkoutUrl ? (
+                            <a
+                              href={checkoutUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`inline-flex items-center justify-center ${ui.btnPrimarySm}`}
+                            >
+                              Continue to payment
+                            </a>
+                          ) : null}
                           <SyncHitpayMembershipButton subscriptionId={subscription.id} />
                           {canSelfCancel ? (
                             <>
