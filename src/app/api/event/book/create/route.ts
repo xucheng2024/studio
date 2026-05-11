@@ -53,15 +53,6 @@ export async function POST(req: Request) {
   const studioId = event.studio_id as string | null;
   if (!studioId) return NextResponse.json({ error: "invalid_event" }, { status: 500 });
 
-  if (user) {
-    const studioAccess = await verifyMemberStudioAccess(admin, {
-      userId: user.id,
-      studioId,
-      bootstrapIfMissing: true,
-    });
-    if (!studioAccess.ok) return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
-  }
-
   const studioRaw = event.studios as { public_slug?: string | null } | { public_slug?: string | null }[] | null;
   const studioObj = Array.isArray(studioRaw) ? studioRaw[0] : studioRaw;
   const studioSlug = normalizeStudioSlug(studioObj?.public_slug ?? "");
@@ -71,6 +62,16 @@ export async function POST(req: Request) {
   const inputSlug = parsed.data.slug ? normalizeStudioSlug(parsed.data.slug) : null;
   if (inputSlug && inputSlug !== studioSlug) {
     return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
+  }
+
+  if (user) {
+    const studioAccess = await verifyMemberStudioAccess(admin, {
+      userId: user.id,
+      studioId,
+      bootstrapIfMissing: true,
+      declaredStudioSlug: inputSlug,
+    });
+    if (!studioAccess.ok) return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
   }
 
   const amount = Number(event.price ?? 0);

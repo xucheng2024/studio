@@ -30,7 +30,13 @@ export async function upsertMemberStudioMembership(
 
 export async function verifyMemberStudioAccess(
   admin: SupabaseClient,
-  params: { userId: string; studioId: string; bootstrapIfMissing?: boolean },
+  params: {
+    userId: string;
+    studioId: string;
+    bootstrapIfMissing?: boolean;
+    /** When set and matches this studio’s `public_slug`, trust it over a stale `member_active_studio_slug` cookie (same-tab checkout). */
+    declaredStudioSlug?: string | null;
+  },
 ) {
   const { data: studio } = await admin
     .from("studios")
@@ -40,8 +46,11 @@ export async function verifyMemberStudioAccess(
   const studioSlug = normalizeStudioSlug(studio?.public_slug ?? "");
   if (!studioSlug) return { ok: false as const, reason: "studio_not_found" };
 
+  const declared = params.declaredStudioSlug ? normalizeStudioSlug(params.declaredStudioSlug) : "";
+  const contextMatchesDeclared = Boolean(declared && declared === studioSlug);
+
   const activeSlug = await getActiveMemberStudioSlugFromCookie();
-  if (activeSlug && activeSlug !== studioSlug) {
+  if (activeSlug && activeSlug !== studioSlug && !contextMatchesDeclared) {
     return { ok: false as const, reason: "studio_context_mismatch" };
   }
 
@@ -54,7 +63,7 @@ export async function verifyMemberStudioAccess(
     .maybeSingle();
   if (membership?.id) return { ok: true as const, studioSlug };
 
-  if (params.bootstrapIfMissing && activeSlug === studioSlug) {
+  if (params.bootstrapIfMissing && (activeSlug === studioSlug || contextMatchesDeclared)) {
     await upsertMemberStudioMembership(admin, { userId: params.userId, studioId: params.studioId });
     return { ok: true as const, studioSlug };
   }

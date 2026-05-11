@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: row } = await admin
     .from("customer_subscriptions")
-    .select("id, studio_id, client_id, recurring_billing_id, reference_code, status, payment_method_attached_at")
+    .select("id, studio_id, client_id, recurring_billing_id, reference_code, status, payment_method_attached_at, canceled_at")
     .eq("id", parsed.data.subscription_id)
     .eq("client_id", user.id)
     .maybeSingle();
@@ -61,6 +61,7 @@ export async function POST(req: Request) {
     );
   }
 
+  const nowIso = new Date().toISOString();
   let remote: Awaited<ReturnType<typeof getHitpayRecurringBilling>>;
   try {
     remote = await getHitpayRecurringBilling({
@@ -70,18 +71,43 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "hitpay_sync_failed";
+    /** After dashboard cancel, HitPay may stop returning the recurring row for every filter — release stale `scheduled` locally so members can check out again. */
+    if (msg === "hitpay_recurring_not_found" && String(row.status ?? "").toLowerCase() === "scheduled") {
+      const gatewayPayload = JSON.stringify({
+        source: "hitpay_sync_not_found",
+        fetched_at: nowIso,
+        detail: "No recurring billing matched reference/recurring id (often after cancel or expiry).",
+      });
+      await admin
+        .from("customer_subscriptions")
+        .update({
+          status: "canceled",
+          canceled_at: row.canceled_at ?? nowIso,
+          cancel_at_period_end: false,
+          gateway_payload: gatewayPayload,
+          updated_at: nowIso,
+          cancel_reason: "hitpay_sync_remote_not_found",
+        })
+        .eq("id", row.id);
+      const { data: refreshed } = await admin.from("customer_subscriptions").select("status").eq("id", row.id).maybeSingle();
+      return NextResponse.json({
+        ok: true,
+        hitpay_status: null,
+        subscription_status: refreshed?.status ?? null,
+        reconciled: "not_found_marked_canceled",
+      });
+    }
     return NextResponse.json({ error: "hitpay_lookup_failed", detail: msg }, { status: 502 });
   }
 
   const next = normalizeHitpayRecurringBillingStatus(remote.status);
-  const nowIso = new Date().toISOString();
   const gatewayPayload = JSON.stringify({
     source: "hitpay_recurring_get",
     fetched_at: nowIso,
     remote,
   });
 
-  const update: Record<string, string | null> = {
+  const update: Record<string, string | null | boolean> = {
     gateway_payload: gatewayPayload,
     updated_at: nowIso,
   };
@@ -89,6 +115,12 @@ export async function POST(req: Request) {
     update.status = next;
     if (next === "active" && !row.payment_method_attached_at) {
       update.payment_method_attached_at = nowIso;
+    }
+    if (next === "canceled") {
+      update.cancel_at_period_end = false;
+      if (!row.canceled_at) {
+        update.canceled_at = nowIso;
+      }
     }
   }
 

@@ -89,16 +89,6 @@ export async function POST(req: Request) {
   if ((session.spots_left ?? 0) <= 0) {
     return NextResponse.json({ error: "full" }, { status: 409 });
   }
-  if (user) {
-    const studioAccess = await verifyMemberStudioAccess(admin, {
-      userId: user.id,
-      studioId,
-      bootstrapIfMissing: true,
-    });
-    if (!studioAccess.ok) {
-      return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
-    }
-  }
 
   const studioRaw = cls?.studios;
   const studioObj = Array.isArray(studioRaw) ? studioRaw[0] : studioRaw;
@@ -109,6 +99,18 @@ export async function POST(req: Request) {
   const inputSlug = parsed.data.slug ? normalizeStudioSlug(parsed.data.slug) : null;
   if (inputSlug && inputSlug !== studioSlug) {
     return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
+  }
+
+  if (user) {
+    const studioAccess = await verifyMemberStudioAccess(admin, {
+      userId: user.id,
+      studioId,
+      bootstrapIfMissing: true,
+      declaredStudioSlug: inputSlug,
+    });
+    if (!studioAccess.ok) {
+      return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
+    }
   }
 
   const amount = Number(session.guest_price ?? 0);

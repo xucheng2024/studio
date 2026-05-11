@@ -2,6 +2,7 @@
 export function normalizeHitpayRecurringBillingStatus(raw: string | null | undefined) {
   const status = String(raw ?? "").trim().toLowerCase();
   if (status === "cancelled") return "canceled";
+  if (status === "expired") return "canceled";
   if (["scheduled", "active", "retrying", "inactive", "paused", "canceled"].includes(status)) return status;
   if (status === "succeeded") return "active";
   return null;

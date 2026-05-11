@@ -235,7 +235,8 @@ export async function getHitpayRecurringBilling(input: {
   if (!reference) throw new Error("hitpay_reference_missing");
 
   const base = `${HITPAY_API_BASE.replace(/\/$/, "")}/v1/recurring-billing`;
-  const statuses = ["scheduled", "active", "retrying", "inactive", "canceled"] as const;
+  /** HitPay filters by status; UK spelling `cancelled` may omit rows when only `canceled` is queried. */
+  const statuses = ["scheduled", "active", "retrying", "inactive", "paused", "canceled", "cancelled"] as const;
   const rid = input.recurringBillingId?.trim() ?? null;
 
   const normalizeListPayload = (payload: unknown): HitpayRecurringBillingResponse[] => {

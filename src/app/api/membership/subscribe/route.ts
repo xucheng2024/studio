@@ -126,6 +126,7 @@ export async function POST(req: Request) {
       userId: existingClientId ?? user.id,
       studioId: membership.studio_id,
       bootstrapIfMissing: true,
+      declaredStudioSlug: inputSlug,
     });
     if (!studioAccess.ok) {
       return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
