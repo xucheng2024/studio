@@ -48,12 +48,9 @@ export default async function MyMembershipsPage({ params }: Props) {
   const currentSubs = [...activeSubs, ...pendingSubs].sort(
     (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
   );
-  const pastSubs = subscriptions.filter(
-    (s) =>
-      !isMembershipActiveForAccess(s) &&
-      String(s.status ?? "").toLowerCase() !== "scheduled" &&
-      (getMembershipDisplayStatus(s) === "canceled" || isMembershipEnded(s)),
-  );
+  /** Anything not in Current (active + pending checkout) is Past — avoids hidden rows when display is "ending" but DB is already canceled. */
+  const currentSubIds = new Set(currentSubs.map((s) => s.id));
+  const pastSubs = subscriptions.filter((s) => !currentSubIds.has(s.id));
 
   // IDs with active subscription — don't show "subscribe" for these
   const activeProductIds = new Set(currentSubs.map((s) => String(s.membership_product_id ?? "")));
