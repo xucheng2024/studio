@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isMembershipEnded } from "@/lib/membership-subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
+import { normalizeHitpayRecurringBillingStatus } from "@/lib/hitpayRecurringStatus";
 import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
 
 type HitpayWebhookPayload = {
@@ -37,6 +38,13 @@ type HitpayWebhookPayload = {
   };
 };
 
+/** HitPay docs use dotted event types (e.g. `recurring_billing.method_attached`); some payloads send the short name only. */
+function hitpayEventTypeMatches(headerValue: string | null | undefined, shortName: string): boolean {
+  const h = String(headerValue ?? "").trim().toLowerCase();
+  const n = shortName.trim().toLowerCase();
+  return h === n || h.endsWith(`.${n}`);
+}
+
 function parseWebhookPayload(rawBody: string): HitpayWebhookPayload {
   try {
     return JSON.parse(rawBody) as HitpayWebhookPayload;
@@ -58,14 +66,6 @@ function parseWebhookPayload(rawBody: string): HitpayWebhookPayload {
       channel: form.get("channel") ?? undefined,
     };
   }
-}
-
-function normalizeRecurringStatus(raw: string | null | undefined) {
-  const status = String(raw ?? "").trim().toLowerCase();
-  if (status === "cancelled") return "canceled";
-  if (["scheduled", "active", "retrying", "inactive", "paused", "canceled"].includes(status)) return status;
-  if (status === "succeeded") return "active";
-  return null;
 }
 
 function normalizeRecurringPaymentStatus(raw: string | null | undefined) {
@@ -181,7 +181,17 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
   const eventType = (req.headers.get("hitpay-event-type") ?? "").trim().toLowerCase();
   const eventObject = (req.headers.get("hitpay-event-object") ?? "").trim().toLowerCase();
   const referenceCode = payload.reference_number?.trim() || payload.reference?.trim() || null;
-  const recurringBillingId = eventObject === "recurring_billing" ? payload.id?.trim() || null : null;
+  /** HitPay sends recurring billing UUID on recurring_billing object and on method_attached / subscription_updated (reference alone may be missing). */
+  let recurringBillingId: string | null = null;
+  if (eventObject === "recurring_billing") {
+    recurringBillingId = payload.id?.trim() || null;
+  } else if (
+    hitpayEventTypeMatches(eventType, "method_attached") ||
+    hitpayEventTypeMatches(eventType, "method_detached") ||
+    hitpayEventTypeMatches(eventType, "subscription_updated")
+  ) {
+    recurringBillingId = payload.id?.trim() || null;
+  }
   const chargeId =
     payload.payment_provider?.charge?.id?.trim() ||
     payload.payment_id?.trim() ||
@@ -199,8 +209,13 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
     return NextResponse.json({ ok: true });
   }
 
-  if (eventObject === "recurring_billing" || eventType === "method_attached" || eventType === "method_detached" || eventType === "subscription_updated") {
-    const recurringStatus = normalizeRecurringStatus(payload.status);
+  if (
+    eventObject === "recurring_billing" ||
+    hitpayEventTypeMatches(eventType, "method_attached") ||
+    hitpayEventTypeMatches(eventType, "method_detached") ||
+    hitpayEventTypeMatches(eventType, "subscription_updated")
+  ) {
+    const recurringStatus = normalizeHitpayRecurringBillingStatus(payload.status);
     const nowIso = new Date().toISOString();
     const update: Record<string, string | null> = {
       gateway_payload: rawBody,
@@ -218,9 +233,20 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
         },
         new Date(),
       );
-    if (recurringStatus && !endingAtPeriodEnd) update.status = recurringStatus;
-    if (eventType === "method_attached") {
+    const currentLower = String(subscription.status ?? "").toLowerCase();
+
+    if (hitpayEventTypeMatches(eventType, "method_attached")) {
       update.payment_method_attached_at = payload.updated_at ?? payload.created_at ?? nowIso;
+      if (currentLower === "scheduled") {
+        update.status = "active";
+      }
+    } else if (recurringStatus && !endingAtPeriodEnd) {
+      const wouldDowngrade =
+        ["active", "retrying", "paused", "inactive"].includes(currentLower) &&
+        recurringStatus === "scheduled";
+      if (!wouldDowngrade) {
+        update.status = recurringStatus;
+      }
     }
     if (recurringStatus === "canceled" && !endingAtPeriodEnd) {
       update.canceled_at = payload.updated_at ?? payload.created_at ?? nowIso;
@@ -314,9 +340,9 @@ export async function POST(req: Request) {
     payload.channel === "recurrent" ||
     eventObject === "recurring_billing" ||
     eventObject === "charge" ||
-    eventType === "method_attached" ||
-    eventType === "method_detached" ||
-    eventType === "subscription_updated"
+    hitpayEventTypeMatches(eventType, "method_attached") ||
+    hitpayEventTypeMatches(eventType, "method_detached") ||
+    hitpayEventTypeMatches(eventType, "subscription_updated")
   ) {
     return handleRecurringWebhook(req, rawBody, payload);
   }

@@ -205,6 +205,62 @@ export async function createHitpayRecurringBilling(input: HitpayRecurringBilling
   };
 }
 
+/**
+ * Official API: GET /v1/recurring-billing — list with optional `reference` and `status`.
+ * Docs default `status` to `active`, so `scheduled` rows are omitted unless queried explicitly.
+ * @see https://docs.hitpayapp.com/apis/recurring-billing/get-all-billing
+ */
+export async function getHitpayRecurringBilling(input: {
+  apiKey: string;
+  reference: string;
+  recurringBillingId?: string | null;
+}) {
+  const apiKey = input.apiKey.trim();
+  if (!apiKey) throw new Error("hitpay_merchant_key_missing");
+  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
+  const reference = input.reference.trim();
+  if (!reference) throw new Error("hitpay_reference_missing");
+
+  const base = `${HITPAY_API_BASE.replace(/\/$/, "")}/v1/recurring-billing`;
+  const statuses = ["scheduled", "active", "retrying", "inactive", "canceled"] as const;
+  const rid = input.recurringBillingId?.trim() ?? null;
+
+  const normalizeListPayload = (payload: unknown): HitpayRecurringBillingResponse[] => {
+    if (Array.isArray(payload)) return payload as HitpayRecurringBillingResponse[];
+    if (payload && typeof payload === "object") {
+      const p = payload as Record<string, unknown>;
+      if (Array.isArray(p.data)) return p.data as HitpayRecurringBillingResponse[];
+      if (Array.isArray(p.recurring_billings)) return p.recurring_billings as HitpayRecurringBillingResponse[];
+    }
+    return [];
+  };
+
+  for (const status of statuses) {
+    const url = `${base}?reference=${encodeURIComponent(reference)}&status=${encodeURIComponent(status)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        ...getHitpayPlatformHeaders(apiKey),
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) continue;
+
+    const rows = normalizeListPayload(payload);
+    const row =
+      rid && rows.length > 0
+        ? rows.find((r) => String((r as { id?: string }).id ?? "") === rid)
+        : rows[0];
+    if (row && typeof row === "object" && (row as { id?: string }).id) {
+      return row as HitpayRecurringBillingResponse & { message?: string };
+    }
+  }
+
+  throw new Error("hitpay_recurring_not_found");
+}
+
 export async function cancelHitpayRecurringBilling(input: { apiKey: string; recurringBillingId: string }) {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("hitpay_merchant_key_missing");

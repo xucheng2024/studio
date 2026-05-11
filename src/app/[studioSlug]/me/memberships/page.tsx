@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { CancelMyMembershipButton } from "@/components/CancelMyMembershipButton";
 import { SubscribeMembershipButton } from "@/components/SubscribeMembershipButton";
+import { SyncHitpayMembershipButton } from "@/components/SyncHitpayMembershipButton";
 import { getMembershipDisplayStatus, isMembershipActiveForAccess, isMembershipEnded } from "@/lib/membership-subscription";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -84,6 +85,10 @@ export default async function MyMembershipsPage({ params }: Props) {
         <div>
           <h1 className={ui.h1}>My memberships</h1>
           <p className={`mt-1 ${ui.muted}`}>Manage your recurring memberships.</p>
+          <p className={`mt-2 text-sm ${ui.muted}`}>
+            If this page doesn&apos;t match HitPay (including older checkouts), use{" "}
+            <span className="font-medium text-stone-700 dark:text-stone-200">Sync HitPay</span> on that membership.
+          </p>
         </div>
 
         {/* ── Active subscriptions ────────────────────────────────────────── */}
@@ -139,17 +144,20 @@ export default async function MyMembershipsPage({ params }: Props) {
                               ? "Cancellation scheduled — access continues until the end of this period."
                               : "To cancel or change billing, use the button below or contact the studio."}
                         </p>
-                        {canSelfCancel ? (
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <CancelMyMembershipButton
-                              subscriptionId={subscription.id}
-                              label={inTrial ? "Cancel trial" : "Cancel renewal"}
-                            />
-                            <span className={`text-xs ${ui.muted}`}>
-                              {inTrial ? "No charge before the trial ends." : "Stops future renewals; access continues until period end."}
-                            </span>
-                          </div>
-                        ) : null}
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <SyncHitpayMembershipButton subscriptionId={subscription.id} />
+                          {canSelfCancel ? (
+                            <>
+                              <CancelMyMembershipButton
+                                subscriptionId={subscription.id}
+                                label={inTrial ? "Cancel trial" : "Cancel renewal"}
+                              />
+                              <span className={`text-xs ${ui.muted}`}>
+                                {inTrial ? "No charge before the trial ends." : "Stops future renewals; access continues until period end."}
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
                       </div>
                       <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusTone[displayStatus] ?? statusTone.scheduled}`}>
                         {displayStatusLabel}
@@ -220,8 +228,8 @@ export default async function MyMembershipsPage({ params }: Props) {
             <ul className="flex flex-col gap-2">
               {pastSubs.map((subscription) => (
                 <li key={subscription.id} className="rounded-xl border border-stone-100 bg-stone-50 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/40">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
                       <p className="font-medium text-stone-600 dark:text-stone-400">
                         {subscription.membership_name_snapshot ?? "Membership"}
                       </p>
@@ -231,9 +239,12 @@ export default async function MyMembershipsPage({ params }: Props) {
                         {subscription.canceled_at ? ` · Cancelled ${new Date(subscription.canceled_at).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })}` : ""}
                       </p>
                     </div>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusTone.canceled}`}>
-                      cancelled
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
+                      <SyncHitpayMembershipButton subscriptionId={subscription.id} compact />
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusTone.canceled}`}>
+                        cancelled
+                      </span>
+                    </div>
                   </div>
                 </li>
               ))}

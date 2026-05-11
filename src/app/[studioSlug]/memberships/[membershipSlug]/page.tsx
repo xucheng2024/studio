@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { MembershipReturnNotice } from "@/components/MembershipReturnNotice";
 import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
@@ -47,6 +49,9 @@ export default async function PublicMembershipPage({ params }: Props) {
 
   return (
     <main className={ui.page}>
+      <Suspense fallback={null}>
+        <MembershipReturnNotice studioSlug={studioPublicSlug} />
+      </Suspense>
       <div className="mb-4">
         <StudioPublicBackNav href={studioMembershipsPath(studioPublicSlug)}>Back to memberships</StudioPublicBackNav>
       </div>

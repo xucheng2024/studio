@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { ui } from "@/lib/ui";
 
@@ -13,15 +13,21 @@ export function MembershipReturnNotice({ studioSlug }: { studioSlug: string }) {
   const sp = useSearchParams();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
+  const syncedRef = useRef(false);
 
   useEffect(() => {
-    if (sp.get("membership_checkout") === "1") setVisible(true);
-  }, [sp]);
+    if (sp.get("membership_checkout") !== "1") return;
+    setVisible(true);
 
-  const dismiss = () => {
-    setVisible(false);
-    router.replace(`/${studioSlug}/memberships/${sp.get("slug") ?? ""}`.replace(/\/$/, ""));
-  };
+    const subscriptionId = sp.get("subscription_id")?.trim();
+    if (!subscriptionId || syncedRef.current) return;
+    syncedRef.current = true;
+    void fetch("/api/membership/sync-from-hitpay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription_id: subscriptionId }),
+    }).catch(() => {});
+  }, [sp]);
 
   if (!visible) return null;
 

@@ -192,7 +192,7 @@ export async function POST(req: Request) {
   }
 
   const membershipSlug = (membership as { share_slug?: string | null }).share_slug ?? "";
-  const redirectUrl = `${baseUrl}/${studioSlug}/memberships/${membershipSlug}`;
+  const redirectUrl = `${baseUrl}/${studioSlug}/memberships/${membershipSlug}?membership_checkout=1&subscription_id=${encodeURIComponent(localSubscription.id)}`;
 
   try {
     const hitpay = await createHitpayRecurringBilling({
