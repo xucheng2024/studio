@@ -64,6 +64,15 @@ export async function POST(req: Request) {
     if (code === "invoice_recipient_not_found") {
       return NextResponse.json({ error: code }, { status: 422 });
     }
+    if (code === "invoice_email_not_configured") {
+      return NextResponse.json(
+        { error: code, error_detail: "RESEND_API_KEY/RESEND_FROM_EMAIL missing" },
+        { status: 503 },
+      );
+    }
+    if (code.startsWith("invoice_send_failed")) {
+      return NextResponse.json({ error: "invoice_send_failed" }, { status: 502 });
+    }
     return NextResponse.json({ error: code }, { status: 500 });
   }
 }

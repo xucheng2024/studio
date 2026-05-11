@@ -96,7 +96,7 @@ export async function sendPaymentInvoice(paymentId: string) {
     lineItem,
   };
   const pdfBuffer = await renderInvoicePdf(payload);
-  await sendInvoiceNotice({
+  const mailResult = await sendInvoiceNotice({
     to: toEmail,
     studioName: payload.studioName,
     invoiceNumber: payload.invoiceNumber,
@@ -108,6 +108,12 @@ export async function sendPaymentInvoice(paymentId: string) {
     referenceCode: payload.referenceCode,
     pdfBase64: Buffer.from(pdfBuffer).toString("base64"),
   });
+  if (mailResult.skipped) {
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+      throw new Error("invoice_email_not_configured");
+    }
+    throw new Error(mailResult.error ? `invoice_send_failed:${mailResult.error}` : "invoice_send_failed");
+  }
 
   await admin.from("payments").update({ invoice_sent_at: new Date().toISOString() }).eq("id", paymentId);
 
