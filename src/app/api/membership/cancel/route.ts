@@ -113,12 +113,22 @@ export async function POST(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    const trialAnchorRaw = latestPayment?.status === "paid"
-      ? (latestPayment.paid_at ?? latestPayment.created_at ?? sub.last_charge_at ?? sub.created_at ?? nowIso)
-      : (sub.last_charge_at ?? sub.created_at ?? nowIso);
-    const trialAnchor = new Date(trialAnchorRaw);
-    const trialDeadline = new Date(trialAnchor);
-    trialDeadline.setDate(trialDeadline.getDate() + Math.max(0, trialDays));
+    /**
+     * Use billing_start_date (= the scheduled first charge date) as the trial boundary so it
+     * matches what the UI shows ("first charge on …"). Fall back to the old anchor+trialDays
+     * calculation for legacy rows that may not have billing_start_date set.
+     */
+    const billingStartDate = (sub as { billing_start_date?: string | null }).billing_start_date ?? null;
+    const trialDeadline = billingStartDate
+      ? new Date(`${billingStartDate}T00:00:00+08:00`)
+      : (() => {
+          const anchorRaw = latestPayment?.status === "paid"
+            ? (latestPayment.paid_at ?? latestPayment.created_at ?? sub.last_charge_at ?? sub.created_at ?? nowIso)
+            : (sub.last_charge_at ?? sub.created_at ?? nowIso);
+          const d = new Date(anchorRaw);
+          d.setDate(d.getDate() + Math.max(0, trialDays));
+          return d;
+        })();
     const withinTrial = now.getTime() <= trialDeadline.getTime();
 
     if (withinTrial && latestPayment?.status === "paid") {

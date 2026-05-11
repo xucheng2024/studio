@@ -140,6 +140,10 @@ export default async function MyMembershipsPage({ params }: Props) {
                         <p className={`mt-2 text-sm ${ui.muted}`}>
                           {isPendingActivation
                             ? "Complete checkout to activate membership and start your trial period."
+                            : displayStatus === "retrying"
+                            ? "Your last payment failed and is being retried. Please update your payment method with HitPay if needed."
+                            : displayStatus === "inactive"
+                            ? "Your membership is inactive — billing may have failed. Contact the studio or sync below."
                             : inTrial
                             ? "You're in your free trial. Cancel any time before the first charge at no cost."
                             : subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription)
@@ -163,6 +167,7 @@ export default async function MyMembershipsPage({ params }: Props) {
                               <CancelMyMembershipButton
                                 subscriptionId={subscription.id}
                                 label={inTrial ? "Cancel trial" : "Cancel renewal"}
+                                inTrial={inTrial}
                               />
                               <span className={`text-xs ${ui.muted}`}>
                                 {inTrial ? "No charge before the trial ends." : "Stops future renewals; access continues until period end."}
