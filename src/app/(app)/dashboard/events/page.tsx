@@ -62,7 +62,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
 
   const eventsQuery = supabase
     .from("events")
-    .select("id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, is_active, share_slug, image_url, video_url, address, address_details")
+    .select("id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, is_active, share_slug, image_url, video_url, address, address_details, external_booking_url")
     .in("studio_id", studioIds)
     .gte("start_time", dateFrom)
     .lte("start_time", dateTo)
@@ -205,6 +205,20 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                   placeholder="Floor, room, check-in instructions (optional)"
                 />
               </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className={ui.label}>External booking URL (optional)</span>
+                <input
+                  name="external_booking_url"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://…"
+                  defaultValue={String((e as { external_booking_url?: string | null }).external_booking_url ?? "")}
+                  className={ui.input}
+                />
+                <p className={`text-xs ${ui.muted}`}>
+                  If set, the public event page shows a single &quot;Book now&quot; button that opens this link instead of HitPay checkout.
+                </p>
+              </label>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Start</span>
                 <input name="start_time" type="datetime-local" defaultValue={new Date(String(e.start_time)).toISOString().slice(0, 16)} className={ui.input} />
@@ -338,6 +352,13 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               <span className={ui.label}>Tags</span>
               <textarea name="tags_input" rows={3} className={`${ui.input} min-h-20`} placeholder={`Hotel\nPartner\nWellness`} />
               <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
+            </label>
+            <label className="flex flex-col gap-1.5 md:col-span-2">
+              <span className={ui.label}>External booking URL (optional)</span>
+              <input name="external_booking_url" type="url" inputMode="url" className={ui.input} placeholder="https://…" />
+              <p className={`text-xs ${ui.muted}`}>
+                If set, the public event page uses this link for booking instead of HitPay.
+              </p>
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Start</span>

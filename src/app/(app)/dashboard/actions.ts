@@ -7,6 +7,7 @@ import { parsePublicTagsInput } from "@/lib/publicTags";
 import { generateShareSlugSegment } from "@/lib/shareSlug";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
+import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -919,6 +920,7 @@ export async function createEvent(formData: FormData): Promise<void> {
   const currency = "SGD";
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
+  const external_booking_url = sanitizeEventExternalBookingUrl(String(formData.get("external_booking_url") ?? ""));
 
   if (!title) return;
   if (!Number.isFinite(capacity) || capacity <= 0) return;
@@ -949,6 +951,7 @@ export async function createEvent(formData: FormData): Promise<void> {
     video_url,
     address,
     address_details,
+    external_booking_url,
   });
   if (error) {
     console.error(error.message);
@@ -956,6 +959,8 @@ export async function createEvent(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/events");
   revalidatePath("/");
+  const pub = String(studio.public_slug ?? "").trim();
+  if (pub) revalidatePath(`/${pub}/events/${share_slug}`);
   await recordStudioContentUpdate(studio.id, "events");
 }
 
@@ -979,6 +984,7 @@ export async function updateEvent(formData: FormData): Promise<void> {
   const price = sanitizePrice(formData.get("price"));
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
+  const external_booking_url = sanitizeEventExternalBookingUrl(String(formData.get("external_booking_url") ?? ""));
 
   if (!title) return;
   if (!Number.isFinite(capacity) || capacity <= 0) return;
@@ -990,7 +996,7 @@ export async function updateEvent(formData: FormData): Promise<void> {
 
   const { data: existing } = await supabase
     .from("events")
-    .select("id, studio_id, capacity, spots_left")
+    .select("id, studio_id, capacity, spots_left, share_slug")
     .eq("id", eventId)
     .maybeSingle();
   if (!existing || existing.studio_id !== studio.id) return;
@@ -1018,6 +1024,7 @@ export async function updateEvent(formData: FormData): Promise<void> {
       video_url,
       address,
       address_details,
+      external_booking_url,
       updated_at: new Date().toISOString(),
     })
     .eq("id", eventId);
@@ -1027,6 +1034,9 @@ export async function updateEvent(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/events");
   revalidatePath("/");
+  const pub = String(studio.public_slug ?? "").trim();
+  const evSlug = String((existing as { share_slug?: string | null }).share_slug ?? "").trim();
+  if (pub && evSlug) revalidatePath(`/${pub}/events/${evSlug}`);
   await recordStudioContentUpdate(studio.id, "events");
 }
 

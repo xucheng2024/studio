@@ -105,7 +105,9 @@ export function paymentErrorMessage(error: string, detail?: string) {
                                     ? "This studio is not accepting payments right now."
                                     : error === "studio_not_found"
                                       ? "Studio not found."
-                                      : "Could not continue payment.";
+                                      : error === "event_external_booking_url"
+                                        ? "This event is booked on an external site. Use Book now on the event page."
+                                        : "Could not continue payment.";
   if (!detail) return base;
   return `${base} (${detail})`;
 }

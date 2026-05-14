@@ -134,7 +134,7 @@ export const getCachedEventShareContext = cache(async (studioSlugRaw: string, ev
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, image_url, video_url, share_slug, is_active, address, address_details, location_id, locations ( name, address )",
+      "id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, image_url, video_url, share_slug, is_active, address, address_details, location_id, locations ( name, address ), external_booking_url",
     )
     .eq("studio_id", studio.id)
     .eq("share_slug", eventSlug)

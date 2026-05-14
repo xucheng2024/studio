@@ -6,6 +6,7 @@ import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,11 +39,14 @@ export async function POST(req: Request) {
   await sweepExpiredPendingPayments(admin);
   const { data: event, error: eErr } = await admin
     .from("events")
-    .select("id, studio_id, is_active, start_time, spots_left, price, currency, studios(public_slug)")
+    .select("id, studio_id, is_active, start_time, spots_left, price, currency, external_booking_url, studios(public_slug)")
     .eq("id", parsed.data.event_id)
     .single();
 
   if (eErr || !event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
+  if (sanitizeEventExternalBookingUrl((event as { external_booking_url?: string | null }).external_booking_url)) {
+    return NextResponse.json({ error: "event_external_booking_url" }, { status: 409 });
+  }
   if (event.is_active === false) return NextResponse.json({ error: "event_not_available" }, { status: 409 });
   if ((event.spots_left ?? 0) <= 0) return NextResponse.json({ error: "full" }, { status: 409 });
   // Guard: do not allow booking/checkout for past events.

@@ -11,6 +11,7 @@ import { studioEventPath, studioEventsPath } from "@/lib/public-paths";
 import { buildEventShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { eventVenueForPublicBlock, PublicVenueBlock } from "@/components/PublicVenueBlock";
+import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string; eventSlug: string }> };
@@ -44,6 +45,11 @@ export default async function PublicEventPage({ params }: Props) {
       locations?: { name?: string | null; address?: string | null } | { name?: string | null; address?: string | null }[] | null;
     },
   );
+
+  const externalBookUrl = sanitizeEventExternalBookingUrl(
+    (event as { external_booking_url?: string | null }).external_booking_url,
+  );
+  const useExternalBooking = Boolean(externalBookUrl && !ended);
 
   return (
     <main className={ui.page}>
@@ -142,8 +148,12 @@ export default async function PublicEventPage({ params }: Props) {
             ) : (
               <>
                 <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Book this event</p>
-                <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
-                  {paymentReady ? "Secure checkout powered by HitPay." : "Online payment is not configured for this studio."}
+                <p className={`mt-1 text-sm ${useExternalBooking ? ui.muted : paymentReady ? ui.muted : ui.error}`}>
+                  {useExternalBooking
+                    ? "You will complete booking on an external site (opens in a new tab)."
+                    : paymentReady
+                      ? "Secure checkout powered by HitPay."
+                      : "Online payment is not configured for this studio."}
                 </p>
                 <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
                   {eventCurrency} {Number(event.price ?? 0).toFixed(2)}
@@ -151,15 +161,26 @@ export default async function PublicEventPage({ params }: Props) {
                 </p>
 
                 <div className="mt-5">
-                  <QuickEventBookPanel
-                    slug={studio.public_slug ?? rawStudio}
-                    eventId={event.id}
-                    payLabel={`Pay ${eventCurrency} ${Number(event.price ?? 0).toFixed(2)}`}
-                    disabled={!paymentReady}
-                    defaultOpen
-                    hideClose
-                    embedded
-                  />
+                  {useExternalBooking && externalBookUrl ? (
+                    <a
+                      href={externalBookUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${ui.btnPrimary} inline-flex w-full items-center justify-center py-3 text-base font-semibold`}
+                    >
+                      Book now
+                    </a>
+                  ) : (
+                    <QuickEventBookPanel
+                      slug={studio.public_slug ?? rawStudio}
+                      eventId={event.id}
+                      payLabel={`Pay ${eventCurrency} ${Number(event.price ?? 0).toFixed(2)}`}
+                      disabled={!paymentReady}
+                      defaultOpen
+                      hideClose
+                      embedded
+                    />
+                  )}
                 </div>
               </>
             )}
