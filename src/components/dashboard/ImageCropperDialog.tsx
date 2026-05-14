@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
+import "./ImageCropperDialog.css";
 import { toast } from "sonner";
 import { ui } from "@/lib/ui";
 
@@ -35,12 +36,16 @@ async function exportCroppedImage(
 
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  const cropX = crop.unit === "%" ? (crop.x / 100) * img.width : crop.x;
+  const cropY = crop.unit === "%" ? (crop.y / 100) * img.height : crop.y;
+  const cropW = crop.unit === "%" ? (crop.width / 100) * img.width : crop.width;
+  const cropH = crop.unit === "%" ? (crop.height / 100) * img.height : crop.height;
   ctx.drawImage(
     img,
-    crop.x * scaleX,
-    crop.y * scaleY,
-    crop.width * scaleX,
-    crop.height * scaleY,
+    cropX * scaleX,
+    cropY * scaleY,
+    cropW * scaleX,
+    cropH * scaleY,
     0,
     0,
     OUT_W,
@@ -69,6 +74,7 @@ function defaultCrop(width: number, height: number, aspect: number): Crop {
 export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect = 16 / 9 }: Props) {
   const [src, setSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop | undefined>(undefined);
+  const [previewScale, setPreviewScale] = useState(1);
   const [busy, setBusy] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
@@ -77,6 +83,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
     let active = true;
     setSrc(null);
     setCrop(undefined);
+    setPreviewScale(1);
     imgRef.current = null;
     const reader = new FileReader();
     reader.onload = () => {
@@ -102,6 +109,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
     if (!imgRef.current) return;
     const { naturalWidth, naturalHeight } = imgRef.current;
     setCrop(defaultCrop(naturalWidth, naturalHeight, cropAspect));
+    setPreviewScale(1);
   };
 
   const handleConfirm = async () => {
@@ -121,7 +129,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-200 flex items-end justify-center bg-black/60 sm:items-center sm:p-4">
+    <div className="imageCropDialog fixed inset-0 z-200 flex items-end justify-center bg-black/60 sm:items-center sm:p-4">
       <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl dark:bg-stone-900 sm:max-h-[95vh] sm:rounded-2xl">
         {/* Header */}
         <div className="flex shrink-0 items-center border-b border-stone-200 px-4 py-3 dark:border-stone-700">
@@ -129,7 +137,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
             Crop image ({cropAspect === 1 ? "1:1" : "16:9"})
           </span>
           <span className="ml-2 text-xs text-stone-400 dark:text-stone-500">
-            Drag the box to adjust
+            Drag to adjust
           </span>
         </div>
 
@@ -142,15 +150,19 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
               aspect={cropAspect}
               minWidth={40}
               minHeight={40}
-              className="max-h-[60vh] max-w-full overflow-hidden rounded-lg"
+              className="max-h-[65vh] max-w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={src}
                 alt="Crop preview"
                 onLoad={onImageLoad}
-                className="block max-h-[60vh] max-w-full object-contain"
-                style={{ display: "block" }}
+                className="block max-h-[65vh] max-w-full object-contain"
+                style={{
+                  display: "block",
+                  width: `${Math.round(previewScale * 100)}%`,
+                  marginInline: "auto",
+                }}
               />
             </ReactCrop>
           ) : (
@@ -158,6 +170,23 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
               Loading…
             </div>
           )}
+
+          <div className="w-full space-y-1">
+            <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+              <span>Image size</span>
+              <span>{Math.round(previewScale * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0.6}
+              max={1}
+              step={0.05}
+              value={previewScale}
+              onChange={(e) => setPreviewScale(Number(e.target.value))}
+              className="w-full"
+              disabled={!src || busy}
+            />
+          </div>
         </div>
 
         {/* Footer — always visible */}

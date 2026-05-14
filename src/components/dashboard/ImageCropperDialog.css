@@ -1,0 +1,25 @@
+.imageCropDialog .ReactCrop__drag-handle {
+  width: 18px;
+  height: 18px;
+  background: #0d9488;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.imageCropDialog .ReactCrop__drag-handle::after {
+  display: none;
+}
+
+.imageCropDialog .ReactCrop__drag-handle.n,
+.imageCropDialog .ReactCrop__drag-handle.s,
+.imageCropDialog .ReactCrop__drag-handle.e,
+.imageCropDialog .ReactCrop__drag-handle.w {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+}
+
+.imageCropDialog .ReactCrop__crop-selection {
+  border: 2px solid rgba(13, 148, 136, 0.95);
+  box-shadow: 0 0 0 9999em rgba(0, 0, 0, 0.34);
+}
