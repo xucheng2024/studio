@@ -127,6 +127,8 @@ export default async function SchedulePage({ searchParams }: Props) {
       guest_price,
       credits_required,
       location_id,
+      address,
+      address_details,
       classes!inner ( id, title, studio_id, share_slug ),
       locations ( id, name ),
       bookings (
@@ -225,6 +227,9 @@ export default async function SchedulePage({ searchParams }: Props) {
               ) : null}
             </div>
             {locationName ? <p className={`mt-0.5 text-xs ${ui.muted}`}>{locationName}</p> : null}
+            {(s as { address?: string | null }).address?.trim() ? (
+              <p className={`mt-0.5 text-xs ${ui.muted}`}>{String((s as { address: string }).address)}</p>
+            ) : null}
             <p className={`mt-1 text-sm ${ui.muted}`}>
               {new Date(s.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
             </p>
@@ -260,6 +265,8 @@ export default async function SchedulePage({ searchParams }: Props) {
               guest_price: Number(s.guest_price ?? 0),
               credits_required: Number(s.credits_required ?? 1),
               location_id: s.location_id ?? null,
+              address: (s as { address?: string | null }).address ?? null,
+              address_details: (s as { address_details?: string | null }).address_details ?? null,
             }}
             locations={(locations ?? [])
               .filter((l) => l.studio_id === activeStudioId)
@@ -338,6 +345,14 @@ export default async function SchedulePage({ searchParams }: Props) {
                       <input name="credits_required" type="number" min={1} step="1" defaultValue={1} required className={ui.input} />
                     </label>
                   </div>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Session address</span>
+                    <input name="address" className={ui.input} placeholder="Street address (optional)" />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Venue details</span>
+                    <textarea name="address_details" rows={2} className={`${ui.input} min-h-16`} placeholder="Floor, room, instructions (optional)" />
+                  </label>
                   <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
                     Create session
                   </SubmitButton>
@@ -394,6 +409,14 @@ export default async function SchedulePage({ searchParams }: Props) {
                   <label className="flex flex-col gap-1.5">
                     <span className={ui.label}>Passes required</span>
                     <input type="number" name="credits_required" defaultValue={1} min={1} step="1" className={ui.input} />
+                  </label>
+                  <label className="flex flex-col gap-1.5 md:col-span-2">
+                    <span className={ui.label}>Session address</span>
+                    <input name="address" className={ui.input} placeholder="Street address (optional)" />
+                  </label>
+                  <label className="flex flex-col gap-1.5 md:col-span-2">
+                    <span className={ui.label}>Venue details</span>
+                    <textarea name="address_details" rows={2} className={`${ui.input} min-h-16`} placeholder="Floor, room, instructions (optional)" />
                   </label>
                   <SubmitButton className={`${ui.btnPrimary} md:col-span-2 w-full sm:w-auto`} pendingText="Creating...">
                     Create recurring rule (8 weeks)

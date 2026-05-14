@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
+import { CoverLocationCornerBadge, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { StudioIntroSection } from "@/components/StudioIntroSection";
@@ -79,7 +80,7 @@ const getPublicStudioData = async (studioSlugRaw: string) => {
       .order("created_at", { ascending: false }),
     admin
       .from("class_sessions")
-      .select("id, start_time, spots_left, capacity, guest_price, credits_required, class_title_snapshot, class_description_snapshot, class_image_url_snapshot, classes!inner(title, description, share_slug, image_url, tags, studio_id, is_active, capacity)")
+      .select("id, start_time, spots_left, capacity, guest_price, credits_required, class_title_snapshot, class_description_snapshot, class_image_url_snapshot, locations(name), classes!inner(title, description, share_slug, image_url, tags, studio_id, is_active, capacity)")
       .eq("classes.studio_id", studio.id)
       .eq("classes.is_active", true)
       .eq("status", "scheduled")
@@ -417,6 +418,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const href = canLinkToClass
                 ? studioClassPath(studio.public_slug, classShareSlug, `session_id=${s.id}`)
                 : studioClassesPath(studio.public_slug);
+              const locationName = sessionLocationLabel(s as { locations?: { name?: string | null } | { name?: string | null }[] | null });
               return (
                 <article
                   key={s.id}
@@ -437,6 +439,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
+                          <CoverLocationCornerBadge name={locationName} />
                           {s.guest_price != null ? (
                             <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                               {classCurrency} {Number(s.guest_price).toFixed(2)}

@@ -20,6 +20,8 @@ export function SessionEditPanel({
     guest_price: number;
     credits_required: number;
     location_id: string | null;
+    address: string | null;
+    address_details: string | null;
   };
   locations: LocationOption[];
 }) {
@@ -35,6 +37,8 @@ export function SessionEditPanel({
   const [guestPrice, setGuestPrice] = useState(String(initial.guest_price));
   const [creditsRequired, setCreditsRequired] = useState(String(initial.credits_required));
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
+  const [address, setAddress] = useState(initial.address ?? "");
+  const [addressDetails, setAddressDetails] = useState(initial.address_details ?? "");
 
   return (
     <details className="chevron rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -75,6 +79,26 @@ export function SessionEditPanel({
             ))}
           </select>
         </label>
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className={ui.label}>Session address</span>
+          <input
+            className={ui.input}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Street address (optional)"
+            autoComplete="street-address"
+          />
+        </label>
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className={ui.label}>Venue details</span>
+          <textarea
+            className={`${ui.input} min-h-16`}
+            value={addressDetails}
+            onChange={(e) => setAddressDetails(e.target.value)}
+            placeholder="Floor, room, instructions (optional)"
+            rows={2}
+          />
+        </label>
         <button
           type="button"
           className={`${ui.btnPrimarySm} w-fit sm:col-span-2`}
@@ -107,6 +131,8 @@ export function SessionEditPanel({
                 guest_price: parsedGuestPrice,
                 credits_required: parsedCredits,
                 location_id: locationId || null,
+                address: address.trim() || null,
+                address_details: addressDetails.trim() || null,
               }),
             });
             const body = await res.json().catch(() => ({}));

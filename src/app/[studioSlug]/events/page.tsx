@@ -60,7 +60,7 @@ function EventCard({ event, studio }: { event: Record<string, any>; studio: { na
             ) : null}
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className={isEnded ? ui.btnSecondarySm : ui.btnPrimarySm}>{isEnded ? "View event" : "Book now"}</span>
-              {!isEnded ? <span className={`text-sm ${ui.muted}`}>{spotsText}</span> : <span className={`text-sm ${ui.muted}`}>Ended</span>}
+              {!isEnded ? <span className={`text-sm ${ui.muted}`}>{spotsText}</span> : <span className={`text-sm ${ui.muted}`}>Past</span>}
             </div>
           </div>
         </div>
@@ -75,7 +75,7 @@ function EventCard({ event, studio }: { event: Record<string, any>; studio: { na
 export default async function PublicEventsPage({ params, searchParams }: Props) {
   const { studioSlug: rawSlug } = await params;
   const { tab } = (await searchParams) ?? {};
-  const activeTab = tab === "ended" ? "ended" : "upcoming";
+  const activeTab = tab === "past" || tab === "ended" ? "past" : "upcoming";
   const studioSlug = normalizeStudioSlug(rawSlug);
   if (!studioSlug || isReservedPublicSlug(studioSlug)) notFound();
 
@@ -104,7 +104,7 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
       .lt("end_time", nowIso)
       .order("start_time", { ascending: false }),
   ]);
-  const items = activeTab === "ended" ? ended ?? [] : upcoming ?? [];
+  const items = activeTab === "past" ? ended ?? [] : upcoming ?? [];
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
@@ -113,12 +113,12 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
         <h1 className={ui.h1}>Events</h1>
         <div className="flex gap-3 text-sm font-medium">
           <Link href={studioEventsPath(studio.public_slug)} className={activeTab === "upcoming" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Upcoming</Link>
-          <Link href={studioEventsPath(studio.public_slug, "ended")} className={activeTab === "ended" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Ended</Link>
+          <Link href={studioEventsPath(studio.public_slug, "past")} className={activeTab === "past" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Past</Link>
         </div>
       </div>
       <div className="mt-5 grid gap-4">
         {items.length ? items.map((event) => <EventCard key={event.id} event={event} studio={studio} />) : (
-          <p className={ui.muted}>{activeTab === "ended" ? "No ended events yet." : "No upcoming events yet."}</p>
+          <p className={ui.muted}>{activeTab === "past" ? "No past events yet." : "No upcoming events yet."}</p>
         )}
       </div>
     </main>

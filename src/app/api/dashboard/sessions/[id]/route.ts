@@ -12,6 +12,8 @@ const patchSchema = z.object({
   guest_price: z.coerce.number().min(0).optional(),
   credits_required: z.coerce.number().int().min(1).optional(),
   location_id: z.string().uuid().nullable().optional(),
+  address: z.string().max(4000).nullable().optional(),
+  address_details: z.string().max(4000).nullable().optional(),
 });
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -84,6 +86,14 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     const duration = Number(cls.duration_min ?? 60);
     patch.start_time = startDate.toISOString();
     patch.end_time = new Date(startDate.getTime() + duration * 60000).toISOString();
+  }
+  if (parsed.data.address !== undefined) {
+    patch.address =
+      parsed.data.address == null ? null : String(parsed.data.address).trim() || null;
+  }
+  if (parsed.data.address_details !== undefined) {
+    patch.address_details =
+      parsed.data.address_details == null ? null : String(parsed.data.address_details).trim() || null;
   }
 
   if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true });

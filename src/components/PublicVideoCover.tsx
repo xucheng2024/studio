@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { useState } from "react";
+import { CoverLocationCornerBadge } from "@/components/SessionDateMiniCalendar";
 
 type PublicVideoCoverProps = {
   title: string;
@@ -10,6 +11,7 @@ type PublicVideoCoverProps = {
   embedUrl: string | null;
   fallbackUrl: string | null;
   priority?: boolean;
+  locationLabel?: string | null;
 };
 
 export function PublicVideoCover({
@@ -18,6 +20,7 @@ export function PublicVideoCover({
   embedUrl,
   fallbackUrl,
   priority = false,
+  locationLabel,
 }: PublicVideoCoverProps) {
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -62,11 +65,12 @@ export function PublicVideoCover({
       >
         <div className="relative">
           {media}
-          <span className="absolute inset-0 flex items-center justify-center bg-black/20 transition group-hover:bg-black/28">
+          <span className="absolute inset-0 z-0 flex items-center justify-center bg-black/20 transition group-hover:bg-black/28">
             <span className="inline-flex items-center justify-center rounded-full bg-black/68 p-3 text-white backdrop-blur-sm">
               <PlayCircle size={22} />
             </span>
           </span>
+          <CoverLocationCornerBadge name={locationLabel} />
         </div>
       </a>
     );
@@ -82,19 +86,21 @@ export function PublicVideoCover({
       >
         <div className="relative">
           {media}
-          <span className="absolute inset-0 flex items-center justify-center bg-black/20 transition group-hover:bg-black/28">
+          <span className="absolute inset-0 z-0 flex items-center justify-center bg-black/20 transition group-hover:bg-black/28">
             <span className="inline-flex items-center justify-center rounded-full bg-black/68 p-3 text-white backdrop-blur-sm">
               <PlayCircle size={22} />
             </span>
           </span>
+          <CoverLocationCornerBadge name={locationLabel} />
         </div>
       </button>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-stone-200 shadow-sm dark:border-stone-700">
+    <div className="relative overflow-hidden rounded-2xl border border-stone-200 shadow-sm dark:border-stone-700">
       {media}
+      <CoverLocationCornerBadge name={locationLabel} />
     </div>
   );
 }

@@ -6,8 +6,8 @@ export function studioClassesPath(studioSlug: string) {
   return `/${studioSlug}/classes`;
 }
 
-export function studioEventsPath(studioSlug: string, tab?: "upcoming" | "ended") {
-  return `/${studioSlug}/events${tab === "ended" ? "?tab=ended" : ""}`;
+export function studioEventsPath(studioSlug: string, tab?: "upcoming" | "past") {
+  return `/${studioSlug}/events${tab === "past" ? "?tab=past" : ""}`;
 }
 
 export function studioServicesPath(studioSlug: string) {

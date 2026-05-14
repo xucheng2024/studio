@@ -747,6 +747,8 @@ export async function createSession(formData: FormData): Promise<void> {
   const startDate = new Date(start);
   if (Number.isNaN(startDate.getTime())) return;
   const endDate = new Date(startDate.getTime() + cls.duration_min * 60000);
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const address_details = String(formData.get("address_details") ?? "").trim() || null;
 
   const { error } = await supabase.from("class_sessions").insert({
     class_id: cls.id,
@@ -762,6 +764,8 @@ export async function createSession(formData: FormData): Promise<void> {
     credits_required: Math.floor(credits_required),
     status: "scheduled",
     spots_left: cls.capacity,
+    address,
+    address_details,
   });
   if (error) {
     console.error(error.message);
@@ -1380,6 +1384,8 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
   const capacity = Number(formData.get("capacity") ?? 10);
   const guestPrice = Number(formData.get("guest_price") ?? 0);
   const creditsRequired = Number(formData.get("credits_required") ?? 1);
+  const sessionAddress = String(formData.get("address") ?? "").trim() || null;
+  const sessionAddressDetails = String(formData.get("address_details") ?? "").trim() || null;
 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !locationId || !classId || !startDate || !startTime) return;
@@ -1464,6 +1470,8 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
           spots_left: capacity,
           status: "scheduled",
           recurring_rule_id: rule.id,
+          address: sessionAddress,
+          address_details: sessionAddressDetails,
         });
       }
     }

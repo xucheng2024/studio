@@ -10,6 +10,7 @@ import { getCachedEventShareContext } from "@/lib/cachedSharePages";
 import { studioEventPath, studioEventsPath } from "@/lib/public-paths";
 import { buildEventShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
+import { eventVenueForPublicBlock, PublicVenueBlock } from "@/components/PublicVenueBlock";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string; eventSlug: string }> };
@@ -35,6 +36,14 @@ export default async function PublicEventPage({ params }: Props) {
   const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
     .map((url) => String(url ?? "").trim())
     .filter(Boolean);
+
+  const { address: venueAddress, addressDetails: venueAddressDetails } = eventVenueForPublicBlock(
+    event as {
+      address?: string | null;
+      address_details?: string | null;
+      locations?: { name?: string | null; address?: string | null } | { name?: string | null; address?: string | null }[] | null;
+    },
+  );
 
   return (
     <main className={ui.page}>
@@ -90,20 +99,7 @@ export default async function PublicEventPage({ params }: Props) {
               </div>
             </div>
 
-            {/* Where */}
-            {(event as { address?: string | null }).address?.trim() ? (
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">Where</p>
-                <div>
-                  <span className="block">{String((event as { address: string }).address)}</span>
-                  {(event as { address_details?: string | null }).address_details?.trim() ? (
-                    <span className="block text-xs text-stone-500 dark:text-stone-400">
-                      {String((event as { address_details: string }).address_details)}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
+            <PublicVenueBlock address={venueAddress} addressDetails={venueAddressDetails} />
 
             {/* Availability */}
             <div>

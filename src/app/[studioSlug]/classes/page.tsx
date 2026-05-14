@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { CoverLocationCornerBadge, SessionDateMiniCalendar, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
 import { studioClassPath, studioHomePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -30,6 +31,7 @@ export default async function StudioBookingPage({ params }: Props) {
     .select(
       `id, location_id, start_time, spots_left, capacity, guest_price, credits_required,
        class_title_snapshot, class_image_url_snapshot, class_video_url_snapshot,
+       locations ( name ),
        classes!inner ( title, studio_id, image_url, video_url, capacity, is_active, share_slug )`,
     )
     .eq("classes.studio_id", studio.id)
@@ -111,6 +113,7 @@ export default async function StudioBookingPage({ params }: Props) {
             : sessionCapacity > 0
               ? `${spotsLeft} / ${sessionCapacity} left`
               : spotsLow ? `${spotsLeft} left` : `${spotsLeft} spots`;
+          const locationName = sessionLocationLabel(s as { locations?: { name?: string | null } | { name?: string | null }[] | null });
 
           return (
             <li key={s.id} className="overflow-hidden rounded-2xl border border-stone-200/90 bg-white/95 shadow-sm dark:border-stone-800/90 dark:bg-stone-900/70">
@@ -122,18 +125,25 @@ export default async function StudioBookingPage({ params }: Props) {
                     coverUrl={coverUrl}
                     embedUrl={videoPreview.embedUrl}
                     fallbackUrl={videoUrl?.trim() || null}
+                    locationLabel={locationName}
                   />
                 ) : coverUrl ? (
-                  <Image
-                    src={coverUrl}
-                    alt={title}
-                    width={1200}
-                    height={675}
-                    className="aspect-video w-full object-cover"
-                    sizes="(max-width: 640px) 100vw, 672px"
-                  />
+                  <>
+                    <Image
+                      src={coverUrl}
+                      alt={title}
+                      width={1200}
+                      height={675}
+                      className="aspect-video w-full object-cover"
+                      sizes="(max-width: 640px) 100vw, 672px"
+                    />
+                    <CoverLocationCornerBadge name={locationName} />
+                  </>
                 ) : (
-                  <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900" />
+                  <>
+                    <div className="aspect-video w-full bg-stone-100 dark:bg-stone-900" />
+                    <CoverLocationCornerBadge name={locationName} />
+                  </>
                 )}
                 <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${
                   spotsLeft === 0
@@ -150,18 +160,12 @@ export default async function StudioBookingPage({ params }: Props) {
                 {/* Date + info */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    {/* Calendar block */}
-                    <div className="flex w-12 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1 dark:border-stone-700 dark:bg-stone-800">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                        {weekday}
-                      </span>
-                      <span className="text-lg font-bold leading-tight text-stone-900 dark:text-stone-50">
-                        {dayNum}
-                      </span>
-                      <span className="text-[10px] text-stone-500 dark:text-stone-400">
-                        {month}
-                      </span>
-                    </div>
+                    <SessionDateMiniCalendar
+                      variant="compact"
+                      weekdayLabel={weekday}
+                      dayOfMonth={dayNum}
+                      monthLabel={month}
+                    />
                     {/* Title + time + price */}
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-stone-900 dark:text-stone-50">{title}</p>

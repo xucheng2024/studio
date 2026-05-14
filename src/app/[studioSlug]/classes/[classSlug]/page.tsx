@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PublicVenueBlock } from "@/components/PublicVenueBlock";
 import { SessionBookingActions } from "@/components/SessionBookingActions";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
@@ -8,9 +9,11 @@ import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { getCachedClassShareContext } from "@/lib/cachedSharePages";
 import { studioClassesPath, studioClassPath } from "@/lib/public-paths";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
+import { SessionDateMiniCalendar, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
@@ -43,9 +46,10 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
   // from ops tools) may still use the raw UUID form – both are accepted.
   const uuidOk = z.string().uuid().safeParse(sp.session_id ?? "").success;
   const requestedUuid = uuidOk ? String(sp.session_id) : null;
+  const admin = createAdminClient();
   const slugLookup =
     sp.session && /^[a-z0-9-]{6,80}$/.test(sp.session)
-      ? supabase
+      ? admin
           .from("class_sessions")
           .select("id")
           .eq("class_id", cls.id)
@@ -53,9 +57,11 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
           .maybeSingle()
       : null;
 
-  const sessionsPromise = supabase
+  const sessionsPromise = admin
     .from("class_sessions")
-    .select("id, start_time, spots_left, capacity, guest_price, credits_required, status, location_id, class_title_snapshot, class_description_snapshot, class_image_url_snapshot")
+    .select(
+      "id, start_time, spots_left, capacity, guest_price, credits_required, status, location_id, address, address_details, class_title_snapshot, class_description_snapshot, class_image_url_snapshot, locations ( name )",
+    )
     .eq("class_id", cls.id)
     .eq("status", "scheduled")
     .gte("start_time", new Date().toISOString())
@@ -137,6 +143,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
       ) || 0;
     const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
     const isFull = spotsLeft === 0;
+    const locationName = sessionLocationLabel(s as { locations?: { name?: string | null } | { name?: string | null }[] | null });
 
     return (
       <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
@@ -154,6 +161,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   coverUrl={sessionCover}
                   embedUrl={videoPreview.embedUrl}
                   fallbackUrl={videoUrl?.trim() || null}
+                  locationLabel={locationName}
                 />
               </div>
             ) : (
@@ -163,6 +171,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                 sharePath={classSharePath}
                 shareTitle={sessionTitle}
                 shareText={`Book ${sessionTitle} at ${studio.name}`}
+                locationLabel={locationName}
               />
             )}
             <h1 className={ui.h1}>{sessionTitle}</h1>
@@ -170,6 +179,15 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
               <p className="mt-4 whitespace-pre-wrap leading-relaxed text-stone-700 dark:text-stone-300">
                 {sessionDescription}
               </p>
+            ) : null}
+            {(String((s as { address?: string | null }).address ?? "").trim() ||
+              String((s as { address_details?: string | null }).address_details ?? "").trim()) ? (
+              <div className="mt-4 text-sm text-stone-600 dark:text-stone-300">
+                <PublicVenueBlock
+                  address={(s as { address?: string | null }).address}
+                  addressDetails={(s as { address_details?: string | null }).address_details}
+                />
+              </div>
             ) : null}
             {!paymentReady ? (
               <p className={`mt-4 flex items-center gap-1 text-xs ${ui.error}`}>
@@ -183,15 +201,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
             <div className={`${ui.card} overflow-hidden sm:p-6`}>
               {/* Session summary */}
               <div className="flex items-center gap-4 pb-4">
-                <div className="flex w-14 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-2 dark:border-stone-700 dark:bg-stone-800">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                    {weekdayLabel}
-                  </span>
-                  <span className="text-xl font-bold leading-tight text-stone-900 dark:text-stone-50">
-                    {dt.getDate()}
-                  </span>
-                  <span className="text-[10px] text-stone-500 dark:text-stone-400">{monthLabel}</span>
-                </div>
+                <SessionDateMiniCalendar
+                  variant="prominent"
+                  weekdayLabel={weekdayLabel}
+                  dayOfMonth={dt.getDate()}
+                  monthLabel={monthLabel}
+                />
                 <div className="min-w-0">
                   <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
                   <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">{dateLabel}</p>
@@ -317,15 +332,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
             <li key={s.id} className={ui.card}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="flex w-14 shrink-0 flex-col items-center rounded-xl border border-stone-200 bg-stone-50 py-1.5 dark:border-stone-700 dark:bg-stone-800">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                      {weekdayLabel}
-                    </span>
-                    <span className="text-xl font-bold leading-tight text-stone-900 dark:text-stone-50">
-                      {dt.getDate()}
-                    </span>
-                    <span className="text-[10px] text-stone-500 dark:text-stone-400">{monthLabel}</span>
-                  </div>
+                  <SessionDateMiniCalendar
+                    variant="default"
+                    weekdayLabel={weekdayLabel}
+                    dayOfMonth={dt.getDate()}
+                    monthLabel={monthLabel}
+                  />
                   <div className="min-w-0">
                     <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
                     <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
@@ -338,6 +350,15 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                         </>
                       ) : null}
                     </div>
+                    {(String((s as { address?: string | null }).address ?? "").trim() ||
+                      String((s as { address_details?: string | null }).address_details ?? "").trim()) ? (
+                      <div className="mt-2 text-sm text-stone-600 dark:text-stone-300">
+                        <PublicVenueBlock
+                          address={(s as { address?: string | null }).address}
+                          addressDetails={(s as { address_details?: string | null }).address_details}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <span

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
+import { CoverLocationCornerBadge } from "@/components/SessionDateMiniCalendar";
 
 type Props = {
   src: string | null | undefined;
@@ -10,6 +11,8 @@ type Props = {
   sharePath?: string;
   shareTitle?: string;
   shareText?: string;
+  /** Bottom-left location name (e.g. venue), when session has a location. */
+  locationLabel?: string | null;
 };
 
 /**
@@ -25,7 +28,9 @@ export function ShareCoverImage({
   sharePath,
   shareTitle,
   shareText,
+  locationLabel,
 }: Props) {
+  const cornerLocation = locationLabel?.trim() ? <CoverLocationCornerBadge name={locationLabel} /> : null;
   const cornerShare = sharePath ? (
     <div className="absolute bottom-3 right-3 z-20">
       <SessionShareLinkButton sharePath={sharePath} title={shareTitle ?? alt} text={shareText} />
@@ -37,6 +42,7 @@ export function ShareCoverImage({
       <>
         <div className="relative mb-6 w-full overflow-hidden rounded-2xl bg-linear-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900">
           <div className="aspect-video w-full" aria-hidden="true" />
+          {cornerLocation}
           {cornerShare}
         </div>
       </>
@@ -56,6 +62,7 @@ export function ShareCoverImage({
             priority={priority}
           />
         </div>
+        {cornerLocation}
         {cornerShare}
       </div>
     </>
