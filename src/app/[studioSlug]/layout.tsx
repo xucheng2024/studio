@@ -1,16 +1,36 @@
 import type { Metadata } from "next";
 import { StudioPwaRegister } from "@/components/StudioPwaRegister";
 import { StudioPushOptIn } from "@/components/StudioPushOptIn";
+import { StudioWhatsappFloatingButton } from "@/components/StudioWhatsappFloatingButton";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
-import { isReservedPublicSlug } from "@/lib/publicStudio";
+import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+/** Studio public routes (home + lists) must not freeze session queries from build time; refresh periodically. */
+export const revalidate = 60;
 
 type Props = {
   children: React.ReactNode;
   params: Promise<{ studioSlug: string }>;
 };
+
+async function StudioWhatsappFab({ studioSlug }: { studioSlug: string }) {
+  const admin = createAdminClient();
+  const { data: studio } = await admin
+    .from("studios")
+    .select("contract_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
+  if (!studio || studio.contract_status === "suspended") return null;
+  const href = studioWhatsappLink({
+    enabled: studio.whatsapp_enabled,
+    numberE164: studio.whatsapp_number_e164,
+    prefillText: studio.whatsapp_prefill_text,
+  });
+  return <StudioWhatsappFloatingButton href={href} />;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug: rawStudioSlug } = await params;
@@ -64,6 +84,7 @@ export default async function StudioPublicLayout({ children, params }: Props) {
         <>
           <StudioPwaRegister studioSlug={studioSlug} />
           <StudioPushOptIn studioSlug={studioSlug} />
+          <StudioWhatsappFab studioSlug={studioSlug} />
         </>
       ) : null}
       {children}
