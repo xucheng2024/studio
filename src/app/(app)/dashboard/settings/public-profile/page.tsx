@@ -2,6 +2,7 @@ import {
   updateStudioBasics,
   updateStudioPublicBranding,
   updateStudioPublicProfile,
+  savePublicLogoUrl,
 } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -127,6 +128,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
               label="Brand logo"
               defaultValue={studio.public_logo_url ?? null}
               cropAspect={1}
+              autoSaveAction={savePublicLogoUrl.bind(null, studio.id)}
             />
           </div>
         </div>

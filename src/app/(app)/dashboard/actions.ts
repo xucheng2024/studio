@@ -297,6 +297,24 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
 }
 
+export async function savePublicLogoUrl(studioId: string, logoUrl: string | null): Promise<void> {
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  const url = logoUrl ? logoUrl.trim() : null;
+  const { error } = await supabase
+    .from("studios")
+    .update({ public_logo_url: url })
+    .eq("id", studio.id);
+  if (error) {
+    console.error("[savePublicLogoUrl]", error.message);
+    return;
+  }
+  revalidatePath("/dashboard/settings/public-profile");
+  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+}
+
 export async function updateStudioPublicBranding(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useTransition, useState } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { PublicMediaUploader } from "@/components/dashboard/PublicMediaUploader";
 import { getVideoPreview } from "@/lib/videoPreview";
@@ -15,10 +16,48 @@ type CoverFieldProps = {
   label: string;
   defaultValue: string | null;
   cropAspect?: number;
+  /** When provided, the URL is saved to the DB immediately after upload (no separate Save click needed). */
+  autoSaveAction?: (url: string | null) => Promise<void>;
 };
 
-export function CoverUrlField({ studioId, entityId, folder, name, label, defaultValue, cropAspect }: CoverFieldProps) {
+export function CoverUrlField({ studioId, entityId, folder, name, label, defaultValue, cropAspect, autoSaveAction }: CoverFieldProps) {
   const [value, setValue] = useState(defaultValue ?? "");
+  const [saving, setSaving] = useState(false);
+  const [, startTransition] = useTransition();
+  const isLogoField = cropAspect === 1;
+
+  useEffect(() => {
+    setValue(defaultValue ?? "");
+  }, [studioId, entityId, defaultValue]);
+
+  const handleUploaded = (url: string) => {
+    setValue(url);
+    if (!autoSaveAction) return;
+    setSaving(true);
+    startTransition(() => {
+      void autoSaveAction(url).then(() => {
+        setSaving(false);
+        toast.success("Logo saved");
+      }).catch(() => {
+        setSaving(false);
+        toast.error("Failed to save logo. Please click Save.");
+      });
+    });
+  };
+
+  const handleRemove = () => {
+    setValue("");
+    if (!autoSaveAction) return;
+    setSaving(true);
+    startTransition(() => {
+      void autoSaveAction(null).then(() => {
+        setSaving(false);
+      }).catch(() => {
+        setSaving(false);
+      });
+    });
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
       <span className={ui.label}>{label}</span>
@@ -27,27 +66,37 @@ export function CoverUrlField({ studioId, entityId, folder, name, label, default
         studioId={studioId}
         folder={folder}
         entityId={entityId}
-        label={value ? "Replace image" : "Upload image"}
-        onUploaded={(url) => setValue(url)}
+        label={saving ? "Saving…" : value ? "Replace image" : "Upload image"}
+        onUploaded={handleUploaded}
         cropAspect={cropAspect}
       />
       {value ? (
         <div className="mt-1 space-y-2">
           <div
             className={cropAspect === 1
-              ? "relative h-28 w-28 overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
+              ? "relative h-28 w-28 overflow-hidden rounded-lg border border-stone-200 bg-[linear-gradient(45deg,#f5f5f4_25%,transparent_25%),linear-gradient(-45deg,#f5f5f4_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f5f5f4_75%),linear-gradient(-45deg,transparent_75%,#f5f5f4_75%)] bg-size-[12px_12px] bg-position-[0_0,0_6px,6px_-6px,-6px_0] dark:border-stone-700 dark:bg-[linear-gradient(45deg,#1c1917_25%,transparent_25%),linear-gradient(-45deg,#1c1917_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#1c1917_75%),linear-gradient(-45deg,transparent_75%,#1c1917_75%)]"
               : "relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
             }
           >
-            <Image
-              src={value}
-              alt=""
-              fill
-              className={cropAspect === 1 ? "object-contain object-center" : "object-cover"}
-              sizes="(max-width: 768px) 100vw, 640px"
-            />
+            {isLogoField ? (
+              // Keep dashboard logo preview resilient for freshly uploaded remote URLs.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={value}
+                alt=""
+                className="h-full w-full object-contain object-center"
+              />
+            ) : (
+              <Image
+                src={value}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 640px"
+              />
+            )}
           </div>
-          <button type="button" className={ui.btnGhost} onClick={() => setValue("")}>
+          <button type="button" className={ui.btnGhost} onClick={handleRemove} disabled={saving}>
             Remove image
           </button>
         </div>
@@ -71,6 +120,12 @@ export function StudioProfileMediaFields({
 }: StudioProfileMediaFieldsProps) {
   const [coverValue, setCoverValue] = useState(coverDefaultValue ?? "");
   const [videoValue, setVideoValue] = useState(videoDefaultValue ?? "");
+
+  useEffect(() => {
+    setCoverValue(coverDefaultValue ?? "");
+    setVideoValue(videoDefaultValue ?? "");
+  }, [studioId, coverDefaultValue, videoDefaultValue]);
+
   const videoPreview = getVideoPreview(videoValue);
   const previewCover = coverValue || videoPreview.thumbnailUrl || null;
 
@@ -164,6 +219,12 @@ export function CoverVideoFields({
 }: CoverVideoFieldsProps) {
   const [coverValue, setCoverValue] = useState(coverDefaultValue ?? "");
   const [videoValue, setVideoValue] = useState(videoDefaultValue ?? "");
+
+  useEffect(() => {
+    setCoverValue(coverDefaultValue ?? "");
+    setVideoValue(videoDefaultValue ?? "");
+  }, [studioId, entityId, coverDefaultValue, videoDefaultValue]);
+
   const videoPreview = getVideoPreview(videoValue);
   const previewCover = coverValue || videoPreview.thumbnailUrl || null;
 
