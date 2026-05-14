@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { PwaUpdateBanner } from "@/components/PwaUpdateBanner";
-import "react-easy-crop/react-easy-crop.css";
+import "react-image-crop/dist/ReactCrop.css";
 import "react-international-phone/style.css";
 import { site } from "@/lib/brand";
 import { getAppOriginForOg } from "@/lib/coverMedia";
