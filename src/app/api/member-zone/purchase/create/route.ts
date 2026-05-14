@@ -27,6 +27,10 @@ const bodySchema = z.object({
   guest_name: z.string().max(120).optional(),
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional().nullable(),
+  is_gift: z.boolean().optional(),
+  gift_recipient_name: z.string().max(120).optional(),
+  gift_recipient_email: z.string().email().max(320).optional(),
+  gift_message: z.string().max(500).optional(),
 });
 
 export async function POST(req: Request) {
@@ -42,8 +46,21 @@ export async function POST(req: Request) {
   const guestName = parsed.data.guest_name?.trim();
   const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
   const guestPhone = parsed.data.guest_phone?.trim() || null;
+  const isGift = parsed.data.is_gift === true;
+  const giftRecipientName = parsed.data.gift_recipient_name?.trim() || null;
+  const giftRecipientEmail = parsed.data.gift_recipient_email?.trim().toLowerCase() || null;
+  const giftMessage = parsed.data.gift_message?.trim() || null;
   if (!user && (!guestName || !guestEmail || !guestPhone)) {
     return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
+  }
+  if (isGift) {
+    if (!giftRecipientEmail) {
+      return NextResponse.json({ error: "gift_recipient_email_required" }, { status: 400 });
+    }
+    const buyerEmail = (guestEmail ?? user?.email ?? "").trim().toLowerCase();
+    if (giftRecipientEmail === buyerEmail) {
+      return NextResponse.json({ error: "gift_self_not_allowed" }, { status: 400 });
+    }
   }
 
   const admin = createAdminClient();
@@ -123,65 +140,123 @@ export async function POST(req: Request) {
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
     .limit(10);
   const hasMembershipAccess = (membershipRows ?? []).some((row) => isMembershipActiveForAccess(row));
-  // Membership should only block purchase when membership is a valid unlock path.
-  // For paid_only content, members still need to purchase.
-  const membershipCanUnlock = accessRule.resolvedAccessType === "member_or_paid";
-  if (membershipCanUnlock && hasMembershipAccess) {
-    return NextResponse.json({ error: "already_member" }, { status: 409 });
+  // Membership/duplicate checks apply to the buyer. For gift purchases the item goes to
+  // the recipient, so the buyer's own access status is irrelevant — skip both guards.
+  if (!isGift) {
+    // Membership should only block purchase when membership is a valid unlock path.
+    // For paid_only content, members still need to purchase.
+    const membershipCanUnlock = accessRule.resolvedAccessType === "member_or_paid";
+    if (membershipCanUnlock && hasMembershipAccess) {
+      return NextResponse.json({ error: "already_member" }, { status: 409 });
+    }
+
+    const duplicateQuery = admin
+      .from("member_zone_purchases")
+      .select("id, status")
+      .eq("studio_id", series.studio_id)
+      .eq("client_id", existingClientId ?? "__missing__");
+    const { data: dupRows } =
+      accessRule.purchaseScope === "lesson" && lessonId
+        ? await duplicateQuery.eq("lesson_id", lessonId).limit(10)
+        : await duplicateQuery.eq("series_id", series.id).is("lesson_id", null).limit(10);
+    if ((dupRows ?? []).some((row) => row.status === "paid")) {
+      return NextResponse.json({ error: "already_purchased" }, { status: 409 });
+    }
+    if ((dupRows ?? []).some((row) => row.status === "pending")) {
+      const existingPendingQuery = admin
+        .from("payments")
+        .select("gateway_checkout_url, status, expires_at")
+        .eq("studio_id", series.studio_id)
+        .eq("client_id", existingClientId ?? "__missing__")
+        .eq("source", "member_zone_purchase")
+        .eq("status", "pending");
+      const { data: pendingPayments } =
+        accessRule.purchaseScope === "lesson" && lessonId
+          ? await existingPendingQuery.eq("member_zone_lesson_id", lessonId).limit(10)
+          : await existingPendingQuery.eq("member_zone_series_id", series.id).is("member_zone_lesson_id", null).limit(10);
+      const reusablePending = (pendingPayments ?? []).find((row) => {
+        if (!row.gateway_checkout_url) return false;
+        if (!row.expires_at) return true;
+        return new Date(row.expires_at).getTime() > Date.now();
+      });
+      if (reusablePending?.gateway_checkout_url) {
+        return NextResponse.json({
+          ok: true,
+          already_pending: true,
+          checkout_url: reusablePending.gateway_checkout_url,
+        });
+      }
+      // No reusable pending payment found. The member_zone_purchases row is stale
+      // (its payment has expired/failed but expire_pending_payments didn't clean it up).
+      // Expire the stale purchase records so the user can retry.
+      const expireStaleQuery = admin
+        .from("member_zone_purchases")
+        .update({ status: "expired" })
+        .eq("studio_id", series.studio_id)
+        .eq("client_id", existingClientId ?? "__missing__")
+        .eq("status", "pending");
+      if (accessRule.purchaseScope === "lesson" && lessonId) {
+        await expireStaleQuery.eq("lesson_id", lessonId);
+      } else {
+        await expireStaleQuery.eq("series_id", series.id).is("lesson_id", null);
+      }
+      // Fall through to create a new purchase below.
+    }
   }
 
-  const duplicateQuery = admin
-    .from("member_zone_purchases")
-    .select("id, status")
-    .eq("studio_id", series.studio_id)
-    .eq("client_id", existingClientId ?? "__missing__");
-  const { data: dupRows } =
-    accessRule.purchaseScope === "lesson" && lessonId
-      ? await duplicateQuery.eq("lesson_id", lessonId).limit(10)
-      : await duplicateQuery.eq("series_id", series.id).is("lesson_id", null).limit(10);
-  if ((dupRows ?? []).some((row) => row.status === "paid")) {
-    return NextResponse.json({ error: "already_purchased" }, { status: 409 });
-  }
-  if ((dupRows ?? []).some((row) => row.status === "pending")) {
-    const existingPendingQuery = admin
+  // For gifts, prevent buying content for a recipient who already has access.
+  if (isGift && giftRecipientEmail) {
+    // Block duplicate gifts for the same recipient email even when the recipient
+    // account does not exist yet (so we can't resolve client_id).
+    const recipientGiftPaymentsQuery = admin
       .from("payments")
-      .select("gateway_checkout_url, status, expires_at")
+      .select("id")
       .eq("studio_id", series.studio_id)
-      .eq("client_id", existingClientId ?? "__missing__")
       .eq("source", "member_zone_purchase")
-      .eq("status", "pending");
-    const { data: pendingPayments } =
+      .eq("is_gift", true)
+      .eq("gift_recipient_email", giftRecipientEmail)
+      .in("status", ["pending", "paid"]);
+    const { data: recipientGiftPayments } =
       accessRule.purchaseScope === "lesson" && lessonId
-        ? await existingPendingQuery.eq("member_zone_lesson_id", lessonId).limit(10)
-        : await existingPendingQuery.eq("member_zone_series_id", series.id).is("member_zone_lesson_id", null).limit(10);
-    const reusablePending = (pendingPayments ?? []).find((row) => {
-      if (!row.gateway_checkout_url) return false;
-      if (!row.expires_at) return true;
-      return new Date(row.expires_at).getTime() > Date.now();
-    });
-    if (reusablePending?.gateway_checkout_url) {
-      return NextResponse.json({
-        ok: true,
-        already_pending: true,
-        checkout_url: reusablePending.gateway_checkout_url,
-      });
+        ? await recipientGiftPaymentsQuery.eq("member_zone_lesson_id", lessonId).limit(5)
+        : await recipientGiftPaymentsQuery.eq("member_zone_series_id", series.id).is("member_zone_lesson_id", null).limit(5);
+    if ((recipientGiftPayments ?? []).length > 0) {
+      return NextResponse.json({ error: "gift_recipient_already_has_access" }, { status: 409 });
     }
-    // No reusable pending payment found. The member_zone_purchases row is stale
-    // (its payment has expired/failed but expire_pending_payments didn't clean it up).
-    // Expire the stale purchase records so the user can retry.
-    const expireStaleQuery = admin
-      .from("member_zone_purchases")
-      .update({ status: "expired" })
-      .eq("studio_id", series.studio_id)
-      .eq("client_id", existingClientId ?? "__missing__")
-      .eq("status", "pending");
-    if (accessRule.purchaseScope === "lesson" && lessonId) {
-      await expireStaleQuery.eq("lesson_id", lessonId);
-    } else {
-      await expireStaleQuery.eq("series_id", series.id).is("lesson_id", null);
+
+    const recipientId = await findClientIdByEmail(admin, giftRecipientEmail);
+    if (recipientId) {
+      // Check existing purchase record for the same content.
+      const recipientDupQuery = admin
+        .from("member_zone_purchases")
+        .select("id, status")
+        .eq("studio_id", series.studio_id)
+        .eq("client_id", recipientId);
+      const { data: recipientDups } =
+        accessRule.purchaseScope === "lesson" && lessonId
+          ? await recipientDupQuery.eq("lesson_id", lessonId).limit(5)
+          : await recipientDupQuery.eq("series_id", series.id).is("lesson_id", null).limit(5);
+      if ((recipientDups ?? []).some((r) => r.status === "paid" || r.status === "pending")) {
+        return NextResponse.json({ error: "gift_recipient_already_has_access" }, { status: 409 });
+      }
+
+      // For member_or_paid content, also block if recipient already has an active membership
+      // (membership grants free access — paying for a gift on top is wasteful/incorrect).
+      if (accessRule.resolvedAccessType === "member_or_paid") {
+        const { data: recipientMemberships } = await admin
+          .from("customer_subscriptions")
+          .select("id, status, cancel_at_period_end, current_period_end")
+          .eq("studio_id", series.studio_id)
+          .eq("client_id", recipientId)
+          .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
+          .limit(10);
+        if ((recipientMemberships ?? []).some((row) => isMembershipActiveForAccess(row))) {
+          return NextResponse.json({ error: "gift_recipient_already_has_access" }, { status: 409 });
+        }
+      }
     }
-    // Fall through to create a new purchase below.
   }
+
   const effectiveClientId =
     existingClientId ??
     (await resolveClientIdByEmail(admin, {
@@ -228,6 +303,10 @@ export async function POST(req: Request) {
       guest_name: user ? null : guestName ?? null,
       guest_email: user ? null : guestEmail ?? null,
       guest_phone: user ? null : guestPhone,
+      is_gift: isGift,
+      gift_recipient_name: isGift ? giftRecipientName : null,
+      gift_recipient_email: isGift ? giftRecipientEmail : null,
+      gift_message: isGift ? giftMessage : null,
       amount,
       currency,
       payment_method: "hitpay",

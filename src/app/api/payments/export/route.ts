@@ -21,6 +21,10 @@ type PaymentRow = {
   client_id: string | null;
   guest_name: string | null;
   guest_email: string | null;
+  is_gift?: boolean | null;
+  gift_recipient_name?: string | null;
+  gift_recipient_email?: string | null;
+  gift_message?: string | null;
   status: string | null;
   payment_method: string | null;
   source: string | null;
@@ -91,7 +95,7 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
+      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -156,6 +160,8 @@ export async function GET(req: Request) {
         (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name : null),
         (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
         clientEmail,
+        p.gift_recipient_email ?? null,
+        p.gift_recipient_name ?? null,
       ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(keyword));
@@ -177,6 +183,10 @@ export async function GET(req: Request) {
     "event_name",
     "package_name",
     "membership_name",
+    "is_gift",
+    "gift_recipient_email",
+    "gift_recipient_name",
+    "gift_message",
     "invoice_status",
     "invoice_number",
     "invoice_voided_at",
@@ -236,6 +246,10 @@ export async function GET(req: Request) {
       eventObj?.title ?? "",
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name ?? "" : ""),
       (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? "",
+      p.is_gift ? "true" : "false",
+      p.gift_recipient_email ?? "",
+      p.gift_recipient_name ?? "",
+      p.gift_message ?? "",
       p.invoice_status ?? "",
       p.invoice_number ?? "",
       p.invoice_voided_at ?? "",

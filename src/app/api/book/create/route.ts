@@ -6,6 +6,7 @@ import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { findClientIdByEmail } from "@/lib/resolveClientId";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,6 +16,10 @@ const bodySchema = z.object({
   guest_name: z.string().max(120).optional(),
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional().nullable(),
+  is_gift: z.boolean().optional(),
+  gift_recipient_name: z.string().max(120).optional(),
+  gift_recipient_email: z.string().email().max(320).optional(),
+  gift_message: z.string().max(500).optional(),
 });
 
 export async function POST(req: Request) {
@@ -32,9 +37,22 @@ export async function POST(req: Request) {
   const guestName = parsed.data.guest_name?.trim();
   const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
   const guestPhone = parsed.data.guest_phone?.trim() || null;
+  const isGift = parsed.data.is_gift === true;
+  const giftRecipientName = parsed.data.gift_recipient_name?.trim() || null;
+  const giftRecipientEmail = parsed.data.gift_recipient_email?.trim().toLowerCase() || null;
+  const giftMessage = parsed.data.gift_message?.trim() || null;
 
   if (!user && (!guestName || !guestEmail || !guestPhone)) {
     return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
+  }
+  if (isGift) {
+    if (!giftRecipientEmail) {
+      return NextResponse.json({ error: "gift_recipient_email_required" }, { status: 400 });
+    }
+    const buyerEmail = (guestEmail ?? user?.email ?? "").trim().toLowerCase();
+    if (giftRecipientEmail === buyerEmail) {
+      return NextResponse.json({ error: "gift_self_not_allowed" }, { status: 400 });
+    }
   }
 
   const admin = createAdminClient();
@@ -139,6 +157,34 @@ export async function POST(req: Request) {
   }
   const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
 
+  // For gifts, prevent booking a seat for a recipient who already has one for this session.
+  if (isGift && giftRecipientEmail) {
+    const recipientId = await findClientIdByEmail(admin, giftRecipientEmail);
+    if (recipientId) {
+      const { data: existing } = await admin
+        .from("bookings")
+        .select("id")
+        .eq("session_id", parsed.data.session_id)
+        .eq("client_id", recipientId)
+        .in("status", ["pending", "booked"])
+        .limit(1);
+      if (existing?.length) {
+        return NextResponse.json({ error: "gift_recipient_already_has_access" }, { status: 409 });
+      }
+    }
+    // Also catch existing guest bookings by email (recipient never created an account).
+    const { data: guestExisting } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("session_id", parsed.data.session_id)
+      .eq("guest_email", giftRecipientEmail)
+      .in("status", ["pending", "booked"])
+      .limit(1);
+    if (guestExisting?.length) {
+      return NextResponse.json({ error: "gift_recipient_already_has_access" }, { status: 409 });
+    }
+  }
+
   const reference = generatePaymentReference();
   // Expire before class start so reserved seats are not held too long.
   // Target: now + 15m. Clamp to [now+1m, now+15m], and never after class-5m.
@@ -152,12 +198,20 @@ export async function POST(req: Request) {
   const upperBound = classHardCap != null ? Math.min(maxExpiry, classHardCap) : maxExpiry;
   const expiresAt = new Date(Math.max(minExpiry, Math.min(upperBound, rawExpiry))).toISOString();
 
+  // For gift bookings made by a logged-in user, treat the seat reservation as a
+  // guest-style entry (p_client_id=null) so the RPC's duplicate-booking guard doesn't
+  // fire against the buyer's own booking history. The booking's client_id will be
+  // reassigned to the recipient when the payment webhook confirms.
+  const rpcClientId = isGift ? null : (user?.id ?? null);
+  // RPC requires guest name/email when client_id is null.
+  const rpcGuestName = rpcClientId ? null : (guestName ?? giftRecipientName ?? "Gift recipient");
+  const rpcGuestEmail = rpcClientId ? null : (guestEmail ?? giftRecipientEmail ?? null);
   const { data: bookingRpc, error: bErr } = await admin.rpc("create_pending_booking", {
     p_session_id: parsed.data.session_id,
-    p_client_id: user?.id ?? null,
-    p_guest_name: user ? null : guestName ?? null,
-    p_guest_email: user ? null : guestEmail ?? null,
-    p_guest_phone: user ? null : guestPhone,
+    p_client_id: rpcClientId,
+    p_guest_name: rpcGuestName,
+    p_guest_email: rpcGuestEmail,
+    p_guest_phone: rpcClientId ? null : guestPhone,
   });
   if (bErr) {
     return NextResponse.json({ error: bErr.message }, { status: 500 });
@@ -187,6 +241,10 @@ export async function POST(req: Request) {
       guest_name: user ? null : guestName ?? null,
       guest_email: user ? null : guestEmail ?? null,
       guest_phone: user ? null : guestPhone,
+      is_gift: isGift,
+      gift_recipient_name: isGift ? giftRecipientName : null,
+      gift_recipient_email: isGift ? giftRecipientEmail : null,
+      gift_message: isGift ? giftMessage : null,
       amount,
       currency: "SGD",
       payment_method: "hitpay",

@@ -14,7 +14,7 @@ import { bestRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { Download } from "lucide-react";
+import { Download, Gift } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
@@ -80,7 +80,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, guest_name, guest_email, guest_phone, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -215,6 +215,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       memberZoneLesson?.title ?? null,
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? pkg?.name ?? null,
       (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
+      (p as { gift_recipient_email?: string | null }).gift_recipient_email ?? null,
+      (p as { gift_recipient_name?: string | null }).gift_recipient_name ?? null,
     ]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(keyword));
@@ -426,6 +428,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badges.payment.tone)}`}>
                       {badges.payment.text}
                     </span>
+                    {(p as { is_gift?: boolean }).is_gift ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                        <Gift size={10} />
+                        Gift
+                      </span>
+                    ) : null}
                     {p.invoice_status === "void" ? (
                       <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-700 dark:text-stone-300">
                         Invoice voided
@@ -506,6 +514,27 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                       {new Date(p.verified_at).toLocaleString()} · {p.verified_by ?? "-"}
                     </dd>
                   </div>
+                ) : null}
+                {(p as { is_gift?: boolean }).is_gift ? (
+                  <>
+                    <div className="flex gap-2 sm:col-span-2">
+                      <dt className="w-14 shrink-0 text-teal-500 dark:text-teal-400 sm:w-16">To</dt>
+                      <dd className="min-w-0 break-all font-medium text-teal-700 dark:text-teal-300">
+                        {(p as { gift_recipient_name?: string | null }).gift_recipient_name
+                          ? `${(p as { gift_recipient_name?: string | null }).gift_recipient_name} · `
+                          : ""}
+                        {(p as { gift_recipient_email?: string | null }).gift_recipient_email ?? "-"}
+                      </dd>
+                    </div>
+                    {(p as { gift_message?: string | null }).gift_message ? (
+                      <div className="flex gap-2 sm:col-span-2">
+                        <dt className="w-14 shrink-0 text-teal-500 dark:text-teal-400 sm:w-16">Msg</dt>
+                        <dd className="min-w-0 wrap-break-word text-stone-600 italic dark:text-stone-400">
+                          {(p as { gift_message?: string | null }).gift_message}
+                        </dd>
+                      </div>
+                    ) : null}
+                  </>
                 ) : null}
               </dl>
 

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, Loader2, X } from "lucide-react";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
+import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
@@ -35,16 +36,27 @@ export function QuickEventBookPanel({
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gift, setGift] = useState<GiftPayload | null>(null);
 
   useEffect(() => {
     createBrowserSupabase()
       .auth.getSession()
-      .then(({ data }) => setIsLoggedIn(!!data.session?.user));
+      .then(({ data }) => {
+        setIsLoggedIn(!!data.session?.user);
+        setUserEmail(data.session?.user?.email ?? null);
+      });
   }, []);
 
   const handleSubmit = async (payload: EmailFirstCheckoutPayload = {}) => {
+    const buyerEmail = payload.guest_email ?? userEmail ?? "";
+    if (gift?.is_gift && gift.gift_recipient_email === buyerEmail.trim().toLowerCase()) {
+      const msg = "Recipient email cannot be the same as your email.";
+      setError(msg);
+      return { ok: false as const, message: msg };
+    }
     try {
       setLoading(true);
       setError(null);
@@ -57,13 +69,14 @@ export function QuickEventBookPanel({
           guest_name: isLoggedIn ? undefined : payload.guest_name,
           guest_email: isLoggedIn ? undefined : payload.guest_email,
           guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+          ...(gift ?? {}),
         }),
       });
       const body = await res.json().catch(() => ({}));
       const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
       if (!res.ok) {
         setError(message);
-        if (isLoggedIn) setOpen(true);
+        setOpen(true);
         return { ok: false as const, message };
       }
       if (body.checkout_url) router.push(body.checkout_url);
@@ -71,7 +84,7 @@ export function QuickEventBookPanel({
     } catch {
       const message = "Network error. Check your connection and try again.";
       setError(message);
-      if (isLoggedIn) setOpen(true);
+      setOpen(true);
       return { ok: false as const, message };
     } finally {
       setLoading(false);
@@ -89,10 +102,6 @@ export function QuickEventBookPanel({
         disabled={loading || isLoggedIn === null}
         onClick={() => {
           setError(null);
-          if (isLoggedIn) {
-            void handleSubmit();
-            return;
-          }
           setOpen(true);
         }}
       >
@@ -105,6 +114,10 @@ export function QuickEventBookPanel({
     );
   }
 
+  const loggedInGiftFields = (
+    <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={userEmail} />
+  );
+
   const loggedInForm = (
     <div className="flex flex-col gap-3">
       {error ? (
@@ -113,10 +126,11 @@ export function QuickEventBookPanel({
           {error}
         </p>
       ) : null}
+      {loggedInGiftFields}
       <div className={embedded ? "" : ui.mobileActionBar}>
         <button
           type="button"
-          disabled={loading}
+          disabled={loading || (gift?.is_gift === true && !gift.gift_recipient_email)}
           className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
           onClick={() => void handleSubmit()}
         >
@@ -136,6 +150,9 @@ export function QuickEventBookPanel({
     <EmailFirstCheckout
       submitLabel={payLabel}
       onSubmit={(payload) => handleSubmit(payload)}
+      extraFields={({ normalizedEmail }) => (
+        <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={normalizedEmail} />
+      )}
     />
   );
 

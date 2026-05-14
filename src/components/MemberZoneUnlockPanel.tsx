@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
+import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
@@ -23,11 +24,13 @@ export function MemberZoneUnlockPanel(props: {
   const [msg, setMsg] = useState<string | null>(null);
   /** Browser session can disagree with SSR `isAuthenticated` (CDN/cache). */
   const [browserLoggedIn, setBrowserLoggedIn] = useState<boolean | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const isLoggedInUi = Boolean(props.isAuthenticated) || browserLoggedIn === true;
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [gift, setGift] = useState<GiftPayload | null>(null);
   const membershipHref = props.membershipHref ?? "/me/memberships";
 
   useEffect(() => {
@@ -35,7 +38,10 @@ export function MemberZoneUnlockPanel(props: {
     createBrowserSupabase()
       .auth.getSession()
       .then(({ data }) => {
-        if (!cancelled) setBrowserLoggedIn(Boolean(data.session?.user));
+        if (!cancelled) {
+          setBrowserLoggedIn(Boolean(data.session?.user));
+          setUserEmail(data.session?.user?.email ?? null);
+        }
       })
       .catch(() => {
         if (!cancelled) setBrowserLoggedIn(false);
@@ -113,6 +119,13 @@ export function MemberZoneUnlockPanel(props: {
         return;
       }
     }
+    const buyerEmail = hasBrowserSession ? (userEmail ?? "") : email.trim().toLowerCase();
+    if (gift?.is_gift && gift.gift_recipient_email === buyerEmail) {
+      const hint = "Recipient email cannot be the same as your email.";
+      setMsg(hint);
+      toast.error(hint);
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -126,6 +139,7 @@ export function MemberZoneUnlockPanel(props: {
           guest_name: hasBrowserSession ? undefined : name,
           guest_email: hasBrowserSession ? undefined : email,
           guest_phone: hasBrowserSession ? undefined : (phone.trim() || null),
+          ...(gift ?? {}),
         }),
       });
       const rawText = await res.text();
@@ -237,12 +251,18 @@ export function MemberZoneUnlockPanel(props: {
         </div>
       ) : null}
 
+      {showPurchaseButton ? (
+        <div className="mt-3">
+          <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={userEmail ?? (email.trim() || null)} />
+        </div>
+      ) : null}
+
       {/* Action buttons */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {showPurchaseButton ? (
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || (gift?.is_gift === true && !gift.gift_recipient_email)}
             className={ui.btnPrimarySm}
             onClick={() => void startPurchase()}
           >

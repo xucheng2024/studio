@@ -238,3 +238,282 @@ export async function sendInvoiceNotice(params: {
     ],
   });
 }
+
+export async function sendPurchaseConfirmation(params: {
+  to: string;
+  buyerName: string | null | undefined;
+  studioName: string;
+  itemDescription: string;
+  amount: number;
+  currency: string;
+  referenceCode: string | null | undefined;
+  /** If this was a gift, show "Your gift has been sent to …" copy. */
+  isGift?: boolean;
+  giftRecipientEmail?: string | null;
+  loginUrl: string;
+}) {
+  const nameSafe = escHtml((params.buyerName ?? "").trim());
+  const greeting = nameSafe ? `Hi ${nameSafe},` : "Hi there,";
+  const studioNameSafe = escHtml(params.studioName);
+  const itemSafe = escHtml(params.itemDescription);
+  const amountFormatted = `${params.currency} ${params.amount.toFixed(2)}`;
+  const refSafe = params.referenceCode ? escHtml(params.referenceCode) : null;
+  const loginUrlSafe = escHtml(params.loginUrl);
+  const isGift = Boolean(params.isGift);
+  const recipientSafe = params.giftRecipientEmail ? escHtml(params.giftRecipientEmail) : null;
+  const headline = isGift ? "Gift sent!" : "Payment confirmed";
+  const bodyCopy = isGift && recipientSafe
+    ? `Your gift (<strong style="color:#111827;">${itemSafe}</strong>) has been sent to <strong style="color:#111827;">${recipientSafe}</strong>. They'll receive a notification email shortly.`
+    : `Your purchase of <strong style="color:#111827;">${itemSafe}</strong> is confirmed and ready to use.`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#0d9488;padding:28px 32px;">
+            <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">${studioNameSafe}</p>
+            <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">${headline}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 16px;font-size:15px;color:#111827;">${greeting}</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">${bodyCopy}</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:24px;">
+              <tr style="background:#f0fdfa;">
+                <td colspan="2" style="padding:10px 16px;font-size:10px;font-weight:700;color:#0d9488;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e5e7eb;">Order summary</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Item</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;font-weight:600;text-align:right;border-bottom:1px solid #e5e7eb;">${itemSafe}</td>
+              </tr>
+              ${refSafe ? `<tr>
+                <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Reference</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;font-family:monospace;text-align:right;border-bottom:1px solid #e5e7eb;">${refSafe}</td>
+              </tr>` : ""}
+              <tr style="background:#0d9488;">
+                <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff;">Total Paid</td>
+                <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff;text-align:right;">${amountFormatted}</td>
+              </tr>
+            </table>
+            <table cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:#0d9488;border-radius:8px;">
+                  <a href="${loginUrlSafe}" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">View my account</a>
+                </td>
+              </tr>
+            </table>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0 20px;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+              This receipt was sent by <strong style="color:#6b7280;">${studioNameSafe}</strong>. If you have questions, please contact the studio directly.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const fromPlain = (params.buyerName ?? "").trim() || "there";
+  const subjectLine = isGift
+    ? `Gift sent — ${params.itemDescription}`
+    : `Payment confirmed — ${params.itemDescription}`;
+  return sendEmail({
+    to: params.to,
+    subject: subjectLine,
+    text: [
+      greeting.replace(/&[a-z#0-9]+;/g, (m) => ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }[m] ?? m)),
+      "",
+      isGift && params.giftRecipientEmail
+        ? `Your gift (${params.itemDescription}) has been sent to ${params.giftRecipientEmail}.`
+        : `Your purchase of ${params.itemDescription} is confirmed.`,
+      `Amount: ${amountFormatted}`,
+      params.referenceCode ? `Reference: ${params.referenceCode}` : null,
+      "",
+      `Sign in to view your account: ${params.loginUrl}`,
+    ].filter(Boolean).join("\n"),
+    html,
+  });
+}
+
+export async function sendRefundNotice(params: {
+  to: string;
+  buyerName: string | null | undefined;
+  studioName: string;
+  itemDescription: string;
+  amount: number;
+  currency: string;
+  referenceCode: string | null | undefined;
+}) {
+  const nameSafe = escHtml((params.buyerName ?? "").trim());
+  const greeting = nameSafe ? `Hi ${nameSafe},` : "Hi there,";
+  const studioNameSafe = escHtml(params.studioName);
+  const itemSafe = escHtml(params.itemDescription);
+  const amountFormatted = `${params.currency} ${params.amount.toFixed(2)}`;
+  const refSafe = params.referenceCode ? escHtml(params.referenceCode) : null;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#6b7280;padding:28px 32px;">
+            <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">${studioNameSafe}</p>
+            <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">Refund processed</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 16px;font-size:15px;color:#111827;">${greeting}</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
+              Your payment for <strong style="color:#111827;">${itemSafe}</strong> has been refunded. Please allow a few business days for the funds to appear in your account.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:24px;">
+              <tr style="background:#f3f4f6;">
+                <td colspan="2" style="padding:10px 16px;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e5e7eb;">Refund details</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Item</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;font-weight:600;text-align:right;border-bottom:1px solid #e5e7eb;">${itemSafe}</td>
+              </tr>
+              ${refSafe ? `<tr>
+                <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Reference</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;font-family:monospace;text-align:right;border-bottom:1px solid #e5e7eb;">${refSafe}</td>
+              </tr>` : ""}
+              <tr style="background:#6b7280;">
+                <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff;">Refund Amount</td>
+                <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff;text-align:right;">${amountFormatted}</td>
+              </tr>
+            </table>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 20px;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+              This refund was processed by <strong style="color:#6b7280;">${studioNameSafe}</strong>. If you have questions, please contact the studio directly.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  return sendEmail({
+    to: params.to,
+    subject: `Refund processed — ${params.itemDescription}`,
+    text: [
+      greeting.replace(/&[a-z#0-9]+;/g, (m) => ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }[m] ?? m)),
+      "",
+      `Your payment for ${params.itemDescription} has been refunded.`,
+      `Amount: ${amountFormatted}`,
+      params.referenceCode ? `Reference: ${params.referenceCode}` : null,
+      "",
+      "Please allow a few business days for the funds to appear in your account.",
+    ].filter(Boolean).join("\n"),
+    html,
+  });
+}
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+export async function sendGiftNotice(params: {
+  to: string;
+  recipientName: string | null | undefined;
+  /** Guest buyer name (populated for guest checkout). */
+  senderName: string | null | undefined;
+  /** Logged-in buyer profile name (fallback when senderName is null). */
+  senderProfileName?: string | null | undefined;
+  studioName: string;
+  itemDescription: string;
+  giftMessage: string | null | undefined;
+  loginUrl: string;
+}) {
+  const recipientNameSafe = escHtml((params.recipientName ?? "").trim());
+  const greeting = recipientNameSafe ? `Hi ${recipientNameSafe},` : "Hi there,";
+  const from = escHtml((params.senderName ?? params.senderProfileName ?? "").trim() || "Someone");
+  const studioNameSafe = escHtml(params.studioName);
+  const itemSafe = escHtml(params.itemDescription);
+  const msg = escHtml((params.giftMessage ?? "").trim());
+  const loginUrlSafe = escHtml(params.loginUrl);
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#0d9488;padding:28px 32px;">
+            <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">${studioNameSafe}</p>
+            <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">You've received a gift</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 16px;font-size:15px;color:#111827;">${greeting}</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
+              <strong style="color:#111827;">${from}</strong> has sent you a gift from <strong style="color:#111827;">${studioNameSafe}</strong>:
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdfa;border-radius:8px;border:1px solid #99f6e4;margin-bottom:24px;">
+              <tr>
+                <td style="padding:16px 20px;">
+                  <p style="margin:0;font-size:16px;font-weight:700;color:#0d9488;">${itemSafe}</p>
+                </td>
+              </tr>
+            </table>
+            ${msg ? `
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;border-left:3px solid #0d9488;border-radius:4px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:12px 16px;">
+                  <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Message from ${from}</p>
+                  <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">${msg}</p>
+                </td>
+              </tr>
+            </table>` : ""}
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
+              Your gift has been added to your account. Sign in to access it.
+            </p>
+            <table cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:#0d9488;border-radius:8px;">
+                  <a href="${loginUrlSafe}" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">View my gift</a>
+                </td>
+              </tr>
+            </table>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0 20px;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+              This gift was sent via <strong style="color:#6b7280;">${studioNameSafe}</strong>. If you have questions, please contact the studio directly.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const fromPlain = (params.senderName ?? params.senderProfileName ?? "").trim() || "Someone";
+  return sendEmail({
+    to: params.to,
+    subject: `You've received a gift from ${params.studioName}`,
+    text: [
+      greeting.replace(/&[a-z]+;/g, (m) => ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }[m] ?? m)),
+      "",
+      `${fromPlain} has sent you a gift from ${params.studioName}: ${params.itemDescription}`,
+      (params.giftMessage ?? "").trim() ? `\nMessage: ${(params.giftMessage ?? "").trim()}` : null,
+      "",
+      `Your gift has been added to your account. Sign in here: ${params.loginUrl}`,
+    ].filter(Boolean).join("\n"),
+    html,
+  });
+}

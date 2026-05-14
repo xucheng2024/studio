@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
@@ -19,9 +20,11 @@ type Props = {
   busyLabel?: string;
   disabled?: boolean;
   onSubmit: (payload: EmailFirstCheckoutPayload) => Promise<{ ok: true } | { ok: false; message: string }>;
+  /** Extra fields rendered before the submit button in every step (e.g. GiftRecipientFields). */
+  extraFields?: React.ReactNode | ((ctx: { normalizedEmail: string }) => React.ReactNode);
 };
 
-export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", disabled = false, onSubmit }: Props) {
+export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", disabled = false, onSubmit, extraFields }: Props) {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -31,6 +34,9 @@ export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", d
   const [message, setMessage] = useState<string | null>(null);
 
   const normalizedEmail = email.trim().toLowerCase();
+  const renderedExtraFields = typeof extraFields === "function"
+    ? extraFields({ normalizedEmail })
+    : extraFields;
 
   const submitPayload = async (payload: EmailFirstCheckoutPayload) => {
     setBusy(true);
@@ -113,6 +119,7 @@ export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", d
               required
             />
           </label>
+          {renderedExtraFields}
           <button
             type="button"
             disabled={busy || disabled || !normalizedEmail}
@@ -138,6 +145,7 @@ export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", d
               autoComplete="one-time-code"
             />
           </label>
+          {renderedExtraFields}
           <button
             type="button"
             disabled={busy || disabled || otpCode.trim().length !== 6}
@@ -167,6 +175,7 @@ export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", d
             <span className={ui.label}>Phone</span>
             <PhoneNumberInput value={phone} onChange={setPhone} placeholder="9123 4567" required />
           </label>
+          {renderedExtraFields}
           <button
             type="button"
             disabled={busy || disabled || !name.trim() || !phone.trim()}

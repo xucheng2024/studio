@@ -103,11 +103,17 @@ export function paymentErrorMessage(error: string, detail?: string) {
                                   ? "You are signed in under a different studio. Open this studio’s site and try again."
                                   : error === "studio_suspended"
                                     ? "This studio is not accepting payments right now."
-                                    : error === "studio_not_found"
-                                      ? "Studio not found."
-                                      : error === "event_external_booking_url"
-                                        ? "This event is booked on an external site. Use Book now on the event page."
-                                        : "Could not continue payment.";
+                  : error === "studio_not_found"
+                    ? "Studio not found."
+                    : error === "event_external_booking_url"
+                      ? "This event is booked on an external site. Use Book now on the event page."
+                      : error === "gift_recipient_email_required"
+                        ? "Please enter the recipient's email address."
+                        : error === "gift_self_not_allowed"
+                          ? "You cannot send a gift to yourself."
+                          : error === "gift_recipient_already_has_access"
+                            ? "The recipient already has access to this item."
+                            : "Could not continue payment.";
   if (!detail) return base;
   return `${base} (${detail})`;
 }

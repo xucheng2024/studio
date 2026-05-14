@@ -15,6 +15,10 @@ const bodySchema = z.object({
   guest_name: z.string().max(120).optional(),
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional().nullable(),
+  is_gift: z.boolean().optional(),
+  gift_recipient_name: z.string().max(120).optional(),
+  gift_recipient_email: z.string().email().max(320).optional(),
+  gift_message: z.string().max(500).optional(),
 });
 
 export async function POST(req: Request) {
@@ -31,8 +35,21 @@ export async function POST(req: Request) {
   const guestName = parsed.data.guest_name?.trim();
   const guestEmail = parsed.data.guest_email?.trim().toLowerCase();
   const guestPhone = parsed.data.guest_phone?.trim() || null;
+  const isGift = parsed.data.is_gift === true;
+  const giftRecipientName = parsed.data.gift_recipient_name?.trim() || null;
+  const giftRecipientEmail = parsed.data.gift_recipient_email?.trim().toLowerCase() || null;
+  const giftMessage = parsed.data.gift_message?.trim() || null;
   if (!user && (!guestName || !guestEmail || !guestPhone)) {
     return NextResponse.json({ error: "guest_details_required" }, { status: 400 });
+  }
+  if (isGift) {
+    if (!giftRecipientEmail) {
+      return NextResponse.json({ error: "gift_recipient_email_required" }, { status: 400 });
+    }
+    const buyerEmail = (guestEmail ?? user?.email ?? "").trim().toLowerCase();
+    if (giftRecipientEmail === buyerEmail) {
+      return NextResponse.json({ error: "gift_self_not_allowed" }, { status: 400 });
+    }
   }
 
   const admin = createAdminClient();
@@ -106,6 +123,10 @@ export async function POST(req: Request) {
       guest_name: user ? null : guestName ?? null,
       guest_email: user ? null : guestEmail ?? null,
       guest_phone: user ? null : guestPhone,
+      is_gift: isGift,
+      gift_recipient_name: isGift ? giftRecipientName : null,
+      gift_recipient_email: isGift ? giftRecipientEmail : null,
+      gift_message: isGift ? giftMessage : null,
       amount: pkg.price,
       currency: "SGD",
       payment_method: "hitpay",
