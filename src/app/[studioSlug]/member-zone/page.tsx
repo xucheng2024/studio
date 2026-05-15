@@ -44,14 +44,15 @@ export default async function PublicMemberZonePage({ params }: Props) {
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {(seriesRows ?? []).map((series) => {
           const href = studioMemberZonePath(studio.public_slug, series.share_slug);
-          const priceStr = `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price ?? 0).toFixed(2)}`;
+          const hasPrice = series.price != null && Number(series.price) > 0;
+          const priceStr = hasPrice ? `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price).toFixed(2)}` : null;
           const accessTag =
             series.access_type === "free"
               ? { label: "Free", color: "bg-teal-50 text-teal-700 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300" }
               : series.access_type === "paid_only"
-                ? { label: priceStr, color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" }
+                ? { label: priceStr ?? "Paid", color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" }
                 : series.access_type === "member_or_paid"
-                  ? { label: `From ${priceStr}`, color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" }
+                  ? { label: priceStr ? `From ${priceStr}` : "Member or paid", color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" }
                   : { label: "Members only", color: "bg-stone-100 text-stone-700 ring-stone-400/20 dark:bg-stone-800 dark:text-stone-300" };
           const ctaLabel = "View series";
           const preview = getVideoPreview(series.promo_video_url ?? "");

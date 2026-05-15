@@ -20,7 +20,7 @@ export function SessionBookingActions({
 }: {
   slug: string;
   sessionId: string;
-  guestPrice: number;
+  guestPrice: number | null;
   paymentReady: boolean;
   isSignedIn: boolean;
   creditsRequired?: number;
@@ -76,8 +76,13 @@ export function SessionBookingActions({
     });
   }, [isSignedIn, sessionId, bookWithPass]);
 
+  const hasGuestPrice = guestPrice != null && guestPrice > 0;
+
   // Session doesn't accept class passes — show pay form directly
   if (creditsRequired === 0) {
+    if (!hasGuestPrice) {
+      return <p className={`text-sm ${ui.muted}`}>Price unavailable for this session.</p>;
+    }
     return (
       <>
         <div className="flex flex-col gap-3">
@@ -145,36 +150,42 @@ export function SessionBookingActions({
           </div>
         ) : null}
 
-        {/* ── Divider ── */}
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
-          <span className="text-xs text-stone-400 dark:text-stone-500">or</span>
-          <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
-        </div>
+        {hasGuestPrice ? (
+          <>
+            {/* ── Divider ── */}
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
+              <span className="text-xs text-stone-400 dark:text-stone-500">or</span>
+              <div className="h-px flex-1 bg-stone-200 dark:bg-stone-700" />
+            </div>
 
-        {/* ── Secondary: Pay (expands to form) ── */}
-        {showPayForm ? (
-          <div className="flex flex-col gap-3">
-            <QuickBookPanel
-              slug={slug}
-              sessionId={sessionId}
-              payLabel={`Pay $${guestPrice.toFixed(2)}`}
-              disabled={!paymentReady}
-              defaultOpen
-              hideClose
-              embedded
-            />
-          </div>
+            {/* ── Secondary: Pay (expands to form) ── */}
+            {showPayForm ? (
+              <div className="flex flex-col gap-3">
+                <QuickBookPanel
+                  slug={slug}
+                  sessionId={sessionId}
+                  payLabel={`Pay $${guestPrice.toFixed(2)}`}
+                  disabled={!paymentReady}
+                  defaultOpen
+                  hideClose
+                  embedded
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={!paymentReady}
+                className={`${ui.btnSecondary} w-full justify-center gap-2 disabled:opacity-50`}
+                onClick={() => setShowPayForm(true)}
+              >
+                <ChevronDown size={15} />
+                Pay ${guestPrice.toFixed(2)}
+              </button>
+            )}
+          </>
         ) : (
-          <button
-            type="button"
-            disabled={!paymentReady}
-            className={`${ui.btnSecondary} w-full justify-center gap-2 disabled:opacity-50`}
-            onClick={() => setShowPayForm(true)}
-          >
-            <ChevronDown size={15} />
-            Pay ${guestPrice.toFixed(2)}
-          </button>
+          <p className={`text-xs ${ui.muted}`}>Guest pay is unavailable for this session.</p>
         )}
       </div>
 

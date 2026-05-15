@@ -98,7 +98,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Price (if purchase is allowed)</span>
-            <input name="price" type="number" min={0} step={0.01} defaultValue={0} className={ui.input} />
+            <input name="price" type="number" min={0} step={0.01} className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Currency</span>
@@ -146,7 +146,8 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                     <span className={ui.badgeNeutral}>{series.access_type}</span>
                   </div>
                   <p className={`mt-1 text-xs ${ui.muted}`}>
-                    {series.currency} {Number(series.price ?? 0).toFixed(2)} · {Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons.length : 0} lessons
+                    {series.price != null && Number(series.price) > 0 ? `${series.currency} ${Number(series.price).toFixed(2)} · ` : ""}
+                    {Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons.length : 0} lessons
                   </p>
                 </div>
                 <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
@@ -183,7 +184,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Price (if purchase is allowed)</span>
-                  <input name="price" type="number" min={0} step={0.01} defaultValue={Number(series.price ?? 0)} className={ui.input} />
+                  <input name="price" type="number" min={0} step={0.01} defaultValue={series.price != null && Number(series.price) > 0 ? Number(series.price) : ""} className={ui.input} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Currency</span>
@@ -259,7 +260,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                         <label className="flex flex-col gap-1"><span className={ui.label}>Media type</span><select name="media_type" defaultValue={lesson.media_type ?? "video"} className={ui.select}><option value="video">Video</option><option value="audio">Audio</option></select></label>
                         <label className="flex flex-col gap-1"><span className={ui.label}>Duration (min)</span><input name="duration_min" type="number" min={0} defaultValue={lesson.duration_min ?? 0} className={ui.input} /></label>
                         <label className="flex flex-col gap-1"><span className={ui.label}>Access override</span><select name="access_override" defaultValue={lesson.access_override ?? "inherit"} className={ui.select}><option value="inherit">Inherit series</option><option value="member_only">Members only</option><option value="paid_only">Paid only</option><option value="member_or_paid">Member or paid</option><option value="free">Free</option></select></label>
-                        <label className="flex flex-col gap-1"><span className={ui.label}>Override price</span><input name="override_price" type="number" min={0} step={0.01} defaultValue={lesson.override_price ?? 0} className={ui.input} /></label>
+                        <label className="flex flex-col gap-1"><span className={ui.label}>Override price</span><input name="override_price" type="number" min={0} step={0.01} defaultValue={lesson.override_price != null && Number(lesson.override_price) > 0 ? Number(lesson.override_price) : ""} className={ui.input} /></label>
                         <label className="flex flex-col gap-1"><span className={ui.label}>Currency</span><input name="currency" defaultValue={lesson.currency ?? "SGD"} className={ui.input} /></label>
                         <label className="flex flex-col gap-1"><span className={ui.label}>Sort order</span><input name="sort_order" type="number" defaultValue={lesson.sort_order ?? 100} className={ui.input} /></label>
                         <label className="inline-flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="is_active" defaultChecked={Boolean(lesson.is_active)} />Active</label>
@@ -298,7 +299,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   <label className="flex flex-col gap-1"><span className={ui.label}>Media type</span><select name="media_type" defaultValue="video" className={ui.select}><option value="video">Video</option><option value="audio">Audio</option></select></label>
                   <label className="flex flex-col gap-1"><span className={ui.label}>Duration (min)</span><input name="duration_min" type="number" min={0} defaultValue={0} className={ui.input} /></label>
                   <label className="flex flex-col gap-1"><span className={ui.label}>Access override</span><select name="access_override" defaultValue="inherit" className={ui.select}><option value="inherit">Inherit series</option><option value="member_only">Members only</option><option value="paid_only">Paid only</option><option value="member_or_paid">Member or paid</option><option value="free">Free</option></select></label>
-                  <label className="flex flex-col gap-1"><span className={ui.label}>Override price</span><input name="override_price" type="number" min={0} step={0.01} defaultValue={0} className={ui.input} /></label>
+                  <label className="flex flex-col gap-1"><span className={ui.label}>Override price</span><input name="override_price" type="number" min={0} step={0.01} className={ui.input} /></label>
                   <label className="flex flex-col gap-1"><span className={ui.label}>Currency</span><input name="currency" defaultValue="SGD" className={ui.input} /></label>
                   <label className="flex flex-col gap-1"><span className={ui.label}>Sort order</span><input name="sort_order" type="number" defaultValue={100} className={ui.input} /></label>
                   <div className="sm:col-span-2">

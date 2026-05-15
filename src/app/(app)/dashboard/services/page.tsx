@@ -83,7 +83,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Price</span>
-            <input name="price" type="number" min="0" step="0.01" required className={ui.input} />
+            <input name="price" type="number" min="0" step="0.01" className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Currency</span>
@@ -155,7 +155,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                       ) : null}
                     </div>
                     <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                      {svc.price != null ? (
+                      {svc.price != null && Number(svc.price) > 0 ? (
                         <>
                           {svc.currency ?? "SGD"} {Number(svc.price).toFixed(2)}
                         </>
@@ -207,7 +207,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Price</span>
-                  <input name="price" type="number" min="0" step="0.01" defaultValue={Number(svc.price ?? 0)} className={ui.input} />
+                  <input name="price" type="number" min="0" step="0.01" defaultValue={svc.price != null && Number(svc.price) > 0 ? Number(svc.price) : ""} className={ui.input} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Currency</span>

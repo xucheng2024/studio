@@ -227,6 +227,13 @@ function sanitizePrice(raw: FormDataEntryValue | null): number {
   return Math.round(n * 100) / 100;
 }
 
+function sanitizePriceNullable(raw: FormDataEntryValue | null): number | null {
+  if (raw === null || String(raw).trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100) / 100;
+}
+
 async function generateUniqueServiceShareSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
   studioId: string,
@@ -350,7 +357,7 @@ export async function createStudioService(formData: FormData): Promise<void> {
   if (!title) return;
   const summary = String(formData.get("summary") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
-  const price = sanitizePrice(formData.get("price"));
+  const price = sanitizePriceNullable(formData.get("price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
@@ -397,7 +404,7 @@ export async function updateStudioService(formData: FormData): Promise<void> {
   if (!title) return;
   const summary = String(formData.get("summary") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
-  const price = sanitizePrice(formData.get("price"));
+  const price = sanitizePriceNullable(formData.get("price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
@@ -745,10 +752,9 @@ export async function createSession(formData: FormData): Promise<void> {
 
   const class_id = String(formData.get("class_id") ?? "");
   const start = String(formData.get("start_time") ?? "");
-  const guest_price = Number(formData.get("guest_price") ?? 0);
+  const guest_price = sanitizePriceNullable(formData.get("guest_price"));
   const credits_required = Number(formData.get("credits_required") ?? 1);
   if (!class_id || !start) return;
-  if (!Number.isFinite(guest_price) || guest_price < 0) return;
   if (!Number.isFinite(credits_required) || credits_required <= 0) return;
 
   const { data: cls, error: cErr } = await supabase
@@ -934,7 +940,7 @@ export async function createEvent(formData: FormData): Promise<void> {
   const startRaw = String(formData.get("start_time") ?? "");
   const endRaw = String(formData.get("end_time") ?? "");
   const capacity = Number(formData.get("capacity") ?? 0);
-  const price = sanitizePrice(formData.get("price"));
+  const price = sanitizePriceNullable(formData.get("price"));
   const currency = "SGD";
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
@@ -942,7 +948,7 @@ export async function createEvent(formData: FormData): Promise<void> {
 
   if (!title) return;
   if (!Number.isFinite(capacity) || capacity <= 0) return;
-  if (!(price > 0)) return;
+  if (price != null && !(price > 0)) return;
 
   const start = new Date(startRaw);
   const end = new Date(endRaw);
@@ -999,14 +1005,14 @@ export async function updateEvent(formData: FormData): Promise<void> {
   const startRaw = String(formData.get("start_time") ?? "");
   const endRaw = String(formData.get("end_time") ?? "");
   const capacity = Number(formData.get("capacity") ?? 0);
-  const price = sanitizePrice(formData.get("price"));
+  const price = sanitizePriceNullable(formData.get("price"));
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
   const external_booking_url = sanitizeEventExternalBookingUrl(String(formData.get("external_booking_url") ?? ""));
 
   if (!title) return;
   if (!Number.isFinite(capacity) || capacity <= 0) return;
-  if (!(price > 0)) return;
+  if (price != null && !(price > 0)) return;
   const start = new Date(startRaw);
   const end = new Date(endRaw);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
@@ -1110,7 +1116,7 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
     accessTypeRaw === "free" || accessTypeRaw === "paid_only" || accessTypeRaw === "member_only" || accessTypeRaw === "member_or_paid"
       ? accessTypeRaw
       : "member_only";
-  const price = sanitizePrice(formData.get("price"));
+  const price = sanitizePriceNullable(formData.get("price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const sort_order = Number(formData.get("sort_order") ?? 100);
@@ -1125,7 +1131,7 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
     cover_image_url,
     promo_video_url,
     access_type,
-    price: access_type === "paid_only" || access_type === "member_or_paid" ? price : 0,
+    price: access_type === "paid_only" || access_type === "member_or_paid" ? price : null,
     currency,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
     share_slug,
@@ -1159,7 +1165,7 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
     accessTypeRaw === "free" || accessTypeRaw === "paid_only" || accessTypeRaw === "member_only" || accessTypeRaw === "member_or_paid"
       ? accessTypeRaw
       : "member_only";
-  const price = sanitizePrice(formData.get("price"));
+  const price = sanitizePriceNullable(formData.get("price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const sort_order = Number(formData.get("sort_order") ?? 100);
@@ -1174,7 +1180,7 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
       cover_image_url,
       promo_video_url,
       access_type,
-      price: access_type === "paid_only" || access_type === "member_or_paid" ? price : 0,
+      price: access_type === "paid_only" || access_type === "member_or_paid" ? price : null,
       currency,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
       is_active,
@@ -1241,7 +1247,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
     accessOverrideRaw === "inherit" || accessOverrideRaw === "free" || accessOverrideRaw === "paid_only" || accessOverrideRaw === "member_only" || accessOverrideRaw === "member_or_paid"
       ? accessOverrideRaw
       : "inherit";
-  const override_price = sanitizePrice(formData.get("override_price"));
+  const override_price = sanitizePriceNullable(formData.get("override_price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const sort_order = Number(formData.get("sort_order") ?? 100);
@@ -1255,7 +1261,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
     media_type,
     duration_min: Number.isFinite(durationMin) ? Math.max(0, Math.floor(durationMin)) : 0,
     access_override,
-    override_price: access_override === "paid_only" || access_override === "member_or_paid" ? override_price : 0,
+    override_price: access_override === "paid_only" || access_override === "member_or_paid" ? override_price : null,
     currency,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
     is_active: true,
@@ -1298,7 +1304,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
     accessOverrideRaw === "inherit" || accessOverrideRaw === "free" || accessOverrideRaw === "paid_only" || accessOverrideRaw === "member_only" || accessOverrideRaw === "member_or_paid"
       ? accessOverrideRaw
       : "inherit";
-  const override_price = sanitizePrice(formData.get("override_price"));
+  const override_price = sanitizePriceNullable(formData.get("override_price"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const sort_order = Number(formData.get("sort_order") ?? 100);
@@ -1314,7 +1320,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
       media_type,
       duration_min: Number.isFinite(durationMin) ? Math.max(0, Math.floor(durationMin)) : 0,
       access_override,
-      override_price: access_override === "paid_only" || access_override === "member_or_paid" ? override_price : 0,
+      override_price: access_override === "paid_only" || access_override === "member_or_paid" ? override_price : null,
       currency,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
       is_active,
@@ -1410,14 +1416,13 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
   const startTime = String(formData.get("start_time") ?? "");
   const duration = Number(formData.get("duration_min") ?? 60);
   const capacity = Number(formData.get("capacity") ?? 10);
-  const guestPrice = Number(formData.get("guest_price") ?? 0);
+  const guestPrice = sanitizePriceNullable(formData.get("guest_price"));
   const creditsRequired = Number(formData.get("credits_required") ?? 1);
   const sessionAddress = String(formData.get("address") ?? "").trim() || null;
   const sessionAddressDetails = String(formData.get("address_details") ?? "").trim() || null;
 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !locationId || !classId || !startDate || !startTime) return;
-  if (!Number.isFinite(guestPrice) || guestPrice < 0) return;
   if (!Number.isFinite(creditsRequired) || creditsRequired <= 0) return;
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;

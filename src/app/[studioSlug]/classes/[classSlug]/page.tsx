@@ -132,7 +132,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
       timeZone: "Asia/Singapore",
     });
     const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
-    const hasGuestPrice = s.guest_price != null;
+    const hasGuestPrice = s.guest_price != null && Number(s.guest_price) > 0;
     const price = hasGuestPrice ? Number(s.guest_price).toFixed(2) : null;
     const spotsLeft = Number(s.spots_left ?? 0);
     const sessionCapacity =
@@ -256,7 +256,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   <SessionBookingActions
                     slug={studioPublicSlug}
                     sessionId={s.id}
-                    guestPrice={Number(s.guest_price ?? 0)}
+                    guestPrice={s.guest_price != null ? Number(s.guest_price) : null}
                     paymentReady={paymentReady}
                     isSignedIn={isSignedIn}
                     creditsRequired={Number(s.credits_required ?? 0)}
@@ -341,7 +341,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   <div className="min-w-0">
                     <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
                     <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
-                      {s.guest_price != null ? (
+                      {s.guest_price != null && Number(s.guest_price) > 0 ? (
                         <>
                           <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
                             ${Number(s.guest_price).toFixed(2)}
@@ -389,7 +389,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   <SessionBookingActions
                     slug={studioPublicSlug}
                     sessionId={s.id}
-                    guestPrice={Number(s.guest_price ?? 0)}
+                    guestPrice={s.guest_price != null ? Number(s.guest_price) : null}
                     paymentReady={paymentReady}
                     isSignedIn={isSignedIn}
                     creditsRequired={Number(s.credits_required ?? 0)}

@@ -32,6 +32,7 @@ export default async function PublicEventPage({ params }: Props) {
   const coverSrc = (event as { image_url?: string | null }).image_url ?? null;
   const videoUrl = (event as { video_url?: string | null }).video_url ?? null;
   const eventCurrency = String((event as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+  const hasEventPrice = event.price != null && Number(event.price) > 0;
   const videoPreview = getVideoPreview(videoUrl ?? "");
   const sharePath = studioEventPath(studio.public_slug ?? rawStudio, event.share_slug ?? rawEvent);
   const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
@@ -141,9 +142,11 @@ export default async function PublicEventPage({ params }: Props) {
               <>
                 <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Event ended</p>
                 <p className={`mt-1 text-sm ${ui.muted}`}>Bookings are closed for past events.</p>
-                <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-                  {eventCurrency} {Number(event.price ?? 0).toFixed(2)}
-                </p>
+                {hasEventPrice ? (
+                  <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+                    {eventCurrency} {Number(event.price).toFixed(2)}
+                  </p>
+                ) : null}
               </>
             ) : (
               <>
@@ -155,10 +158,14 @@ export default async function PublicEventPage({ params }: Props) {
                       ? "Secure checkout powered by HitPay."
                       : "Online payment is not configured for this studio."}
                 </p>
-                <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-                  {eventCurrency} {Number(event.price ?? 0).toFixed(2)}
-                  <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ ticket</span>
-                </p>
+                {hasEventPrice ? (
+                  <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+                    {eventCurrency} {Number(event.price).toFixed(2)}
+                    <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ ticket</span>
+                  </p>
+                ) : (
+                  <p className={`mt-4 text-sm ${ui.muted}`}>Price unavailable</p>
+                )}
 
                 <div className="mt-5">
                   {useExternalBooking && externalBookUrl ? (
@@ -170,17 +177,18 @@ export default async function PublicEventPage({ params }: Props) {
                     >
                       Book now
                     </a>
-                  ) : (
+                  ) : null}
+                  {!useExternalBooking && hasEventPrice ? (
                     <QuickEventBookPanel
                       slug={studio.public_slug ?? rawStudio}
                       eventId={event.id}
-                      payLabel={`Pay ${eventCurrency} ${Number(event.price ?? 0).toFixed(2)}`}
+                      payLabel={`Pay ${eventCurrency} ${Number(event.price).toFixed(2)}`}
                       disabled={!paymentReady}
                       defaultOpen
                       hideClose
                       embedded
                     />
-                  )}
+                  ) : null}
                 </div>
               </>
             )}

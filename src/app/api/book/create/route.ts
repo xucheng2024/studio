@@ -132,6 +132,9 @@ export async function POST(req: Request) {
   }
 
   const amount = Number(session.guest_price ?? 0);
+  if (!(amount > 0)) {
+    return NextResponse.json({ error: "session_price_unavailable" }, { status: 409 });
+  }
   const { data: studioContract } = await admin
     .from("studios")
     .select("contract_status, hitpay_enabled")

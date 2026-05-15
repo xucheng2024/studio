@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { site } from "@/lib/brand";
 import { MobileMenu } from "@/components/MobileMenu";
 import { SiteHeaderAccountDropdown } from "@/components/SiteHeaderAccountDropdown";
@@ -30,9 +31,12 @@ export async function SiteHeader() {
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const h = await headers();
+  const pathname = h.get("x-pathname") ?? "";
+  const isDashboardPath = pathname.startsWith("/dashboard");
   const c = await cookies();
   const activeStudioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
-  const brandHref = activeStudioSlug ? `/${activeStudioSlug}` : "/";
+  const brandHref = isDashboardPath ? "/dashboard" : activeStudioSlug ? `/${activeStudioSlug}` : "/";
   let hasBackofficeAccess = false;
   if (user) {
     const access = await resolveAccessContext({ userId: user.id, email: user.email });
@@ -55,7 +59,7 @@ export async function SiteHeader() {
 
   // If user arrived via a studio public page (cookie set), show member nav.
   // If no studio context, show Dashboard link for staff or generic member nav.
-  const inStudioContext = Boolean(activeStudioSlug);
+  const inStudioContext = !isDashboardPath && Boolean(activeStudioSlug);
   const memberNavItems = activeStudioSlug
     ? [
         { href: studioMePath(activeStudioSlug, "bookings"), label: "My bookings" },

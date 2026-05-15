@@ -121,7 +121,10 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
       ? studioMembershipsPath(studio.public_slug)
       : studioMePath(studio.public_slug, "memberships");
   const lessons = lessonRows ?? [];
-  const seriesPriceLabel = `${String(seriesData.currency ?? "SGD").toUpperCase()} ${Number(seriesData.price ?? 0).toFixed(2)}`;
+  const hasSeriesPrice = seriesData.price != null && Number(seriesData.price) > 0;
+  const seriesPriceLabel = hasSeriesPrice
+    ? `${String(seriesData.currency ?? "SGD").toUpperCase()} ${Number(seriesData.price).toFixed(2)}`
+    : undefined;
   const seriesBadge = accessTypeBadgeLabel(
     normalizeMemberZoneAccessType(seriesData.access_type),
     seriesPriceLabel,
@@ -252,7 +255,8 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                     : "member_or_paid"
               }
               amountLabel={
-                firstLessonAccess.resolvedAccessType === "paid_only" || firstLessonAccess.resolvedAccessType === "member_or_paid"
+                (firstLessonAccess.resolvedAccessType === "paid_only" || firstLessonAccess.resolvedAccessType === "member_or_paid") &&
+                firstLessonAccess.resolvedPrice > 0
                   ? `${firstLessonAccess.resolvedCurrency} ${firstLessonAccess.resolvedPrice.toFixed(2)}`
                   : undefined
               }
@@ -269,7 +273,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
           <div className="mt-3 grid gap-3">
             {lessons.map((lesson, idx) => {
                 const access = resolveAccess(lesson);
-                const amountLabel = `${access.resolvedCurrency} ${access.resolvedPrice.toFixed(2)}`;
+                const amountLabel = access.resolvedPrice > 0 ? `${access.resolvedCurrency} ${access.resolvedPrice.toFixed(2)}` : undefined;
                 const hasOverride = (lesson.access_override ?? "inherit") !== "inherit";
                 const overrideBadge = hasOverride
                   ? accessTypeBadgeLabel(access.resolvedAccessType, amountLabel)
@@ -328,7 +332,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
                                       : "member_or_paid"
                                 }
                                 amountLabel={
-                                  access.resolvedAccessType === "paid_only" || access.resolvedAccessType === "member_or_paid"
+                                  (access.resolvedAccessType === "paid_only" || access.resolvedAccessType === "member_or_paid") && Boolean(amountLabel)
                                     ? amountLabel
                                     : undefined
                                 }

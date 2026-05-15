@@ -192,8 +192,8 @@ export function MemberZoneUnlockPanel(props: {
     props.mode === "member_only"
       ? "Subscribe to unlock"
       : props.mode === "paid_only"
-        ? `Buy to unlock · ${props.amountLabel ?? ""}`
-        : `Unlock · ${props.amountLabel ?? ""}`;
+        ? props.amountLabel ? `Buy to unlock · ${props.amountLabel}` : "Buy to unlock"
+        : props.amountLabel ? `Unlock · ${props.amountLabel}` : "Unlock";
 
   const subtext =
     props.mode === "member_only"
@@ -269,7 +269,7 @@ export function MemberZoneUnlockPanel(props: {
             {busy
               ? "Processing…"
               : showGuestForm || isLoggedInUi
-                ? `Buy · ${props.amountLabel ?? ""}`
+                ? props.amountLabel ? `Buy · ${props.amountLabel}` : "Buy"
                 : "Buy Now"}
           </button>
         ) : null}

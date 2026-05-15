@@ -43,7 +43,7 @@ function EventCard({ event, studio }: { event: Record<string, any>; studio: { na
             ) : (
               <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
             )}
-            {event.price != null ? (
+            {event.price != null && Number(event.price) > 0 ? (
               <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                 {String(event.currency ?? "SGD")} {Number(event.price).toFixed(2)}
               </span>

@@ -17,7 +17,7 @@ export function SessionEditPanel({
   initial: {
     start_time: string;
     capacity: number;
-    guest_price: number;
+    guest_price: number | null;
     credits_required: number;
     location_id: string | null;
     address: string | null;
@@ -34,7 +34,7 @@ export function SessionEditPanel({
     return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
   });
   const [capacity, setCapacity] = useState(String(initial.capacity));
-  const [guestPrice, setGuestPrice] = useState(String(initial.guest_price));
+  const [guestPrice, setGuestPrice] = useState(initial.guest_price != null ? String(initial.guest_price) : "");
   const [creditsRequired, setCreditsRequired] = useState(String(initial.credits_required));
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
   const [address, setAddress] = useState(initial.address ?? "");
@@ -105,13 +105,14 @@ export function SessionEditPanel({
           disabled={busy}
           onClick={async () => {
             const parsedCapacity = Number(capacity);
-            const parsedGuestPrice = Number(guestPrice);
+            const guestPriceRaw = guestPrice.trim();
+            const parsedGuestPrice = guestPriceRaw === "" ? null : Number(guestPriceRaw);
             const parsedCredits = Number(creditsRequired);
             if (!Number.isFinite(parsedCapacity) || parsedCapacity < 1) {
               setValidationMsg("Capacity must be a positive number");
               return;
             }
-            if (!Number.isFinite(parsedGuestPrice) || parsedGuestPrice < 0) {
+            if (parsedGuestPrice != null && (!Number.isFinite(parsedGuestPrice) || parsedGuestPrice < 0)) {
               setValidationMsg("Guest price must be 0 or greater");
               return;
             }

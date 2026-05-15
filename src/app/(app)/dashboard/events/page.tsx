@@ -1,7 +1,7 @@
 import { createEvent, deleteEvent, updateEvent } from "@/app/(app)/dashboard/actions";
 import Image from "next/image";
-import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { CopyUrlButton } from "@/components/CopyUrlButton";
+import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
@@ -135,7 +135,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 {new Date(String(e.end_time)).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
               </p>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                <span>SGD {Number(e.price ?? 0).toFixed(2)}</span>
+                {e.price != null && Number(e.price) > 0 ? <span>SGD {Number(e.price).toFixed(2)}</span> : null}
                 <span>{Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left</span>
                 {(e as { address?: string | null }).address ? (
                   <span>{String((e as { address?: string | null }).address)}</span>
@@ -233,7 +233,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Price (SGD)</span>
-                <input name="price" type="number" min={0.01} step={0.01} defaultValue={Number(e.price ?? 1)} className={ui.input} />
+                <input name="price" type="number" min={0} step={0.01} defaultValue={e.price != null && Number(e.price) > 0 ? Number(e.price) : ""} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">
                 <span className={ui.label}>Tags</span>
@@ -374,7 +374,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Price (SGD)</span>
-              <input name="price" type="number" min={0.01} step={0.01} required defaultValue={120} className={ui.input} />
+              <input name="price" type="number" min={0} step={0.01} defaultValue={120} className={ui.input} />
             </label>
             <div className="md:col-span-2">
               <CoverVideoFields

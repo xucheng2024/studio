@@ -208,7 +208,6 @@ export default async function SchedulePage({ searchParams }: Props) {
       activeStudio?.public_slug && classSlug
         ? `/${activeStudio.public_slug}/classes/${classSlug}?session_id=${s.id}`
         : null;
-
     return (
       <li key={s.id} className={`${ui.card} ${isCancelled ? "opacity-60" : ""}`}>
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -236,7 +235,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
               <span>{s.spots_left} spots left</span>
               <span>{activeBookingCount} active bookings</span>
-              {s.guest_price != null ? <span>${Number(s.guest_price).toFixed(2)} guest</span> : null}
+              {s.guest_price != null && Number(s.guest_price) > 0 ? <span>${Number(s.guest_price).toFixed(2)} guest</span> : null}
               {s.credits_required != null ? (
                 <span>
                   {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "s" : ""}
@@ -262,7 +261,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             initial={{
               start_time: String(s.start_time),
               capacity: Number(s.capacity ?? 1),
-              guest_price: Number(s.guest_price ?? 0),
+              guest_price: s.guest_price != null ? Number(s.guest_price) : null,
               credits_required: Number(s.credits_required ?? 1),
               location_id: s.location_id ?? null,
               address: (s as { address?: string | null }).address ?? null,
@@ -338,7 +337,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                   <div className="grid grid-cols-2 gap-3">
                     <label className="flex flex-col gap-1.5">
                       <span className={ui.label}>Guest price</span>
-                      <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} required className={ui.input} />
+                      <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} className={ui.input} />
                     </label>
                     <label className="flex flex-col gap-1.5">
                       <span className={ui.label}>Passes required</span>
