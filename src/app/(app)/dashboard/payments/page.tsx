@@ -42,6 +42,8 @@ function paymentSourceLabel(source: string | null | undefined) {
       return "Membership subscription";
     case "member_zone_purchase":
       return "Member zone purchase";
+    case "shop_purchase":
+      return "Shop purchase";
     default:
       return "Unknown";
   }
@@ -80,7 +82,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = supabase
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -215,6 +217,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       memberZoneLesson?.title ?? null,
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? pkg?.name ?? null,
       (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
+      (p as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot ?? null,
       (p as { gift_recipient_email?: string | null }).gift_recipient_email ?? null,
       (p as { gift_recipient_name?: string | null }).gift_recipient_name ?? null,
     ]
@@ -374,6 +377,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const membershipLabel =
             (p as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim() ||
             "-";
+          const shopLabel =
+            (p as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot?.trim() ||
+            "-";
           const memberZoneSeries = (p as { member_zone_series_id?: string | null }).member_zone_series_id
             ? memberZoneSeriesMap.get((p as { member_zone_series_id?: string | null }).member_zone_series_id ?? "")
             : null;
@@ -392,6 +398,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 ? "Member zone"
               : source === "package_buy"
                 ? "Package"
+              : source === "shop_purchase"
+                ? "Shop"
                 : "Session";
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
           const clientProfile = p.client_id ? clientProfileMap.get(p.client_id) : null;
@@ -482,6 +490,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Membership</dt>
                   <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{membershipLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Shop</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{shopLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">MZ series</dt>

@@ -44,7 +44,7 @@ async function compressImage(file: File, maxDim = 1600, quality = 0.85, preferPn
 
 type Props = {
   studioId: string;
-  folder: "studios" | "services" | "classes" | "packages" | "events" | "member-zone";
+  folder: "studios" | "services" | "classes" | "packages" | "events" | "member-zone" | "shop";
   entityId: string;
   label?: string;
   onUploaded: (url: string) => void;

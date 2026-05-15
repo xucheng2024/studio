@@ -21,6 +21,8 @@ import {
   studioPackagePath,
   studioServicePath,
   studioServicesPath,
+  studioShopPath,
+  studioShopProductPath,
 } from "@/lib/public-paths";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -49,7 +51,7 @@ const getPublicStudioShell = async (studioSlugRaw: string) => {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, contract_status, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
+    .select("id, name, public_slug, contract_status, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
     .eq("public_slug", slug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -70,6 +72,7 @@ const getPublicStudioData = async (studioSlugRaw: string) => {
     { data: events },
     { data: pastEvents },
     { data: memberZoneSeries },
+    { data: shopProducts },
   ] = await Promise.all([
     admin
       .from("studio_services")
@@ -124,6 +127,13 @@ const getPublicStudioData = async (studioSlugRaw: string) => {
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
+    admin
+      .from("shop_products")
+      .select("id, title, summary, image_url, price, currency, share_slug, stock_qty, sort_order")
+      .eq("studio_id", studio.id)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false }),
   ]);
 
   return {
@@ -135,6 +145,7 @@ const getPublicStudioData = async (studioSlugRaw: string) => {
     events: events ?? [],
     pastEvents: pastEvents ?? [],
     memberZoneSeries: memberZoneSeries ?? [],
+    shopProducts: shopProducts ?? [],
   };
 };
 
@@ -169,7 +180,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const { studioSlug } = await params;
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
-  const { studio, services, classes, packages, memberships, events, pastEvents, memberZoneSeries } = data;
+  const { studio, services, classes, packages, memberships, events, pastEvents, memberZoneSeries, shopProducts } = data;
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -196,6 +207,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const packagesTitle = studio.public_packages_title?.trim() || "Packages";
   const eventsTitle = (studio as { public_events_title?: string | null }).public_events_title?.trim() || "Events";
   const memberZoneTitle = (studio as { public_member_zone_title?: string | null }).public_member_zone_title?.trim() || "Member zone";
+  const shopTitle = (studio as { public_shop_title?: string | null }).public_shop_title?.trim() || "Shop";
   const visibleServices = services.slice(0, 3);
   const hiddenServices = services.slice(3);
   const visibleClasses = classes.slice(0, 3);
@@ -206,6 +218,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const hiddenPackages = packages.slice(3);
   const visibleMemberZoneSeries = memberZoneSeries.slice(0, 3);
   const hiddenMemberZoneSeries = memberZoneSeries.slice(3);
+  const visibleShopProducts = shopProducts.slice(0, 4);
+  const hiddenShopProducts = shopProducts.slice(4);
   const mediaTagClass =
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
@@ -225,6 +239,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         ...memberZoneSeries.slice(0, 2).map((series) => {
           return series.cover_image_url ?? getVideoPreview(series.promo_video_url ?? "").thumbnailUrl ?? null;
         }),
+        ...visibleShopProducts.slice(0, 2).map((product) => product.image_url ?? null),
       ]
         .map((url) => String(url ?? "").trim())
         .filter(Boolean),
@@ -279,6 +294,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
         ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
         ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: "Member zone" }] : []),
+        ...(shopProducts.length > 0 ? [{ id: "shop", label: "Shop" }] : []),
         ...(packages.length > 0 ? [{ id: "packages", label: "Packages" }] : []),
       ] satisfies StickyNavTab[]} />
 
@@ -669,6 +685,58 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>        </section>
+      ) : null}
+
+      {shopProducts.length > 0 ? (
+        <section id="shop" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className={ui.h2}>{shopTitle}</h2>
+            <Link href={studioShopPath(studio.public_slug)} className={`${ui.link} shrink-0`}>
+              See all &gt;
+            </Link>
+          </div>
+          <p className={`mt-1 text-sm ${ui.muted}`}>Merchandise available for purchase and delivery.</p>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            {visibleShopProducts.map((product, idx) => {
+              const href = product.share_slug
+                ? studioShopProductPath(studio.public_slug, product.share_slug)
+                : studioShopPath(studio.public_slug);
+              const currency = String(product.currency ?? "SGD").toUpperCase();
+              const outOfStock = product.stock_qty != null && Number(product.stock_qty) < 1;
+              return (
+                <article key={product.id} className={`${ui.card} flex flex-col`}>
+                  <Link href={href} className="block shrink-0">
+                    {product.image_url ? (
+                      <Image
+                        src={product.image_url}
+                        alt={product.title}
+                        width={600}
+                        height={600}
+                        sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 280px"
+                        priority={idx === 0}
+                        className="aspect-square w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
+                      />
+                    ) : (
+                      <div className="aspect-square w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
+                    )}
+                  </Link>
+                  <div className="mt-2 flex flex-1 flex-col px-0.5">
+                    <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
+                        {product.title}
+                      </Link>
+                    </h3>
+                    <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                      {currency} {Number(product.price).toFixed(2)}
+                    </p>
+                    {product.summary ? <p className={`mt-1 line-clamp-2 text-xs ${ui.muted}`}>{product.summary}</p> : null}
+                    {outOfStock ? <p className={`mt-1 text-xs ${ui.error}`}>Out of stock</p> : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       ) : null}
 
       {packages.length > 0 ? (

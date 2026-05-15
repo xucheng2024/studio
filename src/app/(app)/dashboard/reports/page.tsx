@@ -10,7 +10,7 @@ import { PAYMENT_SOURCE_FILTER_OPTIONS } from "@/lib/payment-filter-options";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { TrendingUp, RefreshCcw, DollarSign, CalendarRange, Package, Repeat } from "lucide-react";
+import { TrendingUp, RefreshCcw, DollarSign, CalendarRange, Package, Repeat, ShoppingBag } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
@@ -210,7 +210,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className={`${ui.statCard} flex items-center gap-4`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
             <CalendarRange size={18} />
@@ -267,12 +267,26 @@ export default async function ReportsPage({ searchParams }: Props) {
             </p>
           </div>
         </div>
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300">
+            <ShoppingBag size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Shop revenue</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
+              ${byType.shop.net.toFixed(2)}
+            </p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>
+              Gross ${byType.shop.gross.toFixed(2)} · Ref ${byType.shop.refunds.toFixed(2)}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className={ui.card}>
         <h2 className={`${ui.h2} text-base`}>Revenue by day</h2>
         <p className={`mt-1 text-xs ${ui.muted}`}>
-          Each row shows net revenue split by session, event, package, and membership, plus total gross, refunds, and net.
+          Each row shows net revenue split by session, event, package, membership, and shop, plus total gross, refunds, and net.
         </p>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -283,6 +297,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                 <th className="py-2 pr-4 font-medium">Event</th>
                 <th className="py-2 pr-4 font-medium">Package</th>
                 <th className="py-2 pr-4 font-medium">Membership</th>
+                <th className="py-2 pr-4 font-medium">Shop</th>
                 <th className="py-2 pr-4 font-medium">Gross</th>
                 <th className="py-2 pr-4 font-medium">Refunds</th>
                 <th className="py-2 font-medium">Net</th>
@@ -296,6 +311,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                   <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.eventNet.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.packageNet.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.membershipNet.toFixed(2)}</td>
+                  <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.shopNet.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-500 dark:text-stone-400">${row.gross.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-500 dark:text-stone-400">-${row.refunds.toFixed(2)}</td>
                   <td className="py-2.5 font-semibold tabular-nums text-stone-900 dark:text-stone-100">${row.net.toFixed(2)}</td>

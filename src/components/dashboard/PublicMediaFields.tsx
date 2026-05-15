@@ -11,7 +11,7 @@ import { ui } from "@/lib/ui";
 type CoverFieldProps = {
   studioId: string;
   entityId: string;
-  folder: "studios" | "services" | "classes" | "packages" | "events" | "member-zone";
+  folder: "studios" | "services" | "classes" | "packages" | "events" | "member-zone" | "shop";
   name: string;
   label: string;
   defaultValue: string | null;
@@ -192,7 +192,7 @@ export function StudioProfileMediaFields({
 
 type CoverVideoFieldsProps = {
   studioId: string;
-  folder: "studios" | "services" | "classes" | "packages" | "events" | "member-zone";
+  folder: "studios" | "services" | "classes" | "packages" | "events" | "member-zone" | "shop";
   /** A stable identifier for uploads (e.g. classId, packageId, "new-class"). */
   entityId: string;
   title: string;

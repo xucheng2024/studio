@@ -18,6 +18,7 @@ export const PAYMENT_SOURCE_FILTER_OPTIONS: { value: string; label: string }[] =
   { value: "event_booking", label: "Event booking" },
   { value: "package_buy", label: "Package purchase" },
   { value: "member_zone_purchase", label: "Member zone purchase" },
+  { value: "shop_purchase", label: "Shop purchase" },
   { value: "membership_subscription", label: "Membership subscription" },
 ];
 

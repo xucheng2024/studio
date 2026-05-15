@@ -19,7 +19,7 @@ export default async function MyProfilePage({ params }: Props) {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("full_name, phone, notes")
+    .select("full_name, phone, notes, shipping_name, shipping_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_postal_code, shipping_country")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -34,6 +34,13 @@ export default async function MyProfilePage({ params }: Props) {
     const full_name = String(formData.get("full_name") ?? "").trim() || null;
     const phone = String(formData.get("phone") ?? "").trim() || null;
     const notes = String(formData.get("notes") ?? "").trim() || null;
+    const shipping_name = String(formData.get("shipping_name") ?? "").trim() || null;
+    const shipping_phone = String(formData.get("shipping_phone") ?? "").trim() || null;
+    const shipping_address_line1 = String(formData.get("shipping_address_line1") ?? "").trim() || null;
+    const shipping_address_line2 = String(formData.get("shipping_address_line2") ?? "").trim() || null;
+    const shipping_city = String(formData.get("shipping_city") ?? "").trim() || null;
+    const shipping_postal_code = String(formData.get("shipping_postal_code") ?? "").trim() || null;
+    const shipping_country = String(formData.get("shipping_country") ?? "SG").trim() || "SG";
 
     await serverSupabase
       .from("user_profiles")
@@ -44,6 +51,13 @@ export default async function MyProfilePage({ params }: Props) {
           full_name,
           phone,
           notes,
+          shipping_name,
+          shipping_phone,
+          shipping_address_line1,
+          shipping_address_line2,
+          shipping_city,
+          shipping_postal_code,
+          shipping_country,
         },
         { onConflict: "id" },
       );
@@ -86,6 +100,42 @@ export default async function MyProfilePage({ params }: Props) {
               rows={4}
             />
           </label>
+          <div className="mt-2 border-t border-stone-200 pt-4 dark:border-stone-700">
+            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Shipping address</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Used when you buy items from the shop.</p>
+            <div className="mt-3 grid gap-3">
+              <label className="grid gap-1.5">
+                <span className={ui.label}>Recipient name</span>
+                <input name="shipping_name" className={ui.input} defaultValue={profile?.shipping_name ?? ""} autoComplete="name" />
+              </label>
+              <label className="grid gap-1.5">
+                <span className={ui.label}>Shipping phone</span>
+                <FormPhoneField name="shipping_phone" defaultValue={profile?.shipping_phone ?? ""} />
+              </label>
+              <label className="grid gap-1.5">
+                <span className={ui.label}>Address line 1</span>
+                <input name="shipping_address_line1" className={ui.input} defaultValue={profile?.shipping_address_line1 ?? ""} autoComplete="address-line1" />
+              </label>
+              <label className="grid gap-1.5">
+                <span className={ui.label}>Address line 2</span>
+                <input name="shipping_address_line2" className={ui.input} defaultValue={profile?.shipping_address_line2 ?? ""} autoComplete="address-line2" />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1.5">
+                  <span className={ui.label}>City</span>
+                  <input name="shipping_city" className={ui.input} defaultValue={profile?.shipping_city ?? ""} autoComplete="address-level2" />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className={ui.label}>Postal code</span>
+                  <input name="shipping_postal_code" className={ui.input} defaultValue={profile?.shipping_postal_code ?? ""} autoComplete="postal-code" />
+                </label>
+              </div>
+              <label className="grid gap-1.5">
+                <span className={ui.label}>Country</span>
+                <input name="shipping_country" className={ui.input} defaultValue={profile?.shipping_country ?? "SG"} autoComplete="country" />
+              </label>
+            </div>
+          </div>
           <div>
             <button type="submit" className={ui.btnPrimary}>
               Save profile

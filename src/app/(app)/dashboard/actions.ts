@@ -268,6 +268,7 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const public_packages_title = String(formData.get("public_packages_title") ?? "").trim() || null;
   const public_events_title = String(formData.get("public_events_title") ?? "").trim() || null;
   const public_member_zone_title = String(formData.get("public_member_zone_title") ?? "").trim() || null;
+  const public_shop_title = String(formData.get("public_shop_title") ?? "").trim() || null;
   const whatsapp_enabled = formData.get("whatsapp_enabled") === "on";
   const rawWhatsapp = String(formData.get("whatsapp_number_e164") ?? "");
   const whatsapp_number_e164 = normalizeE164(rawWhatsapp);
@@ -290,6 +291,7 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
       public_packages_title,
       public_events_title,
       public_member_zone_title,
+      public_shop_title,
       whatsapp_enabled,
       whatsapp_number_e164,
       whatsapp_prefill_text,
@@ -1694,4 +1696,166 @@ export async function revokeStaffInvite(formData: FormData): Promise<void> {
 
   await supabase.from("staff_invites").update({ status: "revoked" }).eq("id", invite.id);
   revalidatePath("/dashboard/settings/staff-invites");
+}
+
+function sanitizeShopPrice(raw: FormDataEntryValue | null): number | null {
+  if (raw === null || String(raw).trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * 100) / 100;
+}
+
+function sanitizeStockQtyNullable(raw: FormDataEntryValue | null): number | null {
+  if (raw === null || String(raw).trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+async function generateUniqueShopProductShareSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studioId: string,
+): Promise<string | null> {
+  for (let i = 0; i < 15; i += 1) {
+    const candidate = generateShareSlugSegment(10);
+    const { data: existing } = await supabase
+      .from("shop_products")
+      .select("id")
+      .eq("studio_id", studioId)
+      .eq("share_slug", candidate)
+      .maybeSingle();
+    if (!existing) return candidate;
+  }
+  return null;
+}
+
+export async function createShopProduct(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (isStudioContractSuspended(studio)) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+  const price = sanitizeShopPrice(formData.get("price"));
+  if (price === null) return;
+  const summary = String(formData.get("summary") ?? "").trim() || null;
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
+  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
+  const sort_order = Number(formData.get("sort_order") ?? 100);
+  const share_slug = await generateUniqueShopProductShareSlug(supabase, studio.id);
+  if (!share_slug) return;
+
+  const { error } = await supabase.from("shop_products").insert({
+    studio_id: studio.id,
+    title,
+    summary,
+    description,
+    image_url,
+    price,
+    currency,
+    stock_qty,
+    sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
+    share_slug,
+    is_active: true,
+  });
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/shop");
+  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+}
+
+export async function updateShopProduct(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const productId = String(formData.get("product_id") ?? "").trim();
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio || !productId) return;
+  if (isStudioContractSuspended(studio)) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+  const price = sanitizeShopPrice(formData.get("price"));
+  if (price === null) return;
+  const summary = String(formData.get("summary") ?? "").trim() || null;
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
+  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
+  const sort_order = Number(formData.get("sort_order") ?? 100);
+  const is_active = formData.get("is_active") === "on";
+
+  const { error } = await supabase
+    .from("shop_products")
+    .update({
+      title,
+      summary,
+      description,
+      image_url,
+      price,
+      currency,
+      stock_qty,
+      sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
+      is_active,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productId)
+    .eq("studio_id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/shop");
+  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+}
+
+export async function deleteShopProduct(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const productId = String(formData.get("product_id") ?? "").trim();
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio || !productId) return;
+  if (isStudioContractSuspended(studio)) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  const { error } = await supabase
+    .from("shop_products")
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq("id", productId)
+    .eq("studio_id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/shop");
+  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+}
+
+export async function updateShopOrderFulfillment(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const orderId = String(formData.get("order_id") ?? "").trim();
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio || !orderId) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  const raw = String(formData.get("fulfillment_status") ?? "").trim().toLowerCase();
+  const fulfillment_status =
+    raw === "shipped" || raw === "cancelled" || raw === "unfulfilled" ? raw : "unfulfilled";
+
+  const { error } = await supabase
+    .from("shop_orders")
+    .update({ fulfillment_status, updated_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("studio_id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+  revalidatePath("/dashboard/shop");
 }

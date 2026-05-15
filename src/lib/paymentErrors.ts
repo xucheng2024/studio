@@ -81,6 +81,8 @@ export function paymentErrorMessage(error: string, detail?: string) {
             ? "You already have an active or pending membership for this plan."
             : error === "purchase_pending"
               ? "You already have a pending payment for this item."
+              : error === "out_of_stock"
+                ? "This item is out of stock."
               : error === "already_purchased"
                 ? "This item has already been purchased."
                 : error === "already_member"
@@ -113,6 +115,18 @@ export function paymentErrorMessage(error: string, detail?: string) {
                           ? "You cannot send a gift to yourself."
                           : error === "gift_recipient_already_has_access"
                             ? "The recipient already has access to this item."
+                            : error === "gift_recipient_already_has_order"
+                              ? "The recipient already has this product."
+                              : error === "invalid_body"
+                                ? "Please review your details and try again."
+                              : error === "product_not_found"
+                                ? "This product was not found."
+                                : error === "product_not_available"
+                                  ? "This product is no longer available."
+                                  : error === "payment_create_failed"
+                                    ? "Could not create the payment. Please try again."
+                                    : error === "order_create_failed"
+                                      ? "Could not create your order. Please try again."
                             : "Could not continue payment.";
   if (!detail) return base;
   return `${base} (${detail})`;

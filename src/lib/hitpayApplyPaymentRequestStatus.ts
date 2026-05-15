@@ -46,7 +46,7 @@ export async function applyHitpayPaymentRequestStatus(
     // Gift flow: re-assign client_id to the recipient before confirming.
     const { data: giftRow } = await admin
       .from("payments")
-      .select("is_gift, gift_recipient_email, gift_recipient_name, gift_message, guest_name, guest_email, package_name_snapshot, membership_name_snapshot, source, client_id, amount, currency, reference_code")
+      .select("is_gift, gift_recipient_email, gift_recipient_name, gift_message, guest_name, guest_email, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, source, client_id, amount, currency, reference_code")
       .eq("id", payment.id)
       .maybeSingle<{
         is_gift: boolean;
@@ -57,6 +57,7 @@ export async function applyHitpayPaymentRequestStatus(
         guest_email: string | null;
         package_name_snapshot: string | null;
         membership_name_snapshot: string | null;
+        shop_product_name_snapshot: string | null;
         source: string | null;
         client_id: string | null;
         amount: number | null;
@@ -70,7 +71,11 @@ export async function applyHitpayPaymentRequestStatus(
         email: giftRow.gift_recipient_email,
         name: giftRow.gift_recipient_name ?? undefined,
       });
-      await admin.from("payments").update({ client_id: recipientClientId }).eq("id", payment.id);
+      // Store the original buyer before overwriting client_id with the recipient.
+      await admin.from("payments").update({
+        client_id: recipientClientId,
+        buyer_client_id: buyerClientId ?? null,
+      }).eq("id", payment.id);
       if (payment.booking_id) {
         await admin.from("bookings").update({ client_id: recipientClientId }).eq("id", payment.booking_id);
       }
@@ -78,6 +83,7 @@ export async function applyHitpayPaymentRequestStatus(
         await admin.from("event_bookings").update({ client_id: recipientClientId }).eq("id", payment.event_booking_id);
       }
       await admin.from("member_zone_purchases").update({ client_id: recipientClientId }).eq("payment_id", payment.id);
+      await admin.from("shop_orders").update({ client_id: recipientClientId }).eq("payment_id", payment.id);
       effectiveClientId = recipientClientId;
     }
 
@@ -120,6 +126,105 @@ export async function applyHitpayPaymentRequestStatus(
       })
       .eq("payment_id", payment.id);
 
+    const { data: shopOrder } = await admin
+      .from("shop_orders")
+      .select("id, product_id, qty, status")
+      .eq("payment_id", payment.id)
+      .maybeSingle<{ id: string; product_id: string; qty: number; status: string }>();
+
+    if (shopOrder?.id) {
+      if (shopOrder.status === "processing") {
+        // Another concurrent handler (webhook vs sync) is in-flight — yield to it.
+        return;
+      }
+
+      if (shopOrder.status === "pending") {
+        // Atomically claim the order: pending → processing.
+        // Only one handler can win this update; others see 0 rows and return.
+        const { data: claimed } = await admin
+          .from("shop_orders")
+          .update({ status: "processing", updated_at: new Date().toISOString() })
+          .eq("id", shopOrder.id)
+          .eq("status", "pending")
+          .select("id")
+          .maybeSingle();
+
+        if (!claimed) {
+          // Another handler won the race; it will handle stock and emails.
+          return;
+        }
+
+        const { data: stockOk } = await admin.rpc("decrement_shop_product_stock", {
+          p_product_id: shopOrder.product_id,
+          p_qty: shopOrder.qty ?? 1,
+        });
+
+        if (stockOk === false) {
+          const ownerIdForFail = studio?.owner_id ?? null;
+          if (ownerIdForFail) {
+            await admin.rpc("refund_payment_with_invoice_void", {
+              p_payment_id: payment.id,
+              p_operator_id: ownerIdForFail,
+              p_reason: "shop_out_of_stock",
+            });
+          } else {
+            // No owner_id — directly mark payment refunded to keep financial state consistent.
+            await admin
+              .from("payments")
+              .update({ status: "refunded", updated_at: new Date().toISOString() })
+              .eq("id", payment.id);
+          }
+          await admin
+            .from("shop_orders")
+            .update({ status: "refunded", updated_at: new Date().toISOString() })
+            .eq("id", shopOrder.id)
+            .eq("status", "processing");
+
+          // Notify buyer of out-of-stock refund before exiting.
+          const oosItemName = giftRow?.shop_product_name_snapshot ?? "a shop order";
+          const { data: oosStudio } = await admin
+            .from("studios")
+            .select("name")
+            .eq("id", payment.studio_id)
+            .maybeSingle<{ name: string }>();
+          let oosBuyerEmail: string | null = giftRow?.guest_email ?? null;
+          let oosBuyerName: string | null = giftRow?.guest_name ?? null;
+          if (!oosBuyerEmail && giftRow?.client_id) {
+            const [pRes, aRes] = await Promise.all([
+              admin.from("user_profiles").select("full_name").eq("id", giftRow.client_id).maybeSingle<{ full_name: string | null }>(),
+              admin.from("users").select("email").eq("id", giftRow.client_id).maybeSingle<{ email: string | null }>(),
+            ]);
+            oosBuyerName = oosBuyerName ?? pRes.data?.full_name ?? null;
+            oosBuyerEmail = aRes.data?.email ?? null;
+          }
+          if (oosBuyerEmail) {
+            void sendRefundNotice({
+              to: oosBuyerEmail,
+              buyerName: oosBuyerName,
+              studioName: oosStudio?.name ?? "the studio",
+              itemDescription: oosItemName,
+              amount: giftRow?.amount ?? 0,
+              currency: giftRow?.currency ?? "SGD",
+              referenceCode: giftRow?.reference_code,
+              orderCategory: "shop",
+            });
+          }
+          return;
+        }
+
+        await admin
+          .from("shop_orders")
+          .update({
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", shopOrder.id)
+          .eq("status", "processing");
+      }
+      // If status is already 'paid' or other terminal state, fall through to email logic.
+    }
+
     // Fetch studio info (needed for both gift + buyer confirmation emails).
     const { data: studioRow } = await admin
       .from("studios")
@@ -130,6 +235,9 @@ export async function applyHitpayPaymentRequestStatus(
     const loginUrl = studioRow?.public_slug
       ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/${studioRow.public_slug}`
       : (process.env.NEXT_PUBLIC_APP_URL ?? "");
+    const shopOrdersUrl = studioRow?.public_slug
+      ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/${studioRow.public_slug}/me/orders`
+      : loginUrl;
 
     // For logged-in buyers guest_name/guest_email is null; look up profile instead.
     const buyerOriginalClientId = giftRow?.client_id ?? buyerClientId;
@@ -149,13 +257,16 @@ export async function applyHitpayPaymentRequestStatus(
     const itemDescription =
       giftRow?.package_name_snapshot ??
       giftRow?.membership_name_snapshot ??
+      giftRow?.shop_product_name_snapshot ??
       (giftRow?.source === "online_booking"
         ? "a class booking"
         : giftRow?.source === "event_booking"
           ? "an event booking"
           : giftRow?.source === "member_zone_purchase"
             ? "member zone access"
-            : "a purchase");
+            : giftRow?.source === "shop_purchase"
+              ? "a shop order"
+              : "a purchase");
 
     const shouldSendPaidEmails = previousStatus !== "paid";
     // Send gift notification to recipient (non-blocking).
@@ -169,7 +280,8 @@ export async function applyHitpayPaymentRequestStatus(
         studioName,
         itemDescription,
         giftMessage: giftRow.gift_message,
-        loginUrl,
+        loginUrl: giftRow.source === "shop_purchase" ? shopOrdersUrl : loginUrl,
+        orderCategory: giftRow.source === "shop_purchase" ? "shop" : "general",
       });
     }
 
@@ -183,6 +295,7 @@ export async function applyHitpayPaymentRequestStatus(
         amount: giftRow?.amount ?? 0,
         currency: giftRow?.currency ?? "SGD",
         referenceCode: giftRow?.reference_code,
+        orderCategory: giftRow?.source === "shop_purchase" ? "shop" : "general",
         isGift: giftRow?.is_gift ?? false,
         giftRecipientEmail: giftRow?.gift_recipient_email,
         loginUrl,
@@ -201,6 +314,10 @@ export async function applyHitpayPaymentRequestStatus(
       .from("member_zone_purchases")
       .update({ status: "failed", updated_at: new Date().toISOString() })
       .eq("payment_id", payment.id);
+    await admin
+      .from("shop_orders")
+      .update({ status: "failed", updated_at: new Date().toISOString() })
+      .eq("payment_id", payment.id);
     return;
   }
 
@@ -212,6 +329,10 @@ export async function applyHitpayPaymentRequestStatus(
     }
     await admin
       .from("member_zone_purchases")
+      .update({ status: "expired", updated_at: new Date().toISOString() })
+      .eq("payment_id", payment.id);
+    await admin
+      .from("shop_orders")
       .update({ status: "expired", updated_at: new Date().toISOString() })
       .eq("payment_id", payment.id);
     return;
@@ -234,34 +355,64 @@ export async function applyHitpayPaymentRequestStatus(
         updated_at: new Date().toISOString(),
       })
       .eq("payment_id", payment.id);
+    await admin
+      .from("shop_orders")
+      .update({
+        status: "refunded",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_id", payment.id);
 
     // Send refund notification to buyer (non-blocking).
     if (previousStatus !== "refunded") {
       const { data: refundRow } = await admin
         .from("payments")
-        .select("guest_name, guest_email, client_id, amount, currency, reference_code, package_name_snapshot, membership_name_snapshot, source")
+        .select("guest_name, guest_email, client_id, buyer_client_id, amount, currency, reference_code, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, source, is_gift, gift_recipient_email")
         .eq("id", payment.id)
         .maybeSingle<{
           guest_name: string | null;
           guest_email: string | null;
           client_id: string | null;
+          buyer_client_id: string | null;
           amount: number | null;
           currency: string | null;
           reference_code: string | null;
           package_name_snapshot: string | null;
           membership_name_snapshot: string | null;
+          shop_product_name_snapshot: string | null;
           source: string | null;
+          is_gift: boolean | null;
+          gift_recipient_email: string | null;
         }>();
       if (refundRow) {
         let refundBuyerName: string | null = refundRow.guest_name;
         let refundBuyerEmail: string | null = refundRow.guest_email;
-        if (refundRow.client_id) {
+        // For gift payments, resolve the original buyer via buyer_client_id (set at confirmation
+        // time before client_id is overwritten with the recipient). Fall back to client_id for
+        // non-gift payments or legacy rows where buyer_client_id was not yet populated.
+        const resolveClientId = refundRow.is_gift && refundRow.buyer_client_id
+          ? refundRow.buyer_client_id
+          : refundRow.client_id;
+        if (resolveClientId) {
           const [pRes, aRes] = await Promise.all([
-            admin.from("user_profiles").select("full_name").eq("id", refundRow.client_id).maybeSingle<{ full_name: string | null }>(),
-            admin.from("users").select("email").eq("id", refundRow.client_id).maybeSingle<{ email: string | null }>(),
+            admin.from("user_profiles").select("full_name").eq("id", resolveClientId).maybeSingle<{ full_name: string | null }>(),
+            admin.from("users").select("email").eq("id", resolveClientId).maybeSingle<{ email: string | null }>(),
           ]);
           refundBuyerName = refundRow.guest_name ?? pRes.data?.full_name ?? null;
           refundBuyerEmail = refundRow.guest_email ?? aRes.data?.email ?? null;
+        }
+        // Legacy guard: if buyer_client_id was not populated (row predates migration 094)
+        // and the resolved email turns out to be the gift recipient, suppress the email
+        // rather than notifying the wrong person.
+        if (
+          refundRow.is_gift &&
+          !refundRow.buyer_client_id &&
+          !refundRow.guest_email &&
+          refundBuyerEmail &&
+          refundRow.gift_recipient_email &&
+          refundBuyerEmail.toLowerCase() === refundRow.gift_recipient_email.toLowerCase()
+        ) {
+          refundBuyerEmail = null;
         }
         const { data: refundStudio } = await admin
           .from("studios")
@@ -271,13 +422,16 @@ export async function applyHitpayPaymentRequestStatus(
         const refundItemDescription =
           refundRow.package_name_snapshot ??
           refundRow.membership_name_snapshot ??
+          refundRow.shop_product_name_snapshot ??
           (refundRow.source === "online_booking"
             ? "a class booking"
             : refundRow.source === "event_booking"
               ? "an event booking"
               : refundRow.source === "member_zone_purchase"
                 ? "member zone access"
-                : "a purchase");
+                : refundRow.source === "shop_purchase"
+                  ? "a shop order"
+                  : "a purchase");
         if (refundBuyerEmail) {
           void sendRefundNotice({
             to: refundBuyerEmail,
@@ -287,6 +441,7 @@ export async function applyHitpayPaymentRequestStatus(
             amount: refundRow.amount ?? 0,
             currency: refundRow.currency ?? "SGD",
             referenceCode: refundRow.reference_code,
+            orderCategory: refundRow.source === "shop_purchase" ? "shop" : "general",
           });
         }
       }

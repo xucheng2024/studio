@@ -21,7 +21,7 @@ export default async function MyOrdersPage() {
 
   const { data: payments } = await supabase
     .from("payments")
-    .select("id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot, member_zone_series_id, member_zone_lesson_id")
+    .select("id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot, member_zone_series_id, member_zone_lesson_id, shop_product_id, shop_product_name_snapshot")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -40,6 +40,15 @@ export default async function MyOrdersPage() {
   const memberZoneLessonIds = Array.from(
     new Set((payments ?? []).map((p) => (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id).filter((v): v is string => typeof v === "string" && v.length > 0)),
   );
+  const shopPaymentIds = Array.from(new Set((payments ?? []).map((p) => p.id)));
+
+  const { data: shopOrderRows } =
+    shopPaymentIds.length > 0
+      ? await supabase
+          .from("shop_orders")
+          .select("payment_id, shipping_city, shipping_postal_code, product_title_snapshot")
+          .in("payment_id", shopPaymentIds)
+      : { data: [] };
 
   const { data: bookingRows } =
     bookingIds.length > 0
@@ -82,6 +91,7 @@ export default async function MyOrdersPage() {
   const packageMap = new Map((packageRows ?? []).map((r) => [r.id, r]));
   const memberZoneSeriesMap = new Map((memberZoneSeriesRows ?? []).map((r) => [r.id, r]));
   const memberZoneLessonMap = new Map((memberZoneLessonRows ?? []).map((r) => [r.id, r]));
+  const shopOrderMap = new Map((shopOrderRows ?? []).map((r) => [r.payment_id, r]));
 
   return (
     <main className={ui.page}>
@@ -125,6 +135,8 @@ export default async function MyOrdersPage() {
                   ? { text: "Membership", tone: "teal" as const }
                 : source === "member_zone_purchase"
                   ? { text: "Member zone", tone: "teal" as const }
+                : source === "shop_purchase"
+                  ? { text: "Shop", tone: "stone" as const }
                 : source === "package_buy"
                   ? { text: "Package", tone: "stone" as const }
                   : { text: "Class", tone: "blue" as const };
@@ -172,6 +184,17 @@ export default async function MyOrdersPage() {
                 ) : null}
                 {memberZoneLesson?.title ? (
                   <p className={`mt-1 text-sm ${ui.muted}`}>Member zone lesson: {memberZoneLesson.title}</p>
+                ) : null}
+                {source === "shop_purchase" ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>
+                    Shop:{" "}
+                    {(p as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot?.trim() ||
+                      shopOrderMap.get(p.id)?.product_title_snapshot ||
+                      "Product"}
+                    {shopOrderMap.get(p.id)?.shipping_city
+                      ? ` · Ship to ${shopOrderMap.get(p.id)?.shipping_city} ${shopOrderMap.get(p.id)?.shipping_postal_code ?? ""}`
+                      : ""}
+                  </p>
                 ) : null}
               </li>
             );

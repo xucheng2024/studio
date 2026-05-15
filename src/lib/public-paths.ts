@@ -22,6 +22,14 @@ export function studioMemberZoneListPath(studioSlug: string) {
   return `/${studioSlug}/member-zone`;
 }
 
+export function studioShopPath(studioSlug: string) {
+  return `/${studioSlug}/shop`;
+}
+
+export function studioShopProductPath(studioSlug: string, productSlug: string) {
+  return `/${studioSlug}/shop/${productSlug}`;
+}
+
 export function studioClassPath(
   studioSlug: string,
   classSlug: string,

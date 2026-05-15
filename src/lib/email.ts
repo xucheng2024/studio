@@ -247,6 +247,7 @@ export async function sendPurchaseConfirmation(params: {
   amount: number;
   currency: string;
   referenceCode: string | null | undefined;
+  orderCategory?: "general" | "shop";
   /** If this was a gift, show "Your gift has been sent to …" copy. */
   isGift?: boolean;
   giftRecipientEmail?: string | null;
@@ -260,11 +261,14 @@ export async function sendPurchaseConfirmation(params: {
   const refSafe = params.referenceCode ? escHtml(params.referenceCode) : null;
   const loginUrlSafe = escHtml(params.loginUrl);
   const isGift = Boolean(params.isGift);
+  const isShopOrder = params.orderCategory === "shop";
   const recipientSafe = params.giftRecipientEmail ? escHtml(params.giftRecipientEmail) : null;
-  const headline = isGift ? "Gift sent!" : "Payment confirmed";
+  const headline = isGift ? "Gift sent!" : isShopOrder ? "Shop order confirmed" : "Payment confirmed";
   const bodyCopy = isGift && recipientSafe
     ? `Your gift (<strong style="color:#111827;">${itemSafe}</strong>) has been sent to <strong style="color:#111827;">${recipientSafe}</strong>. They'll receive a notification email shortly.`
-    : `Your purchase of <strong style="color:#111827;">${itemSafe}</strong> is confirmed and ready to use.`;
+    : isShopOrder
+      ? `Your shop order for <strong style="color:#111827;">${itemSafe}</strong> is confirmed. We'll prepare shipment using the delivery address provided at checkout.`
+      : `Your purchase of <strong style="color:#111827;">${itemSafe}</strong> is confirmed and ready to use.`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -322,7 +326,9 @@ export async function sendPurchaseConfirmation(params: {
   const fromPlain = (params.buyerName ?? "").trim() || "there";
   const subjectLine = isGift
     ? `Gift sent — ${params.itemDescription}`
-    : `Payment confirmed — ${params.itemDescription}`;
+    : isShopOrder
+      ? `Shop order confirmed — ${params.itemDescription}`
+      : `Payment confirmed — ${params.itemDescription}`;
   return sendEmail({
     to: params.to,
     subject: subjectLine,
@@ -331,10 +337,15 @@ export async function sendPurchaseConfirmation(params: {
       "",
       isGift && params.giftRecipientEmail
         ? `Your gift (${params.itemDescription}) has been sent to ${params.giftRecipientEmail}.`
-        : `Your purchase of ${params.itemDescription} is confirmed.`,
+        : isShopOrder
+          ? `Your shop order for ${params.itemDescription} is confirmed.`
+          : `Your purchase of ${params.itemDescription} is confirmed.`,
       `Amount: ${amountFormatted}`,
       params.referenceCode ? `Reference: ${params.referenceCode}` : null,
       "",
+      isShopOrder
+        ? "We'll notify you once your order is fulfilled."
+        : null,
       `Sign in to view your account: ${params.loginUrl}`,
     ].filter(Boolean).join("\n"),
     html,
@@ -349,6 +360,7 @@ export async function sendRefundNotice(params: {
   amount: number;
   currency: string;
   referenceCode: string | null | undefined;
+  orderCategory?: "general" | "shop";
 }) {
   const nameSafe = escHtml((params.buyerName ?? "").trim());
   const greeting = nameSafe ? `Hi ${nameSafe},` : "Hi there,";
@@ -356,6 +368,7 @@ export async function sendRefundNotice(params: {
   const itemSafe = escHtml(params.itemDescription);
   const amountFormatted = `${params.currency} ${params.amount.toFixed(2)}`;
   const refSafe = params.referenceCode ? escHtml(params.referenceCode) : null;
+  const isShopOrder = params.orderCategory === "shop";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -374,7 +387,9 @@ export async function sendRefundNotice(params: {
           <td style="padding:32px;">
             <p style="margin:0 0 16px;font-size:15px;color:#111827;">${greeting}</p>
             <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
-              Your payment for <strong style="color:#111827;">${itemSafe}</strong> has been refunded. Please allow a few business days for the funds to appear in your account.
+              ${isShopOrder
+                ? `Your shop order payment for <strong style="color:#111827;">${itemSafe}</strong> has been refunded. Please allow a few business days for the funds to appear in your account.`
+                : `Your payment for <strong style="color:#111827;">${itemSafe}</strong> has been refunded. Please allow a few business days for the funds to appear in your account.`}
             </p>
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:24px;">
               <tr style="background:#f3f4f6;">
@@ -407,11 +422,13 @@ export async function sendRefundNotice(params: {
 
   return sendEmail({
     to: params.to,
-    subject: `Refund processed — ${params.itemDescription}`,
+    subject: `${isShopOrder ? "Shop order refunded" : "Refund processed"} — ${params.itemDescription}`,
     text: [
       greeting.replace(/&[a-z#0-9]+;/g, (m) => ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }[m] ?? m)),
       "",
-      `Your payment for ${params.itemDescription} has been refunded.`,
+      isShopOrder
+        ? `Your shop order payment for ${params.itemDescription} has been refunded.`
+        : `Your payment for ${params.itemDescription} has been refunded.`,
       `Amount: ${amountFormatted}`,
       params.referenceCode ? `Reference: ${params.referenceCode}` : null,
       "",
@@ -436,6 +453,8 @@ export async function sendGiftNotice(params: {
   itemDescription: string;
   giftMessage: string | null | undefined;
   loginUrl: string;
+  /** "shop" for physical goods; "general" (default) for digital/account-linked gifts. */
+  orderCategory?: "general" | "shop";
 }) {
   const recipientNameSafe = escHtml((params.recipientName ?? "").trim());
   const greeting = recipientNameSafe ? `Hi ${recipientNameSafe},` : "Hi there,";
@@ -481,12 +500,14 @@ export async function sendGiftNotice(params: {
               </tr>
             </table>` : ""}
             <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
-              Your gift has been added to your account. Sign in to access it.
+              ${params.orderCategory === "shop"
+                ? "A physical item will be shipped to the address provided at checkout."
+                : "Your gift has been added to your account. Sign in to access it."}
             </p>
             <table cellpadding="0" cellspacing="0">
               <tr>
                 <td style="background:#0d9488;border-radius:8px;">
-                  <a href="${loginUrlSafe}" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">View my gift</a>
+                  <a href="${loginUrlSafe}" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">${params.orderCategory === "shop" ? "View my orders" : "View my gift"}</a>
                 </td>
               </tr>
             </table>
@@ -512,7 +533,9 @@ export async function sendGiftNotice(params: {
       `${fromPlain} has sent you a gift from ${params.studioName}: ${params.itemDescription}`,
       (params.giftMessage ?? "").trim() ? `\nMessage: ${(params.giftMessage ?? "").trim()}` : null,
       "",
-      `Your gift has been added to your account. Sign in here: ${params.loginUrl}`,
+      params.orderCategory === "shop"
+        ? `A physical item will be shipped to the address provided at checkout.`
+        : `Your gift has been added to your account. Sign in here: ${params.loginUrl}`,
     ].filter(Boolean).join("\n"),
     html,
   });

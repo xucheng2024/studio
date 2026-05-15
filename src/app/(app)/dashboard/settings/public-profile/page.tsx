@@ -47,7 +47,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -175,6 +175,10 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Members section title</span>
             <input name="public_member_zone_title" className={ui.input} defaultValue={(studio as { public_member_zone_title?: string | null }).public_member_zone_title ?? ""} placeholder="Member zone" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Shop section title</span>
+            <input name="public_shop_title" className={ui.input} defaultValue={(studio as { public_shop_title?: string | null }).public_shop_title ?? ""} placeholder="Shop" />
           </label>
         </div>
 

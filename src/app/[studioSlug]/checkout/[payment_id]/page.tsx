@@ -16,6 +16,7 @@ import {
   studioMePath,
   studioPackagePath,
   studioPackagesPath,
+  studioShopPath,
 } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -67,6 +68,8 @@ function failedStateDescription(source: string, status: string): string {
     return `${base} You have not been charged. You can return to packages and try again.`;
   if (source === "member_zone_purchase")
     return `${base} You can start a new purchase from the member zone.`;
+  if (source === "shop_purchase")
+    return `${base} You can return to the shop and try again.`;
   if (source === "online_booking")
     return `${base} Your hold will be released after the time limit — book again from classes.`;
   if (source === "event_booking")
@@ -83,6 +86,9 @@ function failedPrimaryHref(
   }
   if (source === "member_zone_purchase") {
     return { href: studioMemberZoneListPath(studioSlug), label: "Member zone" };
+  }
+  if (source === "shop_purchase") {
+    return { href: studioShopPath(studioSlug), label: "Browse shop" };
   }
   if (source === "event_booking") {
     return { href: studioEventsPath(studioSlug), label: "Browse events" };
@@ -118,6 +124,9 @@ function checkoutNavContext(
   if (source === "member_zone_purchase") {
     return { fallbackHref: studioMemberZoneListPath(studioSlug), fallbackLabel: "Back to member zone" };
   }
+  if (source === "shop_purchase") {
+    return { fallbackHref: studioShopPath(studioSlug), fallbackLabel: "Back to shop" };
+  }
   if (source === "event_booking") {
     return { fallbackHref: studioMePath(studioSlug, "bookings"), fallbackLabel: "Back to bookings" };
   }
@@ -151,6 +160,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       event_booking_id,
       member_zone_series_id,
       member_zone_lesson_id,
+      shop_product_id,
+      shop_product_name_snapshot,
+      is_gift,
+      gift_recipient_email,
       studios(public_slug)
     `,
     )
@@ -238,7 +251,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   const holdWindowHint =
     source === "online_booking" || source === "event_booking"
       ? "Reservations are held for 15 minutes, then released automatically."
-      : source === "package_buy" || source === "member_zone_purchase"
+      : source === "package_buy" || source === "member_zone_purchase" || source === "shop_purchase"
         ? "This checkout link expires in about 30 minutes."
         : null;
 
@@ -253,6 +266,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
   const expiryLabel = expiresAt && isPending ? formatExpiryLabel(payment.expires_at) : null;
   const packageNameSnapshot = (payment as { package_name_snapshot?: string | null }).package_name_snapshot ?? null;
+  const shopProductNameSnapshot = (payment as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot ?? null;
+  const itemNameSnapshot = packageNameSnapshot ?? shopProductNameSnapshot;
+  const isGiftPayment = (payment as { is_gift?: boolean | null }).is_gift ?? false;
+  const giftRecipientEmail = (payment as { gift_recipient_email?: string | null }).gift_recipient_email ?? null;
   const failedNav = failedPrimaryHref(studioSlug, source);
 
   return (
@@ -306,6 +323,17 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                     Continue to series
                   </Link>
                 </>
+              ) : source === "shop_purchase" ? (
+                <>
+                  <p className={`text-sm ${ui.muted}`}>
+                    {isGiftPayment && giftRecipientEmail
+                      ? `This is a gift — a notification has been sent to ${giftRecipientEmail}.`
+                      : "Your order is confirmed. We will ship to the address you provided."}
+                  </p>
+                  <Link href={studioMePath(studioSlug, "orders")} className={`${ui.btnPrimary} mt-1 inline-flex justify-center`}>
+                    My orders
+                  </Link>
+                </>
               ) : source === "package_buy" ? (
                 <>
                   <p className={`text-sm ${ui.muted}`}>
@@ -352,10 +380,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
               )}
 
               <dl className="mt-4 w-full space-y-2 border-t border-teal-200/80 pt-4 text-left text-xs dark:border-teal-800/50">
-                {packageNameSnapshot ? (
+                {itemNameSnapshot ? (
                   <>
                     <dt className={ui.muted}>Item</dt>
-                    <dd className="text-teal-900 dark:text-teal-100">{packageNameSnapshot}</dd>
+                    <dd className="text-teal-900 dark:text-teal-100">{itemNameSnapshot}</dd>
                   </>
                 ) : null}
                 {payment.reference_code ? (
