@@ -1712,6 +1712,17 @@ function sanitizeStockQtyNullable(raw: FormDataEntryValue | null): number | null
   return Math.floor(n);
 }
 
+function parseImageUrlsField(raw: FormDataEntryValue | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(String(raw));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((u): u is string => typeof u === "string" && u.startsWith("http")).slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
 async function generateUniqueShopProductShareSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
   studioId: string,
@@ -1743,6 +1754,7 @@ export async function createShopProduct(formData: FormData): Promise<void> {
   const summary = String(formData.get("summary") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const image_urls = parseImageUrlsField(formData.get("image_urls"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
@@ -1756,6 +1768,7 @@ export async function createShopProduct(formData: FormData): Promise<void> {
     summary,
     description,
     image_url,
+    image_urls,
     price,
     currency,
     stock_qty,
@@ -1786,6 +1799,7 @@ export async function updateShopProduct(formData: FormData): Promise<void> {
   const summary = String(formData.get("summary") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
+  const image_urls = parseImageUrlsField(formData.get("image_urls"));
   const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
   if (!/^[A-Z]{3}$/.test(currency)) return;
   const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
@@ -1799,6 +1813,7 @@ export async function updateShopProduct(formData: FormData): Promise<void> {
       summary,
       description,
       image_url,
+      image_urls,
       price,
       currency,
       stock_qty,

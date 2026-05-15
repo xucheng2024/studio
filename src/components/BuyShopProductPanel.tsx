@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
+import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
 import {
   ShippingAddressFields,
   type ShippingAddressDefaults,
@@ -17,13 +18,6 @@ type Props = {
   disabled?: boolean;
   outOfStock?: boolean;
   shippingDefaults?: ShippingAddressDefaults | null;
-};
-
-type GiftPayload = {
-  is_gift: true;
-  gift_recipient_name: string | null;
-  gift_recipient_email: string;
-  gift_message: string | null;
 };
 
 function readShippingFromRoot(root: HTMLElement | null): ShippingAddressPayload | null {
@@ -51,28 +45,13 @@ function readShippingFromRoot(root: HTMLElement | null): ShippingAddressPayload 
   };
 }
 
-function readGiftFromRoot(root: HTMLElement | null): Omit<GiftPayload, "is_gift"> | null {
-  if (!root) return null;
-  const val = (name: string) =>
-    String((root.querySelector(`[name="${name}"]`) as HTMLInputElement | null)?.value ?? "").trim();
-  const gift_recipient_email = val("gift_recipient_email").toLowerCase();
-  if (!gift_recipient_email) return null;
-  const gift_recipient_name = val("gift_recipient_name") || null;
-  const gift_message = val("gift_message") || null;
-  return {
-    gift_recipient_name,
-    gift_recipient_email,
-    gift_message,
-  };
-}
-
 export function BuyShopProductPanel({ productId, disabled = false, outOfStock = false, shippingDefaults }: Props) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [saveToProfile, setSaveToProfile] = useState(true);
-  const [isGift, setIsGift] = useState(false);
+  const [gift, setGift] = useState<GiftPayload | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,25 +70,27 @@ export function BuyShopProductPanel({ productId, disabled = false, outOfStock = 
     const currentUserEmail = sessionData.session?.user?.email ?? null;
 
     const buyerEmail = (payload.guest_email ?? currentUserEmail ?? "").trim().toLowerCase();
-    const giftFields = isGift ? readGiftFromRoot(rootRef.current) : null;
-    if (isGift) {
-      if (!giftFields?.gift_recipient_email) {
+
+    if (gift?.is_gift) {
+      if (!gift.gift_recipient_email) {
         const message = "Please enter the recipient email.";
         setMsg(message);
         return { ok: false as const, message };
       }
-      if (buyerEmail && giftFields.gift_recipient_email === buyerEmail) {
+      if (buyerEmail && gift.gift_recipient_email === buyerEmail) {
         const message = "You cannot send a gift to yourself.";
         setMsg(message);
         return { ok: false as const, message };
       }
     }
+
     const shipping = readShippingFromRoot(rootRef.current);
     if (!shipping) {
       const message = "Please complete the shipping address.";
       setMsg(message);
       return { ok: false as const, message };
     }
+
     try {
       setBusy(true);
       setMsg(null);
@@ -121,10 +102,7 @@ export function BuyShopProductPanel({ productId, disabled = false, outOfStock = 
           guest_name: currentlyLoggedIn ? undefined : payload.guest_name,
           guest_email: currentlyLoggedIn ? undefined : payload.guest_email,
           guest_phone: currentlyLoggedIn ? undefined : payload.guest_phone,
-          is_gift: isGift || undefined,
-          gift_recipient_name: isGift ? giftFields?.gift_recipient_name ?? undefined : undefined,
-          gift_recipient_email: isGift ? giftFields?.gift_recipient_email ?? undefined : undefined,
-          gift_message: isGift ? giftFields?.gift_message ?? undefined : undefined,
+          ...(gift ?? {}),
           save_shipping_to_profile: currentlyLoggedIn ? saveToProfile : false,
           ...shipping,
         }),
@@ -150,43 +128,7 @@ export function BuyShopProductPanel({ productId, disabled = false, outOfStock = 
     }
   };
 
-  const shippingBlock = (
-    <ShippingAddressFields defaults={shippingDefaults} />
-  );
-
-  const giftBlock = (
-    <>
-      <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
-        <input
-          type="checkbox"
-          checked={isGift}
-          onChange={(e) => setIsGift(e.target.checked)}
-        />
-        Send as a gift
-      </label>
-      {isGift ? (
-        <div className="grid gap-3 rounded-xl border border-stone-200 p-3 dark:border-stone-800">
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Recipient name (optional)</span>
-            <input name="gift_recipient_name" className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Recipient email</span>
-            <input name="gift_recipient_email" type="email" required className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Gift message (optional)</span>
-            <textarea
-              name="gift_message"
-              rows={3}
-              maxLength={500}
-              className={`${ui.input} min-h-[80px]`}
-            />
-          </label>
-        </div>
-      ) : null}
-    </>
-  );
+  const shippingBlock = <ShippingAddressFields defaults={shippingDefaults} />;
 
   if (isLoggedIn === false) {
     return (
@@ -196,9 +138,9 @@ export function BuyShopProductPanel({ productId, disabled = false, outOfStock = 
           busyLabel="Creating..."
           disabled={disabled}
           onSubmit={submit}
-          extraFields={() => (
+          extraFields={({ normalizedEmail }) => (
             <>
-              {giftBlock}
+              <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={normalizedEmail} />
               {shippingBlock}
             </>
           )}
@@ -218,27 +160,28 @@ export function BuyShopProductPanel({ productId, disabled = false, outOfStock = 
 
   return (
     <div ref={rootRef} className="flex flex-col gap-3">
-      {giftBlock}
+      <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={userEmail} />
       {shippingBlock}
-      <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
+      <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-600 transition hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-400 dark:hover:bg-stone-800/50">
         <input
           type="checkbox"
           checked={saveToProfile}
           onChange={(e) => setSaveToProfile(e.target.checked)}
+          className="accent-teal-600"
         />
         Save shipping address to my profile
       </label>
       <button
         type="button"
-        disabled={disabled || busy}
+        disabled={disabled || busy || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
         onClick={() => void submit({ guest_email: userEmail ?? undefined })}
-        className={ui.btnPrimary}
+        className={`${ui.btnPrimary} w-full justify-center`}
       >
         {busy ? (
-          <span className="inline-flex items-center gap-2">
-            <Loader2 className="size-4 animate-spin" />
+          <>
+            <Loader2 size={15} className="animate-spin" />
             Creating...
-          </span>
+          </>
         ) : outOfStock ? (
           "Out of stock"
         ) : (

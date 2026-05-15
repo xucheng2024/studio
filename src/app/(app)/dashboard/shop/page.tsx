@@ -8,6 +8,7 @@ import {
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
+import { ShopExtraImagesField } from "@/components/dashboard/ShopExtraImagesField";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -40,7 +41,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
     supabase.from("studios").select("id, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("shop_products")
-      .select("id, title, summary, description, image_url, price, currency, stock_qty, sort_order, is_active, share_slug")
+      .select("id, title, summary, description, image_url, image_urls, price, currency, stock_qty, sort_order, is_active, share_slug")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -113,8 +114,15 @@ export default async function DashboardShopPage({ searchParams }: Props) {
               folder="shop"
               entityId="new-product"
               name="image_url"
-              label="Product image"
+              label="Cover image (used in listings)"
               defaultValue={null}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <ShopExtraImagesField
+              studioId={studio.id}
+              entityId="new-product"
+              defaultValues={[]}
             />
           </div>
           <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Creating...">
@@ -197,8 +205,15 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                       folder="shop"
                       entityId={product.id}
                       name="image_url"
-                      label="Product image"
+                      label="Cover image (used in listings)"
                       defaultValue={product.image_url}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <ShopExtraImagesField
+                      studioId={studio.id}
+                      entityId={product.id}
+                      defaultValues={(product.image_urls as string[] | null) ?? []}
                     />
                   </div>
                   <div className="flex flex-wrap gap-2 sm:col-span-2">

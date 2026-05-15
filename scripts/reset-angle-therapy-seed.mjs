@@ -36,7 +36,8 @@ if (!supabaseUrl || !serviceKey) {
 const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
 const CFG = {
-  studioSlug: "angle",
+  // Override: SEED_STUDIO_SLUG=demo npm run seed:angle
+  studioSlug: (process.env.SEED_STUDIO_SLUG ?? "demo").trim().toLowerCase(),
   seedTag: `THERAPY-SEED-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`,
 };
 
@@ -206,11 +207,25 @@ async function cleanupAllAngleData(ctx) {
     paymentIdsFromEventBookings = (ebs ?? []).map((b) => b.payment_id).filter(Boolean);
   }
 
+  const mzLike = `${CFG.seedTag.toLowerCase()}%`;
+  const { data: seededShopProductsForCleanup, error: shopProdLookupErr } = await admin
+    .from("shop_products")
+    .select("id")
+    .eq("studio_id", ctx.studioId)
+    .like("share_slug", mzLike);
+  if (shopProdLookupErr && !String(shopProdLookupErr.message ?? "").includes("relation")) throw shopProdLookupErr;
+  const shopProductIdsForCleanup = (seededShopProductsForCleanup ?? []).map((r) => r.id);
+  if (shopProductIdsForCleanup.length) {
+    const { error: shopOrderDelErr } = await admin.from("shop_orders").delete().in("product_id", shopProductIdsForCleanup);
+    if (shopOrderDelErr && !String(shopOrderDelErr.message ?? "").includes("relation")) throw shopOrderDelErr;
+  }
+
   // 4) delete payments for this studio that are linked to these bookings OR linked to studio packages
   const paymentFilters = [
     paymentIdsFromBookings.length ? `id.in.(${paymentIdsFromBookings.join(",")})` : null,
     paymentIdsFromEventBookings.length ? `id.in.(${paymentIdsFromEventBookings.join(",")})` : null,
     packageIds.length ? `package_id.in.(${packageIds.join(",")})` : null,
+    shopProductIdsForCleanup.length ? `shop_product_id.in.(${shopProductIdsForCleanup.join(",")})` : null,
     `reference_code.like.${CFG.seedTag}%`,
   ].filter(Boolean);
 
@@ -225,7 +240,6 @@ async function cleanupAllAngleData(ctx) {
 
   // 4b) member zone cleanup (series/lessons/purchases)
   // Use share_slug prefix + studio_id to avoid touching real content.
-  const mzLike = `${CFG.seedTag.toLowerCase()}%`;
   const { data: mzSeries, error: mzSeriesErr } = await admin
     .from("member_zone_series")
     .select("id")
@@ -258,6 +272,12 @@ async function cleanupAllAngleData(ctx) {
   if (membershipProductIds.length) {
     await admin.from("customer_subscriptions").delete().in("membership_product_id", membershipProductIds);
     await admin.from("membership_products").delete().in("id", membershipProductIds);
+  }
+
+  // 4d) shop products (orders + payments removed above)
+  if (shopProductIdsForCleanup.length) {
+    const { error: shopProdDelErr } = await admin.from("shop_products").delete().in("id", shopProductIdsForCleanup);
+    if (shopProdDelErr && !String(shopProdDelErr.message ?? "").includes("relation")) throw shopProdDelErr;
   }
 
   // 5) delete client_packages for studio packages (class pass balances)
@@ -1238,6 +1258,169 @@ async function seedTherapyData(ctx) {
     }
   }
 
+  // ── Shop: physical merchandise for public storefront + My orders demo ──
+  let shopProductsCount = 0;
+  let shopOrdersCount = 0;
+  try {
+    await admin.from("studios").update({ public_shop_title: "Wellness Shop" }).eq("id", ctx.studioId);
+
+    const shopPrefix = CFG.seedTag.toLowerCase();
+    const shopProductDefs = [
+      {
+        title: "Breathwork Journal",
+        summary: "Guided prompts for daily regulation and reflection.",
+        description: "A5 journal with weekly breathwork exercises and mood check-ins. Ships within Singapore.",
+        price: 28,
+        stock_qty: 40,
+        sort_order: 10,
+      },
+      {
+        title: "Weighted Eye Pillow",
+        summary: "Lavender-scented eye pillow for relaxation practice.",
+        description: "Cotton cover, removable flax/lavender insert. Ideal after breathwork or sleep sessions.",
+        price: 45,
+        stock_qty: 18,
+        sort_order: 20,
+      },
+      {
+        title: "Studio Tote Bag",
+        summary: "Reusable tote with studio logo.",
+        description: "Canvas tote — great for carrying mat, journal, and water bottle to sessions.",
+        price: 35,
+        stock_qty: null,
+        sort_order: 30,
+      },
+      {
+        title: "Aromatherapy Roller",
+        summary: "Calming blend for pulse-point application.",
+        description: "10ml roller with essential-oil blend. Patch test recommended.",
+        price: 22,
+        stock_qty: 0,
+        sort_order: 40,
+      },
+      {
+        title: "Foam Roller (45 cm)",
+        summary: "Support recovery between therapy and movement sessions.",
+        description: "Medium-density foam roller for myofascial release at home.",
+        price: 58,
+        stock_qty: 12,
+        sort_order: 50,
+      },
+      {
+        title: "Gift Card · SGD 100",
+        summary: "Redeemable toward sessions or shop items.",
+        description: "Digital gift card code emailed after purchase. Valid 12 months.",
+        price: 100,
+        stock_qty: null,
+        sort_order: 60,
+      },
+    ];
+
+    const shopProductRows = shopProductDefs.map((p, idx) => ({
+      studio_id: ctx.studioId,
+      title: p.title,
+      summary: p.summary,
+      description: p.description,
+      image_url: null,
+      price: p.price,
+      currency: "SGD",
+      stock_qty: p.stock_qty,
+      is_active: true,
+      sort_order: p.sort_order,
+      share_slug: `${shopPrefix}-shop-${String(idx + 1).padStart(3, "0")}-${randSlug(6)}`,
+    }));
+
+    const { data: insertedShopProducts, error: shopInsErr } = await admin
+      .from("shop_products")
+      .insert(shopProductRows)
+      .select("id, title, price, currency, stock_qty");
+    if (shopInsErr) throw shopInsErr;
+    shopProductsCount = insertedShopProducts?.length ?? 0;
+
+    const inStockProduct = (insertedShopProducts ?? []).find(
+      (p) => p.stock_qty == null || Number(p.stock_qty) > 0,
+    );
+    if (inStockProduct?.id) {
+      const buyer = { full: "Hannah Chong", email: "hannah.chong@angle.demo", phone: "+6590667788" };
+      const buyerId = await ensureUserByEmail(buyer.email, buyer.full, buyer.phone);
+      const createdAt = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      const amount = Number(inStockProduct.price ?? 0);
+      const ref = `${CFG.seedTag}-SHOP-0001`;
+      const { data: shopPay, error: shopPayErr } = await admin
+        .from("payments")
+        .insert({
+          studio_id: ctx.studioId,
+          location_id: ctx.locationId,
+          client_id: buyerId,
+          booking_id: null,
+          event_booking_id: null,
+          package_id: null,
+          membership_product_id: null,
+          member_zone_series_id: null,
+          member_zone_lesson_id: null,
+          shop_product_id: inStockProduct.id,
+          shop_product_name_snapshot: inStockProduct.title,
+          guest_name: null,
+          guest_email: null,
+          guest_phone: null,
+          amount,
+          paid_amount: amount,
+          currency: inStockProduct.currency ?? "SGD",
+          payment_method: "hitpay",
+          source: "shop_purchase",
+          type: "single",
+          status: "paid",
+          reference_code: ref,
+          remaining_uses: 0,
+          created_at: createdAt.toISOString(),
+          paid_at: new Date(createdAt.getTime() + 10 * 60 * 1000).toISOString(),
+          verified_at: new Date(createdAt.getTime() + 12 * 60 * 1000).toISOString(),
+          verified_by: ctx.ownerId,
+          recon_status: "matched",
+          recon_note: "seed_demo",
+          invoice_status: "issued",
+          invoice_number: `INV-${CFG.seedTag.slice(-8)}-SHOP-0001`,
+          gateway_status: "completed",
+        })
+        .select("id")
+        .single();
+      if (shopPayErr) throw shopPayErr;
+      if (shopPay?.id) {
+        const { error: shopOrderErr } = await admin.from("shop_orders").insert({
+          studio_id: ctx.studioId,
+          client_id: buyerId,
+          product_id: inStockProduct.id,
+          payment_id: shopPay.id,
+          qty: 1,
+          status: "paid",
+          fulfillment_status: "shipped",
+          product_title_snapshot: inStockProduct.title,
+          amount,
+          currency: inStockProduct.currency ?? "SGD",
+          shipping_name: buyer.full,
+          shipping_phone: buyer.phone,
+          shipping_address_line1: "88 Orchard Road",
+          shipping_address_line2: "#12-08",
+          shipping_city: "Singapore",
+          shipping_postal_code: "238841",
+          shipping_country: "SG",
+          paid_at: new Date(createdAt.getTime() + 10 * 60 * 1000).toISOString(),
+        });
+        if (shopOrderErr) throw shopOrderErr;
+        shopOrdersCount += 1;
+        if (inStockProduct.stock_qty != null) {
+          await admin.rpc("decrement_shop_product_stock", {
+            p_product_id: inStockProduct.id,
+            p_qty: 1,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    const msg = String(err?.message ?? err ?? "");
+    if (!msg.includes("relation") && !msg.includes("shop_")) throw err;
+  }
+
   return {
     seedTag: CFG.seedTag,
     inserted: {
@@ -1250,6 +1433,8 @@ async function seedTherapyData(ctx) {
       events: insertedEvents.length,
       membership_products: memberships.length,
       member_zone_series: mzSeries.length,
+      shop_products: shopProductsCount,
+      shop_orders: shopOrdersCount,
     },
   };
 }

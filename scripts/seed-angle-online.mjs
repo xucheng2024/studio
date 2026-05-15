@@ -36,7 +36,7 @@ if (!supabaseUrl || !serviceKey) {
 const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
 const CFG = {
-  studioSlug: "angle",
+  studioSlug: (process.env.SEED_STUDIO_SLUG ?? "demo").trim().toLowerCase(),
   // Optional: keep using a real member so dashboards show member-linked rows.
   // If this user doesn't exist in your Supabase auth, set to null and we'll seed guest-only bookings/payments.
   realMemberId: "f7cdadc7-2fff-4f3f-b10b-13099b2dfd77",

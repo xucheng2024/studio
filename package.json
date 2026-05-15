@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:revenue": "node scripts/verify-revenue-smoke.mjs"
+    "test:revenue": "node scripts/verify-revenue-smoke.mjs",
+    "seed:angle": "node scripts/reset-angle-therapy-seed.mjs",
+    "seed:angle-online": "node scripts/seed-angle-online.mjs",
+    "seed:shop": "node scripts/seed-shop-only.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

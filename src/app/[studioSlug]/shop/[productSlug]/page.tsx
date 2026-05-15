@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { BuyShopProductPanel } from "@/components/BuyShopProductPanel";
+import { ShopImageGallery } from "@/components/ShopImageGallery";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
-import { studioShopPath } from "@/lib/public-paths";
+import { studioShopPath, studioShopProductPath } from "@/lib/public-paths";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,7 +48,7 @@ export default async function PublicShopProductPage({ params }: Props) {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productSlug);
   const { data: product } = await admin
     .from("shop_products")
-    .select("id, title, summary, description, image_url, price, currency, stock_qty, share_slug")
+    .select("id, title, summary, description, image_url, image_urls, price, currency, stock_qty, share_slug")
     .eq("studio_id", studio.id)
     .eq(isUuid ? "id" : "share_slug", productSlug)
     .eq("is_active", true)
@@ -85,6 +85,12 @@ export default async function PublicShopProductPage({ params }: Props) {
   const paymentReady = Boolean(studio.hitpay_enabled);
   const outOfStock = product.stock_qty != null && Number(product.stock_qty) < 1;
   const currency = String(product.currency ?? "SGD").toUpperCase();
+  const sharePath = studioShopProductPath(studio.public_slug, product.share_slug ?? product.id);
+
+  // Only show description if it differs from summary (avoids duplicate text from seeded data).
+  const descriptionText = product.description?.trim() ?? "";
+  const summaryText = product.summary?.trim() ?? "";
+  const showDescription = descriptionText && descriptionText !== summaryText;
 
   return (
     <main className={ui.page}>
@@ -92,44 +98,49 @@ export default async function PublicShopProductPage({ params }: Props) {
         <StudioPublicBackNav href={studioShopPath(studio.public_slug)}>Back to shop</StudioPublicBackNav>
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        {/* Left: image gallery + info */}
         <div className="min-w-0">
-          <p className={ui.badge}>Shop</p>
-          <h1 className={`${ui.h1} mt-3`}>{product.title}</h1>
-          <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-            {currency} {Number(product.price).toFixed(2)}
-          </p>
-          {product.summary ? <p className={`mt-3 text-sm ${ui.muted}`}>{product.summary}</p> : null}
-          {product.description ? (
-            <p className="mt-4 whitespace-pre-wrap text-sm text-stone-700 dark:text-stone-300">{product.description}</p>
-          ) : null}
-          {product.image_url ? (
-            <Image
-              src={product.image_url}
-              alt={product.title}
-              width={1200}
-              height={1200}
-              sizes="(max-width: 1024px) 100vw, 600px"
-              priority
-              className="mt-6 aspect-square w-full max-w-lg rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-            />
-          ) : null}
+          <ShopImageGallery
+            mainImage={product.image_url ?? null}
+            extraImages={(product.image_urls as string[] | null) ?? []}
+            alt={product.title}
+            priority
+            sharePath={sharePath}
+            shareTitle={`${product.title} · ${studio.name}`}
+            shareText={`Check out ${product.title} at ${studio.name}`}
+          />
+
+          <div className="mt-6">
+            <p className={ui.badge}>Shop</p>
+            <h1 className={`${ui.h1} mt-2`}>{product.title}</h1>
+            <p className={`mt-1 text-sm ${ui.muted}`}>{studio.name}</p>
+            {summaryText ? (
+              <p className={`mt-3 text-base ${ui.muted}`}>{summaryText}</p>
+            ) : null}
+            {showDescription ? (
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-stone-700 dark:text-stone-300">
+                {descriptionText}
+              </p>
+            ) : null}
+          </div>
         </div>
 
+        {/* Right: buy card */}
         <div className="lg:sticky lg:top-8">
           <div className={`${ui.card} overflow-hidden sm:p-6`}>
-            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Buy this item</p>
-            <p className={`mt-1 text-sm ${paymentReady && !outOfStock ? ui.muted : ui.error}`}>
-              {!paymentReady
-                ? "Online payment is not configured for this studio."
-                : outOfStock
-                  ? "This item is out of stock."
-                  : "Secure checkout powered by HitPay. Shipping address required."}
-            </p>
-            <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+            <p className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
               {currency} {Number(product.price).toFixed(2)}
             </p>
+            {outOfStock ? (
+              <p className={`mt-1 text-sm font-medium ${ui.error}`}>Out of stock</p>
+            ) : (
+              <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
+                {paymentReady
+                  ? "Secure checkout · Shipping address required"
+                  : "Online payment is not configured for this studio."}
+              </p>
+            )}
             <div className="mt-5">
               <BuyShopProductPanel
                 productId={product.id}
