@@ -7,6 +7,7 @@ import { CoverLocationCornerBadge, sessionLocationLabel } from "@/components/Ses
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { StudioIntroSection } from "@/components/StudioIntroSection";
+import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import {
@@ -696,45 +697,20 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             </Link>
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>Merchandise available for purchase and delivery.</p>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            {visibleShopProducts.map((product, idx) => {
-              const href = product.share_slug
-                ? studioShopProductPath(studio.public_slug, product.share_slug)
-                : studioShopPath(studio.public_slug);
-              const currency = String(product.currency ?? "SGD").toUpperCase();
-              const outOfStock = product.stock_qty != null && Number(product.stock_qty) < 1;
-              return (
-                <article key={product.id} className={`${ui.card} flex flex-col`}>
-                  <Link href={href} className="block shrink-0">
-                    {product.image_url ? (
-                      <Image
-                        src={product.image_url}
-                        alt={product.title}
-                        width={600}
-                        height={600}
-                        sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 280px"
-                        priority={idx === 0}
-                        className="aspect-square w-full rounded-lg border border-stone-200 object-cover dark:border-stone-800"
-                      />
-                    ) : (
-                      <div className="aspect-square w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
-                    )}
-                  </Link>
-                  <div className="mt-2 flex flex-1 flex-col px-0.5">
-                    <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                      <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
-                        {product.title}
-                      </Link>
-                    </h3>
-                    <p className="mt-0.5 text-sm font-semibold tabular-nums">
-                      {currency} {Number(product.price).toFixed(2)}
-                    </p>
-                    {product.summary ? <p className={`mt-1 line-clamp-2 text-xs ${ui.muted}`}>{product.summary}</p> : null}
-                    {outOfStock ? <p className={`mt-1 text-xs ${ui.error}`}>Out of stock</p> : null}
-                  </div>
-                </article>
-              );
-            })}
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-2.5">
+            {visibleShopProducts.map((product, idx) => (
+              <ShopProductCard
+                key={product.id}
+                href={studioShopProductPath(studio.public_slug, product.share_slug ?? product.id)}
+                title={product.title}
+                imageUrl={product.image_url}
+                price={Number(product.price)}
+                currency={String(product.currency ?? "SGD")}
+                summary={product.summary}
+                outOfStock={product.stock_qty != null && Number(product.stock_qty) < 1}
+                priority={idx < 2}
+              />
+            ))}
           </div>
         </section>
       ) : null}

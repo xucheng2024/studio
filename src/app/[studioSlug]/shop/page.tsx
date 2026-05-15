@@ -1,6 +1,5 @@
-import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioShopProductPath } from "@/lib/public-paths";
@@ -38,50 +37,22 @@ export default async function PublicShopPage({ params }: Props) {
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#shop`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4">
         <h1 className={ui.h1}>{shopTitle}</h1>
-        <p className={`mt-1 ${ui.muted}`}>Browse merchandise from {studio.name}.</p>
+        <p className={`mt-1 text-sm ${ui.muted}`}>Browse merchandise from {studio.name}.</p>
       </div>
-      <div className="mt-5 grid grid-cols-2 gap-4">
-        {(products ?? []).map((product, idx) => {
-          const href = studioShopProductPath(studio.public_slug, product.share_slug ?? product.id);
-          const outOfStock = product.stock_qty != null && Number(product.stock_qty) < 1;
-          const currency = String(product.currency ?? "SGD").toUpperCase();
-          return (
-            <article key={product.id} className={`${ui.card} flex flex-col`}>
-              <Link href={href} className="block shrink-0">
-                {product.image_url ? (
-                  <Image
-                    src={product.image_url}
-                    alt={product.title}
-                    width={600}
-                    height={600}
-                    sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 320px"
-                    priority={idx === 0}
-                    className="aspect-square w-full rounded-xl border border-stone-200 object-cover dark:border-stone-800"
-                  />
-                ) : (
-                  <div className="aspect-square w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900" />
-                )}
-              </Link>
-              <div className="mt-3 flex flex-1 flex-col">
-                <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100 sm:text-base">
-                  <Link href={href} className="transition hover:text-teal-700 dark:hover:text-teal-400">
-                    {product.title}
-                  </Link>
-                </h2>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-stone-900 dark:text-stone-50">
-                  {currency} {Number(product.price).toFixed(2)}
-                </p>
-                {product.summary ? <p className={`mt-1 line-clamp-2 text-xs ${ui.muted}`}>{product.summary}</p> : null}
-                {outOfStock ? <p className={`mt-2 text-xs ${ui.error}`}>Out of stock</p> : null}
-                <div className="mt-auto pt-3">
-                  <Link href={href} className={ui.btnPrimarySm}>
-                    View
-                  </Link>
-                </div>
-              </div>
-            </article>
-          );
-        })}
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-2.5">
+        {(products ?? []).map((product, idx) => (
+          <ShopProductCard
+            key={product.id}
+            href={studioShopProductPath(studio.public_slug, product.share_slug ?? product.id)}
+            title={product.title}
+            imageUrl={product.image_url}
+            price={Number(product.price)}
+            currency={String(product.currency ?? "SGD")}
+            summary={product.summary}
+            outOfStock={product.stock_qty != null && Number(product.stock_qty) < 1}
+            priority={idx < 2}
+          />
+        ))}
       </div>
       {!products?.length ? <p className={`mt-6 text-sm ${ui.muted}`}>No products available.</p> : null}
     </main>
