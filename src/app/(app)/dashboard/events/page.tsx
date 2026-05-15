@@ -66,7 +66,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
     .in("studio_id", studioIds)
     .gte("start_time", dateFrom)
     .lte("start_time", dateTo)
-    .order("start_time", { ascending: false });
+    .order("start_time", { ascending: true });
   const [{ data: events }, { data: studioMeta }] = await Promise.all([
     eventsQuery,
     supabase.from("studios").select("id, public_slug").in("id", studioIds).order("created_at", { ascending: true }),

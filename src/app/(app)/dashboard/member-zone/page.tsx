@@ -232,7 +232,9 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                 </span>
               </div>
               <div className="mt-3 grid gap-2">
-                {(Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons : []).map((lesson) => (
+                {(Array.isArray(series.member_zone_lessons) ? [...series.member_zone_lessons] : [])
+                  .sort((a, b) => Number(a.sort_order ?? 100) - Number(b.sort_order ?? 100))
+                  .map((lesson) => (
                   <form key={lesson.id} action={updateMemberZoneLesson} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
                     <input type="hidden" name="studio_id" value={studio.id} />
                     <input type="hidden" name="series_id" value={series.id} />
