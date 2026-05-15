@@ -7,6 +7,7 @@ import { parsePublicTagsInput } from "@/lib/publicTags";
 import { generateShareSlugSegment } from "@/lib/shareSlug";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
+import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -221,6 +222,12 @@ function sanitizeVideoUrl(raw: string): string | null {
   }
 }
 
+function sanitizeTrustedLogoUrl(raw: string | null): string | null {
+  const value = raw?.trim() || null;
+  if (!value) return null;
+  return isTrustedCoverImageUrl(value) ? value : null;
+}
+
 function sanitizePrice(raw: FormDataEntryValue | null): number {
   const n = Number(raw ?? 0);
   if (!Number.isFinite(n) || n < 0) return 0;
@@ -259,7 +266,9 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
 
   const public_intro = String(formData.get("public_intro") ?? "").trim() || null;
   const public_brand_name = String(formData.get("public_brand_name") ?? "").trim() || null;
-  const public_logo_url = String(formData.get("public_logo_url") ?? "").trim() || null;
+  const rawPublicLogoUrl = String(formData.get("public_logo_url") ?? "").trim() || null;
+  if (rawPublicLogoUrl && !isTrustedCoverImageUrl(rawPublicLogoUrl)) return;
+  const public_logo_url = sanitizeTrustedLogoUrl(rawPublicLogoUrl);
   const public_cover_image_url = String(formData.get("public_cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("public_video_url") ?? "");
   const public_video_url = sanitizeVideoUrl(rawVideo);
@@ -311,7 +320,9 @@ export async function savePublicLogoUrl(studioId: string, logoUrl: string | null
   if (!studio) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
 
-  const url = logoUrl ? logoUrl.trim() : null;
+  const rawUrl = logoUrl ? logoUrl.trim() : null;
+  if (rawUrl && !isTrustedCoverImageUrl(rawUrl)) return;
+  const url = sanitizeTrustedLogoUrl(rawUrl);
   const { error } = await supabase
     .from("studios")
     .update({ public_logo_url: url })
@@ -331,7 +342,9 @@ export async function updateStudioPublicBranding(formData: FormData): Promise<vo
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const public_brand_name = String(formData.get("public_brand_name") ?? "").trim() || null;
-  const public_logo_url = String(formData.get("public_logo_url") ?? "").trim() || null;
+  const rawLogoUrl = String(formData.get("public_logo_url") ?? "").trim() || null;
+  if (rawLogoUrl && !isTrustedCoverImageUrl(rawLogoUrl)) return;
+  const public_logo_url = sanitizeTrustedLogoUrl(rawLogoUrl);
 
   const { error } = await supabase
     .from("studios")
@@ -392,6 +405,7 @@ export async function createStudioService(formData: FormData): Promise<void> {
 
   revalidatePath("/dashboard/services");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "services");
 }
 
 export async function updateStudioService(formData: FormData): Promise<void> {
@@ -440,6 +454,7 @@ export async function updateStudioService(formData: FormData): Promise<void> {
 
   revalidatePath("/dashboard/services");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "services");
 }
 
 export async function deleteStudioService(formData: FormData): Promise<void> {
@@ -462,6 +477,7 @@ export async function deleteStudioService(formData: FormData): Promise<void> {
 
   revalidatePath("/dashboard/services");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "services");
 }
 
 export async function updateStudioContractSettings(formData: FormData): Promise<void> {
@@ -1782,6 +1798,7 @@ export async function createShopProduct(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/shop");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "shop");
 }
 
 export async function updateShopProduct(formData: FormData): Promise<void> {
@@ -1829,6 +1846,7 @@ export async function updateShopProduct(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/shop");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "shop");
 }
 
 export async function deleteShopProduct(formData: FormData): Promise<void> {
@@ -1850,6 +1868,7 @@ export async function deleteShopProduct(formData: FormData): Promise<void> {
   }
   revalidatePath("/dashboard/shop");
   if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  await recordStudioContentUpdate(studio.id, "shop");
 }
 
 export async function updateShopOrderFulfillment(formData: FormData): Promise<void> {

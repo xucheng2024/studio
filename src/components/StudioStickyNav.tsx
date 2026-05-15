@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 export type StickyNavTab = { id: string; label: string };
 
-type UpdateMap = Partial<Record<"classes" | "events" | "packages" | "member-zone", string>>;
+type UpdateMap = Partial<Record<"services" | "classes" | "events" | "packages" | "member-zone" | "shop", string>>;
 
 function seenStorageKey(studioSlug: string, sectionId: string) {
   return `studio:pwa:seen:${studioSlug}:${sectionId}`;
@@ -76,11 +76,13 @@ export function StudioStickyNav({ tabs, studioSlug }: { tabs: StickyNavTab[]; st
   }, [activeId, studioSlug]);
 
   const sectionUpdatedAt: Record<string, number> = {
+    services: updates.services ? new Date(updates.services).getTime() : 0,
     classes: updates.classes ? new Date(updates.classes).getTime() : 0,
     "upcoming-classes": updates.classes ? new Date(updates.classes).getTime() : 0,
     events: updates.events ? new Date(updates.events).getTime() : 0,
     packages: updates.packages ? new Date(updates.packages).getTime() : 0,
     "member-zone": updates["member-zone"] ? new Date(updates["member-zone"]).getTime() : 0,
+    shop: updates.shop ? new Date(updates.shop).getTime() : 0,
   };
 
   const scrollTo = (id: string) => {

@@ -1,13 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWebPush } from "@/lib/webPush";
 
-export type UpdateSection = "classes" | "events" | "packages" | "member-zone";
+export type UpdateSection = "services" | "classes" | "events" | "packages" | "member-zone" | "shop";
 
 const SECTION_LABEL: Record<UpdateSection, string> = {
+  services: "services",
   classes: "classes",
   events: "events",
   packages: "packages",
   "member-zone": "member zone",
+  shop: "shop",
 };
 
 export async function recordStudioContentUpdate(studioId: string, section: UpdateSection) {
@@ -43,7 +45,10 @@ async function fanoutStudioPush(studioId: string, section: UpdateSection) {
 
   const title = studio.name ?? "Studio";
   const body = `New ${SECTION_LABEL[section]} update available.`;
-  const url = `/${studio.public_slug}#${section === "member-zone" ? "member-zone" : section}`;
+  const sectionAnchor = section === "classes"
+    ? "upcoming-classes"
+    : section;
+  const url = `/${studio.public_slug}#${sectionAnchor}`;
 
   await Promise.all(
     subscriptions.map(async (sub) => {

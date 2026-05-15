@@ -49,12 +49,24 @@ type Props = {
   label?: string;
   onUploaded: (url: string) => void;
   cropAspect?: number;
+  helperText?: string;
 };
 
-export function PublicMediaUploader({ studioId, folder, entityId, label = "Upload image", onUploaded, cropAspect }: Props) {
+export function PublicMediaUploader({
+  studioId,
+  folder,
+  entityId,
+  label = "Upload image",
+  onUploaded,
+  cropAspect,
+  helperText,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const hint = helperText ?? (cropAspect === 1
+    ? "JPG, PNG, or WebP. Max 5MB. Recommended 1:1 logo."
+    : "JPG, PNG, or WebP. Max 5MB.");
 
   const onPick = async (file: File | null | undefined) => {
     if (!file) return;
@@ -94,16 +106,19 @@ export function PublicMediaUploader({ studioId, folder, entityId, label = "Uploa
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        className={ui.btnSecondarySm}
-        disabled={busy}
-        onClick={() => inputRef.current?.click()}
-      >
-        {busy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-        {busy ? "Uploading..." : label}
-      </button>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={ui.btnSecondarySm}
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+        >
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+          {busy ? "Uploading..." : label}
+        </button>
+        <span className={`text-xs ${ui.muted}`}>{hint}</span>
+      </div>
       <input
         ref={inputRef}
         type="file"

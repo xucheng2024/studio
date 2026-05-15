@@ -225,7 +225,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
   const publicBrandName = studio.public_brand_name?.trim() || studio.name;
-  const logoUrl = studio.public_logo_url?.trim() || null;
+  const rawLogoUrl = studio.public_logo_url?.trim() || null;
+  const logoUrl = rawLogoUrl && isTrustedCoverImageUrl(rawLogoUrl) ? rawLogoUrl : null;
   const warmupMediaUrls = Array.from(
     new Set(
       [

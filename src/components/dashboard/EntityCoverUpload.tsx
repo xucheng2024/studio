@@ -60,6 +60,7 @@ export function EntityCoverUpload({ entityId, imageUrl: initialUrl, canEdit, siz
   const [dragging, setDragging] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const dragCounter = useRef(0);
+  const fileHint = "JPG, PNG, or WebP. Max 5MB.";
 
   useEffect(() => { setImageUrl(initialUrl); }, [initialUrl]);
 
@@ -201,6 +202,7 @@ export function EntityCoverUpload({ entityId, imageUrl: initialUrl, canEdit, siz
           </button>
         ) : null}
         <input ref={inputRef} type="file" accept={ACCEPT} className="hidden" onChange={onPickFile} />
+        <p className={`text-[10px] ${ui.muted}`}>{fileHint}</p>
         {error ? (
           <p className="flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400">
             <AlertCircle size={10} />{error}
@@ -304,6 +306,7 @@ export function EntityCoverUpload({ entityId, imageUrl: initialUrl, canEdit, siz
           <AlertCircle size={12} />{error}
         </p>
       ) : null}
+      <p className={`text-xs ${ui.muted}`}>{fileHint}</p>
     </div>
     {cropFile ? (
       <ImageCropperDialog

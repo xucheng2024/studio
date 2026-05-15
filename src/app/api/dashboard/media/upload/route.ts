@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import {
   COVER_ALLOWED_MIME,
@@ -5,6 +6,7 @@ import {
   COVER_MEDIA_BUCKET,
   extensionForMime,
   isTrustedCoverImageUrl,
+  storagePathFromCoverUrl,
 } from "@/lib/coverMedia";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -53,11 +55,28 @@ export async function POST(req: Request) {
 
   const folder = safeSegment(String(formData.get("folder") ?? "studio"), "studio");
   const entityId = safeSegment(String(formData.get("entity_id") ?? "common"), "common");
+  const isStudioPublicLogoUpload = folder === "studios" && entityId === "public-logo";
+  const admin = createAdminClient();
+
+  let previousLogoPath: string | null = null;
+  let studioPublicSlug: string | null = null;
+  if (isStudioPublicLogoUpload) {
+    const { data: studioRow, error: studioErr } = await admin
+      .from("studios")
+      .select("id, public_logo_url, public_slug")
+      .eq("id", studioId)
+      .maybeSingle();
+    if (studioErr || !studioRow) {
+      return NextResponse.json({ error: "studio_not_found" }, { status: 404 });
+    }
+    previousLogoPath = storagePathFromCoverUrl((studioRow as { public_logo_url?: string | null }).public_logo_url ?? null);
+    studioPublicSlug = (studioRow as { public_slug?: string | null }).public_slug ?? null;
+  }
+
   const source = Buffer.from(await file.arrayBuffer());
   const normalized = await normalizeCoverImage(source, file.type, entityId.includes("logo") ? "logo" : "cover");
   const objectPath = `${folder}/${studioId}/${entityId}-${Date.now()}.${normalized.ext}`;
 
-  const admin = createAdminClient();
   const { error: upErr } = await admin.storage.from(COVER_MEDIA_BUCKET).upload(objectPath, normalized.buffer, {
     contentType: normalized.mime,
     upsert: false,
@@ -71,5 +90,22 @@ export async function POST(req: Request) {
     await admin.storage.from(COVER_MEDIA_BUCKET).remove([objectPath]);
     return NextResponse.json({ error: "upload_integrity" }, { status: 500 });
   }
+
+  if (isStudioPublicLogoUpload) {
+    const { error: dbErr } = await admin
+      .from("studios")
+      .update({ public_logo_url: data.publicUrl })
+      .eq("id", studioId);
+    if (dbErr) {
+      await admin.storage.from(COVER_MEDIA_BUCKET).remove([objectPath]);
+      return NextResponse.json({ error: dbErr.message ?? "save_failed" }, { status: 500 });
+    }
+    if (previousLogoPath && previousLogoPath !== objectPath) {
+      await admin.storage.from(COVER_MEDIA_BUCKET).remove([previousLogoPath]);
+    }
+    revalidatePath("/dashboard/settings/public-profile");
+    if (studioPublicSlug) revalidatePath(`/${studioPublicSlug}`);
+  }
+
   return NextResponse.json({ ok: true, url: data.publicUrl });
 }

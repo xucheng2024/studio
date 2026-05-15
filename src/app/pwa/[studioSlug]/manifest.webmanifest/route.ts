@@ -9,6 +9,14 @@ type Props = {
   params: Promise<{ studioSlug: string }>;
 };
 
+function inferImageMimeType(url: string): "image/webp" | "image/jpeg" | "image/png" | null {
+  const normalized = url.trim().toLowerCase().split("?")[0]?.split("#")[0] ?? "";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  if (normalized.endsWith(".png")) return "image/png";
+  return null;
+}
+
 function buildManifest({
   studioSlug,
   name,
@@ -21,6 +29,7 @@ function buildManifest({
   logoUrl?: string | null;
 }): MetadataRoute.Manifest {
   const trustedLogoUrl = logoUrl && isTrustedCoverImageUrl(logoUrl) ? logoUrl : null;
+  const trustedLogoType = trustedLogoUrl ? inferImageMimeType(trustedLogoUrl) : null;
   return {
     id: `/${studioSlug}`,
     name,
@@ -41,7 +50,7 @@ function buildManifest({
           {
             src: trustedLogoUrl,
             sizes: "800x800",
-            type: "image/png",
+            ...(trustedLogoType ? { type: trustedLogoType } : {}),
             purpose: "any",
           },
         ]
