@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Maskable safe zone: content within centre 80% (51.2px inset on each side) -->
+  <!-- Full bleed background fills the entire canvas for maskable clipping -->
+  <rect width="512" height="512" fill="#0f766e"/>
+  <!-- Rounded rectangle for visual identity within safe zone -->
+  <rect x="51" y="51" width="410" height="410" rx="96" fill="#0d9488"/>
+  <!-- "S" lettermark centred, scaled to sit well within safe zone -->
+  <text
+    x="256"
+    y="340"
+    font-family="ui-sans-serif, system-ui, -apple-system, sans-serif"
+    font-size="256"
+    font-weight="700"
+    fill="white"
+    text-anchor="middle"
+    dominant-baseline="auto"
+    letter-spacing="-8"
+  >S</text>
+</svg>

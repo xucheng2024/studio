@@ -1,34 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw, Sparkles, X } from "lucide-react";
 
 export function PwaUpdateBanner() {
   const [show, setShow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const regRef = useRef<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === "SW_UPDATED") setShow(true);
+    // Path 1: new SW took control (replaces the dead self.addEventListener("controllerchange") in sw.js)
+    const onControllerChange = () => setShow(true);
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
+    // Path 2: a waiting SW is found before it activates
+    let newWorker: ServiceWorker | null = null;
+    const onStateChange = () => {
+      if (newWorker?.state === "installed" && navigator.serviceWorker.controller) {
+        setShow(true);
+      }
     };
-    navigator.serviceWorker.addEventListener("message", handleMessage);
+    const onUpdateFound = () => {
+      newWorker = regRef.current?.installing ?? null;
+      newWorker?.addEventListener("statechange", onStateChange);
+    };
 
     void navigator.serviceWorker.ready.then((reg) => {
-      reg.addEventListener("updatefound", () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener("statechange", () => {
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            setShow(true);
-          }
-        });
-      });
+      regRef.current = reg;
+      reg.addEventListener("updatefound", onUpdateFound);
     });
 
     return () => {
-      navigator.serviceWorker.removeEventListener("message", handleMessage);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      regRef.current?.removeEventListener("updatefound", onUpdateFound);
+      newWorker?.removeEventListener("statechange", onStateChange);
     };
   }, []);
 
@@ -37,8 +44,16 @@ export function PwaUpdateBanner() {
   async function handleRefresh() {
     setRefreshing(true);
     const reg = await navigator.serviceWorker.getRegistration();
-    reg?.waiting?.postMessage({ type: "SKIP_WAITING" });
-    window.location.reload();
+    if (reg?.waiting) {
+      // Wait for the new SW to take control before reloading — prevents a race
+      // where location.reload() fires before skipWaiting() activates the new worker.
+      navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload(), {
+        once: true,
+      });
+      reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    } else {
+      window.location.reload();
+    }
   }
 
   return (

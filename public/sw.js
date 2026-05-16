@@ -1,4 +1,4 @@
-const SW_VERSION = "studio-pwa-v8";
+const SW_VERSION = "studio-pwa-v9";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
@@ -52,7 +52,14 @@ function isBypassedPath(pathname) {
 }
 
 function isNetworkOnlyPath(pathname) {
-  return NETWORK_ONLY_SEGMENTS.some((segment) => pathname.includes(segment));
+  return NETWORK_ONLY_SEGMENTS.some((seg) => {
+    const clean = seg.replace(/^\//, "").replace(/\/$/, "");
+    return (
+      pathname === `/${clean}` ||
+      pathname.startsWith(`/${clean}/`) ||
+      pathname.includes(`/${clean}/`)
+    );
+  });
 }
 
 /** Pull-to-refresh, address-bar Reload, etc. use cache mode `reload` so we must not serve stale HTML first. */
@@ -226,13 +233,6 @@ self.addEventListener("message", (event) => {
   if (data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
-});
-
-// Notify all open clients when a new SW has taken control
-self.addEventListener("controllerchange", () => {
-  self.clients.matchAll({ type: "window" }).then((clients) => {
-    clients.forEach((client) => client.postMessage({ type: "SW_UPDATED" }));
-  });
 });
 
 self.addEventListener("push", (event) => {

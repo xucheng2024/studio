@@ -44,17 +44,34 @@ function buildManifest({
     lang: "en",
     categories: ["health", "fitness", "lifestyle"],
     prefer_related_applications: false,
-    icons: trustedLogoUrl
-      ? [
-          // Actual logo — declare real size (800x800 from our crop)
-          {
-            src: trustedLogoUrl,
-            sizes: "800x800",
-            ...(trustedLogoType ? { type: trustedLogoType } : {}),
-            purpose: "any",
-          },
-        ]
-      : [],
+    icons: [
+      // Static branded fallback — always present so browsers can install the PWA
+      // even when the studio has no logo. Two entries so both "any" and "maskable"
+      // purposes are declared (Next.js Manifest type does not allow combined strings).
+      {
+        src: "/icons/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "maskable",
+      },
+      // Studio logo when available (arbitrary crop — "any" only, no safe-zone guarantee)
+      ...(trustedLogoUrl
+        ? [
+            {
+              src: trustedLogoUrl,
+              sizes: "800x800",
+              type: trustedLogoType ?? undefined,
+              purpose: "any" as const,
+            },
+          ]
+        : []),
+    ],
   };
 }
 
