@@ -1,4 +1,4 @@
-const SW_VERSION = "studio-pwa-v7";
+const SW_VERSION = "studio-pwa-v8";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
@@ -81,17 +81,17 @@ function isCacheableHtmlPath(pathname) {
   if (segments.length === 1) return true;
   // /angle/classes
   if (segments.length === 2 && segments[1] === "classes") return true;
-  // /angle/classes, /angle/events, /angle/services, /angle/packages, /angle/member-zone
+  // /angle/classes, /angle/events, /angle/services, /angle/packages, /angle/member-zone, /angle/shop
   if (
     segments.length === 2 &&
-    ["events", "services", "packages", "member-zone"].includes(segments[1])
+    ["events", "services", "packages", "member-zone", "shop"].includes(segments[1])
   ) {
     return true;
   }
-  // /angle/classes/yoga, /angle/events/slug, /angle/services/slug, etc.
+  // /angle/classes/yoga, /angle/events/slug, /angle/services/slug, /angle/shop/product, etc.
   if (
     segments.length === 3 &&
-    ["classes", "events", "services", "packages", "memberships"].includes(segments[1])
+    ["classes", "events", "services", "packages", "memberships", "shop"].includes(segments[1])
   ) {
     return true;
   }

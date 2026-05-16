@@ -22,7 +22,7 @@ export function StudioPwaRegister({ studioSlug }: { studioSlug: string }) {
         const root = `/${studioSlug}`;
         const pageWarmupPayload = {
           type: "PREFETCH_PAGES",
-          urls: [root, `${root}/packages`, `${root}/classes`, `${root}/events`],
+          urls: [root, `${root}/packages`, `${root}/classes`, `${root}/events`, `${root}/shop`],
         };
         registration.active?.postMessage(pageWarmupPayload);
       })

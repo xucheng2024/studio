@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatLocalDate } from "@/lib/date";
+
+const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  dateStyle: "medium",
+};
 
 /**
  * Renders a date-only string.
@@ -15,17 +19,28 @@ export function LocalDate({
   iso: string | null | undefined;
   options?: Intl.DateTimeFormatOptions;
 }) {
-  const opts: Intl.DateTimeFormatOptions = options ?? { dateStyle: "medium" };
+  const optionsKey = useMemo(
+    () => JSON.stringify(options ?? DEFAULT_DATE_OPTIONS),
+    [options],
+  );
+  const opts = useMemo<Intl.DateTimeFormatOptions>(
+    () => JSON.parse(optionsKey) as Intl.DateTimeFormatOptions,
+    [optionsKey],
+  );
   const sgt = formatLocalDate(iso, opts);
   const [label, setLabel] = useState(sgt);
+
+  useEffect(() => {
+    // Keep SSR fallback in sync when iso/options change before local reformat.
+    setLabel(sgt);
+  }, [sgt]);
 
   useEffect(() => {
     if (!iso) return;
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return;
     setLabel(d.toLocaleDateString(undefined, opts));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [iso]);
+  }, [iso, opts]);
 
   if (!iso) return null;
   return <span suppressHydrationWarning>{label}</span>;
