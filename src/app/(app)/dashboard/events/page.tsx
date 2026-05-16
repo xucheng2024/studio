@@ -4,7 +4,8 @@ import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
+import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate, toLocalDateTimeInputValue } from "@/lib/date";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -130,9 +131,9 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 ) : null}
               </div>
               <p className={`mt-0.5 text-sm ${ui.muted}`}>
-                {new Date(String(e.start_time)).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
+                <LocalTime iso={String(e.start_time)} />
                 {" – "}
-                {new Date(String(e.end_time)).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
+                <LocalTime iso={String(e.end_time)} />
               </p>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                 {e.price != null && Number(e.price) > 0 ? <span>SGD {Number(e.price).toFixed(2)}</span> : null}
@@ -220,12 +221,12 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 </p>
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Start</span>
-                <input name="start_time" type="datetime-local" defaultValue={new Date(String(e.start_time)).toISOString().slice(0, 16)} className={ui.input} />
+                <span className={ui.label}>Start <span className="font-normal text-stone-400">(SGT)</span></span>
+                <input name="start_time" type="datetime-local" defaultValue={toLocalDateTimeInputValue(String(e.start_time))} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>End</span>
-                <input name="end_time" type="datetime-local" defaultValue={new Date(String(e.end_time)).toISOString().slice(0, 16)} className={ui.input} />
+                <span className={ui.label}>End <span className="font-normal text-stone-400">(SGT)</span></span>
+                <input name="end_time" type="datetime-local" defaultValue={toLocalDateTimeInputValue(String(e.end_time))} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Capacity</span>
@@ -361,11 +362,11 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               </p>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Start</span>
+              <span className={ui.label}>Start <span className="font-normal text-stone-400">(SGT)</span></span>
               <input name="start_time" type="datetime-local" required className={ui.input} />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>End</span>
+              <span className={ui.label}>End <span className="font-normal text-stone-400">(SGT)</span></span>
               <input name="end_time" type="datetime-local" required className={ui.input} />
             </label>
             <label className="flex flex-col gap-1.5">

@@ -82,7 +82,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Reports</h1>
         <p className={`mt-1 ${ui.muted}`}>
           {selectedLocationId ? "Selected location" : "All locations"} · Revenue uses payment{" "}
-          <code className={ui.code}>created_at</code> within the date range (paid + refunded).
+          <code className={ui.code}>created_at</code> within the date range (paid + refunded), grouped by your local calendar day.
         </p>
       </div>
 

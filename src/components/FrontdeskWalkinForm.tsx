@@ -12,7 +12,7 @@ export function FrontdeskWalkinForm({
   sessions,
   disabled = false,
 }: {
-  sessions: { id: string; label: string; guestPrice: number }[];
+  sessions: { id: string; startTime: string; title: string; spotsLeft: number; guestPrice: number }[];
   disabled?: boolean;
 }) {
   const router = useRouter();
@@ -21,6 +21,14 @@ export function FrontdeskWalkinForm({
   const [amount, setAmount] = useState("0.00");
   const [phone, setPhone] = useState("");
   const formDisabled = disabled || busy || sessions.length === 0;
+
+  function sessionLabel(s: { startTime: string; title: string; spotsLeft: number }) {
+    const d = s.startTime ? new Date(s.startTime) : null;
+    const when = d && !Number.isNaN(d.getTime())
+      ? d.toLocaleString(undefined, { hour: "2-digit", minute: "2-digit", weekday: "short", day: "numeric", month: "short" })
+      : "";
+    return `${when}${when ? " · " : ""}${s.title} · ${s.spotsLeft} spots left`;
+  }
 
   return (
     <form
@@ -85,7 +93,7 @@ export function FrontdeskWalkinForm({
             <option value="">{sessions.length > 0 ? "Select today’s session…" : "No sessions available"}</option>
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.label}
+                {sessionLabel(s)}
               </option>
             ))}
           </select>

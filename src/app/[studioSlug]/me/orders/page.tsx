@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { badgeToneClass } from "@/lib/order-status";
 import { studioClassesPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -132,15 +133,11 @@ export default async function MyOrdersPage({ params }: Props) {
             const sessionRow = Array.isArray(session) ? session[0] : session;
             const cls = Array.isArray(sessionRow?.classes) ? sessionRow?.classes[0] : sessionRow?.classes;
             const sessionTitle = cls?.title ?? null;
-            const sessionTime = sessionRow?.start_time
-              ? new Date(sessionRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })
-              : null;
+            const sessionStartIso = sessionRow?.start_time ? String(sessionRow.start_time) : null;
             const eventInfo = eventBooking && "events" in eventBooking ? eventBooking.events : null;
             const eventRow = Array.isArray(eventInfo) ? eventInfo[0] : eventInfo;
             const eventTitle = eventRow?.title ?? null;
-            const eventTime = eventRow?.start_time
-              ? new Date(eventRow.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })
-              : null;
+            const eventStartIso = eventRow?.start_time ? String(eventRow.start_time) : null;
             const source = (p as { source?: string | null }).source ?? null;
             const sourceBadge =
               source === "event_booking"
@@ -174,14 +171,14 @@ export default async function MyOrdersPage({ params }: Props) {
                   {p.payment_method ? <span className="capitalize">{p.payment_method}</span> : null}
                   {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
                   {p.created_at ? (
-                    <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })}</span>
+                    <span><LocalTime iso={p.created_at} /></span>
                   ) : null}
                 </div>
                 {sessionTitle ? (
-                  <p className={`mt-2 text-sm ${ui.muted}`}>Session: {sessionTitle}{sessionTime ? ` · ${sessionTime}` : ""}</p>
+                  <p className={`mt-2 text-sm ${ui.muted}`}>Session: {sessionTitle}{sessionStartIso ? <> · <LocalTime iso={sessionStartIso} /></> : null}</p>
                 ) : null}
                 {eventTitle ? (
-                  <p className={`mt-2 text-sm ${ui.muted}`}>Event: {eventTitle}{eventTime ? ` · ${eventTime}` : ""}</p>
+                  <p className={`mt-2 text-sm ${ui.muted}`}>Event: {eventTitle}{eventStartIso ? <> · <LocalTime iso={eventStartIso} /></> : null}</p>
                 ) : null}
                 {(((p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim()) || pkg?.name) ? (
                   <p className={`mt-1 text-sm ${ui.muted}`}>

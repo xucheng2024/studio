@@ -4,6 +4,7 @@ import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScope } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import {
@@ -354,10 +355,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             : null;
           const sessionClass = Array.isArray(sessionObj?.classes) ? sessionObj?.classes[0] : sessionObj?.classes;
           const sessionTitle = sessionClass?.title?.trim() || null;
-          const sessionStart = sessionObj?.start_time ? new Date(sessionObj.start_time) : null;
-          const sessionLabel = sessionTitle
-            ? `${sessionTitle}${sessionStart && !Number.isNaN(sessionStart.getTime()) ? ` · ${sessionStart.toLocaleString()}` : ""}`
-            : "-";
+          const sessionStartIso = sessionObj?.start_time ? String(sessionObj.start_time) : null;
           const eventObj = eventBooking
             ? ((Array.isArray((eventBooking as { events?: unknown }).events)
                 ? (eventBooking as { events?: unknown[] }).events?.[0]
@@ -366,10 +364,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 | null)
             : null;
           const eventTitle = eventObj?.title?.trim() || null;
-          const eventStart = eventObj?.start_time ? new Date(eventObj.start_time) : null;
-          const eventLabel = eventTitle
-            ? `${eventTitle}${eventStart && !Number.isNaN(eventStart.getTime()) ? ` · ${eventStart.toLocaleString()}` : ""}`
-            : "-";
+          const eventStartIso = eventObj?.start_time ? String(eventObj.start_time) : null;
           const packageLabel =
             (p as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() ||
             pkg?.name?.trim() ||
@@ -461,7 +456,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Class</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{sessionLabel}</dd>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">
+                    {sessionTitle ? <>{sessionTitle}{sessionStartIso ? <> · <LocalTime iso={sessionStartIso} /></> : null}</> : "-"}
+                  </dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Name</dt>
@@ -481,7 +478,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Event</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{eventLabel}</dd>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">
+                    {eventTitle ? <>{eventTitle}{eventStartIso ? <> · <LocalTime iso={eventStartIso} /></> : null}</> : "-"}
+                  </dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Package</dt>
@@ -516,14 +515,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Created</dt>
                   <dd className="text-stone-600 dark:text-stone-400">
-                    {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
+                    {p.created_at ? <LocalTime iso={p.created_at} /> : "-"}
                   </dd>
                 </div>
                 {p.verified_at ? (
                   <div className="flex gap-2 sm:col-span-2">
                     <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Verified</dt>
                     <dd className="text-stone-600 dark:text-stone-400">
-                      {new Date(p.verified_at).toLocaleString()} · {p.verified_by ?? "-"}
+                      <LocalTime iso={p.verified_at} /> · {p.verified_by ?? "-"}
                     </dd>
                   </div>
                 ) : null}
@@ -557,7 +556,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     <p className="text-xs text-stone-600 dark:text-stone-400">
                       Invoice <span className={ui.code}>{p.invoice_number}</span>
                       {p.invoice_sent_at
-                        ? ` · sent ${new Date(p.invoice_sent_at).toLocaleString()}`
+                        ? <> · sent <LocalTime iso={p.invoice_sent_at} /></>
                         : " · not sent"}
                     </p>
                   ) : (
@@ -571,7 +570,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-800/30">
                   <p className="text-xs text-stone-600 dark:text-stone-400">
                     Invoice <span className={ui.code}>{p.invoice_number}</span> voided
-                    {p.invoice_voided_at ? ` · ${new Date(p.invoice_voided_at).toLocaleString()}` : ""}
+                    {p.invoice_voided_at ? <> · <LocalTime iso={p.invoice_voided_at} /></> : null}
                     {p.invoice_void_reason ? ` · ${p.invoice_void_reason}` : ""}
                   </p>
                 </div>
@@ -586,7 +585,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <ul className="mt-2 space-y-1 pl-1">
                     {timeline.map((a) => (
                       <li key={a.id} className={`text-xs ${ui.muted}`}>
-                        {new Date(a.created_at).toLocaleString()} · {a.action} · {a.actor_role ?? "staff"}
+                        <LocalTime iso={a.created_at} /> · {a.action} · {a.actor_role ?? "staff"}
                       </li>
                     ))}
                   </ul>

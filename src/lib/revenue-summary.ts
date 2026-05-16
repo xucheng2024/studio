@@ -1,3 +1,5 @@
+import { localDateKey } from "@/lib/date";
+
 /** Rows used for Gross / Refunds / Net (payment created_at within the report window). */
 export type RevenuePaymentRow = {
   status: string;
@@ -38,7 +40,7 @@ export function computeRevenueSummary(rows: RevenuePaymentRow[]) {
 export function revenueByDay(rows: RevenuePaymentRow[]) {
   const map = new Map<string, { gross: number; refunds: number }>();
   for (const p of rows) {
-    const day = (p.created_at ?? "").slice(0, 10);
+    const day = localDateKey(p.created_at);
     if (!day) continue;
     if (!map.has(day)) map.set(day, { gross: 0, refunds: 0 });
     const m = map.get(day)!;
@@ -92,7 +94,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
   >();
 
   for (const p of rows) {
-    const day = (p.created_at ?? "").slice(0, 10);
+    const day = localDateKey(p.created_at);
     if (!day) continue;
     if (!map.has(day)) {
       map.set(day, {

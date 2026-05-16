@@ -133,16 +133,11 @@ export default async function OperationsPage({ searchParams }: Props) {
   const walkinSessions = (walkinSessionsRaw ?? []).map((session) => {
     const cls = Array.isArray(session.classes) ? session.classes[0] : session.classes;
     const title = (session as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
-    const when = new Date(session.start_time).toLocaleString("en-SG", {
-      hour: "2-digit",
-      minute: "2-digit",
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    });
     return {
       id: session.id,
-      label: `${when} · ${title} · ${session.spots_left ?? 0} spots left`,
+      startTime: String(session.start_time ?? ""),
+      title,
+      spotsLeft: session.spots_left ?? 0,
       guestPrice: Number(session.guest_price ?? 0),
     };
   });

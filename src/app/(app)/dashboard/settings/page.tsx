@@ -1,6 +1,7 @@
 import { updateStudioContractSettings } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
+import { toLocalDateTimeInputValue } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -97,10 +98,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
     contractStudio = data;
   }
 
-  const endsLocal =
-    contractStudio?.contract_ends_at && !Number.isNaN(new Date(contractStudio.contract_ends_at).getTime())
-      ? new Date(contractStudio.contract_ends_at).toISOString().slice(0, 16)
-      : "";
+  const endsLocal = toLocalDateTimeInputValue(contractStudio?.contract_ends_at);
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -167,7 +165,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
             </select>
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Contract ends (optional)</span>
+            <span className={ui.label}>Contract ends — SGT (optional)</span>
             <input
               name="contract_ends_at"
               type="datetime-local"

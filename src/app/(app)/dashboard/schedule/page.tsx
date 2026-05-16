@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { DefaultDatetimeInput } from "@/components/ui/DefaultDatetimeInput";
 import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { generateShareSlugSegment, isValidShareSlug } from "@/lib/shareSlug";
@@ -230,7 +231,7 @@ export default async function SchedulePage({ searchParams }: Props) {
               <p className={`mt-0.5 text-xs ${ui.muted}`}>{String((s as { address: string }).address)}</p>
             ) : null}
             <p className={`mt-1 text-sm ${ui.muted}`}>
-              {new Date(s.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}
+              <LocalTime iso={String(s.start_time)} />
             </p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
               <span>{s.spots_left} spots left</span>

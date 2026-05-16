@@ -3,6 +3,7 @@ import { CancelMembershipSubscriptionButton } from "@/components/CancelMembershi
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { MembershipLifecycleRow } from "@/components/dashboard/MembershipLifecycleRow";
 import { SubmitButton } from "@/components/SubmitButton";
+import { LocalDate } from "@/components/ui/LocalDate";
 import { getDashboardScope } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { bestRole } from "@/lib/rbac";
@@ -231,14 +232,14 @@ export default async function MembershipsPage({ searchParams }: Props) {
                           </span>
                           {subscription.cancel_at_period_end && subscription.current_period_end ? (
                             <p className={`mt-1 text-xs ${ui.muted}`}>
-                              Ends {new Date(subscription.current_period_end).toLocaleDateString("en-SG")}
+                              Ends <LocalDate iso={subscription.current_period_end} />
                             </p>
                           ) : null}
                         </td>
                         <td className="px-4 py-3 align-top">
                           <p className="text-stone-800 dark:text-stone-200">
                             {subscription.created_at
-                              ? new Date(subscription.created_at).toLocaleDateString("en-SG")
+                              ? <LocalDate iso={subscription.created_at} />
                               : "-"}
                           </p>
                         </td>

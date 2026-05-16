@@ -3,7 +3,7 @@ import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { CheckInToggleButton } from "@/components/CheckInToggleButton";
 import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
+import { LocalTime } from "@/components/ui/LocalTime";import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -87,9 +87,6 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
   const checkedInCount = attendees.filter((a) => a.status === "attended").length;
   const total = attendees.length;
   const dt = session.start_time ? new Date(session.start_time) : null;
-  const timeLabel = dt
-    ? dt.toLocaleString("en-SG", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-    : "—";
   const loc = session.locations as { name?: string | null } | { name?: string | null }[] | null | undefined;
   const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
 
@@ -111,7 +108,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
 
         <section className={ui.card}>
           <h1 className={ui.h1}>{(session as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Session"}</h1>
-          <p className={`mt-1 ${ui.muted}`}>{timeLabel}</p>
+          <p className={`mt-1 ${ui.muted}`}>{dt ? <LocalTime iso={session.start_time as string} options={{ weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} /> : "—"}</p>
           {locationName ? <p className={`mt-1 ${ui.muted}`}>{locationName}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <span className={ui.badgeNeutral}>Enrolled: {total}</span>

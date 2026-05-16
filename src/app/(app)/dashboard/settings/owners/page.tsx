@@ -10,6 +10,8 @@ import {
 } from "./actions";
 import { ConfirmForm } from "@/components/ConfirmForm";
 import { SubmitButton } from "@/components/SubmitButton";
+import { toLocalDateTimeInputValue } from "@/lib/date";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -58,11 +60,7 @@ type OwnerInviteRow = {
 };
 
 function formatDatetimeLocal(iso: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toLocalDateTimeInputValue(iso);
 }
 
 function buildOwnerRows(
@@ -301,11 +299,11 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                         {row.accepted_user_id ?? "—"}
                       </td>
                       <td className="py-2.5 pr-3 text-xs text-stone-600 dark:text-stone-400">
-                        {new Date(row.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                        <LocalTime iso={row.created_at} />
                       </td>
                       <td className="py-2.5 text-xs text-stone-600 dark:text-stone-400">
                         {row.accepted_at
-                          ? new Date(row.accepted_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+                          ? <LocalTime iso={row.accepted_at} />
                           : "—"}
                       </td>
                       <td className="py-2.5">
@@ -464,10 +462,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                 </td>
                                 <td className="py-2.5 pr-3 align-top text-xs text-stone-600 dark:text-stone-400">
                                   {s.contract_ends_at
-                                    ? new Date(s.contract_ends_at).toLocaleString(undefined, {
-                                        dateStyle: "medium",
-                                        timeStyle: "short",
-                                      })
+                                    ? <LocalTime iso={s.contract_ends_at} />
                                     : "—"}
                                 </td>
                                 <td className="py-2.5 align-top">
@@ -491,7 +486,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                       >
                                         <input type="hidden" name="studio_id" value={s.id} />
                                         <label className="flex w-full min-w-48 flex-col gap-1">
-                                          <span className={`text-xs ${ui.muted}`}>Set contract ends (optional)</span>
+                                          <span className={`text-xs ${ui.muted}`}>Set contract ends — SGT (optional)</span>
                                           <input
                                             type="datetime-local"
                                             name="contract_ends_at"
@@ -534,10 +529,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                             <p className={`mt-2 text-xs ${ui.muted}`}>
                               Ends:{" "}
                               {s.contract_ends_at
-                                ? new Date(s.contract_ends_at).toLocaleString(undefined, {
-                                    dateStyle: "medium",
-                                    timeStyle: "short",
-                                  })
+                                ? <LocalTime iso={s.contract_ends_at} />
                                 : "—"}
                             </p>
                             <div className="mt-3">
@@ -560,7 +552,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                 >
                                   <input type="hidden" name="studio_id" value={s.id} />
                                   <label className="flex w-full min-w-0 flex-col gap-1">
-                                    <span className={`text-xs ${ui.muted}`}>Set contract ends (optional)</span>
+                                    <span className={`text-xs ${ui.muted}`}>Set contract ends — SGT (optional)</span>
                                     <input
                                       type="datetime-local"
                                       name="contract_ends_at"
@@ -610,10 +602,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                   (a) => (
                     <tr key={a.id} className="border-t border-stone-200/80 dark:border-stone-800/80 align-top">
                       <td className="py-2.5 pr-3 whitespace-nowrap text-xs text-stone-600 dark:text-stone-400">
-                        {new Date(a.created_at).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
+                        <LocalTime iso={a.created_at} />
                       </td>
                       <td className="py-2.5 pr-3 font-mono text-xs">{a.action}</td>
                       <td className="py-2.5 pr-3">
@@ -640,7 +629,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
               (a) => (
                 <li key={`${a.id}-mobile`} className="rounded-xl border border-stone-200/80 bg-white/80 p-3 dark:border-stone-800 dark:bg-stone-950/50">
                   <p className="text-xs text-stone-500 dark:text-stone-400">
-                    {new Date(a.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                    <LocalTime iso={a.created_at} />
                   </p>
                   <p className="mt-1 font-mono text-xs text-stone-800 dark:text-stone-200">{a.action}</p>
                   <p className={`mt-1 text-xs ${ui.muted}`}>

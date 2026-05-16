@@ -1,4 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { LocalDate } from "@/components/ui/LocalDate";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScope } from "@/lib/dashboard";
 import {
   filterPacksForDashboard,
@@ -373,11 +375,11 @@ export default async function ClientsPage({ searchParams }: Props) {
                     </span>
                     <span className={`text-xs ${ui.muted}`}>
                       {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription)
-                        ? `Active until ${new Date(subscription.current_period_end).toLocaleDateString("en-SG")}`
+                        ? <>Active until <LocalDate iso={subscription.current_period_end} /></>
                         : subscription.status === "canceled"
-                        ? `Cancelled ${subscription.canceledAt ? new Date(subscription.canceledAt).toLocaleDateString("en-SG") : ""}`.trim()
+                        ? <>Cancelled{subscription.canceledAt ? <> <LocalDate iso={subscription.canceledAt} /></> : null}</>
                         : subscription.startedAt
-                          ? `Started ${new Date(subscription.startedAt).toLocaleDateString("en-SG")} · Auto-renews until cancelled`
+                          ? <>Started <LocalDate iso={subscription.startedAt} /> · Auto-renews until cancelled</>
                           : "Auto-renews until cancelled"}
                     </span>
                   </div>
@@ -395,7 +397,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                       Last activity:{" "}
                       <span className="font-semibold text-stone-800 dark:text-stone-200">
                         {lastActivity?.startTime
-                          ? `${lastActivity.classTitle} · ${new Date(lastActivity.startTime).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}`
+                          ? <>{lastActivity.classTitle} · <LocalTime iso={lastActivity.startTime} /></>
                           : "—"}
                       </span>
                     </p>

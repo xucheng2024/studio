@@ -7,6 +7,7 @@ import { CheckoutReturnNav } from "@/components/CheckoutReturnNav";
 import { CopyRefButton } from "@/components/CopyRefButton";
 import { HitpayCheckoutSync } from "@/components/HitpayCheckoutSync";
 import { PaymentStatusPoller } from "@/components/PaymentStatusPoller";
+import { LocalTime } from "@/components/ui/LocalTime";
 import {
   studioClassesPath,
   studioEventsPath,
@@ -23,25 +24,6 @@ import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Props = { params: Promise<{ studioSlug: string; payment_id: string }> };
-
-const CHECKOUT_LOCALE = "en-SG";
-const CHECKOUT_TZ = "Asia/Singapore";
-
-function formatExpiryLabel(iso: string | null | undefined) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleString(CHECKOUT_LOCALE, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: CHECKOUT_TZ,
-  });
-}
-
-function formatVerifiedAt(iso: string | null | undefined) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleString(CHECKOUT_LOCALE, { timeZone: CHECKOUT_TZ });
-}
 
 function paymentMethodLabel(method: string | null | undefined, hasGatewayCheckout: boolean): string {
   const m = (method ?? "").toLowerCase();
@@ -264,7 +246,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   );
 
   const expiresAt = payment.expires_at ? new Date(payment.expires_at) : null;
-  const expiryLabel = expiresAt && isPending ? formatExpiryLabel(payment.expires_at) : null;
+  const showExpiry = expiresAt && isPending;
   const packageNameSnapshot = (payment as { package_name_snapshot?: string | null }).package_name_snapshot ?? null;
   const shopProductNameSnapshot = (payment as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot ?? null;
   const itemNameSnapshot = packageNameSnapshot ?? shopProductNameSnapshot;
@@ -396,10 +378,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                 <dd className="text-teal-900 dark:text-teal-100">
                   {paymentMethodLabel(payment.payment_method, Boolean(payment.gateway_checkout_url))}
                 </dd>
-                {formatVerifiedAt(payment.verified_at) ? (
+                {payment.verified_at ? (
                   <>
                     <dt className={ui.muted}>Confirmed at</dt>
-                    <dd className="text-teal-900 dark:text-teal-100">{formatVerifiedAt(payment.verified_at)}</dd>
+                    <dd className="text-teal-900 dark:text-teal-100"><LocalTime iso={payment.verified_at} /></dd>
                   </>
                 ) : null}
               </dl>
@@ -446,9 +428,9 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   <ExternalLink size={14} />
                 </a>
                 <CheckoutRefreshStatusButton />
-                {expiryLabel ? (
+                {showExpiry ? (
                   <p className="mt-3 text-xs text-teal-700 dark:text-teal-400">
-                    Link expires {expiryLabel} (Singapore time)
+                    Link expires <LocalTime iso={payment.expires_at} options={{ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }} /> (your local time)
                   </p>
                 ) : null}
                 {holdWindowHint ? (
@@ -472,9 +454,9 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                     </p>
                   </div>
                 </div>
-                {expiryLabel ? (
+                {showExpiry ? (
                   <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
-                    Link expires {expiryLabel} (Singapore time) · This page refreshes automatically
+                    Link expires <LocalTime iso={payment.expires_at} options={{ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }} /> (your local time) · This page refreshes automatically
                   </p>
                 ) : (
                   <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">

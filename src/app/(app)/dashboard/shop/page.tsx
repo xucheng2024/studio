@@ -9,6 +9,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
 import { ShopExtraImagesField } from "@/components/dashboard/ShopExtraImagesField";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScope } from "@/lib/dashboard";
 import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -251,8 +252,8 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                     <p className={`text-xs ${ui.muted}`}>
                       {order.currency} {Number(order.amount).toFixed(2)}
                       {order.paid_at
-                        ? ` · Paid ${new Date(order.paid_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" })}`
-                        : ""}
+                        ? <> · Paid <LocalTime iso={order.paid_at} /></>
+                        : null}
                     </p>
                   </div>
                   <form action={updateShopOrderFulfillment} className="flex items-center gap-2">

@@ -2,6 +2,8 @@ import { CheckCircle2, Circle } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { updateMemberProfile } from "@/app/(app)/dashboard/actions";
+import { LocalDate } from "@/components/ui/LocalDate";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScope } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { bestRole } from "@/lib/rbac";
@@ -228,13 +230,13 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                   {subscription.created_at ? (
-                    <span>Started {new Date(subscription.created_at).toLocaleDateString("en-SG")}</span>
+                    <span>Started <LocalDate iso={subscription.created_at} /></span>
                   ) : null}
                   {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription) ? (
-                    <span>Active until {new Date(subscription.current_period_end).toLocaleDateString("en-SG")}</span>
+                    <span>Active until <LocalDate iso={subscription.current_period_end} /></span>
                   ) : null}
                   {getMembershipDisplayStatus(subscription) === "canceled" && subscription.canceled_at ? (
-                    <span>Ended {new Date(subscription.canceled_at).toLocaleDateString("en-SG")}</span>
+                    <span>Ended <LocalDate iso={subscription.canceled_at} /></span>
                   ) : (
                     <span>{subscription.cancel_at_period_end ? "No further renewals scheduled" : "Auto-renews until cancelled"}</span>
                   )}
@@ -265,7 +267,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                 <div>
                   <p className="font-semibold text-stone-900 dark:text-stone-100">{packageName}</p>
                   <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                    Expiry: {row.expiry_date ? new Date(row.expiry_date).toLocaleDateString() : "No expiry"}
+                    Expiry: {row.expiry_date ? <LocalDate iso={row.expiry_date} /> : "No expiry"}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -313,7 +315,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                   {p.payment_method ? <span>{p.payment_method}</span> : null}
                   {p.reference_code ? <span>Ref: {p.reference_code}</span> : null}
-                  {p.created_at ? <span>{new Date(p.created_at).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span> : null}
+                  {p.created_at ? <span><LocalTime iso={p.created_at} /></span> : null}
                 </div>
                 {packageName ? <p className={`mt-1 text-sm ${ui.muted}`}>Package: {packageName}</p> : null}
               </li>
@@ -354,7 +356,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
                   {sessionObj?.start_time ? (
-                    <span>{new Date(sessionObj.start_time).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</span>
+                    <span><LocalTime iso={String(sessionObj.start_time)} /></span>
                   ) : null}
                   <span className="flex items-center gap-1">
                     {checkedIn
