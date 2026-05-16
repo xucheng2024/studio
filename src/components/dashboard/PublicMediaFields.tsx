@@ -16,15 +16,29 @@ type CoverFieldProps = {
   label: string;
   defaultValue: string | null;
   cropAspect?: number;
+  /** When `cropAspect` is 1, choose dashboard preview: logo (contain + checkerboard) vs square product (cover). Defaults to `"logo"`. */
+  oneToOnePreview?: "logo" | "square";
   /** When provided, the URL is saved to the DB immediately after upload (no separate Save click needed). */
   autoSaveAction?: (url: string | null) => Promise<void>;
 };
 
-export function CoverUrlField({ studioId, entityId, folder, name, label, defaultValue, cropAspect, autoSaveAction }: CoverFieldProps) {
+export function CoverUrlField({
+  studioId,
+  entityId,
+  folder,
+  name,
+  label,
+  defaultValue,
+  cropAspect,
+  oneToOnePreview,
+  autoSaveAction,
+}: CoverFieldProps) {
   const [value, setValue] = useState(defaultValue ?? "");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
-  const isLogoField = cropAspect === 1;
+  const resolvedOneToOne = cropAspect === 1 ? (oneToOnePreview ?? "logo") : null;
+  const isLogoField = resolvedOneToOne === "logo";
+  const isSquareProductPreview = resolvedOneToOne === "square";
 
   useEffect(() => {
     setValue(defaultValue ?? "");
@@ -73,9 +87,12 @@ export function CoverUrlField({ studioId, entityId, folder, name, label, default
       {value ? (
         <div className="mt-1 space-y-2">
           <div
-            className={cropAspect === 1
-              ? "relative h-28 w-28 overflow-hidden rounded-lg border border-stone-200 bg-[linear-gradient(45deg,#f5f5f4_25%,transparent_25%),linear-gradient(-45deg,#f5f5f4_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f5f5f4_75%),linear-gradient(-45deg,transparent_75%,#f5f5f4_75%)] bg-size-[12px_12px] bg-position-[0_0,0_6px,6px_-6px,-6px_0] dark:border-stone-700 dark:bg-[linear-gradient(45deg,#1c1917_25%,transparent_25%),linear-gradient(-45deg,#1c1917_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#1c1917_75%),linear-gradient(-45deg,transparent_75%,#1c1917_75%)]"
-              : "relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
+            className={
+              isLogoField
+                ? "relative h-28 w-28 overflow-hidden rounded-lg border border-stone-200 bg-[linear-gradient(45deg,#f5f5f4_25%,transparent_25%),linear-gradient(-45deg,#f5f5f4_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f5f5f4_75%),linear-gradient(-45deg,transparent_75%,#f5f5f4_75%)] bg-size-[12px_12px] bg-position-[0_0,0_6px,6px_-6px,-6px_0] dark:border-stone-700 dark:bg-[linear-gradient(45deg,#1c1917_25%,transparent_25%),linear-gradient(-45deg,#1c1917_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#1c1917_75%),linear-gradient(-45deg,transparent_75%,#1c1917_75%)]"
+                : isSquareProductPreview
+                  ? "relative h-28 w-28 overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
+                  : "relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700"
             }
           >
             {isLogoField ? (
@@ -92,7 +109,7 @@ export function CoverUrlField({ studioId, entityId, folder, name, label, default
                 alt=""
                 fill
                 className="object-cover"
-                sizes="(max-width: 768px) 100vw, 640px"
+                sizes={isSquareProductPreview ? "112px" : "(max-width: 768px) 100vw, 640px"}
               />
             )}
           </div>

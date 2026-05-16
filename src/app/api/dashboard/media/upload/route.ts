@@ -74,7 +74,12 @@ export async function POST(req: Request) {
   }
 
   const source = Buffer.from(await file.arrayBuffer());
-  const normalized = await normalizeCoverImage(source, file.type, entityId.includes("logo") ? "logo" : "cover");
+  const variant = entityId.includes("logo")
+    ? "logo"
+    : folder === "shop"
+      ? "square"
+      : "cover";
+  const normalized = await normalizeCoverImage(source, file.type, variant);
   const objectPath = `${folder}/${studioId}/${entityId}-${Date.now()}.${normalized.ext}`;
 
   const { error: upErr } = await admin.storage.from(COVER_MEDIA_BUCKET).upload(objectPath, normalized.buffer, {

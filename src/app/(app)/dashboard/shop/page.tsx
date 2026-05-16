@@ -116,6 +116,8 @@ export default async function DashboardShopPage({ searchParams }: Props) {
               name="image_url"
               label="Cover image (used in listings)"
               defaultValue={null}
+              cropAspect={1}
+              oneToOnePreview="square"
             />
           </div>
           <div className="sm:col-span-2">
@@ -207,6 +209,8 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                       name="image_url"
                       label="Cover image (used in listings)"
                       defaultValue={product.image_url}
+                      cropAspect={1}
+                      oneToOnePreview="square"
                     />
                   </div>
                   <div className="sm:col-span-2">

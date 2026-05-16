@@ -54,6 +54,8 @@ export function ShopExtraImagesField({ studioId, entityId, defaultValues }: Prop
             entityId={`${entityId}-extra`}
             label="Add"
             onUploaded={add}
+            cropAspect={1}
+            helperText="JPG, PNG, or WebP. Max 5MB. 1:1 matches the public product gallery."
           />
         )}
       </div>

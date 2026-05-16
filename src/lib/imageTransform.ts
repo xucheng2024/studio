@@ -1,6 +1,6 @@
 import sharp from "sharp";
 
-type NormalizeVariant = "cover" | "logo";
+type NormalizeVariant = "cover" | "logo" | "square";
 
 export async function normalizeCoverImage(
   input: Buffer,
@@ -20,6 +20,8 @@ export async function normalizeCoverImage(
         ? { r: 0, g: 0, b: 0, alpha: 0 }
         : { r: 255, g: 255, b: 255, alpha: 1 },
     });
+  } else if (variant === "square") {
+    pipeline.resize(1200, 1200, { fit: "cover", position: "centre" });
   } else {
     pipeline.resize(1200, 675, { fit: "cover", position: "centre" });
   }

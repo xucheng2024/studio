@@ -16,14 +16,25 @@ type Props = {
   cropAspect?: number;
 };
 
+const ASPECT_LABELS: Record<string, string> = {
+  "1.0000": "1:1",
+  "1.7778": "16:9",
+  "1.3333": "4:3",
+  "0.8000": "4:5",
+};
+
+function formatAspect(ratio: number): string {
+  return ASPECT_LABELS[ratio.toFixed(4)] ?? `${ratio.toFixed(2)}:1`;
+}
+
 async function exportCroppedImage(
   img: HTMLImageElement,
   crop: Crop,
   file: File,
   cropAspect: number,
 ): Promise<File> {
-  const OUT_W = cropAspect === 1 ? 800 : 1200;
-  const OUT_H = cropAspect === 1 ? 800 : 675;
+  const OUT_W = 1200;
+  const OUT_H = Math.round(1200 / cropAspect);
 
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
@@ -134,7 +145,7 @@ export function ImageCropperDialog({ file, open, onCancel, onConfirm, cropAspect
         {/* Header */}
         <div className="flex shrink-0 items-center border-b border-stone-200 px-4 py-3 dark:border-stone-700">
           <span className="text-sm font-semibold">
-            Crop image ({cropAspect === 1 ? "1:1" : "16:9"})
+            Crop image ({formatAspect(cropAspect)})
           </span>
           <span className="ml-2 text-xs text-stone-400 dark:text-stone-500">
             Drag to adjust
