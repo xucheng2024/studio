@@ -11,6 +11,7 @@ import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
+import { parseDatetimeLocalAsSgt } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -493,8 +494,8 @@ export async function updateStudioContractSettings(formData: FormData): Promise<
   const endsRaw = String(formData.get("contract_ends_at") ?? "").trim();
   let contract_ends_at: string | null = null;
   if (endsRaw) {
-    const d = new Date(endsRaw);
-    if (Number.isNaN(d.getTime())) return;
+    const d = parseDatetimeLocalAsSgt(endsRaw);
+    if (!d) return;
     contract_ends_at = d.toISOString();
   }
 
@@ -787,8 +788,8 @@ export async function createSession(formData: FormData): Promise<void> {
   if (cls.is_active === false) return;
   if (locationId && cls.location_id && cls.location_id !== locationId) return;
 
-  const startDate = new Date(start);
-  if (Number.isNaN(startDate.getTime())) return;
+  const startDate = parseDatetimeLocalAsSgt(start);
+  if (!startDate) return;
   const endDate = new Date(startDate.getTime() + cls.duration_min * 60000);
   const address = String(formData.get("address") ?? "").trim() || null;
   const address_details = String(formData.get("address_details") ?? "").trim() || null;
@@ -968,9 +969,9 @@ export async function createEvent(formData: FormData): Promise<void> {
   if (!Number.isFinite(capacity) || capacity <= 0) return;
   if (price != null && !(price > 0)) return;
 
-  const start = new Date(startRaw);
-  const end = new Date(endRaw);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+  const start = parseDatetimeLocalAsSgt(startRaw);
+  const end = parseDatetimeLocalAsSgt(endRaw);
+  if (!start || !end) return;
   if (!(end.getTime() > start.getTime())) return;
 
   const share_slug = await generateUniqueEventShareSlug(supabase, studio.id);
@@ -1031,9 +1032,9 @@ export async function updateEvent(formData: FormData): Promise<void> {
   if (!title) return;
   if (!Number.isFinite(capacity) || capacity <= 0) return;
   if (price != null && !(price > 0)) return;
-  const start = new Date(startRaw);
-  const end = new Date(endRaw);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+  const start = parseDatetimeLocalAsSgt(startRaw);
+  const end = parseDatetimeLocalAsSgt(endRaw);
+  if (!start || !end) return;
   if (!(end.getTime() > start.getTime())) return;
 
   const { data: existing } = await supabase
