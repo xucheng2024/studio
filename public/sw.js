@@ -240,8 +240,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title ?? "Studio update";
   const options = {
     body: payload.body ?? "There is new content available.",
-    icon: payload.icon ?? "/favicon.ico",
-    badge: payload.badge ?? "/favicon.ico",
+    icon: payload.icon ?? "/icons/icon.svg",
+    badge: payload.badge ?? "/icons/icon.svg",
     tag: payload.tag ?? "studio-update",
     data: {
       url: payload.url ?? "/",
