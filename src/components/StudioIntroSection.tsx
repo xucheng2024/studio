@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
-import { createBrowserSupabase } from "@/lib/supabase/client";
 
 type Props = {
   studioName: string;
@@ -12,34 +10,7 @@ type Props = {
   intro: string | null;
 };
 
-const LS_KEY = "studio:loggedIn";
-
 export function StudioIntroSection({ studioName, studioMediaCover, embedUrl, videoUrl, intro }: Props) {
-  // Always start null to match server-rendered HTML; seed from localStorage after hydration
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    // Immediately apply the cached value so logged-in users don't see a flash
-    const cached = localStorage.getItem(LS_KEY);
-    if (cached !== null) setIsLoggedIn(cached === "1");
-
-    const supabase = createBrowserSupabase();
-    supabase.auth.getSession().then(({ data }) => {
-      const loggedIn = Boolean(data.session?.user);
-      setIsLoggedIn(loggedIn);
-      localStorage.setItem(LS_KEY, loggedIn ? "1" : "0");
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const loggedIn = Boolean(session?.user);
-      setIsLoggedIn(loggedIn);
-      localStorage.setItem(LS_KEY, loggedIn ? "1" : "0");
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Still checking on very first ever visit → show intro (safer default)
-  if (isLoggedIn === true) return null;
-
   return (
     <div className="pb-4">
       <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">

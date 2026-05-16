@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { CoverLocationCornerBadge, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
-import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 import { StudioIntroSection } from "@/components/StudioIntroSection";
 import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
@@ -255,32 +254,29 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     .join("") || "S";
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-2 sm:px-6 sm:pt-4 lg:px-8">
+    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-0 sm:px-6 lg:px-8">
       <StudioMediaWarmup urls={warmupMediaUrls} />
-      <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-1">
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt={publicBrandName}
-              className="size-8 object-contain object-center"
-              loading="eager"
-            />
-          ) : (
-            <div className="inline-flex size-11 items-center justify-center rounded-2xl text-sm font-semibold text-stone-700 dark:text-stone-200">
-              {studioBadgeLabel}
-            </div>
-          )}
-          <div className="min-w-0 text-center">
-            <p className="truncate text-lg font-semibold text-stone-900 dark:text-stone-100 sm:text-xl">
-              {publicBrandName}
-            </p>
-          </div>
-          <div className="justify-self-end">
-            <StudioAccountEntry studioSlug={studio.public_slug} showMembershipsLink={memberships.length > 0} />
-          </div>
-        </div>
+
+      {/* ── Sticky header nav ── */}
+      <StudioStickyNav
+        studioSlug={studio.public_slug}
+        studioName={publicBrandName}
+        logoUrl={logoUrl}
+        studioBadgeLabel={studioBadgeLabel}
+        showMembershipsLink={memberships.length > 0}
+        introSectionId="studio-intro"
+        tabs={[
+          { id: "studio-intro", label: "Intro" },
+          ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
+          ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
+          ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
+          ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: "Member zone" }] : []),
+          ...(shopProducts.length > 0 ? [{ id: "shop", label: "Shop" }] : []),
+          ...(packages.length > 0 ? [{ id: "packages", label: "Packages" }] : []),
+        ] satisfies StickyNavTab[]}
+      />
+
+      <section id="studio-intro" className="mt-4 scroll-mt-20">
         <StudioIntroSection
           studioName={studio.name}
           studioMediaCover={studioMediaCover}
@@ -289,16 +285,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           intro={studio.public_intro ?? null}
         />
       </section>
-
-      {/* ── Sticky section nav ── */}
-      <StudioStickyNav studioSlug={studio.public_slug} tabs={[
-        ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
-        ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
-        ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
-        ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: "Member zone" }] : []),
-        ...(shopProducts.length > 0 ? [{ id: "shop", label: "Shop" }] : []),
-        ...(packages.length > 0 ? [{ id: "packages", label: "Packages" }] : []),
-      ] satisfies StickyNavTab[]} />
 
       {services.length > 0 ? (
         <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
