@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertCircle, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { eventBookingErrorMessage } from "@/lib/eventBookingErrors";
 import { ui } from "@/lib/ui";
 
 type Step = "idle" | "confirm" | "busy" | "error";
@@ -11,13 +12,31 @@ type Step = "idle" | "confirm" | "busy" | "error";
 export function CancelEventBookingButton({
   eventBookingId,
   label,
+  status,
 }: {
   eventBookingId: string;
   label?: string;
+  status: "pending" | "booked" | "attended" | "cancelled";
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("idle");
   const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  if (status === "attended") {
+    return (
+      <p className={`text-xs ${ui.muted}`}>
+        Checked in — use Uncheck-in before cancelling.
+      </p>
+    );
+  }
+
+  if (status === "pending") {
+    return (
+      <p className={`text-xs ${ui.muted}`}>
+        Pending payment — this view does not allow cancellation. Use Payments to mark paid/expired, or cancel from staff tools.
+      </p>
+    );
+  }
 
   if (step === "idle") {
     return (
@@ -48,7 +67,9 @@ export function CancelEventBookingButton({
               router.refresh();
             } else {
               const body = await res.json().catch(() => ({}));
-              setErrMsg(body.error ?? "Cancel failed. Please try again.");
+              const message = eventBookingErrorMessage(String(body.error ?? ""));
+              setErrMsg(message);
+              toast.error(message);
               setStep("error");
             }
           }}

@@ -1,5 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
+import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { OpsBoard } from "@/components/ops/OpsBoard";
 import { localISODate } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -142,6 +143,27 @@ export default async function OperationsPage({ searchParams }: Props) {
     };
   });
 
+  let walkinEventsQuery = supabase
+    .from("events")
+    .select("id, start_time, spots_left, price, title, external_booking_url")
+    .eq("studio_id", activeStudioId)
+    .eq("is_active", true)
+    .gte("start_time", dayStartIso)
+    .lt("start_time", dayEndIso)
+    .gt("spots_left", 0)
+    .order("start_time", { ascending: true });
+  if (selectedLocationId) walkinEventsQuery = walkinEventsQuery.eq("location_id", selectedLocationId);
+  const { data: walkinEventsRaw } = await walkinEventsQuery;
+  const walkinEvents = (walkinEventsRaw ?? [])
+    .filter((event) => !sanitizeEventExternalBookingUrl(event.external_booking_url))
+    .map((event) => ({
+      id: event.id,
+      startTime: String(event.start_time ?? ""),
+      title: event.title ?? "Event",
+      spotsLeft: event.spots_left ?? 0,
+      guestPrice: Number(event.price ?? 0),
+    }));
+
   return (
     <div className="flex flex-col gap-4">
       {studioSuspended ? (
@@ -161,7 +183,7 @@ export default async function OperationsPage({ searchParams }: Props) {
         <p className={ui.muted}>Daily booking, attendance, and exception handling for classes and events.</p>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:items-start">
-        <FrontdeskWalkinForm sessions={walkinSessions} disabled={studioSuspended} />
+        <FrontdeskWalkinForm sessions={walkinSessions} events={walkinEvents} disabled={studioSuspended} />
         <section className={`${ui.card} flex flex-col gap-3`}>
           <div className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
@@ -179,9 +201,9 @@ export default async function OperationsPage({ searchParams }: Props) {
           <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
             <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
             <p className={ui.muted}>
-              {walkinSessions.length > 0
-                ? `${walkinSessions.length} sessions can accept walk-ins right now.`
-                : "No scheduled sessions with open spots for today."}
+              {walkinSessions.length > 0 || walkinEvents.length > 0
+                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"} and ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"} can accept walk-ins today.`
+                : "No scheduled sessions or events with open spots for today."}
             </p>
           </div>
         </section>

@@ -205,7 +205,11 @@ export async function GET(req: Request) {
   const eventIds = (events ?? []).map((eventRow) => eventRow.id);
 
   const eventBookingStatuses =
-    sessionStatus === "cancelled" ? ["cancelled"] : sessionStatus === "scheduled" ? ["pending", "booked"] : ["pending", "booked", "cancelled"];
+    sessionStatus === "cancelled"
+      ? ["cancelled"]
+      : sessionStatus === "scheduled"
+        ? ["pending", "booked", "attended"]
+        : ["pending", "booked", "attended", "cancelled"];
 
   const { data: eventBookingsRaw } =
     eventIds.length > 0
@@ -229,11 +233,12 @@ export async function GET(req: Request) {
     start_time: string;
     address: string | null;
     active_booking_count: number;
+    pending_checkin_count: number;
     attendees: Array<{
       event_booking_id: string;
       label: string;
       guest_email: string | null;
-      status: "pending" | "booked" | "cancelled";
+      status: "pending" | "booked" | "attended" | "cancelled";
     }>;
   }> = [];
 
@@ -248,24 +253,28 @@ export async function GET(req: Request) {
         const status =
           booking.status === "cancelled"
             ? "cancelled"
-            : booking.status === "booked"
-              ? "booked"
-              : "pending";
+            : booking.status === "attended"
+              ? "attended"
+              : booking.status === "booked"
+                ? "booked"
+                : "pending";
         return {
           event_booking_id: booking.id,
           label,
           guest_email: booking.guest_email ?? u?.email ?? null,
-          status: status as "pending" | "booked" | "cancelled",
+          status: status as "pending" | "booked" | "attended" | "cancelled",
         };
       })
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 
+    const activeAttendees = attendees.filter((attendee) => attendee.status !== "cancelled");
     eventGroups.push({
       event_id: eventRow.id,
       event_title: eventRow.title ?? "Event",
       start_time: eventRow.start_time ?? new Date().toISOString(),
       address: (eventRow as { address?: string | null }).address ?? null,
-      active_booking_count: attendees.filter((attendee) => attendee.status !== "cancelled").length,
+      active_booking_count: activeAttendees.length,
+      pending_checkin_count: activeAttendees.filter((attendee) => attendee.status === "booked").length,
       attendees,
     });
   }

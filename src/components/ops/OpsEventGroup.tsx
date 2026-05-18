@@ -1,6 +1,7 @@
 "use client";
 
 import { CancelEventBookingButton } from "@/components/CancelEventBookingButton";
+import { EventCheckInToggleButton } from "@/components/EventCheckInToggleButton";
 import { ui } from "@/lib/ui";
 
 export type StartingSoonEventGroup = {
@@ -9,15 +10,22 @@ export type StartingSoonEventGroup = {
   start_time: string;
   address: string | null;
   active_booking_count: number;
+  pending_checkin_count: number;
   attendees: Array<{
     event_booking_id: string;
     label: string;
     guest_email: string | null;
-    status: "pending" | "booked" | "cancelled";
+    status: "pending" | "booked" | "attended" | "cancelled";
   }>;
 };
 
-export function OpsEventGroup({ group }: { group: StartingSoonEventGroup }) {
+export function OpsEventGroup({
+  group,
+  onQueueRefresh,
+}: {
+  group: StartingSoonEventGroup;
+  onQueueRefresh?: () => void;
+}) {
   const startLabel = group.start_time
     ? `${new Date(group.start_time).toLocaleDateString("en-SG", {
         weekday: "short",
@@ -28,6 +36,7 @@ export function OpsEventGroup({ group }: { group: StartingSoonEventGroup }) {
         minute: "2-digit",
       })}`
     : "—";
+  const attendedCount = Math.max(group.active_booking_count - group.pending_checkin_count, 0);
 
   return (
     <section className={ui.card}>
@@ -40,7 +49,7 @@ export function OpsEventGroup({ group }: { group: StartingSoonEventGroup }) {
           <p className={`text-sm ${ui.muted}`}>{startLabel}</p>
           {group.address ? <p className={`text-sm ${ui.muted}`}>{group.address}</p> : null}
           <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
-            Active bookings: {group.active_booking_count}
+            Attended: {attendedCount} · Pending check-in: {group.pending_checkin_count}
           </p>
         </div>
       </div>
@@ -65,25 +74,40 @@ export function OpsEventGroup({ group }: { group: StartingSoonEventGroup }) {
                     ) : null}
                     <span
                       className={
-                        attendee.status === "booked"
+                        attendee.status === "attended"
                           ? ui.badge
-                          : attendee.status === "pending"
-                            ? ui.badgeAmber
-                            : ui.badgeNeutral
+                          : attendee.status === "booked"
+                            ? ui.badge
+                            : attendee.status === "pending"
+                              ? ui.badgeAmber
+                              : ui.badgeNeutral
                       }
                     >
-                      {attendee.status === "booked"
-                        ? "Booked"
-                        : attendee.status === "pending"
-                          ? "Pending payment"
-                          : "Cancelled"}
+                      {attendee.status === "attended"
+                        ? "Attended"
+                        : attendee.status === "booked"
+                          ? "Booked"
+                          : attendee.status === "pending"
+                            ? "Pending payment"
+                            : "Cancelled"}
                     </span>
                   </div>
                 </div>
               </div>
               {attendee.status !== "cancelled" ? (
-                <div className="mt-3 flex items-center gap-2">
-                  <CancelEventBookingButton eventBookingId={attendee.event_booking_id} label={attendee.label} />
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {attendee.status === "booked" || attendee.status === "attended" ? (
+                    <EventCheckInToggleButton
+                      eventBookingId={attendee.event_booking_id}
+                      status={attendee.status}
+                      onDone={onQueueRefresh}
+                    />
+                  ) : null}
+                  <CancelEventBookingButton
+                    eventBookingId={attendee.event_booking_id}
+                    label={attendee.label}
+                    status={attendee.status}
+                  />
                 </div>
               ) : null}
             </li>

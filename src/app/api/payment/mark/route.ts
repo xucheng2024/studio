@@ -197,6 +197,15 @@ export async function POST(req: Request) {
           { status: 409 },
         );
       }
+      if (rr?.error === "must_uncheckin_first") {
+        return NextResponse.json(
+          {
+            error: "must_uncheckin_first",
+            message: "Guest is checked in. Use Uncheck-in first, then refund.",
+          },
+          { status: 409 },
+        );
+      }
       return NextResponse.json({ error: rr?.error ?? "refund_failed" }, { status: 409 });
     }
     const alreadyRefunded = rr.already_refunded === true;

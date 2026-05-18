@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { OpsEventGroup, type StartingSoonEventGroup } from "@/components/ops/OpsEventGroup";
 import { OpsSessionGroup, type StartingSoonSessionGroup } from "@/components/ops/OpsSessionGroup";
 import { ui } from "@/lib/ui";
@@ -42,6 +42,18 @@ export function OpsBoard({
     if (sessionStatus) p.set("session_status", sessionStatus);
     return p.toString();
   }, [studioId, locationId, dateFrom, dateTo, sessionStatus]);
+
+  const loadQueue = useCallback(() => {
+    fetch(`/api/operations/queue?${qs}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => {
+        setData({
+          qs,
+          starting_soon_grouped: json.starting_soon_grouped ?? [],
+          event_groups: json.event_groups ?? [],
+        });
+      });
+  }, [qs]);
 
   useEffect(() => {
     let mounted = true;
@@ -105,10 +117,10 @@ export function OpsBoard({
         <section className="grid gap-4">
           <div>
             <h2 className={ui.h2}>Event bookings</h2>
-            <p className={ui.muted}>Manage event attendees here. Refunds still stay in Payments.</p>
+            <p className={ui.muted}>Check-in event attendees here. Refunds still stay in Payments.</p>
           </div>
           {data.event_groups.map((group) => (
-            <OpsEventGroup key={group.event_id} group={group} />
+            <OpsEventGroup key={group.event_id} group={group} onQueueRefresh={loadQueue} />
           ))}
         </section>
       ) : null}

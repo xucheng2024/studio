@@ -131,7 +131,7 @@ export async function POST(req: Request) {
         .select("id")
         .eq("event_id", parsed.data.event_id)
         .eq("client_id", recipientId)
-        .in("status", ["pending", "booked"])
+        .neq("status", "cancelled")
         .limit(1);
       if (existing?.length) {
         return NextResponse.json({ error: "gift_recipient_already_has_access" }, { status: 409 });
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
       .select("id")
       .eq("event_id", parsed.data.event_id)
       .eq("guest_email", giftRecipientEmail)
-      .in("status", ["pending", "booked"])
+      .neq("status", "cancelled")
       .limit(1);
     if (guestExisting?.length) {
       return NextResponse.json({ error: "gift_recipient_already_has_access" }, { status: 409 });
