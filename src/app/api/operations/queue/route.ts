@@ -114,7 +114,7 @@ export async function GET(req: Request) {
 
   let sessionsQuery = admin
     .from("class_sessions")
-    .select("id, location_id, start_time, status, locations(name), classes!inner(title, studio_id)")
+    .select("id, location_id, start_time, status, capacity, spots_left, locations(name), classes!inner(title, studio_id)")
     .in("classes.studio_id", studioIds)
     .gte("start_time", windowStart.toISOString())
     .lt("start_time", windowEnd.toISOString())
@@ -148,6 +148,8 @@ export async function GET(req: Request) {
     class_title: string;
     start_time: string;
     location_name: string | null;
+    capacity: number;
+    spots_left: number;
     total_booked: number;
     pending_checkin_count: number;
     attendees: Array<{
@@ -186,6 +188,8 @@ export async function GET(req: Request) {
       class_title: cls?.title ?? "Class",
       start_time: sessionRow.start_time ?? new Date().toISOString(),
       location_name: locationName,
+      capacity: Number((sessionRow as { capacity?: number }).capacity ?? 0),
+      spots_left: Number((sessionRow as { spots_left?: number }).spots_left ?? 0),
       total_booked: attendees.length,
       pending_checkin_count: attendees.filter((a) => a.status === "booked").length,
       attendees,
@@ -194,7 +198,7 @@ export async function GET(req: Request) {
 
   const eventsQuery = admin
     .from("events")
-    .select("id, title, start_time, address")
+    .select("id, title, start_time, address, capacity, spots_left")
     .in("studio_id", studioIds)
     .gte("start_time", windowStart.toISOString())
     .lt("start_time", windowEnd.toISOString())
@@ -232,6 +236,8 @@ export async function GET(req: Request) {
     event_title: string;
     start_time: string;
     address: string | null;
+    capacity: number;
+    spots_left: number;
     active_booking_count: number;
     pending_checkin_count: number;
     attendees: Array<{
@@ -273,6 +279,8 @@ export async function GET(req: Request) {
       event_title: eventRow.title ?? "Event",
       start_time: eventRow.start_time ?? new Date().toISOString(),
       address: (eventRow as { address?: string | null }).address ?? null,
+      capacity: Number((eventRow as { capacity?: number }).capacity ?? 0),
+      spots_left: Number((eventRow as { spots_left?: number }).spots_left ?? 0),
       active_booking_count: activeAttendees.length,
       pending_checkin_count: activeAttendees.filter((attendee) => attendee.status === "booked").length,
       attendees,

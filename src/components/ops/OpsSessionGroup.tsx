@@ -8,6 +8,8 @@ export type StartingSoonSessionGroup = {
   class_title: string;
   start_time: string;
   location_name: string | null;
+  capacity: number;
+  spots_left: number;
   total_booked: number;
   pending_checkin_count: number;
   attendees: Array<{
@@ -50,7 +52,10 @@ export function OpsSessionGroup({
             <p className={`text-sm ${ui.muted}`}>{group.location_name}</p>
           ) : null}
           <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
-            Attended: {attendedCount} · Pending: {group.pending_checkin_count}
+            Booked: {group.total_booked}
+            {group.capacity > 0 ? ` / ${group.capacity}` : ""}
+            {group.capacity > 0 ? ` · ${group.spots_left} spots left` : ""}
+            {" · "}Attended: {attendedCount} · Pending check-in: {group.pending_checkin_count}
           </p>
         </div>
         <div className="flex flex-shrink-0 flex-wrap items-center gap-2">

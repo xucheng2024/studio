@@ -9,6 +9,8 @@ export type StartingSoonEventGroup = {
   event_title: string;
   start_time: string;
   address: string | null;
+  capacity: number;
+  spots_left: number;
   active_booking_count: number;
   pending_checkin_count: number;
   attendees: Array<{
@@ -49,7 +51,10 @@ export function OpsEventGroup({
           <p className={`text-sm ${ui.muted}`}>{startLabel}</p>
           {group.address ? <p className={`text-sm ${ui.muted}`}>{group.address}</p> : null}
           <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
-            Attended: {attendedCount} · Pending check-in: {group.pending_checkin_count}
+            Booked: {group.active_booking_count}
+            {group.capacity > 0 ? ` / ${group.capacity}` : ""}
+            {group.capacity > 0 ? ` · ${group.spots_left} spots left` : ""}
+            {" · "}Attended: {attendedCount} · Pending check-in: {group.pending_checkin_count}
           </p>
         </div>
       </div>
