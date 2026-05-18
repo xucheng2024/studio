@@ -29,14 +29,18 @@ export function StudioStickyNav({
   /** When set, clicking the left brand cluster scrolls to this section id */
   introSectionId?: string;
 }) {
-  const [activeId, setActiveId] = useState<string>(tabs[0]?.id ?? "");
+  const [activeId, setActiveId] = useState<string>(introSectionId ?? tabs[0]?.id ?? "");
   const [updates, setUpdates] = useState<UpdateMap>({});
   const [seenAt, setSeenAt] = useState<Record<string, number>>({});
   const navRef = useRef<HTMLElement>(null);
   const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
-    if (tabs.length === 0) return;
+    const sectionIds = [
+      ...(introSectionId ? [introSectionId] : []),
+      ...tabs.map((tab) => tab.id),
+    ];
+    if (sectionIds.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -51,12 +55,12 @@ export function StudioStickyNav({
       { rootMargin: "-72px 0px -55% 0px", threshold: 0 },
     );
 
-    for (const tab of tabs) {
-      const el = document.getElementById(tab.id);
+    for (const id of sectionIds) {
+      const el = document.getElementById(id);
       if (el) observer.observe(el);
     }
     return () => observer.disconnect();
-  }, [tabs]);
+  }, [tabs, introSectionId]);
 
   useEffect(() => {
     if (!studioSlug) return;
