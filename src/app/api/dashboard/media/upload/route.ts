@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidatePublicStudioPath } from "@/lib/revalidatePublic";
 import { NextResponse } from "next/server";
 import {
   COVER_ALLOWED_MIME,
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
       await admin.storage.from(COVER_MEDIA_BUCKET).remove([previousLogoPath]);
     }
     revalidatePath("/dashboard/settings/public-profile");
-    if (studioPublicSlug) revalidatePath(`/${studioPublicSlug}`);
+    if (studioPublicSlug) revalidatePublicStudioPath(studioPublicSlug);
   }
 
   return NextResponse.json({ ok: true, url: data.publicUrl });

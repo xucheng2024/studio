@@ -2,6 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseUrl } from "@/lib/supabase/env";
+import { RBAC_CACHE_TAG } from "@/lib/revalidatePublic";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 
 export type StaffRole = "owner" | "manager" | "frontdesk" | "instructor" | "client";
@@ -214,7 +215,7 @@ const buildAccessContextPersistent = unstable_cache(
   async (userId: string, email: string | null, selectedLocationId: string | null) =>
     buildAccessContextCore(userId, email, selectedLocationId),
   ["rbac-access-context-v1"],
-  { revalidate: 30 },
+  { revalidate: 30, tags: [RBAC_CACHE_TAG] },
 );
 
 export const buildAccessContext = cache(async (

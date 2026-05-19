@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { StudioPwaRegister } from "@/components/StudioPwaRegister";
 import { StudioPushOptIn } from "@/components/StudioPushOptIn";
 import { StudioWhatsappFloatingButton } from "@/components/StudioWhatsappFloatingButton";
+import { getCachedStudioPublicMeta } from "@/lib/cachedPublicStudio";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Studio public routes (home + lists) must not freeze session queries from build time; refresh periodically. */
 export const revalidate = 60;
@@ -17,13 +16,8 @@ type Props = {
 };
 
 async function StudioWhatsappFab({ studioSlug }: { studioSlug: string }) {
-  const admin = createAdminClient();
-  const { data: studio } = await admin
-    .from("studios")
-    .select("contract_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
-    .eq("public_slug", studioSlug)
-    .maybeSingle();
-  if (!studio || studio.contract_status === "suspended") return null;
+  const studio = await getCachedStudioPublicMeta(studioSlug);
+  if (!studio) return null;
   const href = studioWhatsappLink({
     enabled: studio.whatsapp_enabled,
     numberE164: studio.whatsapp_number_e164,
@@ -40,12 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {};
   }
 
-  const admin = createAdminClient();
-  const { data: studio } = await admin
-    .from("studios")
-    .select("name, public_brand_name, public_logo_url, contract_status")
-    .eq("public_slug", studioSlug)
-    .maybeSingle();
+  const studio = await getCachedStudioPublicMeta(studioSlug);
 
   const appTitle =
     studio?.public_brand_name?.trim() ||
@@ -73,10 +62,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StudioPublicLayout({ children, params }: Props) {
   const { studioSlug: rawStudioSlug } = await params;
   const studioSlug = normalizeStudioSlug(rawStudioSlug);
-  if (studioSlug && !isReservedPublicSlug(studioSlug)) {
-    const admin = createAdminClient();
-    await sweepExpiredPendingPayments(admin);
-  }
 
   return (
     <div className="min-h-dvh flex flex-col bg-white dark:bg-stone-950">

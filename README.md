@@ -85,7 +85,17 @@ npm run test:revenue
 1. Push repo to GitHub.
 2. Import project in Vercel.
 3. Configure env vars with the same names as `.env.local`.
-4. Redeploy after saving env vars.
+4. Set `CRON_SECRET` in Production (random string) for `/api/cron/expire-payments` (see `vercel.json`).
+5. Redeploy after saving env vars.
+
+### Vercel Pro (recommended)
+
+See [docs/vercel-pro-ops.md](docs/vercel-pro-ops.md) for:
+
+- Function region alignment with Supabase
+- Fluid Compute, Speed Insights, Web Analytics
+- Supabase transaction pooler for serverless
+- Metrics to verify lower invocations and RPC usage
 
 ## Troubleshooting
 
