@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { Check, Pencil, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -143,7 +144,7 @@ export function SessionEditPanel({
               return;
             }
             toast.success("Session saved");
-            router.refresh();
+            throttledRefresh(router);
           }}
         >
           <Check size={13} />

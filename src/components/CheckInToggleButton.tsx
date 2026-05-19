@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ui } from "@/lib/ui";
@@ -37,7 +38,7 @@ export function CheckInToggleButton({
         }
         toast.success(isAttended ? "Marked as not checked-in" : "Checked in");
         if (onDone) onDone();
-        else router.refresh();
+        else throttledRefresh(router);
       }}
     >
       {loading ? "…" : isAttended ? "Undo" : "Check in"}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 
 export function SignOutButton() {
@@ -23,7 +24,7 @@ export function SignOutButton() {
         const supabase = createBrowserSupabase();
         await supabase.auth.signOut();
         router.replace(redirectTo);
-        router.refresh();
+        throttledRefresh(router);
       }}
     >
       Sign out

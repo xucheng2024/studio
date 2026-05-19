@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileText } from "lucide-react";
@@ -53,7 +54,7 @@ export function InvoiceSendButton({ paymentId, invoiceNumber }: { paymentId: str
             return;
           }
           toast.success("Invoice sent");
-          router.refresh();
+          throttledRefresh(router);
         }}
       >
         {busy ? "Sending…" : "Send invoice"}

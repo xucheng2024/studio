@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Ticket, X, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { toast } from "sonner";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
@@ -62,7 +63,7 @@ export function SessionBookingActions({
     }
     setPassError(null);
     toast.success("Booked with class pass");
-    router.refresh();
+    throttledRefresh(router);
     return true;
   }, [router, sessionId]);
 

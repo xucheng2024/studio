@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { UserCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ export function MarkAttendedButton({ bookingId }: { bookingId: string }) {
         await markAttended(bookingId);
         setLoading(false);
         toast.success("Marked as attended");
-        router.refresh();
+        throttledRefresh(router);
       }}
     >
       {loading ? (

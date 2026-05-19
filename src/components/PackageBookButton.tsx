@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useMemo, useState } from "react";
 import { Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -77,7 +78,7 @@ export function PackageBookButton({
             return;
           }
           toast.success("Booked with class pass");
-          router.refresh();
+          throttledRefresh(router);
         }}
       >
         {busy ? (
@@ -125,7 +126,7 @@ export function PackageBookButton({
                 return;
               }
               toast.success("Booked with selected package");
-              router.refresh();
+              throttledRefresh(router);
             }}
           >
             {busy ? <><Loader2 size={12} className="animate-spin" /> Booking…</> : "Book with this package"}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { Check, Copy, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -103,7 +104,7 @@ export function ClassTemplateLifecycleRow({
       return;
     }
     toast.success("Changes saved");
-    router.refresh();
+    throttledRefresh(router);
   };
 
   const deleteTemplate = async () => {
@@ -117,7 +118,7 @@ export function ClassTemplateLifecycleRow({
       return;
     }
     toast.success("Class template removed");
-    router.refresh();
+    throttledRefresh(router);
   };
 
   return (

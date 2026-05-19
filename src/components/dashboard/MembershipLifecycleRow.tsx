@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { Check, Copy, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -87,7 +88,7 @@ export function MembershipLifecycleRow({
       return;
     }
     toast.success("Changes saved");
-    router.refresh();
+    throttledRefresh(router);
   };
 
   const removeMembership = async () => {
@@ -101,7 +102,7 @@ export function MembershipLifecycleRow({
       return;
     }
     toast.success("Membership removed");
-    router.refresh();
+    throttledRefresh(router);
   };
 
   return (

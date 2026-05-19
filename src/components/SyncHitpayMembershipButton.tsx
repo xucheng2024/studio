@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -48,7 +49,7 @@ export function SyncHitpayMembershipButton({
       const hp = body.hitpay_status ?? "—";
       const local = body.subscription_status ?? "—";
       toast.success(`Synced: HitPay ${hp} · account ${local}`);
-      router.refresh();
+      throttledRefresh(router);
     } finally {
       setBusy(false);
     }

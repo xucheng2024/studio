@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ui } from "@/lib/ui";
@@ -28,7 +29,7 @@ export function CheckInApiButton({ bookingId, onDone }: { bookingId: string; onD
         }
         toast.success("Checked in");
         if (onDone) onDone();
-        else router.refresh();
+        else throttledRefresh(router);
       }}
     >
       {loading ? "…" : "Check-in"}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { Banknote, CircleDollarSign, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -92,7 +93,7 @@ export function FrontdeskWalkinForm({
         setSelectedTargetId("");
         setAmount("0.00");
         setPhone("");
-        router.refresh();
+        throttledRefresh(router);
       }}
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">

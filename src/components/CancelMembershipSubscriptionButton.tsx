@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +23,7 @@ export function CancelMembershipSubscriptionButton({ subscriptionId }: { subscri
       return;
     }
     toast.success("Subscription canceled");
-    router.refresh();
+    throttledRefresh(router);
   };
 
   if (confirm) {

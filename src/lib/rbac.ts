@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseUrl } from "@/lib/supabase/env";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -19,6 +20,10 @@ export type AccessContext = {
   locations: LocationScope[];
   selectedLocationId: string | null;
   hasSuspendedBackofficeAccess: boolean;
+};
+
+type SerializableAccessContext = Omit<AccessContext, "roles"> & {
+  roles: StaffRole[];
 };
 
 function isBackofficeRole(role: StaffRole) {
@@ -80,11 +85,11 @@ export function canCheckIn(ctx: AccessContext) {
  * in parallel. Phase-2 (contract-status batch) runs once Phase-1 resolves.
  * Phase-3 (locations) runs after active studio ids are known.
  */
-export const buildAccessContext = cache(async (
+const buildAccessContextCore = async (
   userId: string,
   email: string | null,
   selectedLocationId: string | null,
-): Promise<AccessContext> => {
+): Promise<SerializableAccessContext> => {
   const url = getSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing Supabase env for RBAC");
@@ -197,11 +202,30 @@ export const buildAccessContext = cache(async (
   return {
     userId,
     isSuperAdmin,
-    roles,
+    roles: [...roles],
     memberships: normalizedMemberships,
     locations: locs,
     selectedLocationId: selected,
     hasSuspendedBackofficeAccess,
+  } as SerializableAccessContext;
+};
+
+const buildAccessContextPersistent = unstable_cache(
+  async (userId: string, email: string | null, selectedLocationId: string | null) =>
+    buildAccessContextCore(userId, email, selectedLocationId),
+  ["rbac-access-context-v1"],
+  { revalidate: 30 },
+);
+
+export const buildAccessContext = cache(async (
+  userId: string,
+  email: string | null,
+  selectedLocationId: string | null,
+): Promise<AccessContext> => {
+  const cached = await buildAccessContextPersistent(userId, email, selectedLocationId);
+  return {
+    ...cached,
+    roles: new Set(cached.roles),
   } as AccessContext;
 });
 

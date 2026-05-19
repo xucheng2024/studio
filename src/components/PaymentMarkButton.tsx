@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import {
   CheckCircle2, XCircle, RefreshCcw, Ban,
@@ -66,7 +67,7 @@ export function PaymentMarkButton({
       setRefundReason("");
     }
     if (onDone) onDone();
-    else router.refresh();
+    else throttledRefresh(router);
   };
 
   const btnClass =

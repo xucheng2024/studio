@@ -44,7 +44,8 @@ export function OpsBoard({
   }, [studioId, locationId, dateFrom, dateTo, sessionStatus]);
 
   const loadQueue = useCallback(() => {
-    fetch(`/api/operations/queue?${qs}`, { cache: "no-store" })
+    const controller = new AbortController();
+    fetch(`/api/operations/queue?${qs}`, { cache: "no-store", signal: controller.signal })
       .then((r) => r.json())
       .then((json) => {
         setData({
@@ -52,25 +53,17 @@ export function OpsBoard({
           starting_soon_grouped: json.starting_soon_grouped ?? [],
           event_groups: json.event_groups ?? [],
         });
-      });
+      })
+      .catch(() => null);
+    return controller;
   }, [qs]);
 
   useEffect(() => {
-    let mounted = true;
-    fetch(`/api/operations/queue?${qs}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((json) => {
-        if (!mounted) return;
-        setData({
-          qs,
-          starting_soon_grouped: json.starting_soon_grouped ?? [],
-          event_groups: json.event_groups ?? [],
-        });
-      });
+    const controller = loadQueue();
     return () => {
-      mounted = false;
+      controller.abort();
     };
-  }, [qs]);
+  }, [qs, loadQueue]);
 
   const loading = data.qs !== qs;
 

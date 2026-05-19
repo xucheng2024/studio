@@ -225,6 +225,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
     payment.status === "expired" ||
     payment.status === "refunded";
   const isPending = !isPaid && !isFailed;
+  const shouldUseGatewaySync = Boolean(payment.gateway_payment_id);
   const gatewayStatus = (payment.gateway_status ?? "").toLowerCase();
   const isGatewayReceived =
     gatewayStatus === "completed" ||
@@ -285,10 +286,10 @@ export default async function PaymentCheckoutPage({ params }: Props) {
 
         {isPending ? (
           <>
-            <PaymentStatusPoller stop={false} showHint />
+            <PaymentStatusPoller stop={shouldUseGatewaySync} intervalMs={15000} showHint />
             <HitpayCheckoutSync
               paymentId={payment_id}
-              enabled={Boolean(payment.gateway_payment_id)}
+              enabled={shouldUseGatewaySync}
             />
           </>
         ) : null}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { ui } from "@/lib/ui";
@@ -41,7 +42,7 @@ export function CompleteProfileForm({ initialName, initialPhone, nextPath, email
           return;
         }
         router.replace(nextPath);
-        router.refresh();
+        throttledRefresh(router);
       }}
     >
       <label className="grid gap-1.5">

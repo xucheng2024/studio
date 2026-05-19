@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useCallback, useEffect, useState } from "react";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
@@ -49,7 +50,7 @@ export function InlineSignInPanel({
     setStep("request");
     setOtpCode("");
     setMsg(null);
-    router.refresh();
+    throttledRefresh(router);
   }, [router]);
 
   useEffect(() => {

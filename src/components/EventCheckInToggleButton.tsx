@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { toast } from "sonner";
 import { eventBookingErrorMessage } from "@/lib/eventBookingErrors";
@@ -41,7 +42,7 @@ export function EventCheckInToggleButton({
         }
         toast.success(isAttended ? "Marked as not checked-in" : "Checked in");
         if (onDone) onDone();
-        else router.refresh();
+        else throttledRefresh(router);
       }}
     >
       {loading ? "…" : isAttended ? "Uncheck-in" : "Check in"}

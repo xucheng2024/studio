@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { AlertTriangle, CalendarX, Check, X, Loader2 } from "lucide-react";
 import { ui } from "@/lib/ui";
@@ -55,7 +56,7 @@ export function CancelSessionButton({
       alreadyCancelled: data.already_cancelled === true,
     });
     setStep("done");
-    router.refresh();
+    throttledRefresh(router);
   };
 
   if (step === "idle") {

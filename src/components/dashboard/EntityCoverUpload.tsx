@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { AlertCircle, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { COVER_MAX_BYTES } from "@/lib/coverMedia";
@@ -81,7 +82,7 @@ export function EntityCoverUpload({ entityId, imageUrl: initialUrl, canEdit, siz
       if (!res.ok) { setError(body.error === "file_too_large" ? "Image must be 5MB or smaller." : (body.error ?? "Upload failed")); return; }
       if (body.image_url) setImageUrl(body.image_url);
       toast.success("Cover image updated");
-      router.refresh();
+      throttledRefresh(router);
     } catch { setError("Network error. Please try again."); }
     finally { setBusy(false); }
   };
@@ -124,7 +125,7 @@ export function EntityCoverUpload({ entityId, imageUrl: initialUrl, canEdit, siz
       if (!res.ok) { setError(body.error ?? "Remove failed"); return; }
       setImageUrl(null);
       toast.success("Cover image removed");
-      router.refresh();
+      throttledRefresh(router);
     } catch { setError("Network error. Please try again."); }
     finally { setBusy(false); }
   };

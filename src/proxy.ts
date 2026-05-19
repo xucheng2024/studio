@@ -33,6 +33,12 @@ export async function proxy(request: NextRequest) {
     : null;
   if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
 
+  const pathname = request.nextUrl.pathname;
+  if (!pathname.startsWith("/dashboard")) {
+    if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
+    return response;
+  }
+
   const url = getSupabaseUrl();
   const anon = getSupabaseAnonKey();
   if (!url || !anon) {
@@ -52,12 +58,6 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-
-  const pathname = request.nextUrl.pathname;
-  if (!pathname.startsWith("/dashboard")) {
-    if (studioCookie) response.cookies.set(studioCookie.name, studioCookie.value, studioCookie.options);
-    return response;
-  }
 
   const {
     data: { user },
@@ -80,6 +80,18 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/dashboard/:path*",
+    "/m/:path*",
+    "/:studioSlug",
+    "/:studioSlug/classes/:path*",
+    "/:studioSlug/events/:path*",
+    "/:studioSlug/services/:path*",
+    "/:studioSlug/packages/:path*",
+    "/:studioSlug/memberships/:path*",
+    "/:studioSlug/member-zone/:path*",
+    "/:studioSlug/shop/:path*",
+    "/:studioSlug/me/:path*",
+    "/:studioSlug/checkout/:path*",
+    "/:studioSlug/auth/:path*",
   ],
 };

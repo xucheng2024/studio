@@ -9,6 +9,7 @@ import { site } from "@/lib/brand";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
 import { studioHomePath } from "@/lib/public-paths";
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { ui } from "@/lib/ui";
 
 type OtpStep = "request" | "verify" | "profile";
@@ -58,7 +59,7 @@ export function AuthPageInner() {
   const goPostAuth = useCallback(async () => {
     await rememberMemberStudio();
     router.replace(postAuthPath);
-    router.refresh();
+    throttledRefresh(router);
   }, [postAuthPath, rememberMemberStudio, router]);
 
   useEffect(() => {

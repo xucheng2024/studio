@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ui } from "@/lib/ui";
@@ -65,7 +66,7 @@ export function CancelMyMembershipButton({
             : "Cancellation scheduled — your access continues until the end of this period."
           : "Membership cancelled.";
       toast.success(successMsg, { duration: 6000 });
-      router.refresh();
+      throttledRefresh(router);
     } catch {
       toast.error("Network error. Please try again.");
       setStep("idle");

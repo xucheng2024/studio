@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { AlertCircle, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -64,7 +65,7 @@ export function CancelEventBookingButton({
             });
             if (res.ok) {
               toast.success("Booking cancelled");
-              router.refresh();
+              throttledRefresh(router);
             } else {
               const body = await res.json().catch(() => ({}));
               const message = eventBookingErrorMessage(String(body.error ?? ""));
