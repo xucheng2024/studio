@@ -151,7 +151,17 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   </p>
                 </div>
                 <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
-                  <button type="submit" formAction={deleteMemberZoneSeries} className={ui.btnDangerSm}>
+                  <button
+                    type="submit"
+                    formAction={deleteMemberZoneSeries}
+                    formNoValidate
+                    onClick={(e) => {
+                      if (!window.confirm("Remove this series? This will hide the series and its lessons from members.")) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className={ui.btnDangerSm}
+                  >
                     Remove
                   </button>
                 </div>
@@ -282,7 +292,19 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                         </div>
                         <div className="mt-2 flex w-full shrink-0 flex-wrap gap-2 sm:col-span-2 sm:justify-end">
                           <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">Save lesson</SubmitButton>
-                          <button type="submit" formAction={deleteMemberZoneLesson} className={ui.btnDangerSm}>Remove</button>
+                          <button
+                            type="submit"
+                            formAction={deleteMemberZoneLesson}
+                            formNoValidate
+                            onClick={(e) => {
+                              if (!window.confirm("Remove this lesson? This will hide it from members.")) {
+                                e.preventDefault();
+                              }
+                            }}
+                            className={ui.btnDangerSm}
+                          >
+                            Remove
+                          </button>
                         </div>
                       </div>
                     </details>
