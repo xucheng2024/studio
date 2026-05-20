@@ -47,12 +47,17 @@ export function SiteHeaderConfigured() {
   const pathname = usePathname() ?? "";
   const [ready, setReady] = useState(false);
   const [navEpoch, setNavEpoch] = useState(0);
+  const [activeStudioSlug, setActiveStudioSlug] = useState("");
   const [payload, setPayload] = useState<HeaderNavPayload>({
     isLoggedIn: false,
     hasBackofficeAccess: false,
     userInitial: null,
     showMembershipsLink: false,
   });
+
+  useEffect(() => {
+    setActiveStudioSlug(normalizeStudioSlug(readCookieValue(ACTIVE_MEMBER_STUDIO_COOKIE)) ?? "");
+  }, [pathname, navEpoch]);
 
   useEffect(() => {
     const supabase = createBrowserSupabase();
@@ -89,7 +94,6 @@ export function SiteHeaderConfigured() {
     return loadHeaderNav();
   }, [pathname, navEpoch, loadHeaderNav]);
 
-  const activeStudioSlug = normalizeStudioSlug(readCookieValue(ACTIVE_MEMBER_STUDIO_COOKIE));
   const isDashboardPath = pathname.startsWith("/dashboard");
   const brandHref = isDashboardPath
     ? "/dashboard"

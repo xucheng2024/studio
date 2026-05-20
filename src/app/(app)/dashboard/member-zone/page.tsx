@@ -45,6 +45,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
       .from("member_zone_series")
       .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, sort_order, is_active, share_slug, member_zone_lessons(id, title, summary, description, media_url, media_type, duration_min, access_override, override_price, currency, sort_order, is_active)")
       .eq("studio_id", studioId)
+      .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
   ]);
@@ -133,36 +134,41 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
       </details>
 
       <div className="grid gap-4">
-        {(rows ?? []).map((series) => (
+        {(rows ?? []).map((series) => {
+          const lessons = (Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons : []).filter(
+            (lesson) => lesson.is_active !== false,
+          );
+          return (
           <div key={series.id} className={ui.card}>
-            <form action={updateMemberZoneSeries}>
-              <input type="hidden" name="studio_id" value={studio.id} />
-              <input type="hidden" name="series_id" value={series.id} />
             <details className="chevron">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{series.title}</h3>
-                    {!series.is_active ? <span className={ui.badgeNeutral}>Inactive</span> : null}
                     <span className={ui.badgeNeutral}>{series.access_type}</span>
                   </div>
                   <p className={`mt-1 text-xs ${ui.muted}`}>
                     {series.price != null && Number(series.price) > 0 ? `${series.currency} ${Number(series.price).toFixed(2)} · ` : ""}
-                    {Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons.length : 0} lessons
+                    {lessons.length} lessons
                   </p>
                 </div>
-                <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
-                  <button
-                    type="submit"
-                    form={`remove-series-${series.id}`}
-                    formNoValidate
-                    className={ui.btnDangerSm}
-                  >
+                <ConfirmForm
+                  action={deleteMemberZoneSeries}
+                  confirmMessage="Remove this series? It will be hidden from members."
+                  confirmLabel="Remove"
+                  className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end"
+                >
+                  <input type="hidden" name="studio_id" value={studio.id} />
+                  <input type="hidden" name="series_id" value={series.id} />
+                  <button type="submit" className={ui.btnDangerSm}>
                     Remove
                   </button>
-                </div>
+                </ConfirmForm>
               </summary>
-              <div className="mt-3 grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
+              <form action={updateMemberZoneSeries} className="mt-3">
+              <input type="hidden" name="studio_id" value={studio.id} />
+              <input type="hidden" name="series_id" value={series.id} />
+              <div className="grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
                   <input type="checkbox" name="is_active" defaultChecked={Boolean(series.is_active)} />
                   Active
@@ -227,27 +233,17 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">Save series</SubmitButton>
                 </div>
               </div>
-              </details>
             </form>
-            <ConfirmForm
-              id={`remove-series-${series.id}`}
-              action={deleteMemberZoneSeries}
-              confirmMessage="Remove this series? This will hide the series and its lessons from members."
-              className="hidden"
-            >
-              <input type="hidden" name="studio_id" value={studio.id} />
-              <input type="hidden" name="series_id" value={series.id} />
-            </ConfirmForm>
 
             <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
               <div className="flex items-center justify-between gap-2">
                 <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Lessons</h4>
                 <span className={`text-xs ${ui.muted}`}>
-                  {Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons.length : 0} total
+                  {lessons.length} total
                 </span>
               </div>
               <div className="mt-3 grid gap-2">
-                {(Array.isArray(series.member_zone_lessons) ? [...series.member_zone_lessons] : [])
+                {[...lessons]
                   .sort((a, b) => Number(a.sort_order ?? 100) - Number(b.sort_order ?? 100))
                   .map((lesson) => (
                   <div key={lesson.id}>
@@ -298,28 +294,23 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                         </div>
                         <div className="mt-2 flex w-full shrink-0 flex-wrap gap-2 sm:col-span-2 sm:justify-end">
                           <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">Save lesson</SubmitButton>
-                          <button
-                            type="submit"
-                            form={`remove-lesson-${lesson.id}`}
-                            formNoValidate
-                            className={ui.btnDangerSm}
+                          <ConfirmForm
+                            action={deleteMemberZoneLesson}
+                            confirmMessage="Remove this lesson? It will be hidden from members."
+                            confirmLabel="Remove"
+                            className="inline-flex"
                           >
-                            Remove
-                          </button>
+                            <input type="hidden" name="studio_id" value={studio.id} />
+                            <input type="hidden" name="series_id" value={series.id} />
+                            <input type="hidden" name="lesson_id" value={lesson.id} />
+                            <button type="submit" className={ui.btnDangerSm}>
+                              Remove
+                            </button>
+                          </ConfirmForm>
                         </div>
                       </div>
                     </details>
                   </form>
-                  <ConfirmForm
-                    id={`remove-lesson-${lesson.id}`}
-                    action={deleteMemberZoneLesson}
-                    confirmMessage="Remove this lesson? This will hide it from members."
-                    className="hidden"
-                  >
-                    <input type="hidden" name="studio_id" value={studio.id} />
-                    <input type="hidden" name="series_id" value={series.id} />
-                    <input type="hidden" name="lesson_id" value={lesson.id} />
-                  </ConfirmForm>
                   </div>
                 ))}
               </div>
@@ -354,8 +345,10 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                 </form>
               </details>
             </div>
+            </details>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
