@@ -4,11 +4,13 @@ import type { ReactNode } from "react";
 
 /** Client wrapper so dangerous POSTs get a single browser confirm. */
 export function ConfirmForm({
+  id,
   action,
   confirmMessage,
   className,
   children,
 }: {
+  id?: string;
   action: (formData: FormData) => void | Promise<void>;
   confirmMessage: string;
   className?: string;
@@ -16,6 +18,7 @@ export function ConfirmForm({
 }) {
   return (
     <form
+      id={id}
       className={className}
       action={action}
       onSubmit={(e) => {

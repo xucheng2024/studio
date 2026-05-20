@@ -8,6 +8,7 @@ import {
 } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ConfirmForm } from "@/components/ConfirmForm";
 import { LessonAccessPreview, SeriesAccessPreview } from "@/components/dashboard/MemberZoneAccessPreview";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -153,13 +154,8 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                 <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
                   <button
                     type="submit"
-                    formAction={deleteMemberZoneSeries}
+                    form={`remove-series-${series.id}`}
                     formNoValidate
-                    onClick={(e) => {
-                      if (!window.confirm("Remove this series? This will hide the series and its lessons from members.")) {
-                        e.preventDefault();
-                      }
-                    }}
                     className={ui.btnDangerSm}
                   >
                     Remove
@@ -233,6 +229,15 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
               </div>
               </details>
             </form>
+            <ConfirmForm
+              id={`remove-series-${series.id}`}
+              action={deleteMemberZoneSeries}
+              confirmMessage="Remove this series? This will hide the series and its lessons from members."
+              className="hidden"
+            >
+              <input type="hidden" name="studio_id" value={studio.id} />
+              <input type="hidden" name="series_id" value={series.id} />
+            </ConfirmForm>
 
             <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
               <div className="flex items-center justify-between gap-2">
@@ -245,7 +250,8 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                 {(Array.isArray(series.member_zone_lessons) ? [...series.member_zone_lessons] : [])
                   .sort((a, b) => Number(a.sort_order ?? 100) - Number(b.sort_order ?? 100))
                   .map((lesson) => (
-                  <form key={lesson.id} action={updateMemberZoneLesson} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+                  <div key={lesson.id}>
+                  <form action={updateMemberZoneLesson} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
                     <input type="hidden" name="studio_id" value={studio.id} />
                     <input type="hidden" name="series_id" value={series.id} />
                     <input type="hidden" name="lesson_id" value={lesson.id} />
@@ -294,13 +300,8 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                           <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">Save lesson</SubmitButton>
                           <button
                             type="submit"
-                            formAction={deleteMemberZoneLesson}
+                            form={`remove-lesson-${lesson.id}`}
                             formNoValidate
-                            onClick={(e) => {
-                              if (!window.confirm("Remove this lesson? This will hide it from members.")) {
-                                e.preventDefault();
-                              }
-                            }}
                             className={ui.btnDangerSm}
                           >
                             Remove
@@ -309,6 +310,17 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                       </div>
                     </details>
                   </form>
+                  <ConfirmForm
+                    id={`remove-lesson-${lesson.id}`}
+                    action={deleteMemberZoneLesson}
+                    confirmMessage="Remove this lesson? This will hide it from members."
+                    className="hidden"
+                  >
+                    <input type="hidden" name="studio_id" value={studio.id} />
+                    <input type="hidden" name="series_id" value={series.id} />
+                    <input type="hidden" name="lesson_id" value={lesson.id} />
+                  </ConfirmForm>
+                  </div>
                 ))}
               </div>
               <details className="mt-3">
