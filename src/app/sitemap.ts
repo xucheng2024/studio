@@ -29,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const admin = createAdminClient();
   const { data: studios } = await admin
     .from("studios")
-    .select("id, public_slug, updated_at")
+    .select("id, public_slug, created_at")
     .neq("contract_status", "suspended")
     .not("public_slug", "is", null);
 
@@ -50,13 +50,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { data: series },
     { data: products },
   ] = await Promise.all([
-    admin.from("studio_services").select("studio_id, share_slug, updated_at").eq("is_active", true).not("share_slug", "is", null),
-    admin.from("classes").select("studio_id, share_slug, updated_at").eq("is_active", true).not("share_slug", "is", null),
-    admin.from("events").select("studio_id, share_slug, updated_at").eq("is_active", true).not("share_slug", "is", null),
-    admin.from("packages").select("studio_id, share_slug, updated_at").eq("is_active", true).is("deleted_at", null).not("share_slug", "is", null),
-    admin.from("membership_products").select("studio_id, share_slug, updated_at").eq("is_active", true).is("deleted_at", null).not("share_slug", "is", null),
-    admin.from("member_zone_series").select("studio_id, share_slug, updated_at").eq("is_active", true).not("share_slug", "is", null),
-    admin.from("shop_products").select("studio_id, share_slug, updated_at").eq("is_active", true).not("share_slug", "is", null),
+    admin.from("studio_services").select("studio_id, share_slug, created_at").eq("is_active", true).not("share_slug", "is", null),
+    admin.from("classes").select("studio_id, share_slug, created_at").eq("is_active", true).not("share_slug", "is", null),
+    admin.from("events").select("studio_id, share_slug, created_at").eq("is_active", true).not("share_slug", "is", null),
+    admin.from("packages").select("studio_id, share_slug, created_at").eq("is_active", true).is("deleted_at", null).not("share_slug", "is", null),
+    admin.from("membership_products").select("studio_id, share_slug, created_at").eq("is_active", true).is("deleted_at", null).not("share_slug", "is", null),
+    admin.from("member_zone_series").select("studio_id, share_slug, created_at").eq("is_active", true).not("share_slug", "is", null),
+    admin.from("shop_products").select("studio_id, share_slug, created_at").eq("is_active", true).not("share_slug", "is", null),
   ]);
 
   const entries: SiteEntry[] = [];
@@ -65,14 +65,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (!slug) continue;
     entries.push({
       url: `${origin}${studioHomePath(slug)}`,
-      lastModified: studio.updated_at ? new Date(studio.updated_at) : now,
+      lastModified: studio.created_at ? new Date(studio.created_at) : now,
       changeFrequency: "daily",
       priority: 0.8,
     });
   }
 
   const pushRows = (
-    rows: Array<{ studio_id: string; share_slug: string | null; updated_at?: string | null }>,
+    rows: Array<{ studio_id: string; share_slug: string | null; created_at?: string | null }>,
     toPath: (studioSlug: string, shareSlug: string) => string,
   ) => {
     for (const row of rows) {
@@ -81,7 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (!studioSlug || !shareSlug) continue;
       entries.push({
         url: `${origin}${toPath(studioSlug, shareSlug)}`,
-        lastModified: row.updated_at ? new Date(row.updated_at) : now,
+        lastModified: row.created_at ? new Date(row.created_at) : now,
         changeFrequency: "weekly",
         priority: 0.7,
       });
