@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import { getAppOriginForOg } from "@/lib/coverMedia";
 import { getCachedClassShareContext, getCachedEventShareContext, getCachedMemberZoneShareContext, getCachedMembershipShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
+import { studioClassPath, studioEventPath, studioMemberZonePath, studioMembershipPath, studioPackagePath, studioServicePath } from "@/lib/public-paths";
+
+function withCanonical(path: string, metadata: Metadata): Metadata {
+  const origin = getAppOriginForOg();
+  if (!origin) return metadata;
+  return {
+    ...metadata,
+    alternates: { canonical: `${origin}${path}` },
+  };
+}
 
 export async function buildClassShareMetadata(
   studioSlugRaw: string,
@@ -12,8 +23,9 @@ export async function buildClassShareMetadata(
 
   const img = cls.image_url && isTrustedCoverImageUrl(cls.image_url) ? cls.image_url : absolutePlaceholderCoverUrl();
   const desc = cls.description ? String(cls.description).slice(0, 200) : `Book ${cls.title} at ${studio.name}`;
+  const path = studioClassPath(studio.public_slug, cls.share_slug ?? classSlugRaw);
 
-  return {
+  return withCanonical(path, {
     title: `${cls.title} · ${studio.name}`,
     description: desc,
     openGraph: {
@@ -28,7 +40,7 @@ export async function buildClassShareMetadata(
       description: desc,
       images: [img],
     },
-  };
+  });
 }
 
 export async function buildPackageShareMetadata(
@@ -41,8 +53,9 @@ export async function buildPackageShareMetadata(
 
   const img = absolutePlaceholderCoverUrl();
   const desc = `${studio.name} · ${pkg.credits} class passes · $${pkg.price}`;
+  const path = studioPackagePath(studio.public_slug, pkg.share_slug ?? packageSlugRaw);
 
-  return {
+  return withCanonical(path, {
     title: `${pkg.name} · ${studio.name}`,
     description: desc,
     openGraph: {
@@ -57,7 +70,7 @@ export async function buildPackageShareMetadata(
       description: desc,
       images: [img],
     },
-  };
+  });
 }
 
 export async function buildMembershipShareMetadata(
@@ -71,8 +84,9 @@ export async function buildMembershipShareMetadata(
   const img = absolutePlaceholderCoverUrl();
   const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
   const desc = `${studio.name} · ${intervalLabel} membership · $${membership.price}`;
+  const path = studioMembershipPath(studio.public_slug, membership.share_slug ?? membershipSlugRaw);
 
-  return {
+  return withCanonical(path, {
     title: `${membership.name} · ${studio.name}`,
     description: desc,
     openGraph: {
@@ -87,7 +101,7 @@ export async function buildMembershipShareMetadata(
       description: desc,
       images: [img],
     },
-  };
+  });
 }
 
 export async function buildServiceShareMetadata(
@@ -102,8 +116,9 @@ export async function buildServiceShareMetadata(
     ? service.cover_image_url
     : absolutePlaceholderCoverUrl();
   const desc = service.summary || service.description || `${service.title} at ${studio.name}`;
+  const path = studioServicePath(studio.public_slug, service.share_slug ?? serviceSlugRaw);
 
-  return {
+  return withCanonical(path, {
     title: `${service.title} · ${studio.name}`,
     description: String(desc).slice(0, 200),
     openGraph: {
@@ -118,7 +133,7 @@ export async function buildServiceShareMetadata(
       description: String(desc).slice(0, 200),
       images: [img],
     },
-  };
+  });
 }
 
 export async function buildEventShareMetadata(
@@ -131,8 +146,9 @@ export async function buildEventShareMetadata(
 
   const img = event.image_url && isTrustedCoverImageUrl(event.image_url) ? event.image_url : absolutePlaceholderCoverUrl();
   const desc = event.description ? String(event.description).slice(0, 200) : `Book ${event.title} at ${studio.name}`;
+  const path = studioEventPath(studio.public_slug, event.share_slug ?? eventSlugRaw);
 
-  return {
+  return withCanonical(path, {
     title: `${event.title} · ${studio.name}`,
     description: desc,
     openGraph: {
@@ -147,7 +163,7 @@ export async function buildEventShareMetadata(
       description: desc,
       images: [img],
     },
-  };
+  });
 }
 
 export async function buildMemberZoneShareMetadata(
@@ -162,8 +178,9 @@ export async function buildMemberZoneShareMetadata(
     ? series.cover_image_url
     : absolutePlaceholderCoverUrl();
   const desc = series.summary || series.description || `${series.title} by ${studio.name}`;
+  const path = studioMemberZonePath(studio.public_slug, series.share_slug ?? seriesSlugRaw);
 
-  return {
+  return withCanonical(path, {
     title: `${series.title} · ${studio.name}`,
     description: String(desc).slice(0, 200),
     openGraph: {
@@ -178,5 +195,5 @@ export async function buildMemberZoneShareMetadata(
       description: String(desc).slice(0, 200),
       images: [img],
     },
-  };
+  });
 }

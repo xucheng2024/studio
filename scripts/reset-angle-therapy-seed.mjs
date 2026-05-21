@@ -1100,7 +1100,7 @@ async function seedTherapyData(ctx) {
   ];
   const mediaFor = (t) =>
     t.media_type === "audio"
-      ? "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+      ? "https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3"
       : "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
   const lessonsToInsert = [];

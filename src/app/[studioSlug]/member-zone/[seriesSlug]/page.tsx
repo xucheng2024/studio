@@ -16,7 +16,8 @@ import { studioMemberZoneListPath, studioMemberZonePath, studioMembershipsPath, 
 import { buildMemberZoneShareMetadata } from "@/lib/publicShareOg";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
-import { getVideoPreview } from "@/lib/videoPreview";
+import { MemberZoneAudioPlayer } from "@/components/MemberZoneAudioPlayer";
+import { getVideoPreview, resolveMemberZoneAudioPlayback } from "@/lib/videoPreview";
 import { Lock } from "lucide-react";
 
 type Props = { params: Promise<{ studioSlug: string; seriesSlug: string }> };
@@ -29,11 +30,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function renderMedia(url: string, title: string, mediaType: string) {
   const videoPreview = getVideoPreview(url);
   if (mediaType === "audio") {
-    return (
-      <audio controls className="w-full">
-        <source src={url} />
-      </audio>
-    );
+    const playback = resolveMemberZoneAudioPlayback(url);
+    if (!playback) return null;
+    if (playback.mode === "embed") {
+      return (
+        <iframe
+          src={playback.embedUrl}
+          title={title}
+          className="h-[3.25rem] w-full rounded-lg"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        />
+      );
+    }
+    return <MemberZoneAudioPlayer src={playback.src} title={title} />;
   }
   if (videoPreview.embedUrl) {
     return (

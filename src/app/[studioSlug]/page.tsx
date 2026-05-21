@@ -9,6 +9,7 @@ import { StudioIntroSection } from "@/components/StudioIntroSection";
 import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import { getAppOriginForOg } from "@/lib/coverMedia";
 import {
   studioClassPath,
   studioClassesPath,
@@ -49,6 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug } = await params;
   const studio = await getPublicStudioShell(studioSlug);
   if (!studio) return { title: "Studio" };
+  const origin = getAppOriginForOg();
   const intro = (studio.public_intro ?? "").trim();
   const description = intro || `Explore services at ${studio.name}.`;
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
@@ -57,6 +59,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${studio.name} · Studio`,
     description,
+    ...(origin
+      ? {
+          alternates: {
+            canonical: `${origin}/${studio.public_slug}`,
+          },
+        }
+      : {}),
     openGraph: {
       title: studio.name,
       description,

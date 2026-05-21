@@ -28,7 +28,7 @@ export const getCachedClassShareContext = cache(async (studioSlugRaw: string, cl
 
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, title, description, studio_id, capacity, is_active, image_url, video_url, locations ( name )")
+    .select("id, title, description, studio_id, capacity, is_active, image_url, video_url, share_slug, locations ( name )")
     .eq("studio_id", studio.id)
     .eq("share_slug", classSlug)
     .eq("is_active", true)

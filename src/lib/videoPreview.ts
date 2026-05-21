@@ -87,3 +87,12 @@ export function getVideoPreview(rawUrl: string | null | undefined): VideoPreview
   }
   return { provider: "unknown", videoId: null, thumbnailUrl: null, embedUrl: null };
 }
+
+/** Audio lessons: Mux/Vimeo/YouTube page URLs need an embed; direct .mp3/.m4a URLs use <audio>. */
+export function resolveMemberZoneAudioPlayback(rawUrl: string | null | undefined) {
+  const url = String(rawUrl ?? "").trim();
+  if (!url) return null;
+  const preview = getVideoPreview(url);
+  if (preview.embedUrl) return { mode: "embed" as const, embedUrl: preview.embedUrl };
+  return { mode: "direct" as const, src: url };
+}

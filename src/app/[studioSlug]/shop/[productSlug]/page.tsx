@@ -9,11 +9,13 @@ import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
+import { getAppOriginForOg } from "@/lib/coverMedia";
 
 type Props = { params: Promise<{ studioSlug: string; productSlug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug: rawStudio, productSlug: rawProduct } = await params;
+  const origin = getAppOriginForOg();
   const studioSlug = normalizeStudioSlug(rawStudio ?? "");
   const productSlug = String(rawProduct ?? "").trim().toLowerCase();
   if (!studioSlug) return { title: "Shop" };
@@ -23,12 +25,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productSlug);
   const { data: product } = await admin
     .from("shop_products")
-    .select("title")
+    .select("id, title, summary, description, share_slug")
     .eq("studio_id", studio.id)
     .eq(isUuid ? "id" : "share_slug", productSlug)
     .eq("is_active", true)
     .maybeSingle();
-  return { title: product?.title ? `${product.title} · ${studio.name}` : `Shop · ${studio.name}` };
+  const canonicalSlug = product?.share_slug ?? (isUuid ? product?.id : productSlug);
+  const canonicalPath = canonicalSlug ? studioShopProductPath(studioSlug, canonicalSlug) : null;
+  const description = product?.summary?.trim() || product?.description?.trim() || `Shop ${studio.name}`;
+  return {
+    title: product?.title ? `${product.title} · ${studio.name}` : `Shop · ${studio.name}`,
+    description,
+    ...(origin && canonicalPath ? { alternates: { canonical: `${origin}${canonicalPath}` } } : {}),
+  };
 }
 
 export default async function PublicShopProductPage({ params }: Props) {
