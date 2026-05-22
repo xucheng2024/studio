@@ -1,0 +1,43 @@
+# One-off Supabase backup from GitHub (IPv6-capable runners).
+# Setup: Settings → Secrets → Actions → SUPABASE_DB_URL
+#   Direct URI from Dashboard → Connect, e.g.:
+#   postgresql://postgres:PASSWORD@db.<ref>.supabase.co:5432/postgres?sslmode=require
+# Run: Actions → "Supabase DB dump (one-off)" → Run workflow → download Artifact.
+
+name: Supabase DB dump (one-off)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: pg_dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Missing secret SUPABASE_DB_URL. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          pg_dump "$SUPABASE_DB_URL" \
+            --format=custom \
+            --no-owner \
+            --no-privileges \
+            --file=old_project.dump
+          ls -lh old_project.dump
+
+      - name: Upload dump artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-dump-${{ github.run_id }}
+          path: old_project.dump
+          retention-days: 7
