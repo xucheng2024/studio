@@ -33,6 +33,8 @@ import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
 
+/** Always hit Supabase at request time — avoids stale 404 HTML after DB migration. */
+export const dynamic = "force-dynamic";
 
 export async function generateStaticParams() {
   const admin = createAdminClient();

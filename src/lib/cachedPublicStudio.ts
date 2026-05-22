@@ -15,17 +15,21 @@ export type PublicStudioShell = NonNullable<Awaited<ReturnType<typeof fetchPubli
 
 async function fetchPublicStudioShell(slug: string) {
   const admin = createAdminClient();
-  const { data: studio } = await admin
+  const { data: studio, error } = await admin
     .from("studios")
     .select(STUDIO_SHELL_SELECT)
     .eq("public_slug", slug)
     .maybeSingle();
+  if (error) {
+    console.error("[public-studio] fetch failed", { slug, message: error.message });
+    return null;
+  }
   if (!studio || studio.contract_status === "suspended") return null;
   return studio;
 }
 
 function getShellCached(slug: string) {
-  return unstable_cache(async () => fetchPublicStudioShell(slug), ["public-studio-shell-v1", slug], {
+  return unstable_cache(async () => fetchPublicStudioShell(slug), ["public-studio-shell-v2", slug], {
     revalidate: 60,
     tags: [studioPublicCacheTag(slug)],
   })();
@@ -123,7 +127,7 @@ async function buildPublicStudioLandingData(slug: string) {
 }
 
 function getLandingDataCached(slug: string) {
-  return unstable_cache(async () => buildPublicStudioLandingData(slug), ["public-studio-landing-v1", slug], {
+  return unstable_cache(async () => buildPublicStudioLandingData(slug), ["public-studio-landing-v2", slug], {
     revalidate: 60,
     tags: [studioPublicCacheTag(slug)],
   })();
@@ -141,7 +145,7 @@ async function fetchStudioLayoutMeta(slug: string) {
 }
 
 function getLayoutMetaCached(slug: string) {
-  return unstable_cache(async () => fetchStudioLayoutMeta(slug), ["public-studio-layout-meta-v1", slug], {
+  return unstable_cache(async () => fetchStudioLayoutMeta(slug), ["public-studio-layout-meta-v2", slug], {
     revalidate: 60,
     tags: [studioPublicCacheTag(slug)],
   })();
