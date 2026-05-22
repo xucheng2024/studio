@@ -65,25 +65,31 @@ jobs:
 
       - name: pg_restore via PostgreSQL 17 Docker image
         env:
-          PGHOST: ${{ inputs.pooler_host }}
-          PGPORT: "5432"
-          PGUSER: postgres.${{ inputs.target_project_ref }}
           PGPASSWORD: ${{ secrets.SUPABASE_TARGET_DB_PASSWORD }}
-          PGDATABASE: postgres
-          PGSSLMODE: require
         run: |
           if [ -z "$PGPASSWORD" ]; then
             echo "::error::Missing secret SUPABASE_TARGET_DB_PASSWORD."
             exit 1
           fi
-          echo "Connecting as user=$PGUSER host=$PGHOST database=$PGDATABASE"
+          PROJECT_REF="${{ inputs.target_project_ref }}"
+          POOLER_HOST="${{ inputs.pooler_host }}"
+          DB_USER="postgres.${PROJECT_REF}"
+          if ! echo "$PROJECT_REF" | grep -qE '^[a-z0-9]{10,40}$'; then
+            echo "::error::Invalid target_project_ref: '$PROJECT_REF' (use Dashboard → General → Reference ID)"
+            exit 1
+          fi
+          echo "Connecting as user=$DB_USER host=$POOLER_HOST port=5432 database=postgres"
           docker run --rm \
-            -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PGDATABASE -e PGSSLMODE \
+            -e PGPASSWORD \
+            -e PGSSLMODE=require \
             -v "$PWD:/backup" \
             -w /backup \
             postgres:17 \
             pg_restore \
-              --dbname="$PGDATABASE" \
+              --host="$POOLER_HOST" \
+              --port=5432 \
+              --username="$DB_USER" \
+              --dbname=postgres \
               --no-owner \
               --no-privileges \
               --clean \
