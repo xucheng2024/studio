@@ -1,15 +1,15 @@
 # Restore old_project.dump into a Supabase database (one-off).
 #
-# Prerequisite: a successful "Supabase DB dump (one-off)" run with artifact.
+# Prerequisite: successful "Supabase DB dump (one-off)" run with artifact.
 #
-# Setup: Settings → Secrets → Actions
-#   SUPABASE_TARGET_DB_URL — TARGET Session pooler URI (port 5432), ends with /postgres
-#   User MUST be postgres.<project-ref> (not plain postgres), e.g. postgres.csdqroyzvptpnvlmjrrb
-#   (use a NEW project URL when migrating; --clean will drop existing objects)
+# Secrets (Settings → Actions):
+#   SUPABASE_TARGET_DB_PASSWORD — target DB password (Database settings / reset password)
 #
-# Run: Actions → "Supabase DB restore (one-off)" → fill inputs → Run workflow
-#
-# source_run_id: the dump workflow run number (from the URL, e.g. .../actions/runs/12345678)
+# Run workflow inputs:
+#   target_project_ref — e.g. yjupnmbrpqeuyxgrpsrb (Dashboard → Project Settings → General)
+#   pooler_host — Session pooler host from Connect, e.g. aws-1-ap-northeast-1.pooler.supabase.com
+#   source_run_id — dump run ID (artifact supabase-dump-<id>)
+#   confirm — type RESTORE
 
 name: Supabase DB restore (one-off)
 
@@ -19,6 +19,15 @@ on:
       source_run_id:
         description: "Run ID of the successful dump job (number in Actions URL)"
         required: true
+        type: string
+      target_project_ref:
+        description: "Target Supabase project ref (username = postgres.<ref>)"
+        required: true
+        type: string
+      pooler_host:
+        description: "Session pooler host from Connect (not the full URI)"
+        required: true
+        default: aws-1-ap-northeast-1.pooler.supabase.com
         type: string
       confirm:
         description: "Type RESTORE to confirm overwriting the target database"
@@ -56,38 +65,31 @@ jobs:
 
       - name: pg_restore via PostgreSQL 17 Docker image
         env:
-          SUPABASE_TARGET_DB_URL: ${{ secrets.SUPABASE_TARGET_DB_URL }}
+          PGHOST: ${{ inputs.pooler_host }}
+          PGPORT: "5432"
+          PGUSER: postgres.${{ inputs.target_project_ref }}
+          PGPASSWORD: ${{ secrets.SUPABASE_TARGET_DB_PASSWORD }}
+          PGDATABASE: postgres
+          PGSSLMODE: require
         run: |
-          if [ -z "$SUPABASE_TARGET_DB_URL" ]; then
-            echo "::error::Missing secret SUPABASE_TARGET_DB_URL (target Session pooler URI)."
+          if [ -z "$PGPASSWORD" ]; then
+            echo "::error::Missing secret SUPABASE_TARGET_DB_PASSWORD."
             exit 1
           fi
-          if echo "$SUPABASE_TARGET_DB_URL" | grep -qE '@db\.[a-z0-9]+\.supabase\.co'; then
-            echo "::error::Use Session pooler URI (port 5432), not Direct db.*.supabase.co (IPv6-only)."
-            exit 1
-          fi
-          if echo "$SUPABASE_TARGET_DB_URL" | grep -qE '@aws-[0-9]+-[^/]+\.pooler\.supabase\.com'; then
-            if ! echo "$SUPABASE_TARGET_DB_URL" | grep -qE 'postgresql://postgres\.[a-z0-9]+:'; then
-              echo "::error::Session pooler username must be postgres.<project-ref>, not postgres."
-              echo "Copy the full URI from Dashboard → Connect → Session pooler."
-              exit 1
-            fi
-          fi
+          echo "Connecting as user=$PGUSER host=$PGHOST database=$PGDATABASE"
           docker run --rm \
-            -e SUPABASE_TARGET_DB_URL \
-            -e PGSSLMODE=require \
+            -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PGDATABASE -e PGSSLMODE \
             -v "$PWD:/backup" \
             -w /backup \
             postgres:17 \
             pg_restore \
-              --dbname="$SUPABASE_TARGET_DB_URL" \
+              --dbname="$PGDATABASE" \
               --no-owner \
               --no-privileges \
               --clean \
               --if-exists \
               /backup/old_project.dump
           exit_code=$?
-          # pg_restore uses exit 1 for non-fatal warnings
           if [ "$exit_code" -gt 1 ]; then
             echo "::error::pg_restore failed with exit code $exit_code"
             exit "$exit_code"
