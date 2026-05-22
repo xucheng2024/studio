@@ -6,11 +6,9 @@
 # Setup: Settings → Secrets → Actions → SUPABASE_DB_URL
 #   Dashboard → Connect → Session pooler → URI (port 5432), e.g.:
 #   postgresql://postgres.<project-ref>:PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres
-#   (must end with /postgres — do NOT append sslmode without ? or you get db "postgressslmode=require")
+#   (must end with /postgres — do NOT append sslmode without ?)
 #
-# Or enable Dedicated IPv4 and use the new Direct URI from the dashboard.
-#
-# Run: Actions → "Supabase DB dump (one-off)" → Run workflow → download Artifact.
+# Run: Actions → "Supabase DB dump (one-off)" → Run workflow (not "Re-run" on an old run).
 
 name: Supabase DB dump (one-off)
 
@@ -23,44 +21,30 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Install PostgreSQL 17 client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl ca-certificates
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          . /etc/os-release
-          sudo sh -c "echo \"deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main\" > /etc/apt/sources.list.d/pgdg.list"
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
-          pg_dump --version
-
-      - name: Validate connection string host
+      - name: pg_dump via PostgreSQL 17 Docker image
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::error::Missing secret SUPABASE_DB_URL. Add it under Settings → Secrets and variables → Actions."
+            echo "::error::Missing secret SUPABASE_DB_URL."
             exit 1
           fi
           if echo "$SUPABASE_DB_URL" | grep -qE '@db\.[a-z0-9]+\.supabase\.co'; then
-            echo "::error::SUPABASE_DB_URL uses Direct host db.*.supabase.co (IPv6-only)."
-            echo "Replace with Session pooler URI from Dashboard → Connect → Session pooler (port 5432),"
-            echo "or enable Dedicated IPv4 and use the IPv4 Direct connection string."
+            echo "::error::Use Session pooler URI (port 5432), not Direct db.*.supabase.co (IPv6-only)."
             exit 1
           fi
-
-      - name: pg_dump
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          PGSSLMODE: require
-        run: |
-          pg_dump "$SUPABASE_DB_URL" \
-            --format=custom \
-            --no-owner \
-            --no-privileges \
-            --file=old_project.dump
+          docker run --rm \
+            -e SUPABASE_DB_URL \
+            -e PGSSLMODE=require \
+            -v "$PWD:/backup" \
+            -w /backup \
+            postgres:17 \
+            pg_dump "$SUPABASE_DB_URL" \
+              --format=custom \
+              --no-owner \
+              --no-privileges \
+              --file=/backup/old_project.dump
+          docker run --rm postgres:17 pg_dump --version
           ls -lh old_project.dump
 
       - name: Upload dump artifact
