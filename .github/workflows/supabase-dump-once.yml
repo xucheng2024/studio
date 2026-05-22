@@ -1,7 +1,7 @@
-# One-off Supabase backup via GitHub Actions.
+# One-off Supabase backup via GitHub Actions (public schema only).
 #
-# Do NOT use Direct connection (db.<ref>.supabase.co) — IPv6-only; fails on
-# GitHub Actions and most home networks with "Network is unreachable".
+# Dumps only the public schema — not auth/storage/realtime (Supabase-managed).
+# Do NOT use Direct connection (db.<ref>.supabase.co) — IPv6-only.
 #
 # Setup: Settings → Secrets → Actions → SUPABASE_DB_URL
 #   Dashboard → Connect → Session pooler → URI (port 5432), e.g.:
@@ -41,6 +41,7 @@ jobs:
             -w /backup \
             postgres:17 \
             pg_dump "$SUPABASE_DB_URL" \
+              --schema=public \
               --format=custom \
               --no-owner \
               --no-privileges \

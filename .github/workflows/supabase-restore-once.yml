@@ -1,4 +1,4 @@
-# Restore old_project.dump into a Supabase database (one-off).
+# Restore old_project.dump into a Supabase database (public schema only).
 #
 # Secret: SUPABASE_TARGET_DB_PASSWORD — Database password for the TARGET project only
 #
@@ -115,10 +115,12 @@ jobs:
               -p 5432 \
               -U "$DB_USER" \
               -d postgres \
+              --schema=public \
               --no-owner \
               --no-privileges \
               --clean \
               --if-exists \
+              --disable-triggers \
               /backup/old_project.dump
           exit_code=$?
           if [ "$exit_code" -gt 1 ]; then
