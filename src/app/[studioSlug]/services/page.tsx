@@ -1,10 +1,12 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
-import { studioHomePath, studioServicePath } from "@/lib/public-paths";
+import { studioHomePath, studioServicePath, studioServicesPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -12,6 +14,15 @@ import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params;
+  return buildStudioListMetadata({
+    studioSlugRaw: studioSlug,
+    title: "Services",
+    description: "Browse all available services and pricing.",
+    path: studioServicesPath(studioSlug),
+  });
+}
 
 export default async function PublicServicesPage({ params }: Props) {
   const { studioSlug: rawSlug } = await params;

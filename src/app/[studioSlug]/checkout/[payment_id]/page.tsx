@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock, ExternalLink, ShieldCheck, XCircle } from "lucide-react";
@@ -24,6 +25,13 @@ import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Props = { params: Promise<{ studioSlug: string; payment_id: string }> };
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 function paymentMethodLabel(method: string | null | undefined, hasGatewayCheckout: boolean): string {
   const m = (method ?? "").toLowerCase();

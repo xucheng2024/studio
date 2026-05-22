@@ -4,6 +4,15 @@ import { getAppOriginForOg } from "@/lib/coverMedia";
 import { getCachedClassShareContext, getCachedEventShareContext, getCachedMemberZoneShareContext, getCachedMembershipShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
 import { studioClassPath, studioEventPath, studioMemberZonePath, studioMembershipPath, studioPackagePath, studioServicePath } from "@/lib/public-paths";
 
+type ShareMetadataInput = {
+  path: string;
+  pageTitle: string;
+  socialTitle: string;
+  description: string;
+  imageUrl: string;
+  imageAlt: string;
+};
+
 function withCanonical(path: string, metadata: Metadata): Metadata {
   const origin = getAppOriginForOg();
   if (!origin) return metadata;
@@ -11,6 +20,40 @@ function withCanonical(path: string, metadata: Metadata): Metadata {
     ...metadata,
     alternates: { canonical: `${origin}${path}` },
   };
+}
+
+function trustedImageOrFallback(url: string | null | undefined) {
+  return url && isTrustedCoverImageUrl(url) ? url : absolutePlaceholderCoverUrl();
+}
+
+function shortText(value: string, max = 200) {
+  return value.slice(0, max);
+}
+
+function buildShareMetadata({
+  path,
+  pageTitle,
+  socialTitle,
+  description,
+  imageUrl,
+  imageAlt,
+}: ShareMetadataInput): Metadata {
+  return withCanonical(path, {
+    title: pageTitle,
+    description,
+    openGraph: {
+      title: socialTitle,
+      description,
+      type: "website",
+      images: [{ url: imageUrl, width: 1200, height: 675, alt: imageAlt }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: socialTitle,
+      description,
+      images: [imageUrl],
+    },
+  });
 }
 
 export async function buildClassShareMetadata(
@@ -21,25 +64,17 @@ export async function buildClassShareMetadata(
   if (!ctx) return { title: "Class booking" };
   const { studio, cls } = ctx;
 
-  const img = cls.image_url && isTrustedCoverImageUrl(cls.image_url) ? cls.image_url : absolutePlaceholderCoverUrl();
-  const desc = cls.description ? String(cls.description).slice(0, 200) : `Book ${cls.title} at ${studio.name}`;
+  const img = trustedImageOrFallback(cls.image_url);
+  const desc = cls.description ? shortText(String(cls.description)) : `Book ${cls.title} at ${studio.name}`;
   const path = studioClassPath(studio.public_slug, cls.share_slug ?? classSlugRaw);
 
-  return withCanonical(path, {
-    title: `${cls.title} · ${studio.name}`,
+  return buildShareMetadata({
+    path,
+    pageTitle: `${cls.title} · ${studio.name}`,
+    socialTitle: cls.title,
     description: desc,
-    openGraph: {
-      title: cls.title,
-      description: desc,
-      type: "website",
-      images: [{ url: img, width: 1200, height: 675, alt: cls.title }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: cls.title,
-      description: desc,
-      images: [img],
-    },
+    imageUrl: img,
+    imageAlt: cls.title,
   });
 }
 
@@ -55,21 +90,13 @@ export async function buildPackageShareMetadata(
   const desc = `${studio.name} · ${pkg.credits} class passes · $${pkg.price}`;
   const path = studioPackagePath(studio.public_slug, pkg.share_slug ?? packageSlugRaw);
 
-  return withCanonical(path, {
-    title: `${pkg.name} · ${studio.name}`,
+  return buildShareMetadata({
+    path,
+    pageTitle: `${pkg.name} · ${studio.name}`,
+    socialTitle: pkg.name,
     description: desc,
-    openGraph: {
-      title: pkg.name,
-      description: desc,
-      type: "website",
-      images: [{ url: img, width: 1200, height: 675, alt: pkg.name }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: pkg.name,
-      description: desc,
-      images: [img],
-    },
+    imageUrl: img,
+    imageAlt: pkg.name,
   });
 }
 
@@ -86,21 +113,13 @@ export async function buildMembershipShareMetadata(
   const desc = `${studio.name} · ${intervalLabel} membership · $${membership.price}`;
   const path = studioMembershipPath(studio.public_slug, membership.share_slug ?? membershipSlugRaw);
 
-  return withCanonical(path, {
-    title: `${membership.name} · ${studio.name}`,
+  return buildShareMetadata({
+    path,
+    pageTitle: `${membership.name} · ${studio.name}`,
+    socialTitle: membership.name,
     description: desc,
-    openGraph: {
-      title: membership.name,
-      description: desc,
-      type: "website",
-      images: [{ url: img, width: 1200, height: 675, alt: membership.name }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: membership.name,
-      description: desc,
-      images: [img],
-    },
+    imageUrl: img,
+    imageAlt: membership.name,
   });
 }
 
@@ -112,27 +131,18 @@ export async function buildServiceShareMetadata(
   if (!ctx) return { title: "Service" };
   const { studio, service } = ctx;
 
-  const img = service.cover_image_url && isTrustedCoverImageUrl(service.cover_image_url)
-    ? service.cover_image_url
-    : absolutePlaceholderCoverUrl();
+  const img = trustedImageOrFallback(service.cover_image_url);
   const desc = service.summary || service.description || `${service.title} at ${studio.name}`;
   const path = studioServicePath(studio.public_slug, service.share_slug ?? serviceSlugRaw);
+  const shortDesc = shortText(String(desc));
 
-  return withCanonical(path, {
-    title: `${service.title} · ${studio.name}`,
-    description: String(desc).slice(0, 200),
-    openGraph: {
-      title: service.title,
-      description: String(desc).slice(0, 200),
-      type: "website",
-      images: [{ url: img, width: 1200, height: 675, alt: service.title }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: service.title,
-      description: String(desc).slice(0, 200),
-      images: [img],
-    },
+  return buildShareMetadata({
+    path,
+    pageTitle: `${service.title} · ${studio.name}`,
+    socialTitle: service.title,
+    description: shortDesc,
+    imageUrl: img,
+    imageAlt: service.title,
   });
 }
 
@@ -144,25 +154,17 @@ export async function buildEventShareMetadata(
   if (!ctx) return { title: "Event" };
   const { studio, event } = ctx;
 
-  const img = event.image_url && isTrustedCoverImageUrl(event.image_url) ? event.image_url : absolutePlaceholderCoverUrl();
-  const desc = event.description ? String(event.description).slice(0, 200) : `Book ${event.title} at ${studio.name}`;
+  const img = trustedImageOrFallback(event.image_url);
+  const desc = event.description ? shortText(String(event.description)) : `Book ${event.title} at ${studio.name}`;
   const path = studioEventPath(studio.public_slug, event.share_slug ?? eventSlugRaw);
 
-  return withCanonical(path, {
-    title: `${event.title} · ${studio.name}`,
+  return buildShareMetadata({
+    path,
+    pageTitle: `${event.title} · ${studio.name}`,
+    socialTitle: event.title,
     description: desc,
-    openGraph: {
-      title: event.title,
-      description: desc,
-      type: "website",
-      images: [{ url: img, width: 1200, height: 675, alt: event.title }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: event.title,
-      description: desc,
-      images: [img],
-    },
+    imageUrl: img,
+    imageAlt: event.title,
   });
 }
 
@@ -174,26 +176,17 @@ export async function buildMemberZoneShareMetadata(
   if (!ctx) return { title: "Member zone" };
   const { studio, series } = ctx;
 
-  const img = series.cover_image_url && isTrustedCoverImageUrl(series.cover_image_url)
-    ? series.cover_image_url
-    : absolutePlaceholderCoverUrl();
+  const img = trustedImageOrFallback(series.cover_image_url);
   const desc = series.summary || series.description || `${series.title} by ${studio.name}`;
   const path = studioMemberZonePath(studio.public_slug, series.share_slug ?? seriesSlugRaw);
+  const shortDesc = shortText(String(desc));
 
-  return withCanonical(path, {
-    title: `${series.title} · ${studio.name}`,
-    description: String(desc).slice(0, 200),
-    openGraph: {
-      title: series.title,
-      description: String(desc).slice(0, 200),
-      type: "website",
-      images: [{ url: img, width: 1200, height: 675, alt: series.title }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: series.title,
-      description: String(desc).slice(0, 200),
-      images: [img],
-    },
+  return buildShareMetadata({
+    path,
+    pageTitle: `${series.title} · ${studio.name}`,
+    socialTitle: series.title,
+    description: shortDesc,
+    imageUrl: img,
+    imageAlt: series.title,
   });
 }

@@ -1,16 +1,28 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { CoverLocationCornerBadge, SessionDateMiniCalendar, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
-import { studioClassPath, studioHomePath } from "@/lib/public-paths";
+import { buildStudioListMetadata } from "@/lib/publicListMetadata";
+import { studioClassPath, studioClassesPath, studioHomePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params;
+  return buildStudioListMetadata({
+    studioSlugRaw: studioSlug,
+    title: "Classes",
+    description: "Browse upcoming classes, availability, and booking details.",
+    path: studioClassesPath(studioSlug),
+  });
+}
 
 export default async function StudioBookingPage({ params }: Props) {
   const { studioSlug: raw } = await params;

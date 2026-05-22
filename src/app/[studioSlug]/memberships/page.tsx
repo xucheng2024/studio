@@ -1,13 +1,25 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
-import { studioHomePath, studioMembershipPath } from "@/lib/public-paths";
+import { studioHomePath, studioMembershipPath, studioMembershipsPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params;
+  return buildStudioListMetadata({
+    studioSlugRaw: studioSlug,
+    title: "Memberships",
+    description: "Compare recurring membership plans and included benefits.",
+    path: studioMembershipsPath(studioSlug),
+  });
+}
 
 export default async function PublicMembershipsPage({ params }: Props) {
   const { studioSlug: rawSlug } = await params;

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:detail-metadata": "node scripts/check-detail-metadata.mjs",
     "test:revenue": "node scripts/verify-revenue-smoke.mjs",
     "seed:angle": "node scripts/reset-angle-therapy-seed.mjs",
     "seed:angle-online": "node scripts/seed-angle-online.mjs",

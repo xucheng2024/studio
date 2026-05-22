@@ -1,13 +1,25 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
-import { studioHomePath, studioShopProductPath } from "@/lib/public-paths";
+import { studioHomePath, studioShopPath, studioShopProductPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params;
+  return buildStudioListMetadata({
+    studioSlugRaw: studioSlug,
+    title: "Shop",
+    description: "Browse products, prices, and stock availability.",
+    path: studioShopPath(studioSlug),
+  });
+}
 
 export default async function PublicShopPage({ params }: Props) {
   const { studioSlug: rawSlug } = await params;

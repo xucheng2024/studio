@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioEventPath, studioEventsPath, studioHomePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -15,11 +17,45 @@ type Props = {
   searchParams?: Promise<{ tab?: string }>;
 };
 
+type EventItem = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  tags: string[] | null;
+  start_time: string;
+  end_time: string;
+  capacity: number | null;
+  spots_left: number | null;
+  price: number | null;
+  currency: string | null;
+  share_slug: string | null;
+  image_url: string | null;
+  video_url: string | null;
+};
 
-function EventCard({ event, studio }: { event: Record<string, any>; studio: { name: string; public_slug: string }; }) {
+export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
+  const { studioSlug } = await params;
+  return buildStudioListMetadata({
+    studioSlugRaw: studioSlug,
+    title: "Events",
+    description: "See upcoming and past events with schedules and prices.",
+    path: studioEventsPath(studioSlug),
+  });
+}
+
+
+function EventCard({
+  event,
+  studio,
+  currentTimeMs,
+}: {
+  event: EventItem;
+  studio: { name: string; public_slug: string };
+  currentTimeMs: number;
+}) {
   const start = new Date(String(event.start_time));
   const end = new Date(String(event.end_time));
-  const isEnded = end.getTime() < Date.now();
+  const isEnded = end.getTime() < currentTimeMs;
   const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
   const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
   const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
@@ -88,6 +124,7 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
   if (!studio || studio.contract_status === "suspended") notFound();
 
   const nowIso = new Date().toISOString();
+  const currentTimeMs = new Date(nowIso).getTime();
   const [{ data: upcoming }, { data: ended }] = await Promise.all([
     admin
       .from("events")
@@ -117,7 +154,7 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
         </div>
       </div>
       <div className="mt-5 grid gap-4">
-        {items.length ? items.map((event) => <EventCard key={event.id} event={event} studio={studio} />) : (
+        {items.length ? items.map((event) => <EventCard key={event.id} event={event} studio={studio} currentTimeMs={currentTimeMs} />) : (
           <p className={ui.muted}>{activeTab === "past" ? "No past events yet." : "No upcoming events yet."}</p>
         )}
       </div>

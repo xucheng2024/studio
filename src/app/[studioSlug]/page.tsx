@@ -124,7 +124,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const visibleMemberZoneSeries = memberZoneSeries.slice(0, 3);
   const hiddenMemberZoneSeries = memberZoneSeries.slice(3);
   const visibleShopProducts = shopProducts.slice(0, 4);
-  const hiddenShopProducts = shopProducts.slice(4);
   const mediaTagClass =
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
@@ -157,9 +156,23 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     .slice(0, 2)
     .map((part: string) => part[0]?.toUpperCase() ?? "")
     .join("") || "S";
+  const origin = getAppOriginForOg();
+  const homePath = studioHomePath(studio.public_slug);
+  const canonicalUrl = origin ? `${origin}${homePath}` : null;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "HealthClub",
+    name: publicBrandName,
+    description: (studio.public_intro ?? "").trim() || `Explore classes, services, and packages at ${publicBrandName}.`,
+    url: canonicalUrl ?? homePath,
+    image: studioMediaCover ?? absolutePlaceholderCoverUrl(),
+    logo: logoUrl ?? undefined,
+  };
+  const jsonLdSafe = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-0 sm:px-6 lg:px-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdSafe }} />
       <StudioMediaWarmup urls={warmupMediaUrls} />
 
       {/* ── Sticky header nav ── */}

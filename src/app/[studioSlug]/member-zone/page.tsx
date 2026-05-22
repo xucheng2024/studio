@@ -1,16 +1,28 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
-import { studioHomePath, studioMemberZonePath } from "@/lib/public-paths";
+import { studioHomePath, studioMemberZoneListPath, studioMemberZonePath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { getVideoPreview } from "@/lib/videoPreview";
 
 type Props = { params: Promise<{ studioSlug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params;
+  return buildStudioListMetadata({
+    studioSlugRaw: studioSlug,
+    title: "Member zone",
+    description: "Explore exclusive member-only and paid lesson series.",
+    path: studioMemberZoneListPath(studioSlug),
+  });
+}
 
 
 export default async function PublicMemberZonePage({ params }: Props) {

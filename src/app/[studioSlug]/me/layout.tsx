@@ -1,9 +1,17 @@
+import type { Metadata } from "next";
 import { StudioMemberTabs } from "@/components/StudioMemberTabs";
 import { normalizeStudioSlug } from "@/lib/slug";
 
 type Props = {
   children: React.ReactNode;
   params: Promise<{ studioSlug: string }>;
+};
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function StudioMemberLayout({ children, params }: Props) {
