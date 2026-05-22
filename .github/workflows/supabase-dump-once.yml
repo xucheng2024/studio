@@ -1,7 +1,14 @@
-# One-off Supabase backup from GitHub (IPv6-capable runners).
+# One-off Supabase backup via GitHub Actions.
+#
+# Do NOT use Direct connection (db.<ref>.supabase.co) — IPv6-only; fails on
+# GitHub Actions and most home networks with "Network is unreachable".
+#
 # Setup: Settings → Secrets → Actions → SUPABASE_DB_URL
-#   Direct URI from Dashboard → Connect, e.g.:
-#   postgresql://postgres:PASSWORD@db.<ref>.supabase.co:5432/postgres?sslmode=require
+#   Dashboard → Connect → Session pooler → URI (port 5432), e.g.:
+#   postgresql://postgres.<project-ref>:PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+#
+# Or enable Dedicated IPv4 and use the new Direct URI from the dashboard.
+#
 # Run: Actions → "Supabase DB dump (one-off)" → Run workflow → download Artifact.
 
 name: Supabase DB dump (one-off)
@@ -20,7 +27,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: pg_dump
+      - name: Validate connection string host
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
@@ -28,6 +35,17 @@ jobs:
             echo "::error::Missing secret SUPABASE_DB_URL. Add it under Settings → Secrets and variables → Actions."
             exit 1
           fi
+          if echo "$SUPABASE_DB_URL" | grep -qE '@db\.[a-z0-9]+\.supabase\.co'; then
+            echo "::error::SUPABASE_DB_URL uses Direct host db.*.supabase.co (IPv6-only)."
+            echo "Replace with Session pooler URI from Dashboard → Connect → Session pooler (port 5432),"
+            echo "or enable Dedicated IPv4 and use the IPv4 Direct connection string."
+            exit 1
+          fi
+
+      - name: pg_dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
           pg_dump "$SUPABASE_DB_URL" \
             --format=custom \
             --no-owner \
