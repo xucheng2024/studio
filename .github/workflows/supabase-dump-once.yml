@@ -5,7 +5,8 @@
 #
 # Setup: Settings → Secrets → Actions → SUPABASE_DB_URL
 #   Dashboard → Connect → Session pooler → URI (port 5432), e.g.:
-#   postgresql://postgres.<project-ref>:PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+#   postgresql://postgres.<project-ref>:PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres
+#   (must end with /postgres — do NOT append sslmode without ? or you get db "postgressslmode=require")
 #
 # Or enable Dedicated IPv4 and use the new Direct URI from the dashboard.
 #
@@ -45,6 +46,7 @@ jobs:
       - name: pg_dump
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGSSLMODE: require
         run: |
           pg_dump "$SUPABASE_DB_URL" \
             --format=custom \
