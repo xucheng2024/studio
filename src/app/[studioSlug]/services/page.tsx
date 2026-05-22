@@ -7,6 +7,7 @@ import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
 import { studioHomePath, studioServicePath, studioServicesPath } from "@/lib/public-paths";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -39,7 +40,7 @@ export default async function PublicServicesPage({ params }: Props) {
 
   const { data: services } = await admin
     .from("studio_services")
-    .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, sort_order")
+    .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, sort_order")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -71,7 +72,7 @@ export default async function PublicServicesPage({ params }: Props) {
       <div className="mt-5 grid gap-4">
         {(services ?? []).map((svc) => {
           const href = studioServicePath(studio.public_slug, svc.share_slug);
-          const serviceCurrency = String(svc.currency ?? "SGD").toUpperCase();
+          const serviceCurrency = STUDIO_CURRENCY;
           const preview = getVideoPreview((svc as { video_url?: string | null }).video_url ?? "");
           const cover = svc.cover_image_url ?? preview.thumbnailUrl ?? null;
           const serviceWaLink = buildServiceWaLink(svc.title);

@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   const { data: series } = await admin
     .from("member_zone_series")
     .select(
-      "id, studio_id, title, is_active, share_slug, access_type, price, currency, studios(public_slug, contract_status, hitpay_enabled)",
+      "id, studio_id, title, is_active, share_slug, access_type, price, studios(public_slug, contract_status, hitpay_enabled)",
     )
     .eq("id", parsed.data.series_id)
     .maybeSingle();
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     ? await admin
         .from("member_zone_lessons")
         .select(
-          "id, title, is_active, access_override, override_price, currency, media_url",
+          "id, title, is_active, access_override, override_price, media_url",
         )
         .eq("id", lessonId)
         .eq("series_id", series.id)
@@ -117,10 +117,8 @@ export async function POST(req: Request) {
   const accessRule = resolveMemberZoneAccessRule({
     seriesAccessType: series.access_type,
     seriesPrice: Number(series.price ?? 0),
-    seriesCurrency: series.currency ?? "SGD",
     lessonAccessOverride: lesson.data?.access_override ?? "inherit",
     lessonOverridePrice: Number(lesson.data?.override_price ?? 0),
-    lessonCurrency: lesson.data?.currency ?? "SGD",
   });
   if (!isPurchaseEnabledAccessType(accessRule.resolvedAccessType) || accessRule.resolvedPrice <= 0) {
     return NextResponse.json({ error: "item_not_paywalled" }, { status: 409 });

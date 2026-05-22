@@ -7,6 +7,7 @@ import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioMemberZoneListPath, studioMemberZonePath } from "@/lib/public-paths";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -40,7 +41,7 @@ export default async function PublicMemberZonePage({ params }: Props) {
 
   const { data: seriesRows } = await admin
     .from("member_zone_series")
-    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, sort_order")
+    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, share_slug, sort_order")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -57,7 +58,7 @@ export default async function PublicMemberZonePage({ params }: Props) {
         {(seriesRows ?? []).map((series) => {
           const href = studioMemberZonePath(studio.public_slug, series.share_slug);
           const hasPrice = series.price != null && Number(series.price) > 0;
-          const priceStr = hasPrice ? `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price).toFixed(2)}` : null;
+          const priceStr = hasPrice ? `${STUDIO_CURRENCY} ${Number(series.price).toFixed(2)}` : null;
           const accessTag =
             series.access_type === "free"
               ? { label: "Free", color: "bg-teal-50 text-teal-700 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300" }

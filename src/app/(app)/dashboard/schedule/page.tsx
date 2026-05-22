@@ -337,7 +337,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="flex flex-col gap-1.5">
-                      <span className={ui.label}>Guest price</span>
+                      <span className={ui.label}>Guest price (SGD)</span>
                       <input name="guest_price" type="number" min={0} step="0.01" defaultValue={25} className={ui.input} />
                     </label>
                     <label className="flex flex-col gap-1.5">
@@ -403,7 +403,7 @@ export default async function SchedulePage({ searchParams }: Props) {
                     <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
                   </label>
                   <label className="flex flex-col gap-1.5">
-                    <span className={ui.label}>Guest price (single visit)</span>
+                    <span className={ui.label}>Guest price (SGD, single visit)</span>
                     <input type="number" name="guest_price" defaultValue={25} min={0} step="0.01" className={ui.input} />
                   </label>
                   <label className="flex flex-col gap-1.5">

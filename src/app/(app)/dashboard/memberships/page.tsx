@@ -100,7 +100,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
                 <textarea name="description" rows={3} className={ui.input} placeholder="What this membership covers." />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Price</span>
+                <span className={ui.label}>Price (SGD)</span>
                 <input name="price" type="number" min={0} step="0.01" defaultValue={120} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5">

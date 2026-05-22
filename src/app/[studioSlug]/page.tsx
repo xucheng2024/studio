@@ -8,6 +8,7 @@ import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioIntroSection } from "@/components/StudioIntroSection";
 import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { getAppOriginForOg } from "@/lib/coverMedia";
 import {
@@ -236,7 +237,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           )}
                           {svc.price != null && Number(svc.price) > 0 ? (
                             <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                              {svc.currency} {Number(svc.price).toFixed(2)}
+                              {STUDIO_CURRENCY} {Number(svc.price).toFixed(2)}
                             </span>
                           ) : null}
                           <div className="absolute bottom-2 right-2 z-20">
@@ -325,7 +326,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const sessionCapacity = Number((s as { capacity?: number | null }).capacity ?? cls?.capacity ?? 0) || 0;
               const spotsLeft = Number(s.spots_left ?? 0);
               const creditsRequired = Number(s.credits_required ?? 0);
-              const classCurrency = String((s as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+              const classCurrency = STUDIO_CURRENCY;
               const spotsText = spotsLeft === 0
                 ? sessionCapacity > 0 ? `0/${sessionCapacity} spots left` : "Full"
                 : sessionCapacity > 0
@@ -467,7 +468,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           )}
                           {e.price != null && Number(e.price) > 0 ? (
                             <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                              {String(e.currency ?? "SGD")} {Number(e.price).toFixed(2)}
+                              {STUDIO_CURRENCY} {Number(e.price).toFixed(2)}
                             </span>
                           ) : null}
                           <div className="absolute bottom-2 right-2 z-20">
@@ -532,7 +533,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             {visibleMemberZoneSeries.map((series) => {
               const href = studioMemberZonePath(studio.public_slug, series.share_slug);
               const hasSeriesPrice = series.price != null && Number(series.price) > 0;
-              const priceStr = hasSeriesPrice ? `${String(series.currency ?? "SGD").toUpperCase()} ${Number(series.price).toFixed(2)}` : null;
+              const priceStr = hasSeriesPrice ? `${STUDIO_CURRENCY} ${Number(series.price).toFixed(2)}` : null;
               const accessTag =
                 series.access_type === "free"
                   ? { label: "Free", color: "bg-teal-50 text-teal-700 ring-teal-600/20 dark:bg-teal-900/30 dark:text-teal-300" }
@@ -611,7 +612,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 title={product.title}
                 imageUrl={product.image_url}
                 price={Number(product.price)}
-                currency={String(product.currency ?? "SGD")}
                 summary={product.summary}
                 outOfStock={product.stock_qty != null && Number(product.stock_qty) < 1}
                 priority={idx < 2}
@@ -639,7 +639,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const buyHref = pkg.share_slug
                 ? studioPackagePath(studio.public_slug, pkg.share_slug)
                 : null;
-              const packageCurrency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+              const packageCurrency = STUDIO_CURRENCY;
               return (
                 <article key={pkg.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
                   <div className="flex min-w-0 flex-col">

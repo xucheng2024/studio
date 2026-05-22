@@ -42,7 +42,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
     supabase.from("studios").select("id, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("shop_products")
-      .select("id, title, summary, description, image_url, image_urls, price, currency, stock_qty, sort_order, is_active, share_slug")
+      .select("id, title, summary, description, image_url, image_urls, price, stock_qty, sort_order, is_active, share_slug")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -94,12 +94,8 @@ export default async function DashboardShopPage({ searchParams }: Props) {
             <textarea name="description" rows={3} className={`${ui.input} min-h-24`} />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Price</span>
+            <span className={ui.label}>Price (SGD)</span>
             <input name="price" type="number" min={0.01} step={0.01} required className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Currency</span>
-            <input name="currency" defaultValue="SGD" className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Stock (blank = unlimited)</span>
@@ -156,7 +152,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-stone-900 dark:text-stone-100">{product.title}</p>
                     <p className={`text-sm ${ui.muted}`}>
-                      {String(product.currency ?? "SGD")} {Number(product.price).toFixed(2)}
+                      SGD {Number(product.price).toFixed(2)}
                       {product.stock_qty != null ? ` · ${product.stock_qty} in stock` : " · Unlimited stock"}
                       {!product.is_active ? " · Hidden" : ""}
                     </p>
@@ -176,12 +172,8 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                     <textarea name="description" rows={3} defaultValue={product.description ?? ""} className={`${ui.input} min-h-24`} />
                   </label>
                   <label className="flex flex-col gap-1.5">
-                    <span className={ui.label}>Price</span>
+                    <span className={ui.label}>Price (SGD)</span>
                     <input name="price" type="number" min={0.01} step={0.01} required defaultValue={product.price} className={ui.input} />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className={ui.label}>Currency</span>
-                    <input name="currency" defaultValue={product.currency ?? "SGD"} className={ui.input} />
                   </label>
                   <label className="flex flex-col gap-1.5">
                     <span className={ui.label}>Stock (blank = unlimited)</span>

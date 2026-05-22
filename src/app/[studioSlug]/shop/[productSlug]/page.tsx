@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { BuyShopProductPanel } from "@/components/BuyShopProductPanel";
 import { ShopImageGallery } from "@/components/ShopImageGallery";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { studioShopPath, studioShopProductPath } from "@/lib/public-paths";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -57,7 +58,7 @@ export default async function PublicShopProductPage({ params }: Props) {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productSlug);
   const { data: product } = await admin
     .from("shop_products")
-    .select("id, title, summary, description, image_url, image_urls, price, currency, stock_qty, share_slug")
+    .select("id, title, summary, description, image_url, image_urls, price, stock_qty, share_slug")
     .eq("studio_id", studio.id)
     .eq(isUuid ? "id" : "share_slug", productSlug)
     .eq("is_active", true)
@@ -93,7 +94,7 @@ export default async function PublicShopProductPage({ params }: Props) {
 
   const paymentReady = Boolean(studio.hitpay_enabled);
   const outOfStock = product.stock_qty != null && Number(product.stock_qty) < 1;
-  const currency = String(product.currency ?? "SGD").toUpperCase();
+  const currency = STUDIO_CURRENCY;
   const sharePath = studioShopProductPath(studio.public_slug, product.share_slug ?? product.id);
 
   // Only show description if it differs from summary (avoids duplicate text from seeded data).

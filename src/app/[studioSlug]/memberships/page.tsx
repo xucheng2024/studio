@@ -5,6 +5,7 @@ import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioMembershipPath, studioMembershipsPath } from "@/lib/public-paths";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -36,7 +37,7 @@ export default async function PublicMembershipsPage({ params }: Props) {
 
   const { data: memberships } = await admin
     .from("membership_products")
-    .select("id, name, description, price, currency, billing_interval, trial_days, share_slug")
+    .select("id, name, description, price, billing_interval, trial_days, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
@@ -53,7 +54,7 @@ export default async function PublicMembershipsPage({ params }: Props) {
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {(memberships ?? []).map((m) => {
           const href = m.share_slug ? studioMembershipPath(studio.public_slug, m.share_slug) : null;
-          const currency = String(m.currency ?? "SGD").toUpperCase();
+          const currency = STUDIO_CURRENCY;
           const intervalLabel = m.billing_interval === "yearly" ? "year" : "month";
           const trialDays = Number(m.trial_days ?? 0);
           return (

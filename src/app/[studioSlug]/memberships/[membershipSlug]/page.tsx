@@ -5,6 +5,7 @@ import { MembershipReturnNotice } from "@/components/MembershipReturnNotice";
 import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { studioMembershipsPath } from "@/lib/public-paths";
 import { buildMembershipShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
@@ -25,7 +26,7 @@ export default async function PublicMembershipPage({ params }: Props) {
   const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
   const studioPublicSlug = studio.public_slug ?? rawStudio;
   const membershipSlugPath = (membership as { share_slug?: string | null }).share_slug ?? rawMembership;
-  const membershipCurrency = String((membership as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+  const membershipCurrency = STUDIO_CURRENCY;
   const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
   const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
   const billingStartLabel =

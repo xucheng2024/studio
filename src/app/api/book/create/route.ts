@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
@@ -249,7 +250,7 @@ export async function POST(req: Request) {
       gift_recipient_email: isGift ? giftRecipientEmail : null,
       gift_message: isGift ? giftMessage : null,
       amount,
-      currency: "SGD",
+      currency: STUDIO_CURRENCY,
       payment_method: "hitpay",
       source: "online_booking",
       status: "pending",
@@ -280,7 +281,7 @@ export async function POST(req: Request) {
     const hitpay = await createHitpayPaymentRequest({
       apiKey: merchantApiKey,
       amount: amount.toFixed(2),
-      currency: "SGD",
+      currency: STUDIO_CURRENCY,
       email: guestDisplayEmail,
       name: guestDisplayName,
       reference_number: reference,

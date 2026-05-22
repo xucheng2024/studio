@@ -5,6 +5,7 @@ import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { studioPackagePath, studioPackagesPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -101,7 +102,7 @@ export default async function MyClassPassesPage() {
       const admin = createAdminClient();
       const { data: pkgs } = await admin
         .from("packages")
-        .select("id, name, price, currency, credits, expiry_days, share_slug")
+        .select("id, name, price, credits, expiry_days, share_slug")
         .eq("studio_id", st.id)
         .eq("is_active", true)
         .is("deleted_at", null)
@@ -208,7 +209,7 @@ export default async function MyClassPassesPage() {
             ) : (
               <ul className="flex flex-col gap-3">
                 {packagesList.map((pkg) => {
-                  const ccy = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+                  const ccy = STUDIO_CURRENCY;
                   const href = pkg.share_slug
                     ? studioPackagePath(activeStudioSlug, pkg.share_slug)
                     : studioPackagesPath(activeStudioSlug);

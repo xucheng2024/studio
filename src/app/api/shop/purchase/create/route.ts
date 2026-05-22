@@ -8,6 +8,7 @@ import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { findClientIdByEmail, resolveClientIdByEmail } from "@/lib/resolveClientId";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
 
   const { data: product, error: productErr } = await admin
     .from("shop_products")
-    .select("id, studio_id, title, price, currency, stock_qty, is_active, studios(public_slug, hitpay_enabled)")
+    .select("id, studio_id, title, price, stock_qty, is_active, studios(public_slug, hitpay_enabled)")
     .eq("id", parsed.data.product_id)
     .single();
 
@@ -175,7 +176,7 @@ export async function POST(req: Request) {
   const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
 
   const amount = Number(Number(product.price).toFixed(2));
-  const currency = String(product.currency ?? "SGD").toUpperCase();
+  const currency = STUDIO_CURRENCY;
   const reference = generatePaymentReference();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 

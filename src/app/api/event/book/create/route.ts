@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
   await sweepExpiredPendingPayments(admin);
   const { data: event, error: eErr } = await admin
     .from("events")
-    .select("id, studio_id, is_active, start_time, spots_left, price, currency, external_booking_url, studios(public_slug)")
+    .select("id, studio_id, is_active, start_time, spots_left, price, external_booking_url, studios(public_slug)")
     .eq("id", parsed.data.event_id)
     .single();
 
@@ -184,7 +185,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: bookingResult?.error ?? "booking_create_failed" }, { status: 409 });
   }
 
-  const currency = String(event.currency ?? "SGD");
+  const currency = STUDIO_CURRENCY;
   const { data: payment, error: pErr } = await admin
     .from("payments")
     .insert({

@@ -7,6 +7,7 @@ import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { QuickEventBookPanel } from "@/components/QuickEventBookPanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedEventShareContext } from "@/lib/cachedSharePages";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { studioEventPath, studioEventsPath } from "@/lib/public-paths";
 import { buildEventShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
@@ -31,7 +32,7 @@ export default async function PublicEventPage({ params }: Props) {
   const ended = new Date(String(event.end_time)).getTime() < new Date().getTime();
   const coverSrc = (event as { image_url?: string | null }).image_url ?? null;
   const videoUrl = (event as { video_url?: string | null }).video_url ?? null;
-  const eventCurrency = String((event as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+  const eventCurrency = STUDIO_CURRENCY;
   const hasEventPrice = event.price != null && Number(event.price) > 0;
   const videoPreview = getVideoPreview(videoUrl ?? "");
   const sharePath = studioEventPath(studio.public_slug ?? rawStudio, event.share_slug ?? rawEvent);

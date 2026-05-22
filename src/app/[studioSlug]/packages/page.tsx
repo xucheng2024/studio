@@ -5,6 +5,7 @@ import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioPackagePath, studioPackagesPath } from "@/lib/public-paths";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -53,7 +54,7 @@ export default async function PublicPackagesPage({ params }: Props) {
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {(packages ?? []).map((pkg) => {
           const href = pkg.share_slug ? studioPackagePath(studio.public_slug, pkg.share_slug) : null;
-          const currency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+          const currency = STUDIO_CURRENCY;
           return (
             <article key={pkg.id} className={`${ui.card} flex flex-col`}>
               <div className="flex flex-1 flex-col">

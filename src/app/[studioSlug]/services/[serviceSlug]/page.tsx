@@ -6,6 +6,7 @@ import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedServiceShareContext } from "@/lib/cachedSharePages";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { studioServicePath, studioServicesPath } from "@/lib/public-paths";
 import { buildServiceShareMetadata } from "@/lib/publicShareOg";
 import { studioWhatsappLink } from "@/lib/publicStudio";
@@ -81,7 +82,7 @@ export default async function PublicServicePage({ params }: Props) {
         <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
         {service.price != null && Number(service.price) > 0 ? (
           <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-            {service.currency} {Number(service.price).toFixed(2)}
+            {STUDIO_CURRENCY} {Number(service.price).toFixed(2)}
           </p>
         ) : null}
         {Array.isArray(service.tags) && service.tags.length > 0 ? (

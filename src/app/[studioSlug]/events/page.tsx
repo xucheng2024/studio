@@ -7,6 +7,7 @@ import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { buildStudioListMetadata } from "@/lib/publicListMetadata";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioEventPath, studioEventsPath, studioHomePath } from "@/lib/public-paths";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -27,7 +28,6 @@ type EventItem = {
   capacity: number | null;
   spots_left: number | null;
   price: number | null;
-  currency: string | null;
   share_slug: string | null;
   image_url: string | null;
   video_url: string | null;
@@ -81,7 +81,7 @@ function EventCard({
             )}
             {event.price != null && Number(event.price) > 0 ? (
               <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                {String(event.currency ?? "SGD")} {Number(event.price).toFixed(2)}
+                {STUDIO_CURRENCY} {Number(event.price).toFixed(2)}
               </span>
             ) : null}
           </div>
@@ -128,14 +128,14 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
   const [{ data: upcoming }, { data: ended }] = await Promise.all([
     admin
       .from("events")
-      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, share_slug, image_url, video_url")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .gte("end_time", nowIso)
       .order("start_time", { ascending: true }),
     admin
       .from("events")
-      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, share_slug, image_url, video_url")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .lt("end_time", nowIso)

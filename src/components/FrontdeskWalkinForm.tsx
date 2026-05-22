@@ -187,7 +187,7 @@ export function FrontdeskWalkinForm({
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Amount</span>
+          <span className={ui.label}>Amount (SGD)</span>
           <input
             name="amount"
             type="number"

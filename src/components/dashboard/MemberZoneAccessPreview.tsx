@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { ui } from "@/lib/ui";
 
 type AccessTypeV2 = "free" | "paid_only" | "member_only" | "member_or_paid";
@@ -20,34 +21,31 @@ function readPriceValue(form: HTMLFormElement, name: string, fallback: number): 
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function formatMoney(currency: string, price: number) {
-  const safeCurrency = (currency || "SGD").toUpperCase();
+function formatMoney(price: number) {
   const safePrice = Number.isFinite(price) ? price : 0;
-  return `${safeCurrency} ${safePrice.toFixed(2)}`;
+  return `${STUDIO_CURRENCY} ${safePrice.toFixed(2)}`;
 }
 
-function seriesBadge(accessType: AccessTypeV2, currency: string, price: number) {
+function seriesBadge(accessType: AccessTypeV2, price: number) {
   if (accessType === "free") return "Free";
   if (accessType === "member_only") return "Members only";
-  if (accessType === "paid_only") return `Paid only · ${formatMoney(currency, price)}`;
-  return `Member or paid · ${formatMoney(currency, price)}`;
+  if (accessType === "paid_only") return `Paid only · ${formatMoney(price)}`;
+  return `Member or paid · ${formatMoney(price)}`;
 }
 
-function seriesCta(accessType: AccessTypeV2, currency: string, price: number) {
+function seriesCta(accessType: AccessTypeV2, price: number) {
   if (accessType === "free") return "Watch free";
   if (accessType === "member_only") return "Subscribe to unlock";
-  if (accessType === "paid_only") return `Buy only · ${formatMoney(currency, price)}`;
-  return `Buy or subscribe · ${formatMoney(currency, price)}`;
+  if (accessType === "paid_only") return `Buy only · ${formatMoney(price)}`;
+  return `Buy or subscribe · ${formatMoney(price)}`;
 }
 
 export function SeriesAccessPreview(props: {
   initialAccessType: AccessTypeV2;
-  initialCurrency: string;
   initialPrice: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [accessType, setAccessType] = useState<AccessTypeV2>(props.initialAccessType);
-  const [currency, setCurrency] = useState(props.initialCurrency || "SGD");
   const [price, setPrice] = useState(props.initialPrice ?? 0);
 
   useEffect(() => {
@@ -56,10 +54,8 @@ export function SeriesAccessPreview(props: {
 
     const syncFromForm = () => {
       const nextAccessType = readFieldValue(form, "access_type", props.initialAccessType) as AccessTypeV2;
-      const nextCurrency = readFieldValue(form, "currency", props.initialCurrency || "SGD");
       const nextPrice = readPriceValue(form, "price", props.initialPrice ?? 0);
       setAccessType(nextAccessType);
-      setCurrency(nextCurrency);
       setPrice(nextPrice);
     };
 
@@ -70,10 +66,10 @@ export function SeriesAccessPreview(props: {
       form.removeEventListener("input", syncFromForm);
       form.removeEventListener("change", syncFromForm);
     };
-  }, [props.initialAccessType, props.initialCurrency, props.initialPrice]);
+  }, [props.initialAccessType, props.initialPrice]);
 
-  const badge = useMemo(() => seriesBadge(accessType, currency, price), [accessType, currency, price]);
-  const cta = useMemo(() => seriesCta(accessType, currency, price), [accessType, currency, price]);
+  const badge = useMemo(() => seriesBadge(accessType, price), [accessType, price]);
+  const cta = useMemo(() => seriesCta(accessType, price), [accessType, price]);
 
   return (
     <div ref={containerRef} className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-700 dark:bg-stone-900/40">
@@ -88,19 +84,15 @@ export function SeriesAccessPreview(props: {
 
 export function LessonAccessPreview(props: {
   initialSeriesAccessType: AccessTypeV2;
-  initialSeriesCurrency: string;
   initialSeriesPrice: number;
   initialOverride: LessonOverride;
-  initialOverrideCurrency: string;
   initialOverridePrice: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [seriesAccessType, setSeriesAccessType] = useState<AccessTypeV2>(props.initialSeriesAccessType);
-  const [seriesCurrency, setSeriesCurrency] = useState(props.initialSeriesCurrency || "SGD");
   const [seriesPrice, setSeriesPrice] = useState(props.initialSeriesPrice ?? 0);
 
   const [override, setOverride] = useState<LessonOverride>(props.initialOverride);
-  const [overrideCurrency, setOverrideCurrency] = useState(props.initialOverrideCurrency || "SGD");
   const [overridePrice, setOverridePrice] = useState(props.initialOverridePrice ?? 0);
 
   useEffect(() => {
@@ -108,18 +100,10 @@ export function LessonAccessPreview(props: {
     if (!form) return;
 
     const syncFromForm = () => {
-      const nextSeriesAccessType = readFieldValue(form, "access_type", props.initialSeriesAccessType) as AccessTypeV2;
-      const nextSeriesCurrency = readFieldValue(form, "series_currency", props.initialSeriesCurrency || "SGD");
-      const nextSeriesPrice = readPriceValue(form, "series_price", props.initialSeriesPrice ?? 0);
       const nextOverride = readFieldValue(form, "access_override", props.initialOverride) as LessonOverride;
-      const nextOverrideCurrency = readFieldValue(form, "currency", props.initialOverrideCurrency || "SGD");
       const nextOverridePrice = readPriceValue(form, "override_price", props.initialOverridePrice ?? 0);
 
-      setSeriesAccessType(nextSeriesAccessType);
-      setSeriesCurrency(nextSeriesCurrency);
-      setSeriesPrice(nextSeriesPrice);
       setOverride(nextOverride);
-      setOverrideCurrency(nextOverrideCurrency);
       setOverridePrice(nextOverridePrice);
     };
 
@@ -130,22 +114,14 @@ export function LessonAccessPreview(props: {
       form.removeEventListener("input", syncFromForm);
       form.removeEventListener("change", syncFromForm);
     };
-  }, [
-    props.initialSeriesAccessType,
-    props.initialSeriesCurrency,
-    props.initialSeriesPrice,
-    props.initialOverride,
-    props.initialOverrideCurrency,
-    props.initialOverridePrice,
-  ]);
+  }, [props.initialOverride, props.initialOverridePrice]);
 
   const resolvedAccessType: AccessTypeV2 =
     override === "inherit" ? seriesAccessType : override;
   const overrideIsPaid = override === "paid_only" || override === "member_or_paid";
-  const resolvedCurrency = overrideIsPaid ? overrideCurrency : seriesCurrency;
   const resolvedPrice = overrideIsPaid ? overridePrice : seriesPrice;
-  const badge = seriesBadge(resolvedAccessType, resolvedCurrency, resolvedPrice);
-  const cta = seriesCta(resolvedAccessType, resolvedCurrency, resolvedPrice);
+  const badge = seriesBadge(resolvedAccessType, resolvedPrice);
+  const cta = seriesCta(resolvedAccessType, resolvedPrice);
   const hint =
     override === "inherit" ? `Inherits series access (${badge})` : `Lesson override (${badge})`;
 

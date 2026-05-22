@@ -192,7 +192,7 @@ export function PackageLifecycleRow({
               <input className={ui.input} type="number" min={1} value={credits} onChange={(e) => setCredits(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className={ui.label}>Price</span>
+              <span className={ui.label}>Price (SGD)</span>
               <input className={ui.input} type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">

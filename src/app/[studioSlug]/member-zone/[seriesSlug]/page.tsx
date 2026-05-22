@@ -4,6 +4,7 @@ import { PublicVideoCover } from "@/components/PublicVideoCover";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { MemberZoneUnlockPanel } from "@/components/MemberZoneUnlockPanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import {
@@ -85,7 +86,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
 
   const { data: series } = await admin
     .from("member_zone_series")
-    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, is_active")
+    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, share_slug, is_active")
     .eq("studio_id", studio.id)
     .eq("share_slug", seriesSlug)
     .eq("is_active", true)
@@ -95,7 +96,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
 
   const { data: lessonRows } = await admin
     .from("member_zone_lessons")
-    .select("id, title, summary, description, media_url, media_type, duration_min, access_override, override_price, currency, sort_order, is_active")
+    .select("id, title, summary, description, media_url, media_type, duration_min, access_override, override_price, sort_order, is_active")
     .eq("series_id", seriesData.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -121,7 +122,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
   const lessons = lessonRows ?? [];
   const hasSeriesPrice = seriesData.price != null && Number(seriesData.price) > 0;
   const seriesPriceLabel = hasSeriesPrice
-    ? `${String(seriesData.currency ?? "SGD").toUpperCase()} ${Number(seriesData.price).toFixed(2)}`
+    ? `${STUDIO_CURRENCY} ${Number(seriesData.price).toFixed(2)}`
     : undefined;
   const seriesBadge = accessTypeBadgeLabel(
     normalizeMemberZoneAccessType(seriesData.access_type),
@@ -154,14 +155,12 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
     }
   }
 
-  function resolveAccess(lesson: { id: string; access_override: string | null; override_price: number | null; currency: string | null }): MemberZoneAccessResult {
+  function resolveAccess(lesson: { id: string; access_override: string | null; override_price: number | null }): MemberZoneAccessResult {
     const { resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope } = resolveMemberZoneAccessRule({
       seriesAccessType: seriesData.access_type,
       seriesPrice: Number(seriesData.price ?? 0),
-      seriesCurrency: seriesData.currency ?? "SGD",
       lessonAccessOverride: lesson.access_override,
       lessonOverridePrice: Number(lesson.override_price ?? 0),
-      lessonCurrency: lesson.currency ?? "SGD",
     });
     if (resolvedAccessType === "free") {
       return { canPlay: true, reason: "free", resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };

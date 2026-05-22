@@ -10,6 +10,8 @@ Studio is a booking and operations app for gyms and class-based studios. It incl
 - API routes for booking, package usage, payment confirmation, check-in, frontdesk walk-in, exports, and invoice sending
 - HitPay webhook endpoint (`/api/payment/hitpay/webhook`)
 
+All studio catalog pricing and HitPay charges are **SGD only**.
+
 ## Tech stack
 
 - Next.js 16 (App Router)

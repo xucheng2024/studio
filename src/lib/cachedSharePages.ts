@@ -82,7 +82,7 @@ export const getCachedMembershipShareContext = cache(async (studioSlugRaw: strin
 
   const { data: membership } = await supabase
     .from("membership_products")
-    .select("id, name, description, price, currency, billing_interval, trial_days, share_slug, is_active")
+    .select("id, name, description, price, billing_interval, trial_days, share_slug, is_active")
     .eq("studio_id", studio.id)
     .eq("share_slug", membershipSlug)
     .eq("is_active", true)
@@ -108,7 +108,7 @@ export const getCachedServiceShareContext = cache(async (studioSlugRaw: string, 
 
   const { data: service } = await supabase
     .from("studio_services")
-    .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, is_active")
+    .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, is_active")
     .eq("studio_id", studio.id)
     .eq("share_slug", serviceSlug)
     .eq("is_active", true)
@@ -134,7 +134,7 @@ export const getCachedEventShareContext = cache(async (studioSlugRaw: string, ev
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, currency, image_url, video_url, share_slug, is_active, address, address_details, location_id, locations ( name, address ), external_booking_url",
+      "id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, image_url, video_url, share_slug, is_active, address, address_details, location_id, locations ( name, address ), external_booking_url",
     )
     .eq("studio_id", studio.id)
     .eq("share_slug", eventSlug)
@@ -160,7 +160,7 @@ export const getCachedMemberZoneShareContext = cache(async (studioSlugRaw: strin
 
   const { data: series } = await supabase
     .from("member_zone_series")
-    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, is_active")
+    .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, share_slug, is_active")
     .eq("studio_id", studio.id)
     .eq("share_slug", seriesSlug)
     .eq("is_active", true)

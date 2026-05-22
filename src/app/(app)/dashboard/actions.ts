@@ -13,6 +13,7 @@ import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { parseDatetimeLocalAsSgt } from "@/lib/date";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -370,8 +371,7 @@ export async function createStudioService(formData: FormData): Promise<void> {
   const summary = String(formData.get("summary") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   const price = sanitizePriceNullable(formData.get("price"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("video_url") ?? "");
   const video_url = sanitizeVideoUrl(rawVideo);
@@ -418,8 +418,7 @@ export async function updateStudioService(formData: FormData): Promise<void> {
   const summary = String(formData.get("summary") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   const price = sanitizePriceNullable(formData.get("price"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("video_url") ?? "");
   const video_url = sanitizeVideoUrl(rawVideo);
@@ -904,7 +903,7 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
     name,
     description,
     price,
-    currency: "SGD",
+    currency: STUDIO_CURRENCY,
     billing_interval,
     is_active: true,
     share_slug,
@@ -956,7 +955,7 @@ export async function createEvent(formData: FormData): Promise<void> {
   const endRaw = String(formData.get("end_time") ?? "");
   const capacity = Number(formData.get("capacity") ?? 0);
   const price = sanitizePriceNullable(formData.get("price"));
-  const currency = "SGD";
+  const currency = STUDIO_CURRENCY;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
   const external_booking_url = sanitizeEventExternalBookingUrl(String(formData.get("external_booking_url") ?? ""));
@@ -1138,8 +1137,7 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
       ? accessTypeRaw
       : "member_only";
   const price = sanitizePriceNullable(formData.get("price"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const share_slug = await generateUniqueMemberZoneSeriesShareSlug(supabase, studio.id);
   if (!share_slug) return;
@@ -1187,8 +1185,7 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
       ? accessTypeRaw
       : "member_only";
   const price = sanitizePriceNullable(formData.get("price"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
 
@@ -1269,8 +1266,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
       ? accessOverrideRaw
       : "inherit";
   const override_price = sanitizePriceNullable(formData.get("override_price"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
 
   const { error } = await supabase.from("member_zone_lessons").insert({
@@ -1326,8 +1322,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
       ? accessOverrideRaw
       : "inherit";
   const override_price = sanitizePriceNullable(formData.get("override_price"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
 
@@ -1778,8 +1773,7 @@ export async function createShopProduct(formData: FormData): Promise<void> {
   const description = String(formData.get("description") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const image_urls = parseImageUrlsField(formData.get("image_urls"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const share_slug = await generateUniqueShopProductShareSlug(supabase, studio.id);
@@ -1824,8 +1818,7 @@ export async function updateShopProduct(formData: FormData): Promise<void> {
   const description = String(formData.get("description") ?? "").trim() || null;
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const image_urls = parseImageUrlsField(formData.get("image_urls"));
-  const currency = String(formData.get("currency") ?? "SGD").trim().toUpperCase() || "SGD";
-  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const currency = STUDIO_CURRENCY;
   const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";

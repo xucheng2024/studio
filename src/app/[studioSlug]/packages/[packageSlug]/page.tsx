@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { studioPackagesPath } from "@/lib/public-paths";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
@@ -25,7 +26,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   const loc = pkg.locations as { name?: string } | { name?: string }[] | null;
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
-  const packageCurrency = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+  const packageCurrency = STUDIO_CURRENCY;
 
   return (
     <main className={ui.page}>

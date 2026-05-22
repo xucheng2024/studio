@@ -62,7 +62,7 @@ export function SessionEditPanel({
           <input className={ui.input} type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className={ui.label}>Guest price</span>
+          <span className={ui.label}>Guest price (SGD)</span>
           <input className={ui.input} type="number" min={0} step="0.01" value={guestPrice} onChange={(e) => setGuestPrice(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1">

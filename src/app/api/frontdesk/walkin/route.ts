@@ -6,6 +6,7 @@ import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -110,7 +111,7 @@ async function handleSessionWalkin(
       studio_id: studioId,
       location_id: session.location_id ?? null,
       amount: data.amount,
-      currency: "SGD",
+      currency: STUDIO_CURRENCY,
       type: "single",
       source: "walkin",
       status: "paid",
@@ -180,7 +181,7 @@ async function handleEventWalkin(
 ) {
   const { data: event } = await admin
     .from("events")
-    .select("id, studio_id, location_id, spots_left, currency, is_active, external_booking_url")
+    .select("id, studio_id, location_id, spots_left, is_active, external_booking_url")
     .eq("id", data.target_id)
     .maybeSingle();
   if (!event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
@@ -224,7 +225,7 @@ async function handleEventWalkin(
     .single();
   if (bErr || !booking) return NextResponse.json({ error: bErr?.message ?? "booking_create_failed" }, { status: 500 });
 
-  const currency = String(event.currency ?? "SGD");
+  const currency = STUDIO_CURRENCY;
   const { data: payment, error: pErr } = await admin
     .from("payments")
     .insert({

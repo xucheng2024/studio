@@ -1,12 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 
 type Props = {
   href: string;
   title: string;
   imageUrl: string | null;
   price: number;
-  currency: string;
   summary?: string | null;
   outOfStock?: boolean;
   priority?: boolean;
@@ -19,14 +19,11 @@ export function ShopProductCard({
   title,
   imageUrl,
   price,
-  currency,
   summary,
   outOfStock = false,
   priority = false,
   sizes = "(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 280px",
 }: Props) {
-  const currencyLabel = currency.toUpperCase();
-
   return (
     <Link
       href={href}
@@ -53,7 +50,7 @@ export function ShopProductCard({
       <div className="flex flex-col gap-0.5 p-2">
         <p className="line-clamp-2 text-xs leading-snug text-stone-800 dark:text-stone-100">{title}</p>
         <p className="text-sm font-bold tabular-nums text-teal-700 dark:text-teal-400">
-          {currencyLabel} {price.toFixed(2)}
+          {STUDIO_CURRENCY} {price.toFixed(2)}
         </p>
         {summary ? (
           <p className="line-clamp-1 text-[11px] leading-tight text-stone-500 dark:text-stone-400">{summary}</p>

@@ -9,6 +9,7 @@ import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
   const [{ data: membership, error: membershipErr }, { data: account }, { data: profile }] = await Promise.all([
     admin
       .from("membership_products")
-      .select("id, studio_id, location_id, name, description, price, currency, billing_interval, trial_days, is_active, deleted_at, share_slug")
+      .select("id, studio_id, location_id, name, description, price, billing_interval, trial_days, is_active, deleted_at, share_slug")
       .eq("id", parsed.data.membership_id)
       .maybeSingle(),
     user ? admin.from("users").select("id, email").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null }),
@@ -209,7 +210,7 @@ export async function POST(req: Request) {
       startDate,
       name: membership.name,
       amount: Number(membership.price ?? 0),
-      currency: String(membership.currency ?? "SGD"),
+      currency: STUDIO_CURRENCY,
       cycle: membership.billing_interval === "yearly" ? "yearly" : "monthly",
       redirectUrl,
       reference,

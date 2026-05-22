@@ -91,7 +91,7 @@ export default async function PackagesPage({ searchParams }: Props) {
                 <input name="credits" type="number" min={1} defaultValue={10} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Price</span>
+                <span className={ui.label}>Price (SGD)</span>
                 <input name="price" type="number" min={0} step="0.01" defaultValue={120} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">

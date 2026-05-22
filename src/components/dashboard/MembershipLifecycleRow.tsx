@@ -182,7 +182,7 @@ export function MembershipLifecycleRow({
               <textarea className={ui.input} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className={ui.label}>Price</span>
+              <span className={ui.label}>Price (SGD)</span>
               <input className={ui.input} type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">

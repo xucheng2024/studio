@@ -53,7 +53,7 @@ async function buildPublicStudioLandingData(slug: string) {
   ] = await Promise.all([
     admin
       .from("studio_services")
-      .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, share_slug, sort_order")
+      .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, sort_order")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
@@ -76,14 +76,14 @@ async function buildPublicStudioLandingData(slug: string) {
       .order("price", { ascending: true }),
     admin
       .from("membership_products")
-      .select("id, name, description, price, currency, billing_interval, trial_days, share_slug")
+      .select("id, name, description, price, billing_interval, trial_days, share_slug")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     admin
       .from("events")
-      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, share_slug, image_url, video_url, is_active")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .gte("end_time", nowIso)
@@ -91,7 +91,7 @@ async function buildPublicStudioLandingData(slug: string) {
       .limit(12),
     admin
       .from("events")
-      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, currency, share_slug, image_url, video_url, is_active")
+      .select("id, title, description, tags, start_time, end_time, capacity, spots_left, price, share_slug, image_url, video_url, is_active")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .lt("end_time", nowIso)
@@ -99,14 +99,14 @@ async function buildPublicStudioLandingData(slug: string) {
       .limit(6),
     admin
       .from("member_zone_series")
-      .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, currency, share_slug, sort_order")
+      .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, share_slug, sort_order")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
     admin
       .from("shop_products")
-      .select("id, title, summary, image_url, price, currency, share_slug, stock_qty, sort_order")
+      .select("id, title, summary, image_url, price, share_slug, stock_qty, sort_order")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })

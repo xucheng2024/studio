@@ -6,6 +6,7 @@ import { SyncHitpayMembershipButton } from "@/components/SyncHitpayMembershipBut
 import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { getMembershipDisplayStatus, isMembershipActiveForAccess, isMembershipEnded } from "@/lib/membership-subscription";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -54,14 +55,14 @@ export default async function MyMembershipsPage() {
   const { data: allProducts } = activeStudio?.id
     ? await supabase
         .from("membership_products")
-        .select("id, name, description, price, currency, billing_interval, share_slug, trial_days, studio_id, studios!inner(name, public_slug)")
+        .select("id, name, description, price, billing_interval, share_slug, trial_days, studio_id, studios!inner(name, public_slug)")
         .eq("studio_id", activeStudio.id)
         .eq("is_active", true)
         .is("deleted_at", null)
         .order("price", { ascending: true })
     : await supabase
         .from("membership_products")
-        .select("id, name, description, price, currency, billing_interval, share_slug, trial_days, studio_id, studios!inner(name, public_slug)")
+        .select("id, name, description, price, billing_interval, share_slug, trial_days, studio_id, studios!inner(name, public_slug)")
         .eq("is_active", true)
         .is("deleted_at", null)
         .order("price", { ascending: true });
@@ -199,7 +200,7 @@ export default async function MyMembershipsPage() {
                 const shareSlug = String((m as { share_slug?: string | null }).share_slug ?? "");
                 const trialDays = Number((m as { trial_days?: number | null }).trial_days ?? 0);
                 const intervalLabel = (m as { billing_interval?: string | null }).billing_interval === "yearly" ? "Yearly" : "Monthly";
-                const ccy = String((m as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+                const ccy = STUDIO_CURRENCY;
                 return (
                   <li key={m.id} className={ui.card}>
                     <div className="flex flex-wrap items-start justify-between gap-3">

@@ -38,7 +38,7 @@ export default async function PublicShopPage({ params }: Props) {
 
   const { data: products } = await admin
     .from("shop_products")
-    .select("id, title, summary, image_url, price, currency, share_slug, stock_qty")
+    .select("id, title, summary, image_url, price, share_slug, stock_qty")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -59,7 +59,6 @@ export default async function PublicShopPage({ params }: Props) {
             title={product.title}
             imageUrl={product.image_url}
             price={Number(product.price)}
-            currency={String(product.currency ?? "SGD")}
             summary={product.summary}
             outOfStock={product.stock_qty != null && Number(product.stock_qty) < 1}
             priority={idx < 2}

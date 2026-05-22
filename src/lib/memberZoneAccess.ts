@@ -1,3 +1,4 @@
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -42,10 +43,10 @@ export function normalizeMemberZoneLessonOverride(
 export function resolveMemberZoneAccessRule(input: {
   seriesAccessType: string | null | undefined;
   seriesPrice: number | null | undefined;
-  seriesCurrency: string | null | undefined;
+  seriesCurrency?: string | null | undefined;
   lessonAccessOverride: string | null | undefined;
   lessonOverridePrice: number | null | undefined;
-  lessonCurrency: string | null | undefined;
+  lessonCurrency?: string | null | undefined;
 }) {
   const override = normalizeMemberZoneLessonOverride(input.lessonAccessOverride);
   const baseType = normalizeMemberZoneAccessType(input.seriesAccessType);
@@ -61,9 +62,7 @@ export function resolveMemberZoneAccessRule(input: {
           ),
         )
       : 0;
-  const resolvedCurrency = String(
-    (override !== "inherit" && isPurchaseEnabledAccessType(override) ? input.lessonCurrency : input.seriesCurrency) ?? "SGD",
-  ).toUpperCase();
+  const resolvedCurrency = STUDIO_CURRENCY;
   const purchaseScope: Scope =
     override !== "inherit" && isPurchaseEnabledAccessType(override) ? "lesson" : "series";
   return { resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope };
@@ -78,10 +77,10 @@ export async function resolveMemberZonePlaybackAccess(
     lessonId: string;
     seriesAccessType: string | null | undefined;
     seriesPrice: number | null | undefined;
-    seriesCurrency: string | null | undefined;
+    seriesCurrency?: string | null | undefined;
     lessonAccessOverride: string | null | undefined;
     lessonOverridePrice: number | null | undefined;
-    lessonCurrency: string | null | undefined;
+    lessonCurrency?: string | null | undefined;
   },
 ): Promise<MemberZoneAccessResult> {
   const { resolvedAccessType, resolvedPrice, resolvedCurrency, purchaseScope } =

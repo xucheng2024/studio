@@ -47,7 +47,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
     supabase.from("studios").select("id, name, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("studio_services")
-      .select("id, title, summary, description, price, currency, cover_image_url, video_url, tags, is_active, sort_order")
+      .select("id, title, summary, description, price, cover_image_url, video_url, tags, is_active, sort_order")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -82,12 +82,8 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
             <input name="summary" className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Price</span>
+            <span className={ui.label}>Price (SGD)</span>
             <input name="price" type="number" min="0" step="0.01" className={ui.input} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Currency</span>
-            <input name="currency" defaultValue="SGD" className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Sort order</span>
@@ -157,7 +153,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                     <p className={`mt-0.5 text-xs ${ui.muted}`}>
                       {svc.price != null && Number(svc.price) > 0 ? (
                         <>
-                          {svc.currency ?? "SGD"} {Number(svc.price).toFixed(2)}
+                          SGD {Number(svc.price).toFixed(2)}
                         </>
                       ) : null}
                       {svc.summary ? ` · ${svc.summary}` : ""}
@@ -206,12 +202,8 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   <input name="summary" defaultValue={svc.summary ?? ""} className={ui.input} />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Price</span>
+                  <span className={ui.label}>Price (SGD)</span>
                   <input name="price" type="number" min="0" step="0.01" defaultValue={svc.price != null && Number(svc.price) > 0 ? Number(svc.price) : ""} className={ui.input} />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Currency</span>
-                  <input name="currency" defaultValue={svc.currency ?? "SGD"} className={ui.input} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Sort order</span>

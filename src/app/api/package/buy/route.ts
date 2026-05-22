@@ -7,6 +7,7 @@ import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -128,7 +129,7 @@ export async function POST(req: Request) {
       gift_recipient_email: isGift ? giftRecipientEmail : null,
       gift_message: isGift ? giftMessage : null,
       amount: pkg.price,
-      currency: "SGD",
+      currency: STUDIO_CURRENCY,
       payment_method: "hitpay",
       source: "package_buy",
       reference_code: reference,
@@ -153,7 +154,7 @@ export async function POST(req: Request) {
     const hitpay = await createHitpayPaymentRequest({
       apiKey: merchantApiKey,
       amount: Number(pkg.price).toFixed(2),
-      currency: "SGD",
+      currency: STUDIO_CURRENCY,
       email: guestEmail ?? user?.email ?? null,
       name: guestName ?? null,
       reference_number: reference,

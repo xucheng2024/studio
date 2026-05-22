@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { studioPackagePath, studioPackagesPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -190,7 +191,7 @@ export default async function MyClassPassesPage({ params }: Props) {
           ) : (
             <ul className="flex flex-col gap-3">
               {packagesList.map((pkg) => {
-                const ccy = String((pkg as { currency?: string | null }).currency ?? "SGD").toUpperCase();
+                const ccy = STUDIO_CURRENCY;
                 const href = pkg.share_slug
                   ? studioPackagePath(studioSlug, pkg.share_slug)
                   : studioPackagesPath(studioSlug);
