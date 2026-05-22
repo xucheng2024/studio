@@ -1,0 +1,87 @@
+# Restore old_project.dump into a Supabase database (one-off).
+#
+# Prerequisite: a successful "Supabase DB dump (one-off)" run with artifact.
+#
+# Setup: Settings → Secrets → Actions
+#   SUPABASE_TARGET_DB_URL — TARGET database Session pooler URI (port 5432), ends with /postgres
+#   (use a NEW project URL when migrating; --clean will drop existing objects)
+#
+# Run: Actions → "Supabase DB restore (one-off)" → fill inputs → Run workflow
+#
+# source_run_id: the dump workflow run number (from the URL, e.g. .../actions/runs/12345678)
+
+name: Supabase DB restore (one-off)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Run ID of the successful dump job (number in Actions URL)"
+        required: true
+        type: string
+      confirm:
+        description: "Type RESTORE to confirm overwriting the target database"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Confirm restore
+        run: |
+          if [ "${{ inputs.confirm }}" != "RESTORE" ]; then
+            echo "::error::Confirmation failed. Type RESTORE exactly."
+            exit 1
+          fi
+
+      - name: Download dump artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: supabase-dump-${{ inputs.source_run_id }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify dump file
+        run: |
+          ls -lh
+          test -f old_project.dump || (echo "::error::old_project.dump not found in artifact" && exit 1)
+
+      - name: pg_restore via PostgreSQL 17 Docker image
+        env:
+          SUPABASE_TARGET_DB_URL: ${{ secrets.SUPABASE_TARGET_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_TARGET_DB_URL" ]; then
+            echo "::error::Missing secret SUPABASE_TARGET_DB_URL (target Session pooler URI)."
+            exit 1
+          fi
+          if echo "$SUPABASE_TARGET_DB_URL" | grep -qE '@db\.[a-z0-9]+\.supabase\.co'; then
+            echo "::error::Use Session pooler URI (port 5432), not Direct db.*.supabase.co (IPv6-only)."
+            exit 1
+          fi
+          docker run --rm \
+            -e SUPABASE_TARGET_DB_URL \
+            -e PGSSLMODE=require \
+            -v "$PWD:/backup" \
+            -w /backup \
+            postgres:17 \
+            pg_restore \
+              --dbname="$SUPABASE_TARGET_DB_URL" \
+              --no-owner \
+              --no-privileges \
+              --clean \
+              --if-exists \
+              /backup/old_project.dump
+          exit_code=$?
+          # pg_restore uses exit 1 for non-fatal warnings
+          if [ "$exit_code" -gt 1 ]; then
+            echo "::error::pg_restore failed with exit code $exit_code"
+            exit "$exit_code"
+          fi
+          echo "pg_restore finished (exit $exit_code; 1 may mean warnings only)."
