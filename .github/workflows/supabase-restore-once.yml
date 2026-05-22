@@ -1,15 +1,8 @@
 # Restore old_project.dump into a Supabase database (one-off).
 #
-# Prerequisite: successful "Supabase DB dump (one-off)" run with artifact.
+# Secrets: SUPABASE_TARGET_DB_PASSWORD — target Database password only (reset if unsure)
 #
-# Secrets (Settings → Actions):
-#   SUPABASE_TARGET_DB_PASSWORD — target DB password (Database settings / reset password)
-#
-# Run workflow inputs:
-#   target_project_ref — e.g. yjupnmbrpqeuyxgrpsrb (Dashboard → Project Settings → General)
-#   pooler_host — Session pooler host from Connect, e.g. aws-1-ap-northeast-1.pooler.supabase.com
-#   source_run_id — dump run ID (artifact supabase-dump-<id>)
-#   confirm — type RESTORE
+# Inputs: target_project_ref (yjupnmbrpqeuyxgrpsrb), pooler_host, source_run_id, confirm=RESTORE
 
 name: Supabase DB restore (one-off)
 
@@ -63,7 +56,7 @@ jobs:
           ls -lh
           test -f old_project.dump || (echo "::error::old_project.dump not found in artifact" && exit 1)
 
-      - name: pg_restore via PostgreSQL 17 Docker image
+      - name: Test database login
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_TARGET_DB_PASSWORD }}
         run: |
@@ -75,10 +68,35 @@ jobs:
           POOLER_HOST="${{ inputs.pooler_host }}"
           DB_USER="postgres.${PROJECT_REF}"
           if ! echo "$PROJECT_REF" | grep -qE '^[a-z0-9]{10,40}$'; then
-            echo "::error::Invalid target_project_ref: '$PROJECT_REF' (use Dashboard → General → Reference ID)"
+            echo "::error::Invalid target_project_ref: '$PROJECT_REF'"
             exit 1
           fi
-          echo "Connecting as user=$DB_USER host=$POOLER_HOST port=5432 database=postgres"
+          # Trim accidental newline/space from secret paste
+          PGPASSWORD="$(printf '%s' "$PGPASSWORD" | tr -d '\r\n')"
+          export PGPASSWORD
+          echo "Testing login as user=$DB_USER host=$POOLER_HOST"
+          docker run --rm \
+            -e PGPASSWORD \
+            -e PGSSLMODE=require \
+            postgres:17 \
+            psql \
+              -h "$POOLER_HOST" \
+              -p 5432 \
+              -U "$DB_USER" \
+              -d postgres \
+              -v ON_ERROR_STOP=1 \
+              -c "SELECT current_user AS connected_as, current_database() AS db;"
+
+      - name: pg_restore via PostgreSQL 17 Docker image
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_TARGET_DB_PASSWORD }}
+        run: |
+          PROJECT_REF="${{ inputs.target_project_ref }}"
+          POOLER_HOST="${{ inputs.pooler_host }}"
+          DB_USER="postgres.${PROJECT_REF}"
+          PGPASSWORD="$(printf '%s' "$PGPASSWORD" | tr -d '\r\n')"
+          export PGPASSWORD
+          echo "Restoring as user=$DB_USER host=$POOLER_HOST"
           docker run --rm \
             -e PGPASSWORD \
             -e PGSSLMODE=require \
@@ -86,10 +104,10 @@ jobs:
             -w /backup \
             postgres:17 \
             pg_restore \
-              --host="$POOLER_HOST" \
-              --port=5432 \
-              --username="$DB_USER" \
-              --dbname=postgres \
+              -h "$POOLER_HOST" \
+              -p 5432 \
+              -U "$DB_USER" \
+              -d postgres \
               --no-owner \
               --no-privileges \
               --clean \
