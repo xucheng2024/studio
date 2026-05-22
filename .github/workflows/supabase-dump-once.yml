@@ -6,6 +6,7 @@
 # Setup: Settings → Secrets → Actions → SUPABASE_DB_URL
 #   Dashboard → Connect → Session pooler → URI (port 5432), e.g.:
 #   postgresql://postgres.<project-ref>:PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres
+#   Username must be postgres.<ref> — plain "postgres" fails auth on the pooler.
 #   (must end with /postgres — do NOT append sslmode without ?)
 #
 # Run: Actions → "Supabase DB dump (one-off)" → Run workflow (not "Re-run" on an old run).

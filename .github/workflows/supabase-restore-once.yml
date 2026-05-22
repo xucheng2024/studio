@@ -3,7 +3,8 @@
 # Prerequisite: a successful "Supabase DB dump (one-off)" run with artifact.
 #
 # Setup: Settings → Secrets → Actions
-#   SUPABASE_TARGET_DB_URL — TARGET database Session pooler URI (port 5432), ends with /postgres
+#   SUPABASE_TARGET_DB_URL — TARGET Session pooler URI (port 5432), ends with /postgres
+#   User MUST be postgres.<project-ref> (not plain postgres), e.g. postgres.csdqroyzvptpnvlmjrrb
 #   (use a NEW project URL when migrating; --clean will drop existing objects)
 #
 # Run: Actions → "Supabase DB restore (one-off)" → fill inputs → Run workflow
@@ -64,6 +65,13 @@ jobs:
           if echo "$SUPABASE_TARGET_DB_URL" | grep -qE '@db\.[a-z0-9]+\.supabase\.co'; then
             echo "::error::Use Session pooler URI (port 5432), not Direct db.*.supabase.co (IPv6-only)."
             exit 1
+          fi
+          if echo "$SUPABASE_TARGET_DB_URL" | grep -qE '@aws-[0-9]+-[^/]+\.pooler\.supabase\.com'; then
+            if ! echo "$SUPABASE_TARGET_DB_URL" | grep -qE 'postgresql://postgres\.[a-z0-9]+:'; then
+              echo "::error::Session pooler username must be postgres.<project-ref>, not postgres."
+              echo "Copy the full URI from Dashboard → Connect → Session pooler."
+              exit 1
+            fi
           fi
           docker run --rm \
             -e SUPABASE_TARGET_DB_URL \
