@@ -9,7 +9,6 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverUrlField, StudioProfileMediaFields } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -39,12 +38,16 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
-  const role = bestRole(ctx);
-  if (!["owner", "manager"].includes(role)) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
-  }
   const studioId = selectedStudioId ?? studioIds[0] ?? null;
   if (!studioId) return <p className={ui.muted}>Create a studio first.</p>;
+  const canManageStudio =
+    ctx.isSuperAdmin
+    || ctx.memberships.some(
+      (m) => m.studio_id === studioId && (m.role === "owner" || m.role === "manager"),
+    );
+  if (!canManageStudio) {
+    return <p className={ui.muted}>You do not have access to this page.</p>;
+  }
 
   const { data: studio } = await supabase
     .from("studios")
@@ -101,7 +104,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         <input type="hidden" name="studio_id" value={studio.id} />
         <div>
           <h2 className={ui.h2}>Custom domain</h2>
-          <p className={`text-xs ${ui.muted} mt-0.5`}>Serve your public studio page on your own domain. The visitor's address bar will show your domain.</p>
+          <p className={`text-xs ${ui.muted} mt-0.5`}>Serve your public studio page on your own domain. The visitor&apos;s address bar will show your domain.</p>
         </div>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Domain</span>

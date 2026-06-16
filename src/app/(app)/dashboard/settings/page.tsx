@@ -3,7 +3,6 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { toLocalDateTimeInputValue } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -73,13 +72,22 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
   });
-  const role = bestRole(ctx);
-  if (!["owner", "manager"].includes(role) && !isSuperAdmin) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
-  }
   if (studioIds.length === 0 && !isSuperAdmin) return <p className={ui.muted}>Create a studio first.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
+  }
+  const studioId = selectedStudioId ?? studioIds[0] ?? null;
+  const canManageStudio =
+    isSuperAdmin
+    || (studioId != null
+      && ctx.memberships.some(
+        (m) => m.studio_id === studioId && (m.role === "owner" || m.role === "manager"),
+      ));
+  const isStudioOwner =
+    studioId != null
+    && ctx.memberships.some((m) => m.studio_id === studioId && m.role === "owner");
+  if (!canManageStudio) {
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
   const contractStudioId = isSuperAdmin ? (sp.studio_id ?? selectedStudioId) : null;
@@ -121,7 +129,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           title="Payment settings"
           desc="HitPay platform status, sub-merchant credentials, and webhook configuration"
         />
-        {role === "owner" ? (
+        {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
             href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId, selectedLocationId)}
@@ -137,7 +145,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           title="Locations"
           desc="Add or edit studio locations and addresses"
         />
-        {role === "owner" ? (
+        {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
             href={scopedHref("/dashboard/settings/faqs", selectedStudioId, selectedLocationId)}
@@ -188,7 +196,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           </SubmitButton>
         </form>
       ) : null}
-      {role !== "owner" ? (
+      {!isSuperAdmin && !isStudioOwner ? (
         <p className={`text-sm ${ui.muted}`}>
           Manager view: owner-only settings may be visible as read-only depending on page rules.
         </p>

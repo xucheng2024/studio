@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getAppOriginForOg } from "@/lib/coverMedia";
+import { getRequestOriginForOg } from "@/lib/requestOrigin";
 import { getCachedClassShareContext, getCachedEventShareContext, getCachedMemberZoneShareContext, getCachedMembershipShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
 import { studioClassPath, studioEventPath, studioMemberZonePath, studioMembershipPath, studioPackagePath, studioServicePath } from "@/lib/public-paths";
 
@@ -13,8 +13,8 @@ type ShareMetadataInput = {
   imageAlt: string;
 };
 
-function withCanonical(path: string, metadata: Metadata): Metadata {
-  const origin = getAppOriginForOg();
+async function withCanonical(path: string, metadata: Metadata): Promise<Metadata> {
+  const origin = await getRequestOriginForOg();
   if (!origin) return metadata;
   return {
     ...metadata,
@@ -30,14 +30,14 @@ function shortText(value: string, max = 200) {
   return value.slice(0, max);
 }
 
-function buildShareMetadata({
+async function buildShareMetadata({
   path,
   pageTitle,
   socialTitle,
   description,
   imageUrl,
   imageAlt,
-}: ShareMetadataInput): Metadata {
+}: ShareMetadataInput): Promise<Metadata> {
   return withCanonical(path, {
     title: pageTitle,
     description,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPublicStudioShell } from "@/lib/cachedPublicStudio";
-import { absolutePlaceholderCoverUrl, getAppOriginForOg, isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import { getRequestOriginForOg } from "@/lib/requestOrigin";
 
 type BuildStudioListMetadataInput = {
   studioSlugRaw: string;
@@ -20,7 +21,7 @@ export async function buildStudioListMetadata({
 
   const pageTitle = `${title} · ${studio.name}`;
   const desc = description.trim() || `Explore ${title.toLowerCase()} at ${studio.name}.`;
-  const origin = getAppOriginForOg();
+  const origin = await getRequestOriginForOg();
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
     : absolutePlaceholderCoverUrl();

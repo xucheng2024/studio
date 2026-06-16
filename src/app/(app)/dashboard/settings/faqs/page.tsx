@@ -1,7 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { StudioFaqManager } from "@/components/dashboard/StudioFaqManager";
 import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -32,13 +31,14 @@ export default async function StudioFaqSettingsPage({ searchParams }: Props) {
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
-  const role = bestRole(ctx);
-  if (role !== "owner") {
-    return <p className={ui.muted}>Only studio owners can manage public FAQs.</p>;
-  }
-
   const studioId = selectedStudioId ?? studioIds[0] ?? null;
   if (!studioId) return <p className={ui.muted}>Create a studio first.</p>;
+  const isStudioOwner = ctx.isSuperAdmin || ctx.memberships.some(
+    (m) => m.studio_id === studioId && m.role === "owner",
+  );
+  if (!isStudioOwner) {
+    return <p className={ui.muted}>Only studio owners can manage public FAQs.</p>;
+  }
 
   const admin = createAdminClient();
   const [{ data: studio }, { data: faqs }] = await Promise.all([

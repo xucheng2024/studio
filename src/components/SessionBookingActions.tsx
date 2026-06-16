@@ -29,12 +29,9 @@ export function SessionBookingActions({
   const router = useRouter();
   const [busyPass, setBusyPass] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
-  const [showPayForm, setShowPayForm] = useState(isSignedIn);
+  const [showGuestCheckout, setShowGuestCheckout] = useState(false);
   const [passError, setPassError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isSignedIn) setShowPayForm(true);
-  }, [isSignedIn]);
+  const showPayForm = isSignedIn || showGuestCheckout;
 
   const toFriendly = (code: string) => {
     if (code === "full") return "This class is full. Please pick another session.";
@@ -106,7 +103,7 @@ export function SessionBookingActions({
               type="button"
               disabled={!paymentReady}
               className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
-              onClick={() => setShowPayForm(true)}
+                  onClick={() => setShowGuestCheckout(true)}
             >
               <ChevronDown size={15} />
               {guestCheckoutLabel}
@@ -180,7 +177,7 @@ export function SessionBookingActions({
                 type="button"
                 disabled={!paymentReady}
                 className={`${ui.btnSecondary} w-full justify-center gap-2 disabled:opacity-50`}
-                onClick={() => setShowPayForm(true)}
+                onClick={() => setShowGuestCheckout(true)}
               >
                 <ChevronDown size={15} />
                 {guestCheckoutLabel}

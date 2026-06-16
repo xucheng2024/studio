@@ -11,7 +11,7 @@ import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getAppOriginForOg } from "@/lib/coverMedia";
+import { getRequestOriginForOg } from "@/lib/requestOrigin";
 import {
   studioClassPath,
   studioClassesPath,
@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug } = await params;
   const studio = await getPublicStudioShell(studioSlug);
   if (!studio) return { title: "Studio" };
-  const origin = getAppOriginForOg();
+  const origin = await getRequestOriginForOg();
   const intro = (studio.public_intro ?? "").trim();
   const description = intro || `Explore services at ${studio.name}.`;
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
@@ -165,7 +165,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     (studio as { calcom_embed_url?: string | null }).calcom_embed_url?.trim()
       ? (studio as { calcom_embed_url: string }).calcom_embed_url.trim()
       : null;
-  const origin = getAppOriginForOg();
+  const origin = await getRequestOriginForOg();
   const homePath = studioHomePath(studio.public_slug);
   const canonicalUrl = origin ? `${origin}${homePath}` : null;
   const jsonLd = {

@@ -973,14 +973,14 @@ async function insertRecurringRule(
   const weekdays = byWeekday.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   const targetDays = weekdays.length ? weekdays.map((w) => map[w]).filter((d) => d != null) : [];
-  const horizonEnd = new Date(startDate);
-  horizonEnd.setDate(horizonEnd.getDate() + 56);
-  const hardEnd = endDate ? new Date(endDate) : horizonEnd;
-  const end = hardEnd < horizonEnd ? hardEnd : horizonEnd;
+  const horizonEndExclusive = new Date(startDate);
+  horizonEndExclusive.setDate(horizonEndExclusive.getDate() + 56);
+  const hardEnd = endDate ? new Date(endDate) : horizonEndExclusive;
+  const end = hardEnd < horizonEndExclusive ? hardEnd : horizonEndExclusive;
 
   let count = 0;
   const d = new Date(startDate);
-  while (d <= end) {
+  while (d < end) {
     const dow = d.getDay();
     if (targetDays.length === 0 || targetDays.includes(dow)) {
       const [h, m] = startTime.split(":").map(Number);

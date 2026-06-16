@@ -10,14 +10,14 @@ import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
-import { getAppOriginForOg } from "@/lib/coverMedia";
+import { getRequestOriginForOg } from "@/lib/requestOrigin";
 import { formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
 
 type Props = { params: Promise<{ studioSlug: string; productSlug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug: rawStudio, productSlug: rawProduct } = await params;
-  const origin = getAppOriginForOg();
+  const origin = await getRequestOriginForOg();
   const studioSlug = normalizeStudioSlug(rawStudio ?? "");
   const productSlug = String(rawProduct ?? "").trim().toLowerCase();
   if (!studioSlug) return { title: "Shop" };

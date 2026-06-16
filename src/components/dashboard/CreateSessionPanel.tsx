@@ -36,11 +36,11 @@ function estimateWeeklyCount(weekdays: string, startDate: string): number {
   const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   const targetDays = days.map((d) => map[d]).filter((d) => d != null);
   const start = new Date(startDate);
-  const end = new Date(startDate);
-  end.setDate(end.getDate() + 56);
+  const endExclusive = new Date(startDate);
+  endExclusive.setDate(endExclusive.getDate() + 56);
   let count = 0;
   const d = new Date(start);
-  while (d <= end) {
+  while (d < endExclusive) {
     if (targetDays.includes(d.getDay())) count++;
     d.setDate(d.getDate() + 1);
   }
