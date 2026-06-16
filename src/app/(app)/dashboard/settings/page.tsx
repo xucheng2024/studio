@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Users, MapPin, ShieldCheck,
+  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -137,6 +137,15 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           title="Locations"
           desc="Add or edit studio locations and addresses"
         />
+        {role === "owner" ? (
+          <SettingCard
+            as={DashboardAppLink}
+            href={scopedHref("/dashboard/settings/faqs", selectedStudioId, selectedLocationId)}
+            icon={HelpCircle}
+            title="Public FAQs"
+            desc="Manage the FAQ accordion shown at the bottom of your public studio page"
+          />
+        ) : null}
         {isSuperAdmin ? (
           <SettingCard
             as={DashboardAppLink}

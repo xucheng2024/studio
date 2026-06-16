@@ -88,7 +88,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const { studioSlug } = await params;
   const data = await getPublicStudioData(studioSlug);
   if (!data) notFound();
-  const { studio, services, classes, packages, memberships, events, pastEvents, memberZoneSeries, shopProducts } = data;
+  const { studio, services, classes, packages, memberships, events, pastEvents, memberZoneSeries, shopProducts, faqs } = data;
 
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
@@ -170,6 +170,15 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     url: canonicalUrl ?? homePath,
     image: studioMediaCover ?? absolutePlaceholderCoverUrl(),
     logo: logoUrl ?? undefined,
+    sameAs: [
+      (studio as { public_instagram_url?: string | null }).public_instagram_url?.trim() || null,
+      (studio as { public_linkedin_url?: string | null }).public_linkedin_url?.trim() || null,
+      (studio as { public_facebook_url?: string | null }).public_facebook_url?.trim() || null,
+      (studio as { public_tiktok_url?: string | null }).public_tiktok_url?.trim() || null,
+      (studio as { public_youtube_url?: string | null }).public_youtube_url?.trim() || null,
+      (studio as { public_x_url?: string | null }).public_x_url?.trim() || null,
+    ].filter(Boolean),
+    email: (studio as { public_contact_email?: string | null }).public_contact_email?.trim() || undefined,
   };
   const jsonLdSafe = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
@@ -198,11 +207,18 @@ export default async function StudioPublicLandingPage({ params }: Props) {
 
       <section id="studio-intro" className="mt-4 scroll-mt-20">
         <StudioIntroSection
-          studioName={studio.name}
+          studioName={publicBrandName}
           studioMediaCover={studioMediaCover}
           embedUrl={studioVideoPreview.embedUrl}
           videoUrl={studio.public_video_url ?? null}
           intro={studio.public_intro ?? null}
+          instagramUrl={(studio as { public_instagram_url?: string | null }).public_instagram_url ?? null}
+          linkedinUrl={(studio as { public_linkedin_url?: string | null }).public_linkedin_url ?? null}
+          facebookUrl={(studio as { public_facebook_url?: string | null }).public_facebook_url ?? null}
+          tiktokUrl={(studio as { public_tiktok_url?: string | null }).public_tiktok_url ?? null}
+          youtubeUrl={(studio as { public_youtube_url?: string | null }).public_youtube_url ?? null}
+          xUrl={(studio as { public_x_url?: string | null }).public_x_url ?? null}
+          contactEmail={(studio as { public_contact_email?: string | null }).public_contact_email ?? null}
         />
       </section>
 
@@ -665,6 +681,27 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               );
             })}
           </div>        </section>
+      ) : null}
+
+      {faqs.length > 0 ? (
+        <section className="mx-auto mt-12 w-full max-w-5xl pb-4">
+          <div className="flex flex-col gap-2">
+            <h2 className={ui.h2}>FAQs</h2>
+            <p className={ui.muted}>Common questions about this studio.</p>
+          </div>
+          <div className="mt-4 flex flex-col gap-3">
+            {faqs.map((faq) => (
+              <details key={faq.id} className={`${ui.card} chevron`}>
+                <summary className="cursor-pointer list-none pr-6 text-base font-semibold text-stone-900 dark:text-stone-100">
+                  {faq.question}
+                </summary>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-700 dark:text-stone-300">
+                  {faq.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+        </section>
       ) : null}
     </main>
   );

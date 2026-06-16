@@ -226,6 +226,24 @@ function sanitizeVideoUrl(raw: string): string | null {
   }
 }
 
+function sanitizePublicExternalUrl(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function sanitizePublicEmail(raw: string): string | null {
+  const v = raw.trim().toLowerCase();
+  if (!v) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
+}
+
 function sanitizeTrustedLogoUrl(raw: string | null): string | null {
   const value = raw?.trim() || null;
   if (!value) return null;
@@ -278,12 +296,33 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const public_events_title = String(formData.get("public_events_title") ?? "").trim() || null;
   const public_member_zone_title = String(formData.get("public_member_zone_title") ?? "").trim() || null;
   const public_shop_title = String(formData.get("public_shop_title") ?? "").trim() || null;
+  const rawInstagramUrl = String(formData.get("public_instagram_url") ?? "");
+  const public_instagram_url = sanitizePublicExternalUrl(rawInstagramUrl);
+  const rawLinkedinUrl = String(formData.get("public_linkedin_url") ?? "");
+  const public_linkedin_url = sanitizePublicExternalUrl(rawLinkedinUrl);
+  const rawFacebookUrl = String(formData.get("public_facebook_url") ?? "");
+  const public_facebook_url = sanitizePublicExternalUrl(rawFacebookUrl);
+  const rawTiktokUrl = String(formData.get("public_tiktok_url") ?? "");
+  const public_tiktok_url = sanitizePublicExternalUrl(rawTiktokUrl);
+  const rawYoutubeUrl = String(formData.get("public_youtube_url") ?? "");
+  const public_youtube_url = sanitizePublicExternalUrl(rawYoutubeUrl);
+  const rawXUrl = String(formData.get("public_x_url") ?? "");
+  const public_x_url = sanitizePublicExternalUrl(rawXUrl);
+  const rawContactEmail = String(formData.get("public_contact_email") ?? "");
+  const public_contact_email = sanitizePublicEmail(rawContactEmail);
   const whatsapp_enabled = formData.get("whatsapp_enabled") === "on";
   const rawWhatsapp = String(formData.get("whatsapp_number_e164") ?? "");
   const whatsapp_number_e164 = normalizeE164(rawWhatsapp);
   const whatsapp_prefill_text = String(formData.get("whatsapp_prefill_text") ?? "").trim() || null;
 
   if (rawVideo.trim() && !public_video_url) return;
+  if (rawInstagramUrl.trim() && !public_instagram_url) return;
+  if (rawLinkedinUrl.trim() && !public_linkedin_url) return;
+  if (rawFacebookUrl.trim() && !public_facebook_url) return;
+  if (rawTiktokUrl.trim() && !public_tiktok_url) return;
+  if (rawYoutubeUrl.trim() && !public_youtube_url) return;
+  if (rawXUrl.trim() && !public_x_url) return;
+  if (rawContactEmail.trim() && !public_contact_email) return;
   if (rawWhatsapp.trim() && !whatsapp_number_e164) return;
 
   const admin = createAdminClient();
@@ -299,6 +338,13 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
       public_events_title,
       public_member_zone_title,
       public_shop_title,
+      public_instagram_url,
+      public_linkedin_url,
+      public_facebook_url,
+      public_tiktok_url,
+      public_youtube_url,
+      public_x_url,
+      public_contact_email,
       whatsapp_enabled,
       whatsapp_number_e164,
       whatsapp_prefill_text,

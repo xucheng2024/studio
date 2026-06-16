@@ -47,7 +47,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, public_instagram_url, public_linkedin_url, public_facebook_url, public_tiktok_url, public_youtube_url, public_x_url, public_contact_email, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -180,6 +180,92 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
             <span className={ui.label}>Shop section title</span>
             <input name="public_shop_title" className={ui.input} defaultValue={(studio as { public_shop_title?: string | null }).public_shop_title ?? ""} placeholder="Shop" />
           </label>
+        </div>
+
+        <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Social links</h2>
+          <p className={`mt-1 text-xs ${ui.muted}`}>
+            Shown on the public intro section only when configured.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Instagram URL</span>
+              <input
+                name="public_instagram_url"
+                type="url"
+                inputMode="url"
+                className={ui.input}
+                defaultValue={(studio as { public_instagram_url?: string | null }).public_instagram_url ?? ""}
+                placeholder="https://instagram.com/yourhandle"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>LinkedIn URL</span>
+              <input
+                name="public_linkedin_url"
+                type="url"
+                inputMode="url"
+                className={ui.input}
+                defaultValue={(studio as { public_linkedin_url?: string | null }).public_linkedin_url ?? ""}
+                placeholder="https://linkedin.com/in/yourprofile"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Facebook URL</span>
+              <input
+                name="public_facebook_url"
+                type="url"
+                inputMode="url"
+                className={ui.input}
+                defaultValue={(studio as { public_facebook_url?: string | null }).public_facebook_url ?? ""}
+                placeholder="https://facebook.com/yourpage"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>TikTok URL</span>
+              <input
+                name="public_tiktok_url"
+                type="url"
+                inputMode="url"
+                className={ui.input}
+                defaultValue={(studio as { public_tiktok_url?: string | null }).public_tiktok_url ?? ""}
+                placeholder="https://tiktok.com/@yourhandle"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>YouTube URL</span>
+              <input
+                name="public_youtube_url"
+                type="url"
+                inputMode="url"
+                className={ui.input}
+                defaultValue={(studio as { public_youtube_url?: string | null }).public_youtube_url ?? ""}
+                placeholder="https://youtube.com/@yourchannel"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>X URL</span>
+              <input
+                name="public_x_url"
+                type="url"
+                inputMode="url"
+                className={ui.input}
+                defaultValue={(studio as { public_x_url?: string | null }).public_x_url ?? ""}
+                placeholder="https://x.com/yourhandle"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 sm:col-span-2">
+              <span className={ui.label}>Public contact email</span>
+              <input
+                name="public_contact_email"
+                type="email"
+                inputMode="email"
+                className={ui.input}
+                defaultValue={(studio as { public_contact_email?: string | null }).public_contact_email ?? ""}
+                placeholder="hello@yourstudio.com"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
