@@ -10,7 +10,7 @@ const patchSchema = z.object({
   start_time: z.string().datetime().optional(),
   capacity: z.coerce.number().int().min(1).optional(),
   guest_price: z.union([z.coerce.number().min(0), z.null()]).optional(),
-  credits_required: z.coerce.number().int().min(1).optional(),
+  credits_required: z.union([z.coerce.number().int().min(1), z.null()]).optional(),
   location_id: z.string().uuid().nullable().optional(),
   address: z.string().max(4000).nullable().optional(),
   address_details: z.string().max(4000).nullable().optional(),

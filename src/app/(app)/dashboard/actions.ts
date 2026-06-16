@@ -816,6 +816,159 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
   revalidatePath("/dashboard/schedule");
 }
 
+// ---------------------------------------------------------------------------
+// Private helpers — single source of truth for session/rule creation logic.
+// Both createSession / createRecurringRule and createSessionWithTemplate call
+// these so they can never drift apart.
+// ---------------------------------------------------------------------------
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+type SessionPricing = {
+  guest_price: number | null;
+  credits_required: number | null;
+  address: string | null;
+  address_details: string | null;
+};
+
+type LoadedClass = {
+  id: string;
+  title: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  video_url?: string | null;
+  duration_min: number;
+  capacity: number;
+  location_id: string | null;
+};
+
+async function insertOneTimeSession(
+  supabase: SupabaseClient,
+  cls: LoadedClass,
+  locationId: string,
+  startDate: Date,
+  pricing: SessionPricing,
+): Promise<boolean> {
+  const endDate = new Date(startDate.getTime() + cls.duration_min * 60000);
+  const { error } = await supabase.from("class_sessions").insert({
+    class_id: cls.id,
+    location_id: locationId || cls.location_id || null,
+    class_title_snapshot: cls.title,
+    class_description_snapshot: cls.description ?? null,
+    class_image_url_snapshot: (cls as { image_url?: string | null }).image_url ?? null,
+    class_video_url_snapshot: (cls as { video_url?: string | null }).video_url ?? null,
+    start_time: startDate.toISOString(),
+    end_time: endDate.toISOString(),
+    capacity: cls.capacity,
+    guest_price: pricing.guest_price,
+    credits_required: pricing.credits_required != null ? Math.floor(pricing.credits_required) : null,
+    status: "scheduled",
+    spots_left: cls.capacity,
+    address: pricing.address,
+    address_details: pricing.address_details,
+  });
+  if (error) {
+    console.error("insertOneTimeSession:", error.message);
+    return false;
+  }
+  return true;
+}
+
+// Returns number of sessions inserted, or -1 on failure.
+async function insertRecurringRule(
+  supabase: SupabaseClient,
+  cls: LoadedClass,
+  locationId: string,
+  opts: {
+    byWeekday: string;
+    startDate: string;
+    endDate: string;
+    startTime: string;
+    duration: number;
+    capacity: number;
+  },
+  pricing: SessionPricing,
+): Promise<number> {
+  const { byWeekday, startDate, endDate, startTime, duration, capacity } = opts;
+
+  const { data: rule, error } = await supabase
+    .from("recurring_rules")
+    .insert({
+      class_id: cls.id,
+      location_id: locationId,
+      frequency: "weekly",
+      interval_value: 1,
+      by_weekday: byWeekday,
+      start_date: startDate,
+      end_date: endDate || null,
+      start_time: startTime,
+      duration_min: Number.isFinite(duration) ? duration : 60,
+      capacity: Number.isFinite(capacity) ? capacity : 10,
+      is_active: true,
+    })
+    .select("id")
+    .single();
+  if (error || !rule) {
+    console.error("insertRecurringRule:", error?.message);
+    return -1;
+  }
+
+  const weekdays = byWeekday.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+  const targetDays = weekdays.length ? weekdays.map((w) => map[w]).filter((d) => d != null) : [];
+  const horizonEnd = new Date(startDate);
+  horizonEnd.setDate(horizonEnd.getDate() + 56);
+  const hardEnd = endDate ? new Date(endDate) : horizonEnd;
+  const end = hardEnd < horizonEnd ? hardEnd : horizonEnd;
+
+  let count = 0;
+  const d = new Date(startDate);
+  while (d <= end) {
+    const dow = d.getDay();
+    if (targetDays.length === 0 || targetDays.includes(dow)) {
+      const [h, m] = startTime.split(":").map(Number);
+      const st = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), h || 0, m || 0));
+      const en = new Date(st.getTime() + duration * 60000);
+      const exists = await supabase
+        .from("class_sessions")
+        .select("id")
+        .eq("class_id", cls.id)
+        .eq("location_id", locationId)
+        .eq("start_time", st.toISOString())
+        .maybeSingle();
+      if (!exists.data) {
+        const { error: insErr } = await supabase.from("class_sessions").insert({
+          class_id: cls.id,
+          location_id: locationId,
+          class_title_snapshot: cls.title,
+          class_description_snapshot: cls.description ?? null,
+          class_image_url_snapshot: (cls as { image_url?: string | null }).image_url ?? null,
+          class_video_url_snapshot: (cls as { video_url?: string | null }).video_url ?? null,
+          start_time: st.toISOString(),
+          end_time: en.toISOString(),
+          capacity,
+          guest_price: pricing.guest_price,
+          credits_required: pricing.credits_required != null ? Math.floor(pricing.credits_required) : null,
+          spots_left: capacity,
+          status: "scheduled",
+          recurring_rule_id: rule.id,
+          address: pricing.address,
+          address_details: pricing.address_details,
+        });
+        if (insErr) {
+          console.error("insertRecurringRule: session insert failed", insErr.message, st.toISOString());
+          return -1;
+        }
+        count++;
+      }
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
+// ---------------------------------------------------------------------------
+
 export async function createSession(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const locationId = String(formData.get("location_id") ?? "").trim();
@@ -828,49 +981,32 @@ export async function createSession(formData: FormData): Promise<void> {
   const class_id = String(formData.get("class_id") ?? "");
   const start = String(formData.get("start_time") ?? "");
   const guest_price = sanitizePriceNullable(formData.get("guest_price"));
-  const credits_required = Number(formData.get("credits_required") ?? 1);
+  const creditsRaw = String(formData.get("credits_required") ?? "").trim();
+  const credits_required = creditsRaw === "" ? null : Number(creditsRaw);
   if (!class_id || !start) return;
-  if (!Number.isFinite(credits_required) || credits_required <= 0) return;
+  if (credits_required != null && (!Number.isFinite(credits_required) || credits_required <= 0)) return;
 
   const { data: cls, error: cErr } = await supabase
     .from("classes")
     .select("id, title, description, image_url, video_url, duration_min, capacity, studio_id, location_id, is_active")
     .eq("id", class_id)
     .single();
-
-  if (cErr || !cls || cls.studio_id !== studio.id) {
-    return;
-  }
+  if (cErr || !cls || cls.studio_id !== studio.id) return;
   if (cls.is_active === false) return;
   if (locationId && cls.location_id && cls.location_id !== locationId) return;
 
   const startDate = parseDatetimeLocalAsSgt(start);
   if (!startDate) return;
-  const endDate = new Date(startDate.getTime() + cls.duration_min * 60000);
   const address = String(formData.get("address") ?? "").trim() || null;
   const address_details = String(formData.get("address_details") ?? "").trim() || null;
 
-  const { error } = await supabase.from("class_sessions").insert({
-    class_id: cls.id,
-    location_id: locationId || cls.location_id || null,
-    class_title_snapshot: cls.title,
-    class_description_snapshot: cls.description ?? null,
-    class_image_url_snapshot: (cls as { image_url?: string | null }).image_url ?? null,
-    class_video_url_snapshot: (cls as { video_url?: string | null }).video_url ?? null,
-    start_time: startDate.toISOString(),
-    end_time: endDate.toISOString(),
-    capacity: cls.capacity,
+  const ok = await insertOneTimeSession(supabase, cls, locationId, startDate, {
     guest_price,
-    credits_required: Math.floor(credits_required),
-    status: "scheduled",
-    spots_left: cls.capacity,
+    credits_required,
     address,
     address_details,
   });
-  if (error) {
-    console.error(error.message);
-    return;
-  }
+  if (!ok) return;
   revalidatePath("/dashboard/schedule");
   if (studio.public_slug) {
     revalidatePublicStudioPath(studio.public_slug);
@@ -1493,102 +1629,192 @@ export async function createRecurringRule(formData: FormData): Promise<void> {
   const startTime = String(formData.get("start_time") ?? "");
   const duration = Number(formData.get("duration_min") ?? 60);
   const capacity = Number(formData.get("capacity") ?? 10);
-  const guestPrice = sanitizePriceNullable(formData.get("guest_price"));
-  const creditsRequired = Number(formData.get("credits_required") ?? 1);
-  const sessionAddress = String(formData.get("address") ?? "").trim() || null;
-  const sessionAddressDetails = String(formData.get("address_details") ?? "").trim() || null;
+  const guest_price = sanitizePriceNullable(formData.get("guest_price"));
+  const creditsRaw2 = String(formData.get("credits_required") ?? "").trim();
+  const credits_required = creditsRaw2 === "" ? null : Number(creditsRaw2);
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const address_details = String(formData.get("address_details") ?? "").trim() || null;
 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !locationId || !classId || !startDate || !startTime) return;
-  if (!Number.isFinite(creditsRequired) || creditsRequired <= 0) return;
+  if (credits_required != null && (!Number.isFinite(credits_required) || credits_required <= 0)) return;
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
+
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, title, description, image_url, studio_id, location_id, is_active")
+    .select("id, title, description, image_url, video_url, studio_id, location_id, is_active, duration_min, capacity")
     .eq("id", classId)
     .maybeSingle();
   if (!cls || cls.studio_id !== studio.id) return;
   if (cls.is_active === false) return;
   if (cls.location_id && cls.location_id !== locationId) return;
 
-  const { data: rule, error } = await supabase
-    .from("recurring_rules")
-    .insert({
-      class_id: classId,
-      location_id: locationId,
-      frequency: "weekly",
-      interval_value: 1,
-      by_weekday: byWeekday,
-      start_date: startDate,
-      end_date: endDate || null,
-      start_time: startTime,
-      duration_min: Number.isFinite(duration) ? duration : 60,
-      capacity: Number.isFinite(capacity) ? capacity : 10,
-      is_active: true,
-    })
-    .select("id")
-    .single();
-  if (error || !rule) return;
+  const count = await insertRecurringRule(
+    supabase,
+    cls,
+    locationId,
+    { byWeekday, startDate, endDate, startTime, duration, capacity },
+    { guest_price, credits_required, address, address_details },
+  );
+  if (count < 0) return;
+  revalidatePath("/dashboard/schedule");
+}
 
-  const weekdays = byWeekday
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  const map: Record<string, number> = {
-    sun: 0,
-    mon: 1,
-    tue: 2,
-    wed: 3,
-    thu: 4,
-    fri: 5,
-    sat: 6,
-  };
-  const targetDays = weekdays.length ? weekdays.map((w) => map[w]).filter((d) => d != null) : [];
-  const horizonEnd = new Date(startDate);
-  horizonEnd.setDate(horizonEnd.getDate() + 56);
-  const hardEnd = endDate ? new Date(endDate) : horizonEnd;
-  const end = hardEnd < horizonEnd ? hardEnd : horizonEnd;
+export type SessionPanelResult = { ok: boolean; message: string };
+const SESSION_PANEL_ERR: SessionPanelResult = { ok: false, message: "Something went wrong. Please check your inputs and try again." };
 
-  const d = new Date(startDate);
-  while (d <= end) {
-    const dow = d.getDay();
-    if (targetDays.length === 0 || targetDays.includes(dow)) {
-      const [h, m] = startTime.split(":").map(Number);
-      const st = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), h || 0, m || 0));
-      const en = new Date(st.getTime() + duration * 60000);
-      const exists = await supabase
-        .from("class_sessions")
-        .select("id")
-        .eq("class_id", classId)
-        .eq("location_id", locationId)
-        .eq("start_time", st.toISOString())
-        .maybeSingle();
-      if (!exists.data) {
-        await supabase.from("class_sessions").insert({
-          class_id: classId,
-          location_id: locationId,
-          class_title_snapshot: (cls as { title?: string | null }).title ?? null,
-          class_description_snapshot: (cls as { description?: string | null }).description ?? null,
-          class_image_url_snapshot: (cls as { image_url?: string | null }).image_url ?? null,
-          start_time: st.toISOString(),
-          end_time: en.toISOString(),
-          capacity,
-        guest_price: guestPrice,
-        credits_required: Math.floor(creditsRequired),
-          spots_left: capacity,
-          status: "scheduled",
-          recurring_rule_id: rule.id,
-          address: sessionAddress,
-          address_details: sessionAddressDetails,
-        });
-      }
-    }
-    d.setDate(d.getDate() + 1);
+export async function createSessionWithTemplate(
+  _prevState: SessionPanelResult | null,
+  formData: FormData,
+): Promise<SessionPanelResult> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  const sessionType = String(formData.get("session_type") ?? "once"); // "once" | "weekly"
+  const classIdRaw = String(formData.get("class_id") ?? "").trim();
+  const isNewClass = classIdRaw === "new";
+
+  // --- Validate session-type-specific inputs BEFORE any DB writes ---
+  const guest_price = sanitizePriceNullable(formData.get("guest_price"));
+  const creditsRaw3 = String(formData.get("credits_required") ?? "").trim();
+  const credits_required = creditsRaw3 === "" ? null : Number(creditsRaw3);
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const address_details = String(formData.get("address_details") ?? "").trim() || null;
+  if (credits_required != null && (!Number.isFinite(credits_required) || credits_required <= 0)) return SESSION_PANEL_ERR;
+
+  // Validate inline class fields when creating new
+  const newClassTitle = isNewClass ? String(formData.get("new_class_title") ?? "").trim() : "";
+  const newClassDuration = isNewClass ? Number(formData.get("new_class_duration_min") ?? 60) : 60;
+  const newClassCapacity = isNewClass ? Number(formData.get("new_class_capacity") ?? 10) : 10;
+  const newClassDescription = isNewClass ? String(formData.get("new_class_description") ?? "").trim() || null : null;
+  const newClassTags = isNewClass ? parsePublicTagsInput(formData.get("new_class_tags_input")) : [];
+
+  const newClassImageUrl = isNewClass ? String(formData.get("new_class_image_url") ?? "").trim() || null : null;
+  const newClassVideoUrl = isNewClass ? sanitizeVideoUrl(String(formData.get("new_class_video_url") ?? "")) : null;
+  if (isNewClass && !newClassTitle) return SESSION_PANEL_ERR;
+
+  // Validate weekly-specific inputs
+  let weeklyFields: {
+    byWeekday: string;
+    startDate: string;
+    endDate: string;
+    startTime: string;
+    duration: number;
+    capacity: number;
+  } | null = null;
+
+  if (sessionType === "weekly") {
+    if (!locationId) return SESSION_PANEL_ERR;
+    const byWeekday = String(formData.get("by_weekday") ?? "");
+    const startDate = String(formData.get("start_date") ?? "");
+    const endDate = String(formData.get("end_date") ?? "");
+    const startTime = String(formData.get("start_time") ?? "");
+    const duration = Number(formData.get("duration_min") ?? 60);
+    const capacity = Number(formData.get("capacity") ?? 10);
+    if (!startDate || !startTime || !byWeekday) return SESSION_PANEL_ERR;
+    weeklyFields = { byWeekday, startDate, endDate, startTime, duration, capacity };
   }
 
-  revalidatePath("/dashboard/schedule");
+  // Validate one-time-specific inputs
+  let onceStartDate: Date | null = null;
+  if (sessionType === "once") {
+    const start = String(formData.get("start_time") ?? "");
+    if (!start) return SESSION_PANEL_ERR;
+    onceStartDate = parseDatetimeLocalAsSgt(start);
+    if (!onceStartDate) return SESSION_PANEL_ERR;
+  }
+
+  // --- Auth + studio check ---
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return SESSION_PANEL_ERR;
+  if (isStudioContractSuspended(studio)) return SESSION_PANEL_ERR;
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return SESSION_PANEL_ERR;
+
+  const requiresManagerRole = isNewClass || sessionType === "weekly";
+  if (requiresManagerRole) {
+    if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return SESSION_PANEL_ERR;
+  } else {
+    if (!hasStudioRole(ctx, studio.id, ["owner", "manager", "frontdesk"])) return SESSION_PANEL_ERR;
+  }
+
+  // --- Optionally create new class template (all input already validated above) ---
+  let classId = isNewClass ? "" : classIdRaw;
+  if (isNewClass) {
+    const { data: newClass, error } = await supabase
+      .from("classes")
+      .insert({
+        studio_id: studio.id,
+        location_id: locationId || null,
+        title: newClassTitle,
+        description: newClassDescription,
+        capacity: Number.isFinite(newClassCapacity) ? newClassCapacity : 10,
+        duration_min: Number.isFinite(newClassDuration) ? newClassDuration : 60,
+        tags: newClassTags,
+        image_url: newClassImageUrl,
+        video_url: newClassVideoUrl,
+      })
+      .select("id")
+      .single();
+    if (error || !newClass) {
+      console.error("createSessionWithTemplate: failed to create class", error?.message);
+      return { ok: false, message: "Failed to create class. Please try again." };
+    }
+    classId = newClass.id;
+    revalidatePath("/dashboard/classes");
+  }
+  if (!classId) return SESSION_PANEL_ERR;
+
+  // --- Create session or recurring rule via shared helpers ---
+  const pricing: SessionPricing = { guest_price, credits_required, address, address_details };
+  const classPrefix = isNewClass ? `New class "${newClassTitle}" created · ` : "";
+
+  if (sessionType === "once" && onceStartDate) {
+    const { data: cls, error: cErr } = await supabase
+      .from("classes")
+      .select("id, title, description, image_url, video_url, duration_min, capacity, studio_id, location_id, is_active")
+      .eq("id", classId)
+      .single();
+    if (cErr || !cls || cls.studio_id !== studio.id) return SESSION_PANEL_ERR;
+    if (cls.is_active === false) return SESSION_PANEL_ERR;
+    if (locationId && cls.location_id && cls.location_id !== locationId) return SESSION_PANEL_ERR;
+
+    const ok = await insertOneTimeSession(supabase, cls, locationId, onceStartDate, pricing);
+    if (!ok) return { ok: false, message: "Failed to create session. Please try again." };
+
+    revalidatePath("/dashboard/schedule");
+    if (studio.public_slug) {
+      revalidatePublicStudioPath(studio.public_slug);
+      revalidatePath(`/${studio.public_slug}/classes`);
+    }
+    await recordStudioContentUpdate(studio.id, "classes");
+    return { ok: true, message: `${classPrefix}1 session scheduled` };
+  }
+
+  if (sessionType === "weekly" && weeklyFields) {
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("id, title, description, image_url, video_url, studio_id, location_id, is_active, duration_min, capacity")
+      .eq("id", classId)
+      .maybeSingle();
+    if (!cls || cls.studio_id !== studio.id) return SESSION_PANEL_ERR;
+    if (cls.is_active === false) return SESSION_PANEL_ERR;
+    if (cls.location_id && cls.location_id !== locationId) return SESSION_PANEL_ERR;
+
+    const count = await insertRecurringRule(supabase, cls, locationId, weeklyFields, pricing);
+    if (count < 0) return { ok: false, message: "Failed to create recurring schedule. Please try again." };
+
+    revalidatePath("/dashboard/schedule");
+    if (studio.public_slug) {
+      revalidatePublicStudioPath(studio.public_slug);
+      revalidatePath(`/${studio.public_slug}/classes`);
+    }
+    await recordStudioContentUpdate(studio.id, "classes");
+    const clsTitle = cls.title ?? newClassTitle;
+    return { ok: true, message: `${classPrefix}${count} session${count !== 1 ? "s" : ""} scheduled${clsTitle ? ` (${clsTitle})` : ""}` };
+  }
+
+  return SESSION_PANEL_ERR;
 }
 
 export async function createStaffMembership(formData: FormData): Promise<void> {

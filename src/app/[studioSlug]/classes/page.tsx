@@ -117,7 +117,7 @@ export default async function StudioBookingPage({ params }: Props) {
           const weekday = dt.toLocaleDateString("en-SG", { weekday: "short", timeZone: "Asia/Singapore" });
           const dayNum = dt.getDate();
           const month = dt.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" });
-          const creditsRequired = Number(s.credits_required ?? 1);
+          const creditsRequired = Number(s.credits_required ?? 0);
           const spotsLeft = Number(s.spots_left ?? 0);
           const spotsLow = spotsLeft > 0 && spotsLeft <= 3;
           const spotsText = spotsLeft === 0

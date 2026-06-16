@@ -25,16 +25,21 @@ function parseWeekdays(value: string): DayKey[] {
 export function WeekdayPicker({
   name,
   defaultValue = "mon,wed",
+  onChange,
 }: {
   name: string;
   defaultValue?: string;
+  onChange?: (value: string) => void;
 }) {
   const [selected, setSelected] = useState<DayKey[]>(() => parseWeekdays(defaultValue));
 
   const toggle = (key: DayKey) => {
-    setSelected((prev) =>
-      prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key],
-    );
+    setSelected((prev) => {
+      const next = prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key];
+      const value = DAYS.filter((d) => next.includes(d.key)).map((d) => d.key).join(",");
+      onChange?.(value);
+      return next;
+    });
   };
 
   const value = DAYS.filter((d) => selected.includes(d.key))

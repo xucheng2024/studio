@@ -19,7 +19,7 @@ export function SessionEditPanel({
     start_time: string;
     capacity: number;
     guest_price: number | null;
-    credits_required: number;
+    credits_required: number | null;
     location_id: string | null;
     address: string | null;
     address_details: string | null;
@@ -36,7 +36,7 @@ export function SessionEditPanel({
   });
   const [capacity, setCapacity] = useState(String(initial.capacity));
   const [guestPrice, setGuestPrice] = useState(initial.guest_price != null ? String(initial.guest_price) : "");
-  const [creditsRequired, setCreditsRequired] = useState(String(initial.credits_required));
+  const [creditsRequired, setCreditsRequired] = useState(initial.credits_required != null ? String(initial.credits_required) : "");
   const [locationId, setLocationId] = useState(initial.location_id ?? "");
   const [address, setAddress] = useState(initial.address ?? "");
   const [addressDetails, setAddressDetails] = useState(initial.address_details ?? "");
@@ -66,8 +66,8 @@ export function SessionEditPanel({
           <input className={ui.input} type="number" min={0} step="0.01" value={guestPrice} onChange={(e) => setGuestPrice(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className={ui.label}>Passes required</span>
-          <input className={ui.input} type="number" min={1} step="1" value={creditsRequired} onChange={(e) => setCreditsRequired(e.target.value)} />
+          <span className={ui.label}>Passes required <span className="font-normal text-stone-400">(optional)</span></span>
+          <input className={ui.input} type="number" min={1} step="1" value={creditsRequired} placeholder="Leave blank to disable" onChange={(e) => setCreditsRequired(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1">
           <span className={ui.label}>Location</span>
@@ -108,7 +108,8 @@ export function SessionEditPanel({
             const parsedCapacity = Number(capacity);
             const guestPriceRaw = guestPrice.trim();
             const parsedGuestPrice = guestPriceRaw === "" ? null : Number(guestPriceRaw);
-            const parsedCredits = Number(creditsRequired);
+            const creditsRaw = creditsRequired.trim();
+            const parsedCredits = creditsRaw === "" ? null : Number(creditsRaw);
             if (!Number.isFinite(parsedCapacity) || parsedCapacity < 1) {
               setValidationMsg("Capacity must be a positive number");
               return;
@@ -117,7 +118,7 @@ export function SessionEditPanel({
               setValidationMsg("Guest price must be 0 or greater");
               return;
             }
-            if (!Number.isFinite(parsedCredits) || parsedCredits < 1) {
+            if (parsedCredits != null && (!Number.isFinite(parsedCredits) || parsedCredits < 1)) {
               setValidationMsg("Passes required must be a positive number");
               return;
             }

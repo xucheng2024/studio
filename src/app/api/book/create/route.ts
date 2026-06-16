@@ -293,7 +293,9 @@ export async function POST(req: Request) {
         amount,
         reference_code: reference,
         checkout_url: returnUrl,
-        credits_required: Number(bookingResult.credits_required ?? session.credits_required ?? 1),
+        credits_required:
+          bookingResult.credits_required
+          ?? (session.credits_required != null ? Number(session.credits_required) : null),
       });
     } catch {
       await admin.rpc("cancel_pending_payment", {
@@ -333,7 +335,9 @@ export async function POST(req: Request) {
       reference_code: reference,
       expires_at: expiresAt,
       checkout_url: hitpay.checkoutUrl,
-      credits_required: Number(bookingResult.credits_required ?? session.credits_required ?? 1),
+      credits_required:
+        bookingResult.credits_required
+        ?? (session.credits_required != null ? Number(session.credits_required) : null),
     });
   } catch (e) {
     await admin.rpc("cancel_pending_payment", {
