@@ -65,7 +65,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className={ui.h1}>Shop setup</h1>
-          <p className={ui.muted}>Sell merchandise on your public studio page. Customers pay via HitPay and provide a shipping address.</p>
+          <p className={ui.muted}>Sell merchandise on your public studio page. Paid orders use HitPay, while free orders skip payment and still collect a shipping address.</p>
         </div>
         {publicHref ? (
           <DashboardAppLink href={publicHref} className={ui.btnSecondarySm}>
@@ -95,7 +95,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Price (SGD)</span>
-            <input name="price" type="number" min={0.01} step={0.01} required className={ui.input} />
+            <input name="price" type="number" min={0} step={0.01} required className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Stock (blank = unlimited)</span>
@@ -152,7 +152,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-stone-900 dark:text-stone-100">{product.title}</p>
                     <p className={`text-sm ${ui.muted}`}>
-                      SGD {Number(product.price).toFixed(2)}
+                      {Number(product.price) === 0 ? "Free" : `SGD ${Number(product.price).toFixed(2)}`}
                       {product.stock_qty != null ? ` · ${product.stock_qty} in stock` : " · Unlimited stock"}
                       {!product.is_active ? " · Hidden" : ""}
                     </p>
@@ -173,7 +173,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                   </label>
                   <label className="flex flex-col gap-1.5">
                     <span className={ui.label}>Price (SGD)</span>
-                    <input name="price" type="number" min={0.01} step={0.01} required defaultValue={product.price} className={ui.input} />
+                    <input name="price" type="number" min={0} step={0.01} required defaultValue={product.price} className={ui.input} />
                   </label>
                   <label className="flex flex-col gap-1.5">
                     <span className={ui.label}>Stock (blank = unlimited)</span>
@@ -231,7 +231,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
 
       {(orders ?? []).length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className={ui.h2}>Paid orders</h2>
+          <h2 className={ui.h2}>Completed orders</h2>
           <ul className="flex flex-col gap-2">
             {(orders ?? []).map((order) => (
               <li key={order.id} className={ui.card}>
@@ -242,7 +242,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                       {order.shipping_name} · {order.shipping_city} {order.shipping_postal_code}
                     </p>
                     <p className={`text-xs ${ui.muted}`}>
-                      {order.currency} {Number(order.amount).toFixed(2)}
+                      {Number(order.amount) === 0 ? "Free" : `${order.currency} ${Number(order.amount).toFixed(2)}`}
                       {order.paid_at
                         ? <> · Paid <LocalTime iso={order.paid_at} /></>
                         : null}

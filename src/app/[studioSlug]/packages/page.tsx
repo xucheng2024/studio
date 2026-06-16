@@ -66,8 +66,8 @@ export default async function PublicPackagesPage({ params }: Props) {
                   <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
                 </div>
                 <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-                  {pkg.price != null ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">{currency} {Number(pkg.price).toFixed(2)}</span> : null}
-                  {href ? <Link href={href} className={ui.btnPrimary}>Buy now</Link> : null}
+                  {pkg.price != null ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">{Number(pkg.price) === 0 ? "Free" : `${currency} ${Number(pkg.price).toFixed(2)}`}</span> : null}
+                  {href ? <Link href={href} className={ui.btnPrimary}>{Number(pkg.price ?? 0) === 0 ? "Get package" : "Buy now"}</Link> : null}
                 </div>
               </div>
             </article>

@@ -962,7 +962,7 @@ export async function createEvent(formData: FormData): Promise<void> {
 
   if (!title) return;
   if (!Number.isFinite(capacity) || capacity <= 0) return;
-  if (price != null && !(price > 0)) return;
+  if (price != null && price < 0) return;
 
   const start = parseDatetimeLocalAsSgt(startRaw);
   const end = parseDatetimeLocalAsSgt(endRaw);
@@ -1029,7 +1029,7 @@ export async function updateEvent(formData: FormData): Promise<void> {
 
   if (!title) return;
   if (!Number.isFinite(capacity) || capacity <= 0) return;
-  if (price != null && !(price > 0)) return;
+  if (price != null && price < 0) return;
   const start = parseDatetimeLocalAsSgt(startRaw);
   const end = parseDatetimeLocalAsSgt(endRaw);
   if (!start || !end) return;
@@ -1719,7 +1719,7 @@ export async function revokeStaffInvite(formData: FormData): Promise<void> {
 function sanitizeShopPrice(raw: FormDataEntryValue | null): number | null {
   if (raw === null || String(raw).trim() === "") return null;
   const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0) return null;
+  if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100) / 100;
 }
 

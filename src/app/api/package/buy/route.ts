@@ -7,6 +7,7 @@ import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import { finalizeZeroAmountPayment } from "@/lib/finalizeZeroAmountPayment";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -87,27 +88,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
     }
   }
-  const { data: studioHitpay } = await admin
-    .from("studios")
-    .select("hitpay_enabled")
-    .eq("id", pkg.studio_id)
-    .maybeSingle();
-  const { data: studioSecrets } = await admin
-    .from("studio_payment_secrets")
-    .select("hitpay_api_key")
-    .eq("studio_id", pkg.studio_id)
-    .maybeSingle();
-  const configIssue = getHitpayConfigIssue({
-    hitpayEnabled: studioHitpay?.hitpay_enabled,
-    merchantApiKey: studioSecrets?.hitpay_api_key,
-  });
-  if (configIssue) {
-    return NextResponse.json(
-      { error: configIssue.error, error_detail: configIssue.error_detail },
-      { status: configIssue.status },
-    );
+  const amount = Number(pkg.price ?? 0);
+  if (amount < 0) {
+    return NextResponse.json({ error: "invalid_amount" }, { status: 409 });
   }
-  const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
+  const isZeroAmount = amount === 0;
+  let merchantApiKey = "";
+  if (!isZeroAmount) {
+    const { data: studioHitpay } = await admin
+      .from("studios")
+      .select("hitpay_enabled")
+      .eq("id", pkg.studio_id)
+      .maybeSingle();
+    const { data: studioSecrets } = await admin
+      .from("studio_payment_secrets")
+      .select("hitpay_api_key")
+      .eq("studio_id", pkg.studio_id)
+      .maybeSingle();
+    const configIssue = getHitpayConfigIssue({
+      hitpayEnabled: studioHitpay?.hitpay_enabled,
+      merchantApiKey: studioSecrets?.hitpay_api_key,
+    });
+    if (configIssue) {
+      return NextResponse.json(
+        { error: configIssue.error, error_detail: configIssue.error_detail },
+        { status: configIssue.status },
+      );
+    }
+    merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
+  }
 
   const reference = generatePaymentReference();
   // Keep package checkout short to avoid long stale pending holds.
@@ -128,9 +137,9 @@ export async function POST(req: Request) {
       gift_recipient_name: isGift ? giftRecipientName : null,
       gift_recipient_email: isGift ? giftRecipientEmail : null,
       gift_message: isGift ? giftMessage : null,
-      amount: pkg.price,
+      amount,
       currency: STUDIO_CURRENCY,
-      payment_method: "hitpay",
+      payment_method: isZeroAmount ? "free" : "hitpay",
       source: "package_buy",
       reference_code: reference,
       expires_at: expiresAt,
@@ -150,6 +159,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
   const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;
+  if (isZeroAmount) {
+    try {
+      await finalizeZeroAmountPayment(admin, {
+        id: payment.id,
+        studio_id: pkg.studio_id,
+        booking_id: null,
+        event_booking_id: null,
+      });
+      return NextResponse.json({
+        payment_id: payment.id,
+        amount: payment.amount,
+        reference_code: reference,
+        checkout_url: returnUrl,
+      });
+    } catch {
+      await admin.rpc("cancel_pending_payment", {
+        p_payment_id: payment.id,
+        p_new_status: "failed",
+      });
+      return NextResponse.json({ error: "free_payment_finalize_failed" }, { status: 500 });
+    }
+  }
   try {
     const hitpay = await createHitpayPaymentRequest({
       apiKey: merchantApiKey,

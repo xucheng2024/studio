@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { STUDIO_CURRENCY } from "@/lib/currency";
+import { formatPriceOrFree } from "@/lib/priceDisplay";
 
 type Props = {
   href: string;
@@ -50,7 +51,7 @@ export function ShopProductCard({
       <div className="flex flex-col gap-0.5 p-2">
         <p className="line-clamp-2 text-xs leading-snug text-stone-800 dark:text-stone-100">{title}</p>
         <p className="text-sm font-bold tabular-nums text-teal-700 dark:text-teal-400">
-          {STUDIO_CURRENCY} {price.toFixed(2)}
+          {formatPriceOrFree(STUDIO_CURRENCY, price)}
         </p>
         {summary ? (
           <p className="line-clamp-1 text-[11px] leading-tight text-stone-500 dark:text-stone-400">{summary}</p>

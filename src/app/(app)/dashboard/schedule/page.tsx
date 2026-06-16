@@ -236,7 +236,7 @@ export default async function SchedulePage({ searchParams }: Props) {
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
               <span>{s.spots_left} spots left</span>
               <span>{activeBookingCount} active bookings</span>
-              {s.guest_price != null && Number(s.guest_price) > 0 ? <span>${Number(s.guest_price).toFixed(2)} guest</span> : null}
+              {s.guest_price != null ? <span>{Number(s.guest_price) === 0 ? "Free guest" : `$${Number(s.guest_price).toFixed(2)} guest`}</span> : null}
               {s.credits_required != null ? (
                 <span>
                   {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "s" : ""}

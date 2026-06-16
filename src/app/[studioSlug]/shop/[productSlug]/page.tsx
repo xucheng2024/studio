@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 import { getAppOriginForOg } from "@/lib/coverMedia";
+import { formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
 
 type Props = { params: Promise<{ studioSlug: string; productSlug: string }> };
 
@@ -92,7 +93,8 @@ export default async function PublicShopProductPage({ params }: Props) {
     }
   }
 
-  const paymentReady = Boolean(studio.hitpay_enabled);
+  const isFreeProduct = isZeroAmount(product.price);
+  const paymentReady = isFreeProduct || Boolean(studio.hitpay_enabled);
   const outOfStock = product.stock_qty != null && Number(product.stock_qty) < 1;
   const currency = STUDIO_CURRENCY;
   const sharePath = studioShopProductPath(studio.public_slug, product.share_slug ?? product.id);
@@ -140,13 +142,15 @@ export default async function PublicShopProductPage({ params }: Props) {
         <div className="lg:sticky lg:top-8">
           <div className={`${ui.card} overflow-hidden sm:p-6`}>
             <p className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-              {currency} {Number(product.price).toFixed(2)}
+              {formatPriceOrFree(currency, Number(product.price))}
             </p>
             {outOfStock ? (
               <p className={`mt-1 text-sm font-medium ${ui.error}`}>Out of stock</p>
             ) : (
               <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
-                {paymentReady
+                {isFreeProduct
+                  ? "No payment required · Shipping address required"
+                  : paymentReady
                   ? "Secure checkout · Shipping address required"
                   : "Online payment is not configured for this studio."}
               </p>
@@ -157,6 +161,7 @@ export default async function PublicShopProductPage({ params }: Props) {
                 disabled={!paymentReady || outOfStock}
                 outOfStock={outOfStock}
                 shippingDefaults={shippingDefaults}
+                actionLabel={isFreeProduct ? "Place free order" : "Buy now"}
               />
             </div>
           </div>

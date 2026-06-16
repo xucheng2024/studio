@@ -9,6 +9,7 @@ import { normalizeStudioSlug } from "@/lib/slug";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { findClientIdByEmail } from "@/lib/resolveClientId";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
+import { finalizeZeroAmountPayment } from "@/lib/finalizeZeroAmountPayment";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
   }
 
   const amount = Number(session.guest_price ?? 0);
-  if (!(amount > 0)) {
+  if (amount < 0) {
     return NextResponse.json({ error: "session_price_unavailable" }, { status: 409 });
   }
   const { data: studioContract } = await admin
@@ -141,25 +142,29 @@ export async function POST(req: Request) {
     .select("contract_status, hitpay_enabled")
     .eq("id", studioId)
     .maybeSingle();
-  const { data: studioSecrets } = await admin
-    .from("studio_payment_secrets")
-    .select("hitpay_api_key")
-    .eq("studio_id", studioId)
-    .maybeSingle();
   if (studioContract?.contract_status === "suspended") {
     return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
   }
-  const configIssue = getHitpayConfigIssue({
-    hitpayEnabled: studioContract?.hitpay_enabled,
-    merchantApiKey: studioSecrets?.hitpay_api_key,
-  });
-  if (configIssue) {
-    return NextResponse.json(
-      { error: configIssue.error, error_detail: configIssue.error_detail },
-      { status: configIssue.status },
-    );
+  const isZeroAmount = amount === 0;
+  let merchantApiKey = "";
+  if (!isZeroAmount) {
+    const { data: studioSecrets } = await admin
+      .from("studio_payment_secrets")
+      .select("hitpay_api_key")
+      .eq("studio_id", studioId)
+      .maybeSingle();
+    const configIssue = getHitpayConfigIssue({
+      hitpayEnabled: studioContract?.hitpay_enabled,
+      merchantApiKey: studioSecrets?.hitpay_api_key,
+    });
+    if (configIssue) {
+      return NextResponse.json(
+        { error: configIssue.error, error_detail: configIssue.error_detail },
+        { status: configIssue.status },
+      );
+    }
+    merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
   }
-  const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
 
   // For gifts, prevent booking a seat for a recipient who already has one for this session.
   if (isGift && giftRecipientEmail) {
@@ -251,7 +256,7 @@ export async function POST(req: Request) {
       gift_message: isGift ? giftMessage : null,
       amount,
       currency: STUDIO_CURRENCY,
-      payment_method: "hitpay",
+      payment_method: isZeroAmount ? "free" : "hitpay",
       source: "online_booking",
       status: "pending",
       reference_code: reference,
@@ -274,6 +279,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
   const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;
+  if (isZeroAmount) {
+    try {
+      await finalizeZeroAmountPayment(admin, {
+        id: payment.id,
+        studio_id: studioId,
+        booking_id: bookingResult.booking_id,
+        event_booking_id: null,
+      });
+      return NextResponse.json({
+        booking_id: bookingResult.booking_id,
+        payment_id: payment.id,
+        amount,
+        reference_code: reference,
+        checkout_url: returnUrl,
+        credits_required: Number(bookingResult.credits_required ?? session.credits_required ?? 1),
+      });
+    } catch {
+      await admin.rpc("cancel_pending_payment", {
+        p_payment_id: payment.id,
+        p_new_status: "failed",
+      });
+      return NextResponse.json({ error: "free_payment_finalize_failed" }, { status: 500 });
+    }
+  }
   const guestDisplayName = guestName ?? null;
   const guestDisplayEmail = guestEmail ?? user?.email ?? null;
 

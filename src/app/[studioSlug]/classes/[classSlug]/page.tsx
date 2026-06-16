@@ -10,6 +10,7 @@ import { getCachedClassShareContext } from "@/lib/cachedSharePages";
 import { studioClassesPath, studioClassPath } from "@/lib/public-paths";
 import { buildClassShareMetadata } from "@/lib/publicShareOg";
 import { SessionDateMiniCalendar, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
+import { isZeroAmount } from "@/lib/priceDisplay";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -82,7 +83,8 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
     return 0;
   });
 
-  const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
+  const hasAnyFreeSession = orderedSessions.some((session) => isZeroAmount((session as { guest_price?: number | null }).guest_price));
+  const paymentReady = hasAnyFreeSession || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
 
   const coverSrc = (cls as { image_url?: string | null }).image_url ?? null;
   const videoUrl = (cls as { video_url?: string | null }).video_url ?? null;
@@ -132,8 +134,9 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
       timeZone: "Asia/Singapore",
     });
     const timeLabel = dt.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
-    const hasGuestPrice = s.guest_price != null && Number(s.guest_price) > 0;
-    const price = hasGuestPrice ? Number(s.guest_price).toFixed(2) : null;
+    const canGuestCheckout = s.guest_price != null && Number(s.guest_price) >= 0;
+    const isFreeGuestCheckout = isZeroAmount(s.guest_price);
+    const price = canGuestCheckout ? (isFreeGuestCheckout ? "Free" : `$${Number(s.guest_price).toFixed(2)}`) : null;
     const spotsLeft = Number(s.spots_left ?? 0);
     const sessionCapacity =
       Number(
@@ -189,7 +192,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                 />
               </div>
             ) : null}
-            {!paymentReady ? (
+            {!(isFreeGuestCheckout || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled)) ? (
               <p className={`mt-4 flex items-center gap-1 text-xs ${ui.error}`}>
                 Online payment is not configured for this studio.
               </p>
@@ -216,9 +219,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
               <div className="flex items-center justify-between border-t border-stone-100 py-3.5 dark:border-stone-800">
                 <span className="text-sm text-stone-500 dark:text-stone-400">Per session</span>
                 <div className="flex flex-col items-end gap-0.5">
-                  {price ? (
-                    <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">${price}</span>
-                  ) : null}
+                  {price ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">{price}</span> : null}
                   {s.credits_required != null && Number(s.credits_required) > 0 ? (
                     <span className="text-xs text-stone-400 dark:text-stone-500">
                       or {Number(s.credits_required)} class pass{Number(s.credits_required) !== 1 ? "es" : ""}
@@ -257,7 +258,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     slug={studioPublicSlug}
                     sessionId={s.id}
                     guestPrice={s.guest_price != null ? Number(s.guest_price) : null}
-                    paymentReady={paymentReady}
+                    paymentReady={isFreeGuestCheckout || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled)}
                     isSignedIn={isSignedIn}
                     creditsRequired={Number(s.credits_required ?? 0)}
                   />
@@ -303,7 +304,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
             {cls.description}
           </p>
         ) : null}
-        {!paymentReady ? (
+        {!paymentReady && !hasAnyFreeSession ? (
           <p className={`mt-2 flex items-center gap-1 text-xs ${ui.error}`}>
             Online payment is not configured for this studio.
           </p>
@@ -341,12 +342,12 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                   <div className="min-w-0">
                     <p className="font-semibold text-stone-900 dark:text-stone-50">{timeLabel}</p>
                     <div className="mt-2 flex flex-wrap items-baseline gap-1.5">
-                      {s.guest_price != null && Number(s.guest_price) > 0 ? (
+                      {s.guest_price != null && Number(s.guest_price) >= 0 ? (
                         <>
                           <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
-                            ${Number(s.guest_price).toFixed(2)}
+                            {Number(s.guest_price) === 0 ? "Free" : `$${Number(s.guest_price).toFixed(2)}`}
                           </span>
-                          <span className={`text-xs ${ui.muted}`}>/ session</span>
+                          {Number(s.guest_price) > 0 ? <span className={`text-xs ${ui.muted}`}>/ session</span> : null}
                         </>
                       ) : null}
                     </div>
@@ -390,7 +391,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                     slug={studioPublicSlug}
                     sessionId={s.id}
                     guestPrice={s.guest_price != null ? Number(s.guest_price) : null}
-                    paymentReady={paymentReady}
+                    paymentReady={isZeroAmount(s.guest_price) || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled)}
                     isSignedIn={isSignedIn}
                     creditsRequired={Number(s.credits_required ?? 0)}
                   />

@@ -17,6 +17,7 @@ import {
 } from "@/lib/resolveClientId";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import { finalizeZeroAmountPayment } from "@/lib/finalizeZeroAmountPayment";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createClient } from "@/lib/supabase/server";
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
     lessonAccessOverride: lesson.data?.access_override ?? "inherit",
     lessonOverridePrice: Number(lesson.data?.override_price ?? 0),
   });
-  if (!isPurchaseEnabledAccessType(accessRule.resolvedAccessType) || accessRule.resolvedPrice <= 0) {
+  if (!isPurchaseEnabledAccessType(accessRule.resolvedAccessType) || accessRule.resolvedPrice < 0) {
     return NextResponse.json({ error: "item_not_paywalled" }, { status: 409 });
   }
 
@@ -263,26 +264,29 @@ export async function POST(req: Request) {
       phone: guestPhone,
     }));
 
-  const { data: studioSecrets } = await admin
-    .from("studio_payment_secrets")
-    .select("hitpay_api_key")
-    .eq("studio_id", series.studio_id)
-    .maybeSingle();
-  const configIssue = getHitpayConfigIssue({
-    hitpayEnabled: studio?.hitpay_enabled,
-    merchantApiKey: studioSecrets?.hitpay_api_key,
-  });
-  if (configIssue) {
-    return NextResponse.json(
-      { error: configIssue.error, error_detail: configIssue.error_detail },
-      { status: configIssue.status },
-    );
-  }
-  const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
-
   const reference = generatePaymentReference();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const amount = Number(accessRule.resolvedPrice.toFixed(2));
+  const isZeroAmount = amount === 0;
+  let merchantApiKey = "";
+  if (!isZeroAmount) {
+    const { data: studioSecrets } = await admin
+      .from("studio_payment_secrets")
+      .select("hitpay_api_key")
+      .eq("studio_id", series.studio_id)
+      .maybeSingle();
+    const configIssue = getHitpayConfigIssue({
+      hitpayEnabled: studio?.hitpay_enabled,
+      merchantApiKey: studioSecrets?.hitpay_api_key,
+    });
+    if (configIssue) {
+      return NextResponse.json(
+        { error: configIssue.error, error_detail: configIssue.error_detail },
+        { status: configIssue.status },
+      );
+    }
+    merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
+  }
   const currency = accessRule.resolvedCurrency;
   const sourceTitle =
     accessRule.purchaseScope === "lesson" ? lesson.data?.title ?? series.title : series.title;
@@ -307,7 +311,7 @@ export async function POST(req: Request) {
       gift_message: isGift ? giftMessage : null,
       amount,
       currency,
-      payment_method: "hitpay",
+      payment_method: isZeroAmount ? "free" : "hitpay",
       source: "member_zone_purchase",
       status: "pending",
       reference_code: reference,
@@ -340,6 +344,21 @@ export async function POST(req: Request) {
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   const redirectUrl = `${baseUrl}/${studio.public_slug}/checkout/${payment.id}`;
+  if (isZeroAmount) {
+    try {
+      await finalizeZeroAmountPayment(admin, {
+        id: payment.id,
+        studio_id: series.studio_id,
+        booking_id: null,
+        event_booking_id: null,
+      });
+      return NextResponse.json({ ok: true, checkout_url: redirectUrl });
+    } catch {
+      await admin.from("member_zone_purchases").update({ status: "failed" }).eq("payment_id", payment.id);
+      await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
+      return NextResponse.json({ error: "free_payment_finalize_failed" }, { status: 500 });
+    }
+  }
 
   try {
     const hitpay = await createHitpayPaymentRequest({

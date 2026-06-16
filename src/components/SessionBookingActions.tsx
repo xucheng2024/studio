@@ -77,11 +77,13 @@ export function SessionBookingActions({
     });
   }, [isSignedIn, sessionId, bookWithPass]);
 
-  const hasGuestPrice = guestPrice != null && guestPrice > 0;
+  const canGuestCheckout = guestPrice != null && guestPrice >= 0;
+  const isFreeGuestCheckout = guestPrice != null && guestPrice === 0;
+  const guestCheckoutLabel = isFreeGuestCheckout ? "Book free" : `Pay $${Number(guestPrice ?? 0).toFixed(2)}`;
 
   // Session doesn't accept class passes — show pay form directly
   if (creditsRequired === 0) {
-    if (!hasGuestPrice) {
+    if (!canGuestCheckout) {
       return <p className={`text-sm ${ui.muted}`}>Price unavailable for this session.</p>;
     }
     return (
@@ -92,7 +94,7 @@ export function SessionBookingActions({
               <QuickBookPanel
                 slug={slug}
                 sessionId={sessionId}
-                payLabel={`Pay $${guestPrice.toFixed(2)}`}
+                payLabel={guestCheckoutLabel}
                 disabled={!paymentReady}
                 defaultOpen
                 hideClose
@@ -107,7 +109,7 @@ export function SessionBookingActions({
               onClick={() => setShowPayForm(true)}
             >
               <ChevronDown size={15} />
-              Pay ${guestPrice.toFixed(2)}
+              {guestCheckoutLabel}
             </button>
           )}
         </div>
@@ -151,7 +153,7 @@ export function SessionBookingActions({
           </div>
         ) : null}
 
-        {hasGuestPrice ? (
+        {canGuestCheckout ? (
           <>
             {/* ── Divider ── */}
             <div className="flex items-center gap-3">
@@ -166,7 +168,7 @@ export function SessionBookingActions({
                 <QuickBookPanel
                   slug={slug}
                   sessionId={sessionId}
-                  payLabel={`Pay $${guestPrice.toFixed(2)}`}
+                  payLabel={guestCheckoutLabel}
                   disabled={!paymentReady}
                   defaultOpen
                   hideClose
@@ -181,12 +183,12 @@ export function SessionBookingActions({
                 onClick={() => setShowPayForm(true)}
               >
                 <ChevronDown size={15} />
-                Pay ${guestPrice.toFixed(2)}
+                {guestCheckoutLabel}
               </button>
             )}
           </>
         ) : (
-          <p className={`text-xs ${ui.muted}`}>Guest pay is unavailable for this session.</p>
+          <p className={`text-xs ${ui.muted}`}>Guest checkout is unavailable for this session.</p>
         )}
       </div>
 

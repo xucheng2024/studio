@@ -36,6 +36,7 @@ export const metadata: Metadata = {
 function paymentMethodLabel(method: string | null | undefined, hasGatewayCheckout: boolean): string {
   const m = (method ?? "").toLowerCase();
   if (m === "hitpay" || hasGatewayCheckout) return "HitPay (PayNow, etc.)";
+  if (m === "free") return "Free";
   if (m === "cash") return "Cash";
   if (m === "card") return "Card";
   if (m === "paynow") return "PayNow";
@@ -166,6 +167,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   const studioSlug = normalizeStudioSlug(paymentStudio?.public_slug ?? routeStudioSlug);
   if (!studioSlug || studioSlug !== routeStudioSlug) notFound();
   const isHitpay = (payment.payment_method ?? "").toLowerCase() === "hitpay" || Boolean(payment.gateway_checkout_url);
+  const isFreePayment = (payment.payment_method ?? "").toLowerCase() === "free";
 
   const source = String(payment.source ?? "").toLowerCase();
   const packageId = (payment as { package_id?: string | null }).package_id ?? null;
@@ -269,16 +271,23 @@ export default async function PaymentCheckoutPage({ params }: Props) {
         <CheckoutReturnNav fallbackHref={nav.fallbackHref} fallbackLabel={nav.fallbackLabel} />
 
         <h1 className="sr-only">
-          {isPaid ? "Payment confirmed" : isFailed ? paymentFailureTitle(payment.status) : "Complete your payment"}
+          {isPaid ? "Payment confirmed" : isFailed ? paymentFailureTitle(payment.status) : isFreePayment ? "Completing your order" : "Complete your payment"}
         </h1>
 
         <div className="rounded-2xl bg-linear-to-br from-teal-600 to-teal-700 px-6 py-7 text-center shadow-lg shadow-teal-900/20 dark:from-teal-700 dark:to-teal-800">
-          <p className="text-sm font-medium text-teal-100">{isPaid ? "Amount paid" : "Amount due"}</p>
+          <p className="text-sm font-medium text-teal-100">{isPaid ? "Amount paid" : isFreePayment ? "Order total" : "Amount due"}</p>
           <p className="mt-1 text-5xl font-bold tabular-nums tracking-tight text-white">
             {payment.currency} {Number(payment.amount).toFixed(2)}
           </p>
           {isPaid ? (
             <p className="mt-2 text-sm font-medium text-teal-100">Thank you — you&apos;re all set.</p>
+          ) : isFreePayment ? (
+            <>
+              <p className="mt-2 text-sm text-teal-200">
+                No payment is required for this order.
+              </p>
+              <p className="text-xs text-teal-300">We&apos;re confirming it automatically.</p>
+            </>
           ) : (
             <>
               <p className="mt-2 text-sm text-teal-200">
@@ -294,7 +303,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
 
         {isPending ? (
           <>
-            <PaymentStatusPoller stop={shouldUseGatewaySync} intervalMs={15000} showHint />
+            <PaymentStatusPoller stop={shouldUseGatewaySync} intervalMs={15000} showHint={!isFreePayment} />
             <HitpayCheckoutSync
               paymentId={payment_id}
               enabled={shouldUseGatewaySync}
@@ -455,17 +464,22 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                     <Clock size={18} className="animate-pulse text-teal-600 dark:text-teal-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">Waiting for payment confirmation</p>
+                    <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+                      {isFreePayment ? "Completing your order" : "Waiting for payment confirmation"}
+                    </p>
                     <p className={`mt-0.5 text-xs ${ui.muted}`}>
-                      {isGatewayReceived
-                        ? "Payment received — confirming your order…"
-                        : "Complete your transfer. We&apos;ll update this page once it&apos;s confirmed."}
+                      {isFreePayment
+                        ? "No payment is needed. We&apos;re finishing your order automatically."
+                        : isGatewayReceived
+                          ? "Payment received — confirming your order…"
+                          : "Complete your transfer. We&apos;ll update this page once it&apos;s confirmed."}
                     </p>
                   </div>
                 </div>
                 {showExpiry ? (
                   <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
-                    Link expires <LocalTime iso={payment.expires_at} options={{ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }} /> (your local time) · This page refreshes automatically
+                    {isFreePayment ? "Order hold expires " : "Link expires "}
+                    <LocalTime iso={payment.expires_at} options={{ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }} /> (your local time) · This page refreshes automatically
                   </p>
                 ) : (
                   <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">

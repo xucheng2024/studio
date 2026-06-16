@@ -187,17 +187,22 @@ export function MemberZoneUnlockPanel(props: {
 
   const showPurchaseButton = props.mode !== "member_only";
   const showMembershipLink = props.mode !== "paid_only";
+  const isFreeUnlock = showPurchaseButton && !props.amountLabel;
 
   const headline =
     props.mode === "member_only"
       ? "Subscribe to unlock"
-      : props.mode === "paid_only"
+      : isFreeUnlock
+        ? "Get access for free"
+        : props.mode === "paid_only"
         ? props.amountLabel ? `Buy to unlock · ${props.amountLabel}` : "Buy to unlock"
         : props.amountLabel ? `Unlock · ${props.amountLabel}` : "Unlock";
 
   const subtext =
     props.mode === "member_only"
       ? "This lesson is for members only."
+      : isFreeUnlock
+        ? "No payment required — access will be added to your account."
       : props.mode === "paid_only"
         ? "One-time purchase — yours to keep."
         : "Buy once, or unlock everything with a membership.";
@@ -269,8 +274,8 @@ export function MemberZoneUnlockPanel(props: {
             {busy
               ? "Processing…"
               : showGuestForm || isLoggedInUi
-                ? props.amountLabel ? `Buy · ${props.amountLabel}` : "Buy"
-                : "Buy Now"}
+                ? props.amountLabel ? `Buy · ${props.amountLabel}` : "Get access"
+                : isFreeUnlock ? "Get access" : "Buy now"}
           </button>
         ) : null}
         {showMembershipLink ? (

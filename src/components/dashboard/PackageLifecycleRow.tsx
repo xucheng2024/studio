@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { throttledRefresh } from "@/lib/throttledRefresh";
+import { formatPriceOrFree } from "@/lib/priceDisplay";
 import { useState } from "react";
 import { Check, Copy, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -117,7 +118,7 @@ export function PackageLifecycleRow({
                 <p className={`mt-0.5 text-xs ${ui.muted}`}>
                   {initial.credits != null ? `${initial.credits} class passes` : ""}
                   {initial.credits != null && initial.price != null ? " · " : ""}
-                  {initial.price != null ? `$${Number(initial.price).toFixed(2)}` : ""}
+                  {initial.price != null ? formatPriceOrFree("$", Number(initial.price)) : ""}
                   {initial.expiry_days != null ? ` · ${initial.expiry_days}d expiry` : ""}
                 </p>
               ) : null}

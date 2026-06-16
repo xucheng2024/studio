@@ -125,6 +125,15 @@ export async function POST(req: Request) {
   }
 
   if (parsed.data.status === "refunded") {
+    if (Number(payment.amount ?? 0) <= 0) {
+      return NextResponse.json(
+        {
+          error: "zero_amount_not_refundable",
+          message: "Zero-amount payments cannot be refunded.",
+        },
+        { status: 409 },
+      );
+    }
     if ((payment.payment_method ?? "").toLowerCase() === "hitpay") {
       const { data: secrets } = await admin
         .from("studio_payment_secrets")

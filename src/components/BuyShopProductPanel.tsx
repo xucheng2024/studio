@@ -18,6 +18,7 @@ type Props = {
   disabled?: boolean;
   outOfStock?: boolean;
   shippingDefaults?: ShippingAddressDefaults | null;
+  actionLabel?: string;
 };
 
 function readShippingFromRoot(root: HTMLElement | null): ShippingAddressPayload | null {
@@ -45,7 +46,13 @@ function readShippingFromRoot(root: HTMLElement | null): ShippingAddressPayload 
   };
 }
 
-export function BuyShopProductPanel({ productId, disabled = false, outOfStock = false, shippingDefaults }: Props) {
+export function BuyShopProductPanel({
+  productId,
+  disabled = false,
+  outOfStock = false,
+  shippingDefaults,
+  actionLabel = "Buy now",
+}: Props) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -134,7 +141,7 @@ export function BuyShopProductPanel({ productId, disabled = false, outOfStock = 
     return (
       <div ref={rootRef} className="flex w-full max-w-md flex-col gap-3">
         <EmailFirstCheckout
-          submitLabel={outOfStock ? "Out of stock" : "Buy now"}
+          submitLabel={outOfStock ? "Out of stock" : actionLabel}
           busyLabel="Creating..."
           disabled={disabled}
           onSubmit={submit}
@@ -185,7 +192,7 @@ export function BuyShopProductPanel({ productId, disabled = false, outOfStock = 
         ) : outOfStock ? (
           "Out of stock"
         ) : (
-          "Buy now"
+          actionLabel
         )}
       </button>
       {msg ? <p className={`text-sm ${ui.error}`}>{msg}</p> : null}

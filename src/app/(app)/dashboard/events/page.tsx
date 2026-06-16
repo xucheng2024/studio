@@ -136,7 +136,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
                 <LocalTime iso={String(e.end_time)} />
               </p>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
-                {e.price != null && Number(e.price) > 0 ? <span>SGD {Number(e.price).toFixed(2)}</span> : null}
+                {e.price != null ? <span>{Number(e.price) === 0 ? "Free" : `SGD ${Number(e.price).toFixed(2)}`}</span> : null}
                 <span>{Number(e.spots_left ?? 0)} / {Number(e.capacity ?? 0)} spots left</span>
                 {(e as { address?: string | null }).address ? (
                   <span>{String((e as { address?: string | null }).address)}</span>
@@ -234,7 +234,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Price (SGD)</span>
-                <input name="price" type="number" min={0} step={0.01} defaultValue={e.price != null && Number(e.price) > 0 ? Number(e.price) : ""} className={ui.input} />
+                <input name="price" type="number" min={0} step={0.01} defaultValue={e.price != null ? Number(e.price) : ""} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">
                 <span className={ui.label}>Tags</span>
@@ -278,7 +278,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Event setup</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <p className={ui.muted}>
-            Create and maintain standalone paid events here. Booking handling stays in Booking management.
+            Create and maintain standalone paid or free events here. Booking handling stays in Booking management.
           </p>
           <DashboardAppLink href="/dashboard/schedule" className={ui.btnSecondarySm}>
             Back to sessions
@@ -329,7 +329,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         <details className={`chevron ${ui.card} max-w-3xl`}>
           <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-stone-900 dark:text-stone-100">
             <span>+ New event</span>
-            <span className={`text-xs font-normal ${ui.muted}`}>Paid standalone event</span>
+            <span className={`text-xs font-normal ${ui.muted}`}>Paid or free standalone event</span>
           </summary>
           <form action={createEvent} className="mt-4 grid gap-3 md:grid-cols-2">
             <input type="hidden" name="studio_id" value={studioId} />

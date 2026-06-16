@@ -50,6 +50,18 @@ function paymentSourceLabel(source: string | null | undefined) {
   }
 }
 
+function paymentMethodLabel(method: string | null | undefined) {
+  const m = (method ?? "").toLowerCase();
+  if (m === "hitpay") return "HitPay";
+  if (m === "free") return "Free";
+  if (m === "cash") return "Cash";
+  if (m === "card") return "Card";
+  if (m === "paynow") return "PayNow";
+  if (m === "bank_transfer" || m === "transfer" || m === "bank") return "Bank transfer";
+  if (!method) return "-";
+  return method;
+}
+
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -466,7 +478,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
-                  <dd className="text-stone-700 dark:text-stone-300">{p.payment_method ?? "-"}</dd>
+                  <dd className="text-stone-700 dark:text-stone-300">{paymentMethodLabel(p.payment_method)}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Source</dt>
@@ -594,8 +606,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
               {/* ── Action buttons ────────────────────────────────── */}
               <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
-                {p.status === "paid" && p.invoice_status !== "void" ? <InvoiceSendButton paymentId={p.id} invoiceNumber={p.invoice_number} /> : null}
-                {p.status === "paid" ? (
+                {p.status === "paid" && p.invoice_status !== "void" && Number(p.amount ?? 0) > 0 ? (
+                  <InvoiceSendButton paymentId={p.id} invoiceNumber={p.invoice_number} />
+                ) : null}
+                {p.status === "paid" && Number(p.amount ?? 0) > 0 ? (
                   <PaymentMarkButton
                     paymentId={p.id}
                     status="refunded"

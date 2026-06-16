@@ -4,6 +4,7 @@ import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import { STUDIO_CURRENCY } from "@/lib/currency";
+import { formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
 import { studioPackagesPath } from "@/lib/public-paths";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
 import { ui } from "@/lib/ui";
@@ -22,7 +23,8 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   if (!ctx) notFound();
   const { studio, pkg } = ctx;
 
-  const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
+  const isFreePackage = isZeroAmount(pkg.price);
+  const paymentReady = isFreePackage || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
   const loc = pkg.locations as { name?: string } | { name?: string }[] | null;
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
@@ -41,8 +43,8 @@ export default async function PublicPackageBuyPage({ params }: Props) {
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {pkg.price != null ? (
             <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-              {packageCurrency} {Number(pkg.price).toFixed(2)}
-              <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">one-time</span>
+              {formatPriceOrFree(packageCurrency, Number(pkg.price))}
+              {!isFreePackage ? <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">one-time</span> : null}
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
@@ -70,15 +72,15 @@ export default async function PublicPackageBuyPage({ params }: Props) {
           <div className={`${ui.card} overflow-hidden sm:p-6`}>
             <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Buy this package</p>
             <p className={`mt-1 text-sm ${paymentReady ? ui.muted : ui.error}`}>
-              {paymentReady ? "Secure checkout powered by HitPay." : "Online payment is not configured for this studio."}
+              {isFreePackage ? "No payment required. We’ll add it to your account right away." : paymentReady ? "Secure checkout powered by HitPay." : "Online payment is not configured for this studio."}
             </p>
             <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-              {packageCurrency} {Number(pkg.price ?? 0).toFixed(2)}
-              <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">one-time</span>
+              {formatPriceOrFree(packageCurrency, Number(pkg.price ?? 0))}
+              {!isFreePackage ? <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">one-time</span> : null}
             </p>
 
             <div className="mt-5">
-              <GuestBuyPackagePanel packageId={pkg.id} disabled={!paymentReady} />
+              <GuestBuyPackagePanel packageId={pkg.id} disabled={!paymentReady} actionLabel={isFreePackage ? "Get package" : "Buy package"} />
             </div>
           </div>
         </div>

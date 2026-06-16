@@ -8,7 +8,15 @@ import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
-export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageId: string; disabled?: boolean }) {
+export function GuestBuyPackagePanel({
+  packageId,
+  disabled = false,
+  actionLabel = "Buy package",
+}: {
+  packageId: string;
+  disabled?: boolean;
+  actionLabel?: string;
+}) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -69,7 +77,7 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
     return (
       <div className="w-full max-w-md flex flex-col gap-3">
         <EmailFirstCheckout
-          submitLabel="Buy package"
+          submitLabel={actionLabel}
           busyLabel="Creating..."
           disabled={disabled}
           onSubmit={submit}
@@ -90,7 +98,7 @@ export function GuestBuyPackagePanel({ packageId, disabled = false }: { packageI
         className={`${ui.btnPrimary} disabled:opacity-50`}
         onClick={() => void submit()}
       >
-        {busy ? <><Loader2 size={15} className="animate-spin" /> Processing…</> : disabled ? "Online payment unavailable" : "Buy package"}
+        {busy ? <><Loader2 size={15} className="animate-spin" /> Processing…</> : disabled ? "Online payment unavailable" : actionLabel}
       </button>
       {msg ? <p className={`text-xs ${ui.muted}`}>{msg}</p> : null}
     </div>

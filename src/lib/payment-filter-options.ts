@@ -10,6 +10,7 @@ export const PAYMENT_STATUS_FILTER_OPTIONS: { value: string; label: string }[] =
 export const PAYMENT_METHOD_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "hitpay", label: "HitPay" },
   { value: "cash", label: "Cash" },
+  { value: "free", label: "Free" },
 ];
 
 export const PAYMENT_SOURCE_FILTER_OPTIONS: { value: string; label: string }[] = [

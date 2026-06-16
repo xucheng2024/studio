@@ -183,15 +183,13 @@ export default async function StudioBookingPage({ params }: Props) {
                       <p className="truncate font-semibold text-stone-900 dark:text-stone-50">{title}</p>
                       <p className="mt-0.5 text-sm font-medium text-stone-700 dark:text-stone-300">{timeLabel}</p>
                       <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                        {s.guest_price != null && Number(s.guest_price) > 0 ? (
+                        {s.guest_price != null && Number(s.guest_price) >= 0 ? (
                           <span className="text-base font-bold tabular-nums text-teal-700 dark:text-teal-300">
-                            ${Number(s.guest_price).toFixed(2)}
+                            {Number(s.guest_price) === 0 ? "Free" : `$${Number(s.guest_price).toFixed(2)}`}
                           </span>
                         ) : null}
-                        {s.guest_price != null && Number(s.guest_price) > 0 ? (
-                          <span className="text-xs text-stone-500 dark:text-stone-400">/ session</span>
-                        ) : null}
-                        {s.guest_price != null && Number(s.guest_price) > 0 && creditsRequired > 0 ? (
+                        {s.guest_price != null && Number(s.guest_price) > 0 ? <span className="text-xs text-stone-500 dark:text-stone-400">/ session</span> : null}
+                        {s.guest_price != null && Number(s.guest_price) >= 0 && creditsRequired > 0 ? (
                           <span className="text-xs text-stone-400 dark:text-stone-500">or</span>
                         ) : null}
                         {creditsRequired > 0 ? (

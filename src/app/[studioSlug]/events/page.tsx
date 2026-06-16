@@ -79,9 +79,9 @@ function EventCard({
             ) : (
               <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
             )}
-            {event.price != null && Number(event.price) > 0 ? (
+            {event.price != null && Number(event.price) >= 0 ? (
               <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                {STUDIO_CURRENCY} {Number(event.price).toFixed(2)}
+                {Number(event.price) === 0 ? "Free" : `${STUDIO_CURRENCY} ${Number(event.price).toFixed(2)}`}
               </span>
             ) : null}
           </div>
@@ -95,7 +95,7 @@ function EventCard({
               </div>
             ) : null}
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <span className={isEnded ? ui.btnSecondarySm : ui.btnPrimarySm}>{isEnded ? "View event" : "Book now"}</span>
+              <span className={isEnded ? ui.btnSecondarySm : ui.btnPrimarySm}>{isEnded ? "View event" : Number(event.price ?? 0) === 0 ? "Book free" : "Book now"}</span>
               {!isEnded ? <span className={`text-sm ${ui.muted}`}>{spotsText}</span> : <span className={`text-sm ${ui.muted}`}>Past</span>}
             </div>
           </div>

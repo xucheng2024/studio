@@ -257,7 +257,7 @@ export async function sendPurchaseConfirmation(params: {
   const greeting = nameSafe ? `Hi ${nameSafe},` : "Hi there,";
   const studioNameSafe = escHtml(params.studioName);
   const itemSafe = escHtml(params.itemDescription);
-  const amountFormatted = `${params.currency} ${params.amount.toFixed(2)}`;
+  const amountFormatted = params.amount <= 0 ? "Free" : `${params.currency} ${params.amount.toFixed(2)}`;
   const refSafe = params.referenceCode ? escHtml(params.referenceCode) : null;
   const loginUrlSafe = escHtml(params.loginUrl);
   const isGift = Boolean(params.isGift);

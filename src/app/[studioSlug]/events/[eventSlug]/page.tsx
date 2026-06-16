@@ -13,6 +13,7 @@ import { buildEventShareMetadata } from "@/lib/publicShareOg";
 import { getVideoPreview } from "@/lib/videoPreview";
 import { eventVenueForPublicBlock, PublicVenueBlock } from "@/components/PublicVenueBlock";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
+import { formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string; eventSlug: string }> };
@@ -28,12 +29,13 @@ export default async function PublicEventPage({ params }: Props) {
   if (!ctx) notFound();
   const { studio, event } = ctx;
 
-  const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
+  const isFreeEvent = isZeroAmount(event.price);
+  const paymentReady = isFreeEvent || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
   const ended = new Date(String(event.end_time)).getTime() < new Date().getTime();
   const coverSrc = (event as { image_url?: string | null }).image_url ?? null;
   const videoUrl = (event as { video_url?: string | null }).video_url ?? null;
   const eventCurrency = STUDIO_CURRENCY;
-  const hasEventPrice = event.price != null && Number(event.price) > 0;
+  const hasEventPrice = event.price != null && Number(event.price) >= 0;
   const videoPreview = getVideoPreview(videoUrl ?? "");
   const sharePath = studioEventPath(studio.public_slug ?? rawStudio, event.share_slug ?? rawEvent);
   const warmupMediaUrls = [coverSrc, videoPreview.thumbnailUrl]
@@ -145,7 +147,7 @@ export default async function PublicEventPage({ params }: Props) {
                 <p className={`mt-1 text-sm ${ui.muted}`}>Bookings are closed for past events.</p>
                 {hasEventPrice ? (
                   <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-                    {eventCurrency} {Number(event.price).toFixed(2)}
+                    {formatPriceOrFree(eventCurrency, Number(event.price))}
                   </p>
                 ) : null}
               </>
@@ -155,14 +157,16 @@ export default async function PublicEventPage({ params }: Props) {
                 <p className={`mt-1 text-sm ${useExternalBooking ? ui.muted : paymentReady ? ui.muted : ui.error}`}>
                   {useExternalBooking
                     ? "You will complete booking on an external site (opens in a new tab)."
-                    : paymentReady
+                    : isFreeEvent
+                      ? "No payment required. Your booking will be confirmed automatically."
+                      : paymentReady
                       ? "Secure checkout powered by HitPay."
                       : "Online payment is not configured for this studio."}
                 </p>
                 {hasEventPrice ? (
                   <p className="mt-4 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-                    {eventCurrency} {Number(event.price).toFixed(2)}
-                    <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ ticket</span>
+                    {formatPriceOrFree(eventCurrency, Number(event.price))}
+                    {!isFreeEvent ? <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">/ ticket</span> : null}
                   </p>
                 ) : (
                   <p className={`mt-4 text-sm ${ui.muted}`}>Price unavailable</p>
@@ -183,7 +187,7 @@ export default async function PublicEventPage({ params }: Props) {
                     <QuickEventBookPanel
                       slug={studio.public_slug ?? rawStudio}
                       eventId={event.id}
-                      payLabel={`Pay ${eventCurrency} ${Number(event.price).toFixed(2)}`}
+                      payLabel={isFreeEvent ? "Book free" : `Pay ${eventCurrency} ${Number(event.price).toFixed(2)}`}
                       disabled={!paymentReady}
                       defaultOpen
                       hideClose

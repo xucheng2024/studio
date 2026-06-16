@@ -235,9 +235,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
-                          {svc.price != null && Number(svc.price) > 0 ? (
+                          {svc.price != null && Number(svc.price) >= 0 ? (
                             <span className="absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                              {STUDIO_CURRENCY} {Number(svc.price).toFixed(2)}
+                              {Number(svc.price) === 0 ? "Free" : `${STUDIO_CURRENCY} ${Number(svc.price).toFixed(2)}`}
                             </span>
                           ) : null}
                           <div className="absolute bottom-2 right-2 z-20">
@@ -364,9 +364,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
                           <CoverLocationCornerBadge name={locationName} />
-                          {s.guest_price != null && Number(s.guest_price) > 0 ? (
+                          {s.guest_price != null && Number(s.guest_price) >= 0 ? (
                             <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                              {classCurrency} {Number(s.guest_price).toFixed(2)}
+                              {Number(s.guest_price) === 0 ? "Free" : `${classCurrency} ${Number(s.guest_price).toFixed(2)}`}
                             </span>
                           ) : null}
                           {creditsRequired > 0 ? (
@@ -466,9 +466,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           ) : (
                             <div className="aspect-video w-full rounded-lg bg-stone-100 dark:bg-stone-900" />
                           )}
-                          {e.price != null && Number(e.price) > 0 ? (
+                          {e.price != null && Number(e.price) >= 0 ? (
                             <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                              {STUDIO_CURRENCY} {Number(e.price).toFixed(2)}
+                              {Number(e.price) === 0 ? "Free" : `${STUDIO_CURRENCY} ${Number(e.price).toFixed(2)}`}
                             </span>
                           ) : null}
                           <div className="absolute bottom-2 right-2 z-20">
@@ -505,7 +505,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           </p>
                         ) : null}
                         <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <span className={ui.btnPrimarySm}>Book now</span>
+                          <span className={ui.btnPrimarySm}>{Number(e.price ?? 0) === 0 ? "Book free" : "Book now"}</span>
                           <span className={`text-sm ${ui.muted}`}>{eSpotsText}</span>
                         </div>
                       </div>
@@ -653,10 +653,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
                     </div>
                     <div className="mt-4 flex items-center gap-4">
-                      {buyHref ? <Link href={buyHref} className={ui.btnPrimarySm}>Buy now</Link> : null}
+                      {buyHref ? <Link href={buyHref} className={ui.btnPrimarySm}>{Number(pkg.price ?? 0) === 0 ? "Get package" : "Buy now"}</Link> : null}
                       {pkg.price != null ? (
                         <span className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-50">
-                          {packageCurrency} {Number(pkg.price).toFixed(2)}
+                          {Number(pkg.price) === 0 ? "Free" : `${packageCurrency} ${Number(pkg.price).toFixed(2)}`}
                         </span>
                       ) : null}
                     </div>

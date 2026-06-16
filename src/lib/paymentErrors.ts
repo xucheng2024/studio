@@ -125,8 +125,10 @@ export function paymentErrorMessage(error: string, detail?: string) {
                                 ? "This product was not found."
                                 : error === "product_not_available"
                                   ? "This product is no longer available."
-                                  : error === "payment_create_failed"
+                                : error === "payment_create_failed"
                                     ? "Could not create the payment. Please try again."
+                                    : error === "free_payment_finalize_failed"
+                                      ? "We couldn't finish your free order automatically. Please try again."
                                     : error === "order_create_failed"
                                       ? "Could not create your order. Please try again."
                             : "Could not continue payment.";
