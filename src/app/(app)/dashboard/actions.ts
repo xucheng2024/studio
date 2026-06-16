@@ -158,6 +158,63 @@ export async function updateStudioBasics(formData: FormData): Promise<void> {
   revalidatePublicStudioPath(studio.public_slug);
 }
 
+async function vercelDomainRequest(method: "POST" | "DELETE", domain: string): Promise<void> {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return;
+  const base = `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/domains`;
+  const url = method === "DELETE" ? `${base}/${encodeURIComponent(domain)}` : base;
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: method === "POST" ? JSON.stringify({ name: domain }) : undefined,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[vercelDomainRequest] ${method} ${domain} → ${res.status}`, body);
+    }
+  } catch (e) {
+    console.error("[vercelDomainRequest]", e);
+  }
+}
+
+export async function updateStudioCustomDomain(formData: FormData): Promise<void> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return;
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+
+  const raw = String(formData.get("custom_domain") ?? "").trim();
+  // Strip protocol and trailing slash if accidentally pasted as a full URL
+  const domain = raw.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase();
+
+  if (domain && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) return;
+
+  // Read current domain before overwriting so we can remove the old one from Vercel
+  const { data: current } = await supabase
+    .from("studios")
+    .select("custom_domain")
+    .eq("id", studio.id)
+    .single();
+  const oldDomain = current?.custom_domain ?? null;
+
+  const { error } = await supabase
+    .from("studios")
+    .update({ custom_domain: domain || null })
+    .eq("id", studio.id);
+  if (error) {
+    console.error("[updateStudioCustomDomain]", error.message);
+    return;
+  }
+
+  // Sync with Vercel: remove old domain, register new one
+  if (oldDomain && oldDomain !== domain) await vercelDomainRequest("DELETE", oldDomain);
+  if (domain) await vercelDomainRequest("POST", domain);
+
+  revalidatePath("/dashboard/settings/public-profile");
+}
+
 export async function updateStudioHitpaySettings(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);

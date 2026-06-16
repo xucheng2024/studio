@@ -3,6 +3,36 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ACTIVE_MEMBER_STUDIO_COOKIE, parseStudioSlugFromPath } from "@/lib/member-studio-shared";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
+/** Returns the public_slug for a custom domain, or null if not found. */
+async function resolveCustomDomain(host: string): Promise<string | null> {
+  const url = getSupabaseUrl();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/studios?custom_domain=ilike.${encodeURIComponent(host)}&contract_status=neq.suspended&select=public_slug&limit=1`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as { public_slug: string }[];
+    return rows[0]?.public_slug ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const APP_HOSTNAME = (process.env.NEXT_PUBLIC_APP_URL ?? "")
+  .replace(/^https?:\/\//, "")
+  .replace(/\/.*$/, "")
+  .replace(/:\d+$/, "")
+  .toLowerCase();
+
+function shouldSkipCustomDomainRewrite(pathname: string): boolean {
+  if (pathname.startsWith("/api/") || pathname === "/api") return true;
+  if (pathname.startsWith("/.well-known/") || pathname === "/.well-known") return true;
+  return pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname === "/manifest.webmanifest";
+}
+
 function isSuperAdminEmail(email: string | null | undefined) {
   if (!email) return false;
   const raw = process.env.SUPER_ADMIN_EMAILS ?? "";
@@ -14,6 +44,20 @@ function isSuperAdminEmail(email: string | null | undefined) {
 }
 
 export async function proxy(request: NextRequest) {
+  // Custom domain rewrite: if the incoming host is not our own app domain,
+  // look up the studio and rewrite internally so the browser URL stays unchanged.
+  const incomingHost = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "")
+    .split(":")[0]
+    .toLowerCase();
+  if (incomingHost && APP_HOSTNAME && incomingHost !== APP_HOSTNAME && !shouldSkipCustomDomainRewrite(request.nextUrl.pathname)) {
+    const slug = await resolveCustomDomain(incomingHost);
+    if (slug) {
+      const { pathname, search } = request.nextUrl;
+      const rewriteUrl = new URL(`/${slug}${pathname === "/" ? "" : pathname}${search}`, request.url);
+      return NextResponse.rewrite(rewriteUrl);
+    }
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
   let response = NextResponse.next({ request: { headers: requestHeaders } });
@@ -80,18 +124,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/m/:path*",
-    "/:studioSlug",
-    "/:studioSlug/classes/:path*",
-    "/:studioSlug/events/:path*",
-    "/:studioSlug/services/:path*",
-    "/:studioSlug/packages/:path*",
-    "/:studioSlug/memberships/:path*",
-    "/:studioSlug/member-zone/:path*",
-    "/:studioSlug/shop/:path*",
-    "/:studioSlug/me/:path*",
-    "/:studioSlug/checkout/:path*",
-    "/:studioSlug/auth/:path*",
+    // Broad catch-all for custom domain rewriting (excludes Next.js internals and static files)
+    "/((?!_next/static|_next/image|favicon\\.ico).*)",
   ],
 };
