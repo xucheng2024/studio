@@ -113,13 +113,24 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
             placeholder="yoga.example.com"
             maxLength={253}
           />
-          <p className={`text-xs ${ui.muted}`}>
-            On your DNS provider, add a <strong>CNAME</strong> record for this domain pointing to{" "}
-            <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">
-              {(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/^https?:\/\//, "") || "your-app.vercel.app"}
-            </code>
-            . Saving will register the domain on Vercel automatically — SSL is provisioned within minutes. Leave blank to remove.
-          </p>
+          {(() => {
+            const appHost = (process.env.NEXT_PUBLIC_APP_URL ?? "")
+              .replace(/^https?:\/\//, "")
+              .replace(/\/.*$/, "")
+              .replace(/:\d+$/, "");
+            const cnameTarget = appHost && !appHost.startsWith("localhost") ? appHost : null;
+            return (
+              <p className={`text-xs ${ui.muted}`}>
+                On your DNS provider, add a <strong>CNAME</strong> record for this domain pointing to{" "}
+                {cnameTarget ? (
+                  <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{cnameTarget}</code>
+                ) : (
+                  "your app's production domain"
+                )}
+                . Saving will register the domain on Vercel automatically — SSL is provisioned within minutes. Leave blank to remove.
+              </p>
+            );
+          })()}
         </label>
         <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
           Save domain
