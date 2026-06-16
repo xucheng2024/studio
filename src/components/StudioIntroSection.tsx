@@ -196,42 +196,66 @@ export function StudioIntroSection({
             <details className="group">
               <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300">
                 <span className="line-clamp-3 whitespace-pre-wrap">{intro.trim()}</span>
-                <span className="mt-2 inline-flex text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
-                  Read more
-                </span>
-                <span className="mt-2 hidden text-sm font-semibold text-teal-700 group-open:inline-flex dark:text-teal-400">
-                  Show less
-                </span>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
+                    Read more
+                  </span>
+                  <span className="hidden text-sm font-semibold text-teal-700 group-open:inline dark:text-teal-400">
+                    Show less
+                  </span>
+                  {(socialLinks.length > 0 || (contactEmail && emailHref)) && (
+                    <span className="flex items-center gap-3" onClick={(e) => e.preventDefault()}>
+                      {socialLinks.map(({ href, label, icon: Icon, iconClassName }) => (
+                        <a
+                          key={label}
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={label}
+                          title={label}
+                          className={`inline-flex size-5 shrink-0 items-center justify-center transition hover:opacity-70 ${iconClassName}`}
+                        >
+                          <Icon />
+                        </a>
+                      ))}
+                      {contactEmail && emailHref ? (
+                        <EmailPopoverButton contactEmail={contactEmail} emailHref={emailHref} />
+                      ) : null}
+                    </span>
+                  )}
+                </div>
               </summary>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-snug text-stone-700 dark:text-stone-300">
                 {intro.trim()}
               </p>
             </details>
           ) : (
-            <p className="text-sm leading-snug text-stone-700 dark:text-stone-300">
-              Welcome to our studio. Explore services and get in touch.
-            </p>
-          )}
-          {socialLinks.length > 0 || (contactEmail && emailHref) ? (
-            <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-stone-100 pt-4 dark:border-stone-800">
-              {socialLinks.map(({ href, label, icon: Icon, iconClassName }) => (
-                <a
-                  key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={label}
-                  title={label}
-                  className={`inline-flex size-5 shrink-0 items-center justify-center transition hover:opacity-70 ${iconClassName}`}
-                >
-                  <Icon />
-                </a>
-              ))}
-              {contactEmail && emailHref ? (
-                <EmailPopoverButton contactEmail={contactEmail} emailHref={emailHref} />
+            <>
+              <p className="text-sm leading-snug text-stone-700 dark:text-stone-300">
+                Welcome to our studio. Explore services and get in touch.
+              </p>
+              {socialLinks.length > 0 || (contactEmail && emailHref) ? (
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  {socialLinks.map(({ href, label, icon: Icon, iconClassName }) => (
+                    <a
+                      key={label}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={label}
+                      title={label}
+                      className={`inline-flex size-5 shrink-0 items-center justify-center transition hover:opacity-70 ${iconClassName}`}
+                    >
+                      <Icon />
+                    </a>
+                  ))}
+                  {contactEmail && emailHref ? (
+                    <EmailPopoverButton contactEmail={contactEmail} emailHref={emailHref} />
+                  ) : null}
+                </div>
               ) : null}
-            </div>
-          ) : null}
+            </>
+          )}
         </div>
       </div>
     </div>

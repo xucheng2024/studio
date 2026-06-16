@@ -6,6 +6,7 @@ import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { CoverLocationCornerBadge, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioIntroSection } from "@/components/StudioIntroSection";
+import { CalBookingButton } from "@/components/CalBookingButton";
 import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
 import { STUDIO_CURRENCY } from "@/lib/currency";
@@ -159,6 +160,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     .slice(0, 2)
     .map((part: string) => part[0]?.toUpperCase() ?? "")
     .join("") || "S";
+  const calcomEmbedUrl =
+    (studio as { calcom_booking_enabled?: boolean }).calcom_booking_enabled &&
+    (studio as { calcom_embed_url?: string | null }).calcom_embed_url?.trim()
+      ? (studio as { calcom_embed_url: string }).calcom_embed_url.trim()
+      : null;
   const origin = getAppOriginForOg();
   const homePath = studioHomePath(studio.public_slug);
   const canonicalUrl = origin ? `${origin}${homePath}` : null;
@@ -196,6 +202,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         showMembershipsLink={memberships.length > 0}
         introSectionId="studio-intro"
         tabs={[
+          ...(calcomEmbedUrl ? [{ id: "booking", label: "Book" }] : []),
           ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
           ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
           ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
@@ -221,6 +228,15 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           contactEmail={(studio as { public_contact_email?: string | null }).public_contact_email ?? null}
         />
       </section>
+
+      {calcomEmbedUrl ? (
+        <div id="booking" className="mx-auto mt-4 scroll-mt-20 w-full max-w-5xl">
+          <CalBookingButton
+            calLink={calcomEmbedUrl}
+            className={`${ui.btnPrimary}`}
+          />
+        </div>
+      ) : null}
 
       {services.length > 0 ? (
         <section id="services" className="mx-auto mt-10 w-full max-w-5xl">

@@ -314,6 +314,19 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const rawWhatsapp = String(formData.get("whatsapp_number_e164") ?? "");
   const whatsapp_number_e164 = normalizeE164(rawWhatsapp);
   const whatsapp_prefill_text = String(formData.get("whatsapp_prefill_text") ?? "").trim() || null;
+  const calcom_booking_enabled = formData.get("calcom_booking_enabled") === "on";
+  const calcom_embed_url_raw = String(formData.get("calcom_embed_url") ?? "").trim();
+  let calcom_embed_url: string | null = null;
+  if (calcom_embed_url_raw) {
+    try {
+      const u = new URL(calcom_embed_url_raw);
+      if (u.protocol === "https:" && u.hostname === "cal.com") {
+        calcom_embed_url = u.toString();
+      }
+    } catch {
+      /* invalid, leave null */
+    }
+  }
 
   if (rawVideo.trim() && !public_video_url) return;
   if (rawInstagramUrl.trim() && !public_instagram_url) return;
@@ -348,6 +361,8 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
       whatsapp_enabled,
       whatsapp_number_e164,
       whatsapp_prefill_text,
+      calcom_booking_enabled,
+      calcom_embed_url,
     })
     .eq("id", studio.id);
   if (error) {
