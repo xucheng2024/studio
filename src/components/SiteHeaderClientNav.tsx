@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MobileMenu } from "@/components/MobileMenu";
 import { SiteHeaderAccountDropdown } from "@/components/SiteHeaderAccountDropdown";
 import { site } from "@/lib/brand";
@@ -47,17 +47,13 @@ export function SiteHeaderConfigured() {
   const pathname = usePathname() ?? "";
   const [ready, setReady] = useState(false);
   const [navEpoch, setNavEpoch] = useState(0);
-  const [activeStudioSlug, setActiveStudioSlug] = useState("");
+  const activeStudioSlug = normalizeStudioSlug(readCookieValue(ACTIVE_MEMBER_STUDIO_COOKIE)) ?? "";
   const [payload, setPayload] = useState<HeaderNavPayload>({
     isLoggedIn: false,
     hasBackofficeAccess: false,
     userInitial: null,
     showMembershipsLink: false,
   });
-
-  useEffect(() => {
-    setActiveStudioSlug(normalizeStudioSlug(readCookieValue(ACTIVE_MEMBER_STUDIO_COOKIE)) ?? "");
-  }, [pathname, navEpoch]);
 
   useEffect(() => {
     const supabase = createBrowserSupabase();
@@ -71,9 +67,9 @@ export function SiteHeaderConfigured() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadHeaderNav = useCallback(() => {
+  useEffect(() => {
     let mounted = true;
-    fetch("/api/me/header-nav")
+    void fetch("/api/me/header-nav")
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (!mounted) return;
@@ -82,17 +78,14 @@ export function SiteHeaderConfigured() {
       })
       .catch(() => null)
       .finally(() => {
-        if (mounted) setReady(true);
+        if (mounted) {
+          setReady(true);
+        }
       });
     return () => {
       mounted = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (navEpoch > 0) setReady(false);
-    return loadHeaderNav();
-  }, [pathname, navEpoch, loadHeaderNav]);
+  }, [pathname, navEpoch]);
 
   const isDashboardPath = pathname.startsWith("/dashboard");
   const brandHref = isDashboardPath

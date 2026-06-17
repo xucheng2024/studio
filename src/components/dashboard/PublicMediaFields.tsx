@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useTransition, useState } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
@@ -33,16 +33,12 @@ export function CoverUrlField({
   oneToOnePreview,
   autoSaveAction,
 }: CoverFieldProps) {
-  const [value, setValue] = useState(defaultValue ?? "");
+  const [value, setValue] = useState(() => defaultValue ?? "");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
   const resolvedOneToOne = cropAspect === 1 ? (oneToOnePreview ?? "logo") : null;
   const isLogoField = resolvedOneToOne === "logo";
   const isSquareProductPreview = resolvedOneToOne === "square";
-
-  useEffect(() => {
-    setValue(defaultValue ?? "");
-  }, [studioId, entityId, defaultValue]);
 
   const handleUploaded = (url: string) => {
     setValue(url);
@@ -135,13 +131,8 @@ export function StudioProfileMediaFields({
   videoDefaultValue,
   studioName,
 }: StudioProfileMediaFieldsProps) {
-  const [coverValue, setCoverValue] = useState(coverDefaultValue ?? "");
-  const [videoValue, setVideoValue] = useState(videoDefaultValue ?? "");
-
-  useEffect(() => {
-    setCoverValue(coverDefaultValue ?? "");
-    setVideoValue(videoDefaultValue ?? "");
-  }, [studioId, coverDefaultValue, videoDefaultValue]);
+  const [coverValue, setCoverValue] = useState(() => coverDefaultValue ?? "");
+  const [videoValue, setVideoValue] = useState(() => videoDefaultValue ?? "");
 
   const videoPreview = getVideoPreview(videoValue);
   const previewCover = coverValue || videoPreview.thumbnailUrl || null;
@@ -234,13 +225,8 @@ export function CoverVideoFields({
   coverLabel = "Cover image",
   videoLabel = "Video URL",
 }: CoverVideoFieldsProps) {
-  const [coverValue, setCoverValue] = useState(coverDefaultValue ?? "");
-  const [videoValue, setVideoValue] = useState(videoDefaultValue ?? "");
-
-  useEffect(() => {
-    setCoverValue(coverDefaultValue ?? "");
-    setVideoValue(videoDefaultValue ?? "");
-  }, [studioId, entityId, coverDefaultValue, videoDefaultValue]);
+  const [coverValue, setCoverValue] = useState(() => coverDefaultValue ?? "");
+  const [videoValue, setVideoValue] = useState(() => videoDefaultValue ?? "");
 
   const videoPreview = getVideoPreview(videoValue);
   const previewCover = coverValue || videoPreview.thumbnailUrl || null;

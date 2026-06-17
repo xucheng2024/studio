@@ -358,7 +358,7 @@ async function seedTherapyData(ctx) {
     { name: "Jordan Lee, MA (Counselling)" },
     { name: "Aisha Rahman, MSW" },
     { name: "Chen Wei, MSc (Psychology)" },
-  ].map((i, idx) => ({
+  ].map((i) => ({
     studio_id: ctx.studioId,
     location_id: ctx.locationId,
     name: i.name,
@@ -468,7 +468,7 @@ async function seedTherapyData(ctx) {
     { name: "Progress Pack · 4 Sessions", credits: 4, price: 680, expiry_days: 90 },
     { name: "Couples Pack · 3 Sessions", credits: 3, price: 780, expiry_days: 120 },
     { name: "Group Wellness · 5 Passes", credits: 5, price: 240, expiry_days: 120 },
-  ].map((p, idx) => ({
+  ].map((p) => ({
     studio_id: ctx.studioId,
     location_id: ctx.locationId,
     name: p.name,
@@ -945,7 +945,6 @@ async function seedTherapyData(ctx) {
   ];
   const memberIds = [];
   for (const m of seedMembers) {
-    // eslint-disable-next-line no-await-in-loop
     const id = await ensureUserByEmail(m.email, m.full, m.phone);
     memberIds.push({ id, ...m });
   }
@@ -1146,7 +1145,6 @@ async function seedTherapyData(ctx) {
   const paidOnlySeries = mzSeries.find((s) => String(s.access_type) === "paid_only") ?? null;
   const memberOrPaidSeries = mzSeries.find((s) => String(s.access_type) === "member_or_paid") ?? null;
   const lessons = insertedLessons ?? [];
-  const paidOnlySeriesLessons = paidOnlySeries ? lessons.filter((l) => l.series_id === paidOnlySeries.id) : [];
   const memberOrPaidLessons = memberOrPaidSeries ? lessons.filter((l) => l.series_id === memberOrPaidSeries.id) : [];
   const standalonePaidLesson = memberOrPaidLessons.find((l) => String(l.access_override) === "paid_only") ?? null;
 
@@ -1451,4 +1449,3 @@ main().catch((err) => {
   console.error("seed failed", err);
   process.exit(1);
 });
-

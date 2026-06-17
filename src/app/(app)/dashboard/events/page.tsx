@@ -59,7 +59,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const dateFrom = dayRangeStartIso(sp.date_from ?? defaultDate) ?? fallbackDateFrom;
   const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultEndDate) ?? fallbackDateTo;
   const eventStatusFilter = resolveEventStatusFilter(sp.event_status);
-  const nowMs = Date.now();
+  const nowMs = now.getTime();
 
   const eventsQuery = supabase
     .from("events")

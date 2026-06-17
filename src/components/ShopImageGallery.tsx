@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 
@@ -17,10 +17,6 @@ type Props = {
 export function ShopImageGallery({ mainImage, extraImages, alt, priority = false, sharePath, shareTitle, shareText }: Props) {
   const allImages = [mainImage, ...extraImages].filter((u): u is string => !!u);
   const [active, setActive] = useState(0);
-
-  useEffect(() => {
-    setActive((prev) => Math.min(prev, Math.max(0, allImages.length - 1)));
-  }, [allImages.length]);
 
   if (!allImages.length) {
     return <div className="aspect-square w-full rounded-2xl bg-stone-100 dark:bg-stone-900" />;

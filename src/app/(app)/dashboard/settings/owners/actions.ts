@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { revalidatePublicStudioPath, revalidateRbacCache } from "@/lib/revalidatePublic";
+import {
+  revalidateDashboardCoreViews,
+  revalidateDashboardSettings,
+  revalidatePublicStudioPath,
+  revalidateRbacCache,
+} from "@/lib/revalidatePublic";
 import { redirect } from "next/navigation";
 import { writeOperationAudit } from "@/lib/audit";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -65,7 +70,7 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
       beforeState: beforeInvite ?? null,
       afterState: { email, is_active: true },
     });
-    revalidatePath("/dashboard/settings/owners");
+    revalidateDashboardSettings("owners");
     revalidateRbacCache();
     redirect("/dashboard/settings/owners?owners_success=invite_pending");
   }
@@ -102,7 +107,7 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
     })
     .eq("email", email);
 
-  revalidatePath("/dashboard/settings/owners");
+  revalidateDashboardSettings("owners");
   revalidateRbacCache();
   redirect("/dashboard/settings/owners?owners_success=grant_email");
 }
@@ -143,7 +148,7 @@ export async function setOwnerGrantStatus(formData: FormData): Promise<void> {
     afterState: { user_id: userId, is_active: nextActive },
   });
 
-  revalidatePath("/dashboard/settings/owners");
+  revalidateDashboardSettings("owners");
   revalidateRbacCache();
   redirect(`/dashboard/settings/owners?owners_success=${nextActive ? "grant_on" : "grant_off"}`);
 }
@@ -185,10 +190,8 @@ export async function suspendStudio(formData: FormData): Promise<void> {
     afterState: { contract_status: "suspended", owner_id: row.owner_id },
   });
 
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/overview");
-  revalidatePath("/dashboard/operations");
-  revalidatePath("/dashboard/settings/owners");
+  revalidateDashboardCoreViews();
+  revalidateDashboardSettings("owners");
   revalidatePublicStudioPath(row.public_slug);
   revalidateRbacCache();
   redirect("/dashboard/settings/owners?owners_success=studio_suspended");
@@ -252,10 +255,8 @@ export async function resumeStudio(formData: FormData): Promise<void> {
     },
   });
 
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/overview");
-  revalidatePath("/dashboard/operations");
-  revalidatePath("/dashboard/settings/owners");
+  revalidateDashboardCoreViews();
+  revalidateDashboardSettings("owners");
   revalidatePublicStudioPath(row.public_slug);
   revalidateRbacCache();
   redirect("/dashboard/settings/owners?owners_success=studio_resumed");
@@ -310,10 +311,8 @@ export async function disableOwnerAndSuspendStudios(formData: FormData): Promise
     afterState: payload,
   });
 
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/overview");
-  revalidatePath("/dashboard/operations");
-  revalidatePath("/dashboard/settings/owners");
+  revalidateDashboardCoreViews();
+  revalidateDashboardSettings("owners");
   revalidateRbacCache();
   redirect("/dashboard/settings/owners?owners_success=disable_owner_suspend_all");
 }

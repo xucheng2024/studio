@@ -1,8 +1,8 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
+import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,7 +36,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("class_sessions")
-    .select("id, class_id, location_id, start_time, end_time, capacity, spots_left, status, classes!inner(studio_id, duration_min)")
+    .select("id, class_id, location_id, start_time, end_time, capacity, spots_left, status, classes!inner(studio_id, duration_min, share_slug)")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -101,8 +101,10 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const { error: uErr } = await admin.from("class_sessions").update(patch).eq("id", id);
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
 
-  revalidatePath("/dashboard/schedule");
-  revalidatePath("/");
+  const { data: studio } = await admin.from("studios").select("public_slug").eq("id", cls.studio_id).maybeSingle();
+  const classShareSlug = (cls as { share_slug?: string | null }).share_slug ?? null;
+  revalidateDashboardContent("classes");
+  if (studio?.public_slug) revalidatePublicSectionPaths(studio.public_slug, "classes", classShareSlug);
   await recordStudioContentUpdate(cls.studio_id, "classes");
   return NextResponse.json({ ok: true });
 }

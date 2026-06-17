@@ -251,7 +251,7 @@ export default async function Home({ searchParams }: Props) {
               <div>
                 <h3 className="font-semibold text-stone-900 dark:text-stone-100">Automatic payment reconciliation</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
-                  Powered by HitPay. Payments hit your dashboard the moment they're confirmed. No more matching transfer screenshots against a spreadsheet.
+                  Powered by HitPay. Payments hit your dashboard the moment they&apos;re confirmed. No more matching transfer screenshots against a spreadsheet.
                 </p>
                 <ul className="mt-3 space-y-1">
                   {["PayNow, card & e-wallets", "Gateway callbacks update status instantly", "Invoice PDFs auto-generated"].map((f) => (
@@ -291,7 +291,7 @@ export default async function Home({ searchParams }: Props) {
               <div>
                 <h3 className="font-semibold text-stone-900 dark:text-stone-100">Front desk dashboard</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
-                  Today's arrivals, pending payments, and walk-in check-ins — visible the moment you open the tab. Your reception team needs zero training.
+                  Today&apos;s arrivals, pending payments, and walk-in check-ins — visible the moment you open the tab. Your reception team needs zero training.
                 </p>
                 <ul className="mt-3 space-y-1">
                   {["Daily class roster with arrival status", "Walk-in booking & payment in seconds", "Full payment history & export"].map((f) => (

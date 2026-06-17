@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioAccountEntry } from "@/components/StudioAccountEntry";
 
 export type StickyNavTab = { id: string; label: string };
@@ -31,9 +31,26 @@ export function StudioStickyNav({
 }) {
   const [activeId, setActiveId] = useState<string>(introSectionId ?? tabs[0]?.id ?? "");
   const [updates, setUpdates] = useState<UpdateMap>({});
-  const [seenAt, setSeenAt] = useState<Record<string, number>>({});
+  const [seenEpoch, setSeenEpoch] = useState(0);
   const navRef = useRef<HTMLElement>(null);
   const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const seenAt = useMemo(() => {
+    void seenEpoch;
+    if (typeof window === "undefined" || !studioSlug) return {};
+    const next: Record<string, number> = {};
+    for (const tab of tabs) {
+      const raw = localStorage.getItem(seenStorageKey(studioSlug, tab.id));
+      next[tab.id] = raw ? Number(raw) || 0 : 0;
+    }
+    return next;
+  }, [seenEpoch, studioSlug, tabs]);
+
+  const markSeen = useCallback((id: string) => {
+    if (!studioSlug || !id) return;
+    const now = Date.now();
+    localStorage.setItem(seenStorageKey(studioSlug, id), String(now));
+    setSeenEpoch((value) => value + 1);
+  }, [studioSlug]);
 
   useEffect(() => {
     const sectionIds = [
@@ -49,7 +66,9 @@ export function StudioStickyNav({
           .filter((e) => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
         if (visible.length > 0) {
-          setActiveId(visible[0].target.id);
+          const nextId = visible[0].target.id;
+          setActiveId(nextId);
+          markSeen(nextId);
         }
       },
       { rootMargin: "-72px 0px -55% 0px", threshold: 0 },
@@ -60,7 +79,7 @@ export function StudioStickyNav({
       if (el) observer.observe(el);
     }
     return () => observer.disconnect();
-  }, [tabs, introSectionId]);
+  }, [introSectionId, markSeen, tabs]);
 
   useEffect(() => {
     if (!studioSlug) return;
@@ -74,28 +93,11 @@ export function StudioStickyNav({
     return () => controller.abort();
   }, [studioSlug]);
 
-  useEffect(() => {
-    if (!studioSlug) return;
-    const next: Record<string, number> = {};
-    for (const tab of tabs) {
-      const raw = localStorage.getItem(seenStorageKey(studioSlug, tab.id));
-      next[tab.id] = raw ? Number(raw) || 0 : 0;
-    }
-    setSeenAt(next);
-  }, [studioSlug, tabs]);
-
   // Scroll the active pill into view inside the nav bar
   useEffect(() => {
     const btn = buttonRefs.current[activeId];
     btn?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   }, [activeId]);
-
-  useEffect(() => {
-    if (!studioSlug || !activeId) return;
-    const now = Date.now();
-    localStorage.setItem(seenStorageKey(studioSlug, activeId), String(now));
-    setSeenAt((prev) => ({ ...prev, [activeId]: now }));
-  }, [activeId, studioSlug]);
 
   const sectionUpdatedAt: Record<string, number> = {
     services: updates.services ? new Date(updates.services).getTime() : 0,
@@ -114,6 +116,7 @@ export function StudioStickyNav({
     const top = el.getBoundingClientRect().top + window.scrollY - navHeight - 8;
     window.scrollTo({ top, behavior: "smooth" });
     setActiveId(id);
+    markSeen(id);
   };
 
   return (

@@ -1,8 +1,9 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePublicTags } from "@/lib/publicTags";
+import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,7 +47,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("classes")
-    .select("id, studio_id, location_id, instructor_id")
+    .select("id, studio_id, location_id, instructor_id, share_slug")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -130,9 +131,10 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const { error: uErr } = await admin.from("classes").update(patch).eq("id", id);
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
 
-  revalidatePath("/dashboard/classes");
-  revalidatePath("/dashboard/schedule");
-  revalidatePath("/");
+  const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
+  revalidateDashboardContent("classes");
+  if (studio?.public_slug) revalidatePublicSectionPaths(studio.public_slug, "classes", row.share_slug ?? null);
+  await recordStudioContentUpdate(row.studio_id, "classes");
   return NextResponse.json({ ok: true });
 }
 
@@ -147,7 +149,7 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("classes")
-    .select("id, studio_id, location_id")
+    .select("id, studio_id, location_id, share_slug")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -166,8 +168,9 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     .eq("id", id);
   if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
 
-  revalidatePath("/dashboard/classes");
-  revalidatePath("/dashboard/schedule");
-  revalidatePath("/");
+  const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
+  revalidateDashboardContent("classes");
+  if (studio?.public_slug) revalidatePublicSectionPaths(studio.public_slug, "classes", row.share_slug ?? null);
+  await recordStudioContentUpdate(row.studio_id, "classes");
   return NextResponse.json({ ok: true });
 }

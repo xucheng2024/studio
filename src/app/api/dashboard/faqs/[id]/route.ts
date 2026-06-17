@@ -1,6 +1,6 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { revalidateDashboardSettings, revalidatePublicStudioPath } from "@/lib/revalidatePublic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
@@ -62,9 +62,8 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     .single();
   if (updateError || !row) return NextResponse.json({ error: updateError?.message ?? "update_failed" }, { status: 500 });
 
-  revalidatePath("/dashboard/settings/faqs");
-  revalidatePath("/dashboard/settings");
-  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  revalidateDashboardSettings("faqs");
+  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
   return NextResponse.json({ ok: true, row });
 }
 
@@ -101,8 +100,7 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   const { error: deleteError } = await admin.from("studio_faqs").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
-  revalidatePath("/dashboard/settings/faqs");
-  revalidatePath("/dashboard/settings");
-  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  revalidateDashboardSettings("faqs");
+  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
   return NextResponse.json({ ok: true });
 }

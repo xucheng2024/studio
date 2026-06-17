@@ -1,7 +1,7 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { cancelHitpayRecurringBilling, refundHitpayPayment } from "@/lib/hitpay";
 import { isMembershipEnded } from "@/lib/membership-subscription";
+import { revalidateDashboardMembershipViews } from "@/lib/revalidatePublic";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -144,8 +144,7 @@ export async function POST(_req: Request, { params }: Params) {
         .eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-      revalidatePath("/dashboard/memberships");
-      revalidatePath("/me/memberships");
+      revalidateDashboardMembershipViews();
       return NextResponse.json({ ok: true });
     }
     // Trial window has passed — fall through to normal period-end cancellation.
@@ -174,7 +173,6 @@ export async function POST(_req: Request, { params }: Params) {
     .eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  revalidatePath("/dashboard/memberships");
-  revalidatePath("/me/memberships");
+  revalidateDashboardMembershipViews();
   return NextResponse.json({ ok: true });
 }

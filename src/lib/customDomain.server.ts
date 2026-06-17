@@ -185,7 +185,9 @@ export async function verifyCustomDomain(params: {
   }
 
   const httpsReady = await probeUrl(`https://${domain}`);
-  const httpReachable = httpsReady ? false : await probeUrl(`http://${domain}`);
+  if (!httpsReady) {
+    await probeUrl(`http://${domain}`);
+  }
   const dnsCheck = await inspectDns(domain, kind, getCnameTargetFromEnv(), httpsReady);
   const sslStatus: CustomDomainSslStatus = httpsReady ? "ready" : "pending";
   const vercelStatus = params.vercelStatus ?? "unknown";

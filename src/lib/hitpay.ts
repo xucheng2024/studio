@@ -57,7 +57,7 @@ const HITPAY_RECURRING_METHODS_ALLOWED = new Set(["card", "giro", "shopee_recurr
  * - `HITPAY_RECURRING_PAYMENT_METHODS`: comma-separated subset of `card`, `shopee_recurring` (`giro` is ignored).
  * - If unset or only invalid values: `["card"]`.
  */
-export function getHitpayRecurringPaymentMethods(_currency: string): string[] {
+export function getHitpayRecurringPaymentMethods(): string[] {
   const raw = process.env.HITPAY_RECURRING_PAYMENT_METHODS?.trim();
   if (raw) {
     const list = raw
@@ -197,7 +197,7 @@ export async function createHitpayRecurringBilling(input: HitpayRecurringBilling
       payment_methods:
         input.paymentMethods && input.paymentMethods.length > 0
           ? input.paymentMethods
-          : getHitpayRecurringPaymentMethods(input.currency),
+          : getHitpayRecurringPaymentMethods(),
       send_email: input.sendEmail ? "true" : "false",
     }),
     cache: "no-store",

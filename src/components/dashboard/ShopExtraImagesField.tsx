@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { PublicMediaUploader } from "@/components/dashboard/PublicMediaUploader";
@@ -15,11 +15,7 @@ type Props = {
 };
 
 export function ShopExtraImagesField({ studioId, entityId, defaultValues }: Props) {
-  const [urls, setUrls] = useState<string[]>(defaultValues);
-
-  useEffect(() => {
-    setUrls(defaultValues);
-  }, [entityId, defaultValues]);
+  const [urls, setUrls] = useState<string[]>(() => defaultValues);
 
   const add = (url: string) => setUrls((prev) => (prev.length >= MAX_EXTRA ? prev : [...prev, url]));
   const remove = (idx: number) => setUrls((prev) => prev.filter((_, i) => i !== idx));

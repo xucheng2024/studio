@@ -89,8 +89,8 @@ export function LessonAccessPreview(props: {
   initialOverridePrice: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [seriesAccessType, setSeriesAccessType] = useState<AccessTypeV2>(props.initialSeriesAccessType);
-  const [seriesPrice, setSeriesPrice] = useState(props.initialSeriesPrice ?? 0);
+  const [seriesAccessType] = useState<AccessTypeV2>(props.initialSeriesAccessType);
+  const [seriesPrice] = useState(props.initialSeriesPrice ?? 0);
 
   const [override, setOverride] = useState<LessonOverride>(props.initialOverride);
   const [overridePrice, setOverridePrice] = useState(props.initialOverridePrice ?? 0);

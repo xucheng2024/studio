@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import {
   COVER_ALLOWED_MIME,
@@ -10,6 +9,8 @@ import {
 } from "@/lib/coverMedia";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeCoverImage } from "@/lib/imageTransform";
+import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
+import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -30,7 +31,7 @@ export async function POST(req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("classes")
-    .select("id, studio_id, location_id, image_url")
+    .select("id, studio_id, location_id, image_url, share_slug")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -98,8 +99,10 @@ export async function POST(req: Request, ctx: RouteParams) {
     await admin.storage.from(COVER_MEDIA_BUCKET).remove([oldPath]);
   }
 
-  revalidatePath("/dashboard/classes");
-  revalidatePath("/");
+  const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
+  revalidateDashboardContent("classes");
+  if (studio?.public_slug) revalidatePublicSectionPaths(studio.public_slug, "classes", row.share_slug ?? null);
+  await recordStudioContentUpdate(row.studio_id, "classes");
   return NextResponse.json({ ok: true, image_url: publicUrl, image_updated_at: now });
 }
 
@@ -116,7 +119,7 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("classes")
-    .select("id, studio_id, location_id, image_url")
+    .select("id, studio_id, location_id, image_url, share_slug")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -141,7 +144,9 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     .eq("id", id);
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
 
-  revalidatePath("/dashboard/classes");
-  revalidatePath("/");
+  const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
+  revalidateDashboardContent("classes");
+  if (studio?.public_slug) revalidatePublicSectionPaths(studio.public_slug, "classes", row.share_slug ?? null);
+  await recordStudioContentUpdate(row.studio_id, "classes");
   return NextResponse.json({ ok: true, image_url: null });
 }

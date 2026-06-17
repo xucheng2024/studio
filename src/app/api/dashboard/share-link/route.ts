@@ -1,5 +1,4 @@
-import { revalidatePath } from "next/cache";
-import { revalidatePublicStudioPath } from "@/lib/revalidatePublic";
+import { revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAppBaseUrlFromRequest } from "@/lib/app-url";
@@ -65,8 +64,7 @@ export async function POST(req: Request) {
     }
 
     const url = `${base}/${studio.public_slug}/packages/${slugResult.slug}`;
-    revalidatePublicStudioPath(studio.public_slug);
-    revalidatePath(`/${studio.public_slug}/packages/${slugResult.slug}`);
+    revalidatePublicSectionPaths(studio.public_slug, "packages", slugResult.slug);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
 
@@ -104,9 +102,7 @@ export async function POST(req: Request) {
     }
 
     const url = `${base}/${studio.public_slug}/memberships/${slugResult.slug}`;
-    revalidatePublicStudioPath(studio.public_slug);
-    revalidatePath(`/${studio.public_slug}/memberships`);
-    revalidatePath(`/${studio.public_slug}/memberships/${slugResult.slug}`);
+    revalidatePublicSectionPaths(studio.public_slug, "memberships", slugResult.slug);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
 
@@ -141,8 +137,7 @@ export async function POST(req: Request) {
     }
 
     const url = `${base}/${studio.public_slug}/services/${slugResult.slug}`;
-    revalidatePublicStudioPath(studio.public_slug);
-    revalidatePath(`/${studio.public_slug}/services/${slugResult.slug}`);
+    revalidatePublicSectionPaths(studio.public_slug, "services", slugResult.slug);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
 
@@ -202,9 +197,7 @@ export async function POST(req: Request) {
     // The class page accepts both ?session=<slug> and ?session_id=<uuid> so
     // direct links with UUIDs (e.g. from ops tools) keep working.
     const url = `${base}/${studio.public_slug}/classes/${classSlugResult.slug}?session=${sessionSlugResult.slug}`;
-    revalidatePublicStudioPath(studio.public_slug);
-    revalidatePath(`/${studio.public_slug}/classes`);
-    revalidatePath(`/${studio.public_slug}/classes/${classSlugResult.slug}`);
+    revalidatePublicSectionPaths(studio.public_slug, "classes", classSlugResult.slug);
     return NextResponse.json({
       url,
       share_slug: classSlugResult.slug,
@@ -243,10 +236,7 @@ export async function POST(req: Request) {
   }
 
   const url = `${base}/${studio.public_slug}/classes/${slugResult.slug}`;
-  revalidatePublicStudioPath(studio.public_slug);
-  revalidatePath(`/${studio.public_slug}`);
-  revalidatePath(`/${studio.public_slug}/classes`);
-  revalidatePath(`/${studio.public_slug}/classes/${slugResult.slug}`);
+  revalidatePublicSectionPaths(studio.public_slug, "classes", slugResult.slug);
   return NextResponse.json({ url, share_slug: slugResult.slug });
 }
 

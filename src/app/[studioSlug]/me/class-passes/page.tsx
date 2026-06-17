@@ -125,7 +125,7 @@ export default async function MyClassPassesPage({ params }: Props) {
     .order("created_at", { ascending: false })
     .limit(30);
 
-  const now = Date.now();
+  const now = new Date().getTime();
   const allPasses = (rows ?? []) as PassRow[];
   const activePasses = allPasses.filter((r) => {
     const expiryMs = r.expiry_date ? new Date(r.expiry_date).getTime() : null;

@@ -257,7 +257,6 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         <h2 className={ui.h2}>Current packages</h2>
         <ul className="mt-3 flex flex-col gap-2">
           {(packRows ?? []).map((row) => {
-            const pkg = Array.isArray(row.packages) ? row.packages[0] : row.packages;
             const packageName =
               (row as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || "Package";
             const packageCredits = Number((row as { package_credits_snapshot?: number | null }).package_credits_snapshot ?? 0);

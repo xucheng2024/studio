@@ -1,7 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { revalidatePublicStudioPath, revalidateRbacCache } from "@/lib/revalidatePublic";
+import {
+  revalidateDashboardContent,
+  revalidateDashboardCoreViews,
+  revalidateDashboardSettings,
+  revalidatePublicSectionPaths,
+  revalidatePublicStudioPath,
+  revalidateRbacCache,
+} from "@/lib/revalidatePublic";
 import { redirect } from "next/navigation";
 import { buildAccessContext, resolveAccessContext } from "@/lib/rbac";
 import { parsePublicTagsInput } from "@/lib/publicTags";
@@ -133,7 +140,7 @@ export async function createStudio(formData: FormData): Promise<void> {
     }
   }
 
-  revalidatePath("/dashboard");
+  revalidateDashboardCoreViews();
   revalidatePublicStudioPath(public_slug);
   revalidateRbacCache();
 }
@@ -158,10 +165,8 @@ export async function updateStudioBasics(formData: FormData): Promise<void> {
     return;
   }
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/overview");
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/settings/public-profile");
+  revalidateDashboardCoreViews();
+  revalidateDashboardSettings("public-profile");
   revalidatePublicStudioPath(public_slug);
   revalidatePublicStudioPath(studio.public_slug);
 }
@@ -224,8 +229,7 @@ export async function updateStudioCustomDomain(
       };
     }
 
-    revalidatePath("/dashboard/settings");
-    revalidatePath("/dashboard/settings/public-profile");
+    revalidateDashboardSettings("public-profile");
     revalidatePath("/dashboard/settings/custom-domain");
     return {
       ok: true,
@@ -244,8 +248,7 @@ export async function updateStudioCustomDomain(
     await persistCustomDomainSnapshot(studio.id, snapshot);
     if (oldDomain && oldDomain !== domain) await removeDomainFromVercel(oldDomain);
 
-    revalidatePath("/dashboard/settings");
-    revalidatePath("/dashboard/settings/public-profile");
+    revalidateDashboardSettings("public-profile");
     revalidatePath("/dashboard/settings/custom-domain");
 
     const uiStatus = toCustomDomainUiStatus(snapshot);
@@ -311,7 +314,7 @@ export async function updateStudioHitpaySettings(formData: FormData): Promise<vo
     return;
   }
 
-  revalidatePath("/dashboard/settings/payments");
+  revalidateDashboardSettings("payments");
   revalidatePath("/");
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
 }
@@ -458,7 +461,7 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
     return;
   }
 
-  revalidatePath("/dashboard/settings/public-profile");
+  revalidateDashboardSettings("public-profile");
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
 }
 
@@ -520,9 +523,8 @@ export async function updateStudioBookingSettings(
     return { ok: false, message: "Could not save booking settings." };
   }
 
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/settings/public-profile");
-  revalidatePath("/dashboard/settings/booking");
+  revalidateDashboardSettings("public-profile");
+  revalidateDashboardSettings("booking");
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
 
   return {
@@ -553,7 +555,7 @@ export async function savePublicLogoUrl(studioId: string, logoUrl: string | null
     console.error("[savePublicLogoUrl]", error.message);
     return;
   }
-  revalidatePath("/dashboard/settings/public-profile");
+  revalidateDashboardSettings("public-profile");
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
 }
 
@@ -580,7 +582,7 @@ export async function updateStudioPublicBranding(formData: FormData): Promise<vo
     return;
   }
 
-  revalidatePath("/dashboard/settings/public-profile");
+  revalidateDashboardSettings("public-profile");
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
 }
 
@@ -624,8 +626,8 @@ export async function createStudioService(formData: FormData): Promise<void> {
     return;
   }
 
-  revalidatePath("/dashboard/services");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("services");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "services", share_slug);
   await recordStudioContentUpdate(studio.id, "services");
 }
 
@@ -650,6 +652,12 @@ export async function updateStudioService(formData: FormData): Promise<void> {
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
   if (rawVideo.trim() && !video_url) return;
+  const { data: existingService } = await supabase
+    .from("studio_services")
+    .select("share_slug")
+    .eq("id", serviceId)
+    .eq("studio_id", studio.id)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("studio_services")
@@ -672,8 +680,8 @@ export async function updateStudioService(formData: FormData): Promise<void> {
     return;
   }
 
-  revalidatePath("/dashboard/services");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("services");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "services", existingService?.share_slug ?? null);
   await recordStudioContentUpdate(studio.id, "services");
 }
 
@@ -684,6 +692,12 @@ export async function deleteStudioService(formData: FormData): Promise<void> {
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  const { data: existingService } = await supabase
+    .from("studio_services")
+    .select("share_slug")
+    .eq("id", serviceId)
+    .eq("studio_id", studio.id)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("studio_services")
@@ -695,8 +709,8 @@ export async function deleteStudioService(formData: FormData): Promise<void> {
     return;
   }
 
-  revalidatePath("/dashboard/services");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("services");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "services", existingService?.share_slug ?? null);
   await recordStudioContentUpdate(studio.id, "services");
 }
 
@@ -734,9 +748,7 @@ export async function updateStudioContractSettings(formData: FormData): Promise<
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/overview");
-  revalidatePath("/dashboard/operations");
+  revalidateDashboardCoreViews();
 }
 
 export async function createLocation(formData: FormData): Promise<void> {
@@ -765,11 +777,7 @@ export async function createLocation(formData: FormData): Promise<void> {
   if (error) {
     redirect("/dashboard/settings/locations?loc_error=create_failed");
   }
-  revalidatePath("/dashboard/settings/locations");
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/schedule");
-  revalidatePath("/dashboard/frontdesk");
-  revalidatePath("/dashboard/operations");
+  revalidateDashboardSettings("locations");
   redirect("/dashboard/settings/locations?loc_success=created");
 }
 
@@ -809,10 +817,7 @@ export async function updateLocation(formData: FormData): Promise<void> {
   if (error) {
     redirect("/dashboard/settings/locations?loc_error=save_failed");
   }
-  revalidatePath("/dashboard/settings/locations");
-  revalidatePath("/dashboard/schedule");
-  revalidatePath("/dashboard/frontdesk");
-  revalidatePath("/dashboard/operations");
+  revalidateDashboardSettings("locations");
   redirect("/dashboard/settings/locations?loc_success=updated");
 }
 
@@ -847,10 +852,7 @@ export async function toggleLocationActive(formData: FormData): Promise<void> {
     .update({ is_active: nextActive })
     .eq("id", location.id);
 
-  revalidatePath("/dashboard/settings/locations");
-  revalidatePath("/dashboard/schedule");
-  revalidatePath("/dashboard/frontdesk");
-  revalidatePath("/dashboard/operations");
+  revalidateDashboardSettings("locations");
   redirect("/dashboard/settings/locations?loc_success=status_updated");
 }
 
@@ -927,7 +929,7 @@ export async function createInstructor(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/classes");
+  revalidateDashboardContent("classes");
 }
 
 export async function createClassTemplate(formData: FormData): Promise<void> {
@@ -975,8 +977,7 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/classes");
-  revalidatePath("/dashboard/schedule");
+  revalidateDashboardContent("classes");
 }
 
 // ---------------------------------------------------------------------------
@@ -1168,8 +1169,8 @@ export async function createPackage(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/packages");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("packages");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "packages");
   await recordStudioContentUpdate(studio.id, "packages");
 }
 
@@ -1229,11 +1230,9 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
     return;
   }
 
-  revalidatePath("/dashboard/memberships");
+  revalidateDashboardContent("memberships");
   if (studio.public_slug) {
-    revalidatePublicStudioPath(studio.public_slug);
-    revalidatePath(`/${studio.public_slug}/memberships`);
-    revalidatePath(`/${studio.public_slug}/memberships/${share_slug}`);
+    revalidatePublicSectionPaths(studio.public_slug, "memberships", share_slug);
   }
 }
 
@@ -1310,12 +1309,10 @@ export async function createEvent(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/events");
-  revalidatePath("/");
+  revalidateDashboardContent("events");
   const pub = String(studio.public_slug ?? "").trim();
   if (pub) {
-    revalidatePublicStudioPath(pub);
-    revalidatePath(`/${pub}/events/${share_slug}`);
+    revalidatePublicSectionPaths(pub, "events", share_slug);
   }
   await recordStudioContentUpdate(studio.id, "events");
 }
@@ -1388,13 +1385,11 @@ export async function updateEvent(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/events");
-  revalidatePath("/");
+  revalidateDashboardContent("events");
   const pub = String(studio.public_slug ?? "").trim();
   const evSlug = String((existing as { share_slug?: string | null }).share_slug ?? "").trim();
   if (pub) {
-    revalidatePublicStudioPath(pub);
-    if (evSlug) revalidatePath(`/${pub}/events/${evSlug}`);
+    revalidatePublicSectionPaths(pub, "events", evSlug);
   }
   await recordStudioContentUpdate(studio.id, "events");
 }
@@ -1413,7 +1408,17 @@ export async function deleteEvent(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/events");
+  revalidateDashboardContent("events");
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("share_slug")
+    .eq("id", eventId)
+    .eq("studio_id", studio.id)
+    .maybeSingle();
+  if (studio.public_slug) {
+    revalidatePublicSectionPaths(studio.public_slug, "events", eventRow?.share_slug ?? null);
+  }
+  await recordStudioContentUpdate(studio.id, "events");
 }
 
 async function generateUniqueMemberZoneSeriesShareSlug(
@@ -1475,8 +1480,8 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/member-zone");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("member-zone");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "member-zone", share_slug);
   await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
@@ -1503,6 +1508,12 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
   const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
+  const { data: existingSeries } = await supabase
+    .from("member_zone_series")
+    .select("share_slug")
+    .eq("id", seriesId)
+    .eq("studio_id", studio.id)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("member_zone_series")
@@ -1525,8 +1536,8 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/member-zone");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("member-zone");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "member-zone", existingSeries?.share_slug ?? null);
   await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
@@ -1538,6 +1549,13 @@ export async function deleteMemberZoneSeries(formData: FormData): Promise<void> 
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
 
+  const { data: existingSeries } = await supabase
+    .from("member_zone_series")
+    .select("share_slug")
+    .eq("id", seriesId)
+    .eq("studio_id", studio.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("member_zone_series")
     .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -1547,8 +1565,9 @@ export async function deleteMemberZoneSeries(formData: FormData): Promise<void> 
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/member-zone");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("member-zone");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "member-zone", existingSeries?.share_slug ?? null);
+  await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
 export async function createMemberZoneLesson(formData: FormData): Promise<void> {
@@ -1561,7 +1580,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
 
   const { data: series } = await supabase
     .from("member_zone_series")
-    .select("id")
+    .select("id, share_slug")
     .eq("id", seriesId)
     .eq("studio_id", studio.id)
     .maybeSingle();
@@ -1602,7 +1621,8 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/member-zone");
+  revalidateDashboardContent("member-zone");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "member-zone", series.share_slug ?? null);
   await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
@@ -1617,7 +1637,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
 
   const { data: series } = await supabase
     .from("member_zone_series")
-    .select("id")
+    .select("id, share_slug")
     .eq("id", seriesId)
     .eq("studio_id", studio.id)
     .maybeSingle();
@@ -1663,7 +1683,8 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/member-zone");
+  revalidateDashboardContent("member-zone");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "member-zone", series.share_slug ?? null);
   await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
@@ -1678,7 +1699,7 @@ export async function deleteMemberZoneLesson(formData: FormData): Promise<void> 
 
   const { data: series } = await supabase
     .from("member_zone_series")
-    .select("id")
+    .select("id, share_slug")
     .eq("id", seriesId)
     .eq("studio_id", studio.id)
     .maybeSingle();
@@ -1693,7 +1714,9 @@ export async function deleteMemberZoneLesson(formData: FormData): Promise<void> 
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/member-zone");
+  revalidateDashboardContent("member-zone");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "member-zone", series.share_slug ?? null);
+  await recordStudioContentUpdate(studio.id, "member-zone");
 }
 
 export type SessionPanelResult = { ok: boolean; message: string };
@@ -1795,7 +1818,7 @@ export async function createSessionWithTemplate(
       return { ok: false, message: "Failed to create class. Please try again." };
     }
     classId = newClass.id;
-    revalidatePath("/dashboard/classes");
+    revalidateDashboardContent("classes");
   }
   if (!classId) return SESSION_PANEL_ERR;
 
@@ -1816,10 +1839,9 @@ export async function createSessionWithTemplate(
     const ok = await insertOneTimeSession(supabase, cls, locationId, onceStartDate, pricing);
     if (!ok) return { ok: false, message: "Failed to create session. Please try again." };
 
-    revalidatePath("/dashboard/schedule");
+    revalidateDashboardContent("classes");
     if (studio.public_slug) {
-      revalidatePublicStudioPath(studio.public_slug);
-      revalidatePath(`/${studio.public_slug}/classes`);
+      revalidatePublicSectionPaths(studio.public_slug, "classes");
     }
     await recordStudioContentUpdate(studio.id, "classes");
     return { ok: true, message: `${classPrefix}1 session scheduled` };
@@ -1838,10 +1860,9 @@ export async function createSessionWithTemplate(
     const count = await insertRecurringRule(supabase, cls, locationId, weeklyFields, pricing);
     if (count < 0) return { ok: false, message: "Failed to create recurring schedule. Please try again." };
 
-    revalidatePath("/dashboard/schedule");
+    revalidateDashboardContent("classes");
     if (studio.public_slug) {
-      revalidatePublicStudioPath(studio.public_slug);
-      revalidatePath(`/${studio.public_slug}/classes`);
+      revalidatePublicSectionPaths(studio.public_slug, "classes");
     }
     await recordStudioContentUpdate(studio.id, "classes");
     const clsTitle = cls.title ?? newClassTitle;
@@ -2008,7 +2029,7 @@ export async function createStaffInvite(formData: FormData): Promise<void> {
   if (error) {
     redirect("/dashboard/settings/staff-invites?invite_error=create_failed");
   }
-  revalidatePath("/dashboard/settings/staff-invites");
+  revalidateDashboardSettings("staff-invites");
   revalidateRbacCache();
   redirect("/dashboard/settings/staff-invites?invite_success=sent");
 }
@@ -2033,7 +2054,7 @@ export async function revokeStaffInvite(formData: FormData): Promise<void> {
   if (!me) return;
 
   await supabase.from("staff_invites").update({ status: "revoked" }).eq("id", invite.id);
-  revalidatePath("/dashboard/settings/staff-invites");
+  revalidateDashboardSettings("staff-invites");
   revalidateRbacCache();
 }
 
@@ -2118,8 +2139,8 @@ export async function createShopProduct(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/shop");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("shop");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "shop", share_slug);
   await recordStudioContentUpdate(studio.id, "shop");
 }
 
@@ -2143,6 +2164,12 @@ export async function updateShopProduct(formData: FormData): Promise<void> {
   const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
+  const { data: existingProduct } = await supabase
+    .from("shop_products")
+    .select("share_slug")
+    .eq("id", productId)
+    .eq("studio_id", studio.id)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("shop_products")
@@ -2165,8 +2192,8 @@ export async function updateShopProduct(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/shop");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("shop");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "shop", existingProduct?.share_slug ?? null);
   await recordStudioContentUpdate(studio.id, "shop");
 }
 
@@ -2178,6 +2205,13 @@ export async function deleteShopProduct(formData: FormData): Promise<void> {
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
 
+  const { data: existingProduct } = await supabase
+    .from("shop_products")
+    .select("share_slug")
+    .eq("id", productId)
+    .eq("studio_id", studio.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("shop_products")
     .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -2187,8 +2221,8 @@ export async function deleteShopProduct(formData: FormData): Promise<void> {
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/shop");
-  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  revalidateDashboardContent("shop");
+  if (studio.public_slug) revalidatePublicSectionPaths(studio.public_slug, "shop", existingProduct?.share_slug ?? null);
   await recordStudioContentUpdate(studio.id, "shop");
 }
 
@@ -2212,5 +2246,5 @@ export async function updateShopOrderFulfillment(formData: FormData): Promise<vo
     console.error(error.message);
     return;
   }
-  revalidatePath("/dashboard/shop");
+  revalidateDashboardContent("shop");
 }

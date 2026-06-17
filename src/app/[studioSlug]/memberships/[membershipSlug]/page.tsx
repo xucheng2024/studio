@@ -25,7 +25,6 @@ export default async function PublicMembershipPage({ params }: Props) {
 
   const paymentReady = Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
   const studioPublicSlug = studio.public_slug ?? rawStudio;
-  const membershipSlugPath = (membership as { share_slug?: string | null }).share_slug ?? rawMembership;
   const membershipCurrency = STUDIO_CURRENCY;
   const intervalLabel = membership.billing_interval === "yearly" ? "Yearly" : "Monthly";
   const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);

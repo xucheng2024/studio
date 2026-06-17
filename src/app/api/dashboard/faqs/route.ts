@@ -1,6 +1,6 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { revalidateDashboardSettings, revalidatePublicStudioPath } from "@/lib/revalidatePublic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
@@ -50,8 +50,7 @@ export async function POST(req: Request) {
     .single();
   if (error || !row) return NextResponse.json({ error: error?.message ?? "create_failed" }, { status: 500 });
 
-  revalidatePath("/dashboard/settings/faqs");
-  revalidatePath("/dashboard/settings");
-  if (studio.public_slug) revalidatePath(`/${studio.public_slug}`);
+  revalidateDashboardSettings("faqs");
+  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
   return NextResponse.json({ ok: true, row });
 }

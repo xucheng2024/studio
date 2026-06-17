@@ -13,20 +13,17 @@ import { ui } from "@/lib/ui";
 export function MembershipReturnNotice({ studioSlug }: { studioSlug: string }) {
   const sp = useSearchParams();
   const router = useRouter();
-  const [visible, setVisible] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const visible = sp.get("membership_checkout") === "1";
+  const subscriptionId = sp.get("subscription_id")?.trim() ?? "";
+  const [syncing, setSyncing] = useState(() => visible && Boolean(subscriptionId));
   const syncedRef = useRef(false);
 
   const myMembershipsHref = `/${studioSlug}/me/memberships`;
 
   useEffect(() => {
-    if (sp.get("membership_checkout") !== "1") return;
-    setVisible(true);
-
-    const subscriptionId = sp.get("subscription_id")?.trim();
     if (!subscriptionId || syncedRef.current) return;
     syncedRef.current = true;
-    setSyncing(true);
+    let cancelled = false;
     void fetch("/api/membership/sync-from-hitpay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -40,8 +37,15 @@ export function MembershipReturnNotice({ studioSlug }: { studioSlug: string }) {
         }
       })
       .catch(() => {})
-      .finally(() => setSyncing(false));
-  }, [sp, myMembershipsHref, router]);
+      .finally(() => {
+        if (!cancelled) {
+          setSyncing(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [myMembershipsHref, router, subscriptionId]);
 
   const stripQuery = () => {
     const membershipSlug = typeof window !== "undefined"
@@ -81,7 +85,6 @@ export function MembershipReturnNotice({ studioSlug }: { studioSlug: string }) {
           className={`shrink-0 rounded-lg p-1 ${ui.muted} hover:bg-teal-100 dark:hover:bg-teal-900/40`}
           aria-label="Dismiss"
           onClick={() => {
-            setVisible(false);
             stripQuery();
           }}
         >

@@ -1,6 +1,6 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -52,11 +52,9 @@ export async function PATCH(req: Request, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
-  revalidatePath("/dashboard/memberships");
+  revalidateDashboardContent("memberships");
   if (studio?.public_slug) {
-    revalidatePath(`/${studio.public_slug}/memberships`);
-    if (row.share_slug) revalidatePath(`/${studio.public_slug}/memberships/${row.share_slug}`);
-    revalidatePath(`/${studio.public_slug}`);
+    revalidatePublicSectionPaths(studio.public_slug, "memberships", row.share_slug ?? null);
   }
   return NextResponse.json({ ok: true });
 }
@@ -92,11 +90,9 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: studio } = await admin.from("studios").select("public_slug").eq("id", row.studio_id).maybeSingle();
-  revalidatePath("/dashboard/memberships");
+  revalidateDashboardContent("memberships");
   if (studio?.public_slug) {
-    revalidatePath(`/${studio.public_slug}/memberships`);
-    if (row.share_slug) revalidatePath(`/${studio.public_slug}/memberships/${row.share_slug}`);
-    revalidatePath(`/${studio.public_slug}`);
+    revalidatePublicSectionPaths(studio.public_slug, "memberships", row.share_slug ?? null);
   }
   return NextResponse.json({ ok: true });
 }
