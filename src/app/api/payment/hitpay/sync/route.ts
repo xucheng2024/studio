@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getHitpayPaymentRequest } from "@/lib/hitpay";
 import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const bodySchema = z.object({ payment_id: z.string().uuid() });
+const bodySchema = z.object({
+  payment_id: z.string().uuid(),
+  studio_slug: z.string().min(1).max(120),
+});
 
 /**
  * Polls HitPay for payment-request status and applies the same DB updates as the webhook.
@@ -20,11 +24,21 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: payment, error } = await admin
     .from("payments")
-    .select("id, status, studio_id, booking_id, event_booking_id, gateway_payment_id, studios(owner_id)")
+    .select("id, status, studio_id, booking_id, event_booking_id, gateway_payment_id, studios(owner_id, public_slug)")
     .eq("id", parsed.data.payment_id)
     .maybeSingle();
 
   if (error || !payment) {
+    return NextResponse.json({ error: "payment_not_found" }, { status: 404 });
+  }
+
+  const studioRaw = (payment as {
+    studios?: { owner_id?: string | null; public_slug?: string | null } | { owner_id?: string | null; public_slug?: string | null }[] | null;
+  }).studios;
+  const studio = Array.isArray(studioRaw) ? studioRaw[0] : studioRaw;
+  const expectedStudioSlug = normalizeStudioSlug(studio?.public_slug ?? "");
+  const providedStudioSlug = normalizeStudioSlug(parsed.data.studio_slug);
+  if (!expectedStudioSlug || providedStudioSlug !== expectedStudioSlug) {
     return NextResponse.json({ error: "payment_not_found" }, { status: 404 });
   }
 
@@ -54,10 +68,6 @@ export async function POST(req: Request) {
     const msg = e instanceof Error ? e.message : "hitpay_sync_failed";
     return NextResponse.json({ error: "hitpay_lookup_failed", detail: msg }, { status: 502 });
   }
-
-  const studioRaw = (payment as { studios?: { owner_id?: string | null } | { owner_id?: string | null }[] | null })
-    .studios;
-  const studio = Array.isArray(studioRaw) ? studioRaw[0] : studioRaw;
 
   const firstChildPayment = Array.isArray(hitpay.payload.payments) ? hitpay.payload.payments[0] : null;
   const providerPaymentId = firstChildPayment?.id?.trim() || null;

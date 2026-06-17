@@ -7,7 +7,15 @@ import { useEffect, useRef } from "react";
  * While payment is pending, periodically asks the server to pull status from HitPay
  * (same outcome as webhook) so the checkout page updates after PayNow without waiting on webhooks.
  */
-export function HitpayCheckoutSync({ paymentId, enabled }: { paymentId: string; enabled: boolean }) {
+export function HitpayCheckoutSync({
+  paymentId,
+  studioSlug,
+  enabled,
+}: {
+  paymentId: string;
+  studioSlug: string;
+  enabled: boolean;
+}) {
   const router = useRouter();
   const inFlightRef = useRef(false);
   const stoppedRef = useRef(false);
@@ -25,7 +33,7 @@ export function HitpayCheckoutSync({ paymentId, enabled }: { paymentId: string; 
         const res = await fetch("/api/payment/hitpay/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payment_id: paymentId }),
+          body: JSON.stringify({ payment_id: paymentId, studio_slug: studioSlug }),
         });
         if (!res.ok) return;
         const payload = (await res.json().catch(() => null)) as { payment_status?: string | null } | null;
@@ -59,7 +67,7 @@ export function HitpayCheckoutSync({ paymentId, enabled }: { paymentId: string; 
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [enabled, paymentId, router]);
+  }, [enabled, paymentId, router, studioSlug]);
 
   return null;
 }

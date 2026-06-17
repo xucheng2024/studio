@@ -614,7 +614,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     allowSend={p.status === "paid"}
                   />
                 ) : null}
-                {p.status === "paid" && Number(p.amount ?? 0) > 0 ? (
+                {p.status === "paid" && Number(p.amount ?? 0) > 0 && p.source !== "membership_subscription" ? (
                   <PaymentMarkButton
                     paymentId={p.id}
                     status="refunded"

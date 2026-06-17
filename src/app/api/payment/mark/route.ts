@@ -38,6 +38,8 @@ export async function POST(req: Request) {
       location_id,
       booking_id,
       event_booking_id,
+      customer_subscription_id,
+      source,
       payment_method,
       amount,
       gateway_payment_id,
@@ -66,6 +68,15 @@ export async function POST(req: Request) {
   }
 
   if (parsed.data.status === "paid") {
+    if (payment.source === "membership_subscription") {
+      return NextResponse.json(
+        {
+          error: "membership_payment_manual_update_not_supported",
+          message: "Manage membership charges from the Memberships page so subscription access stays in sync.",
+        },
+        { status: 409 },
+      );
+    }
     const clientId = await ensurePaymentClientId(admin, parsed.data.payment_id);
     if (clientId) {
       await upsertMemberStudioMembership(admin, {
@@ -121,10 +132,27 @@ export async function POST(req: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("payment_id", parsed.data.payment_id);
+    await admin
+      .from("shop_orders")
+      .update({
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_id", parsed.data.payment_id);
     return NextResponse.json({ ok: true });
   }
 
   if (parsed.data.status === "refunded") {
+    if (payment.source === "membership_subscription" || payment.customer_subscription_id) {
+      return NextResponse.json(
+        {
+          error: "membership_payment_manual_refund_not_supported",
+          message: "Refund membership charges from the Memberships page so recurring access and billing stay in sync.",
+        },
+        { status: 409 },
+      );
+    }
     if (Number(payment.amount ?? 0) <= 0) {
       return NextResponse.json(
         {
@@ -245,6 +273,13 @@ export async function POST(req: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("payment_id", parsed.data.payment_id);
+    await admin
+      .from("shop_orders")
+      .update({
+        status: "refunded",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("payment_id", parsed.data.payment_id);
     return NextResponse.json({
       ok: true,
       already_refunded: alreadyRefunded,
@@ -273,6 +308,10 @@ export async function POST(req: Request) {
   }
   await admin
     .from("member_zone_purchases")
+    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
+    .eq("payment_id", parsed.data.payment_id);
+  await admin
+    .from("shop_orders")
     .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
     .eq("payment_id", parsed.data.payment_id);
 

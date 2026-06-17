@@ -306,6 +306,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
             <PaymentStatusPoller stop={shouldUseGatewaySync} intervalMs={15000} showHint={!isFreePayment} />
             <HitpayCheckoutSync
               paymentId={payment_id}
+              studioSlug={studioSlug}
               enabled={shouldUseGatewaySync}
             />
           </>
