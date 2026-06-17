@@ -1,0 +1,154 @@
+import Link from "next/link";
+import { LocalTime } from "@/components/ui/LocalTime";
+import { badgeToneClass } from "@/lib/order-status";
+import { studioClassesPath } from "@/lib/public-paths";
+import { ui } from "@/lib/ui";
+import { requireMeUser, requireStudioScope, type MePageScope } from "./context";
+
+const paymentStatusColor: Record<string, string> = {
+  paid: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/50",
+  pending: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50",
+  failed: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/50",
+  expired: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:border-stone-700",
+  refunded: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:border-stone-700",
+};
+
+export async function renderOrdersPage(scope?: MePageScope) {
+  const studioSlug = scope?.studioSlug ?? null;
+  const { supabase, user } = await requireMeUser(scope, "orders");
+  const scopedStudio = studioSlug ? await requireStudioScope(studioSlug) : null;
+
+  const paymentsQuery = supabase
+    .from("payments")
+    .select("id, studio_id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot, member_zone_series_id, member_zone_lesson_id, shop_product_id, shop_product_name_snapshot")
+    .eq("client_id", user.id)
+    .order("created_at", { ascending: false });
+  const { data: payments } = scopedStudio?.studio.id
+    ? await paymentsQuery.eq("studio_id", scopedStudio.studio.id)
+    : await paymentsQuery;
+
+  const bookingIds = Array.from(new Set((payments ?? []).map((payment) => payment.booking_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
+  const eventBookingIds = Array.from(new Set((payments ?? []).map((payment) => (payment as { event_booking_id?: string | null }).event_booking_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
+  const packageIds = Array.from(new Set((payments ?? []).map((payment) => payment.package_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
+  const memberZoneSeriesIds = Array.from(new Set((payments ?? []).map((payment) => (payment as { member_zone_series_id?: string | null }).member_zone_series_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
+  const memberZoneLessonIds = Array.from(new Set((payments ?? []).map((payment) => (payment as { member_zone_lesson_id?: string | null }).member_zone_lesson_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
+  const shopPaymentIds = Array.from(new Set((payments ?? []).map((payment) => payment.id)));
+
+  const { data: shopOrderRows } = shopPaymentIds.length
+    ? await supabase.from("shop_orders").select("payment_id, shipping_city, shipping_postal_code, product_title_snapshot").in("payment_id", shopPaymentIds)
+    : { data: [] };
+  const { data: bookingRows } = bookingIds.length
+    ? await supabase.from("bookings").select("id, class_sessions(start_time, classes(title))").in("id", bookingIds)
+    : { data: [] };
+  const { data: eventBookingRows } = eventBookingIds.length
+    ? await supabase.from("event_bookings").select("id, events(title, start_time)").in("id", eventBookingIds)
+    : { data: [] };
+  const { data: packageRows } = packageIds.length
+    ? await supabase.from("packages").select("id, name").in("id", packageIds)
+    : { data: [] };
+  const { data: memberZoneSeriesRows } = memberZoneSeriesIds.length
+    ? await supabase.from("member_zone_series").select("id, title").in("id", memberZoneSeriesIds)
+    : { data: [] };
+  const { data: memberZoneLessonRows } = memberZoneLessonIds.length
+    ? await supabase.from("member_zone_lessons").select("id, title").in("id", memberZoneLessonIds)
+    : { data: [] };
+
+  const bookingMap = new Map((bookingRows ?? []).map((row) => [row.id, row]));
+  const eventBookingMap = new Map((eventBookingRows ?? []).map((row) => [row.id, row]));
+  const packageMap = new Map((packageRows ?? []).map((row) => [row.id, row]));
+  const memberZoneSeriesMap = new Map((memberZoneSeriesRows ?? []).map((row) => [row.id, row]));
+  const memberZoneLessonMap = new Map((memberZoneLessonRows ?? []).map((row) => [row.id, row]));
+  const shopOrderMap = new Map((shopOrderRows ?? []).map((row) => [row.payment_id, row]));
+
+  return (
+    <main className={ui.page}>
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div>
+          <h1 className={ui.h1}>My orders</h1>
+          <p className={`mt-1 ${ui.muted}`}>Your payment and order records.</p>
+        </div>
+
+        <ul className="flex flex-col gap-2">
+          {(payments ?? []).map((payment) => {
+            const booking = payment.booking_id ? bookingMap.get(payment.booking_id) : null;
+            const eventBooking = (payment as { event_booking_id?: string | null }).event_booking_id
+              ? eventBookingMap.get((payment as { event_booking_id?: string | null }).event_booking_id ?? "")
+              : null;
+            const pkg = payment.package_id ? packageMap.get(payment.package_id) : null;
+            const memberZoneSeries = (payment as { member_zone_series_id?: string | null }).member_zone_series_id
+              ? memberZoneSeriesMap.get((payment as { member_zone_series_id?: string | null }).member_zone_series_id ?? "")
+              : null;
+            const memberZoneLesson = (payment as { member_zone_lesson_id?: string | null }).member_zone_lesson_id
+              ? memberZoneLessonMap.get((payment as { member_zone_lesson_id?: string | null }).member_zone_lesson_id ?? "")
+              : null;
+            const session = booking && "class_sessions" in booking ? booking.class_sessions : null;
+            const sessionRow = Array.isArray(session) ? session[0] : session;
+            const cls = Array.isArray(sessionRow?.classes) ? sessionRow?.classes[0] : sessionRow?.classes;
+            const sessionTitle = cls?.title ?? null;
+            const sessionStartIso = sessionRow?.start_time ? String(sessionRow.start_time) : null;
+            const eventInfo = eventBooking && "events" in eventBooking ? eventBooking.events : null;
+            const eventRow = Array.isArray(eventInfo) ? eventInfo[0] : eventInfo;
+            const eventTitle = eventRow?.title ?? null;
+            const eventStartIso = eventRow?.start_time ? String(eventRow.start_time) : null;
+            const source = (payment as { source?: string | null }).source ?? null;
+            const sourceBadge =
+              source === "event_booking"
+                ? { text: "Event", tone: "amber" as const }
+                : source === "membership_subscription"
+                  ? { text: "Membership", tone: "teal" as const }
+                  : source === "member_zone_purchase"
+                    ? { text: "Member zone", tone: "teal" as const }
+                    : source === "shop_purchase"
+                      ? { text: "Shop", tone: "stone" as const }
+                      : source === "package_buy"
+                        ? { text: "Package", tone: "stone" as const }
+                        : { text: "Class", tone: "blue" as const };
+
+            return (
+              <li key={payment.id} className={ui.card}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-stone-900 dark:text-stone-100">{payment.currency} {Number(payment.amount).toFixed(2)}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(sourceBadge.tone)}`}>{sourceBadge.text}</span>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${paymentStatusColor[payment.status ?? ""] ?? paymentStatusColor.pending}`}>
+                    {payment.status ?? "Unknown"}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                  {payment.payment_method ? <span className="capitalize">{payment.payment_method}</span> : null}
+                  {payment.reference_code ? <span>Ref: {payment.reference_code}</span> : null}
+                  {payment.created_at ? <span><LocalTime iso={payment.created_at} /></span> : null}
+                </div>
+                {sessionTitle ? <p className={`mt-2 text-sm ${ui.muted}`}>Session: {sessionTitle}{sessionStartIso ? <> · <LocalTime iso={sessionStartIso} /></> : null}</p> : null}
+                {eventTitle ? <p className={`mt-2 text-sm ${ui.muted}`}>Event: {eventTitle}{eventStartIso ? <> · <LocalTime iso={eventStartIso} /></> : null}</p> : null}
+                {(((payment as { package_name_snapshot?: string | null }).package_name_snapshot?.trim()) || pkg?.name) ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>Package: {(payment as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || pkg?.name}</p>
+                ) : null}
+                {((payment as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim()) ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>Membership: {(payment as { membership_name_snapshot?: string | null }).membership_name_snapshot?.trim()}</p>
+                ) : null}
+                {memberZoneSeries?.title ? <p className={`mt-1 text-sm ${ui.muted}`}>Member zone series: {memberZoneSeries.title}</p> : null}
+                {memberZoneLesson?.title ? <p className={`mt-1 text-sm ${ui.muted}`}>Member zone lesson: {memberZoneLesson.title}</p> : null}
+                {source === "shop_purchase" ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>
+                    Shop: {(payment as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot?.trim() || shopOrderMap.get(payment.id)?.product_title_snapshot || "Product"}
+                    {shopOrderMap.get(payment.id)?.shipping_city ? ` · Ship to ${shopOrderMap.get(payment.id)?.shipping_city} ${shopOrderMap.get(payment.id)?.shipping_postal_code ?? ""}` : ""}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+        {!payments?.length ? (
+          <div className={ui.emptyState}>
+            <p className={`text-sm ${ui.muted}`}>No orders yet.</p>
+            <Link href={studioSlug ? studioClassesPath(studioSlug) : "/"} className={`mt-1 text-sm ${ui.link}`}>
+              Browse classes →
+            </Link>
+          </div>
+        ) : null}
+      </div>
+    </main>
+  );
+}
