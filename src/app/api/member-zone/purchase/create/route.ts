@@ -17,6 +17,7 @@ import {
 } from "@/lib/resolveClientId";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import { syncMemberZonePurchasePaymentStatus } from "@/lib/paymentStatusTransitions";
 import { finalizeZeroAmountPayment } from "@/lib/finalizeZeroAmountPayment";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
@@ -354,8 +355,8 @@ export async function POST(req: Request) {
       });
       return NextResponse.json({ ok: true, checkout_url: redirectUrl });
     } catch {
-      await admin.from("member_zone_purchases").update({ status: "failed" }).eq("payment_id", payment.id);
       await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
+      await syncMemberZonePurchasePaymentStatus(admin, payment.id, "failed");
       return NextResponse.json({ error: "free_payment_finalize_failed" }, { status: 500 });
     }
   }
@@ -382,8 +383,8 @@ export async function POST(req: Request) {
       .eq("id", payment.id);
     return NextResponse.json({ ok: true, checkout_url: hitpay.checkoutUrl });
   } catch (e) {
-    await admin.from("member_zone_purchases").update({ status: "failed" }).eq("payment_id", payment.id);
     await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
+    await syncMemberZonePurchasePaymentStatus(admin, payment.id, "failed");
     const normalized = normalizeHitpayError(e instanceof Error ? e.message : "hitpay_create_failed");
     return NextResponse.json(
       { error: normalized.error, error_detail: normalized.error_detail },

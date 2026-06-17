@@ -5,6 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { writeOperationAudit } from "@/lib/audit";
 import { sendPaymentResultNotice } from "@/lib/email";
 import { refundHitpayPayment } from "@/lib/hitpay";
+import {
+  cancelPendingPaymentLifecycle,
+  settlePaidShopOrder,
+  syncMemberZonePurchasePaymentStatus,
+  syncShopOrderPaymentStatus,
+} from "@/lib/paymentStatusTransitions";
 import { ensurePaymentClientId } from "@/lib/resolveClientId";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
@@ -124,22 +130,12 @@ export async function POST(req: Request) {
         });
       }
     }
-    await admin
-      .from("member_zone_purchases")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", parsed.data.payment_id);
-    await admin
-      .from("shop_orders")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", parsed.data.payment_id);
+    await syncMemberZonePurchasePaymentStatus(admin, parsed.data.payment_id, "paid");
+    await settlePaidShopOrder(admin, {
+      paymentId: parsed.data.payment_id,
+      studioId: payment.studio_id,
+      ownerId: user.id,
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -265,21 +261,8 @@ export async function POST(req: Request) {
         });
       }
     }
-    await admin
-      .from("member_zone_purchases")
-      .update({
-        status: "refunded",
-        refunded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", parsed.data.payment_id);
-    await admin
-      .from("shop_orders")
-      .update({
-        status: "refunded",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", parsed.data.payment_id);
+    await syncMemberZonePurchasePaymentStatus(admin, parsed.data.payment_id, "refunded");
+    await syncShopOrderPaymentStatus(admin, parsed.data.payment_id, "refunded");
     return NextResponse.json({
       ok: true,
       already_refunded: alreadyRefunded,
@@ -291,29 +274,16 @@ export async function POST(req: Request) {
   }
 
   // Use atomic RPC so reserved seat is restored in the same transaction.
-  const { data: cancelResult, error: cancelErr } = await admin.rpc(
-    payment.event_booking_id ? "cancel_pending_event_payment" : "cancel_pending_payment",
-    {
-      p_payment_id: parsed.data.payment_id,
-      p_new_status: parsed.data.status,
-    },
-  );
-  if (cancelErr) return NextResponse.json({ error: cancelErr.message }, { status: 500 });
-  const cr = cancelResult as { ok?: boolean; error?: string };
-  if (!cr?.ok && cr?.error !== "not_pending") {
-    return NextResponse.json({ error: cr?.error ?? "cancel_failed" }, { status: 409 });
+  const cancelResult = await cancelPendingPaymentLifecycle(admin, payment, parsed.data.status);
+  if (!cancelResult.ok) {
+    if (cancelResult.kind === "rpc") {
+      return NextResponse.json({ error: cancelResult.error }, { status: 500 });
+    }
+    if (cancelResult.error === "not_pending") {
+      return NextResponse.json({ error: "not_pending" }, { status: 409 });
+    }
+    return NextResponse.json({ error: cancelResult.error ?? "cancel_failed" }, { status: 409 });
   }
-  if (!cr?.ok && cr?.error === "not_pending") {
-    return NextResponse.json({ error: "not_pending" }, { status: 409 });
-  }
-  await admin
-    .from("member_zone_purchases")
-    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
-    .eq("payment_id", parsed.data.payment_id);
-  await admin
-    .from("shop_orders")
-    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
-    .eq("payment_id", parsed.data.payment_id);
 
   if (payment.booking_id) {
     const { data: booking } = await admin

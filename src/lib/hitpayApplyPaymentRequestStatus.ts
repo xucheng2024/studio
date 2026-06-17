@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendGiftNotice, sendPurchaseConfirmation, sendRefundNotice } from "@/lib/email";
 import { upsertMemberStudioMembership } from "@/lib/member-studio";
+import {
+  cancelPendingPaymentLifecycle,
+  settlePaidShopOrder,
+  syncMemberZonePurchasePaymentStatus,
+  syncShopOrderPaymentStatus,
+} from "@/lib/paymentStatusTransitions";
 import { ensurePaymentClientId, resolveClientIdByEmail } from "@/lib/resolveClientId";
 
 export type HitpayPaymentRequestRow = {
@@ -117,112 +123,18 @@ export async function applyHitpayPaymentRequestStatus(
         });
       }
     }
-    await admin
-      .from("member_zone_purchases")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", payment.id);
-
-    const { data: shopOrder } = await admin
-      .from("shop_orders")
-      .select("id, product_id, qty, status")
-      .eq("payment_id", payment.id)
-      .maybeSingle<{ id: string; product_id: string; qty: number; status: string }>();
-
-    if (shopOrder?.id) {
-      if (shopOrder.status === "processing") {
-        // Another concurrent handler (webhook vs sync) is in-flight — yield to it.
-        return;
-      }
-
-      if (shopOrder.status === "pending") {
-        // Atomically claim the order: pending → processing.
-        // Only one handler can win this update; others see 0 rows and return.
-        const { data: claimed } = await admin
-          .from("shop_orders")
-          .update({ status: "processing", updated_at: new Date().toISOString() })
-          .eq("id", shopOrder.id)
-          .eq("status", "pending")
-          .select("id")
-          .maybeSingle();
-
-        if (!claimed) {
-          // Another handler won the race; it will handle stock and emails.
-          return;
-        }
-
-        const { data: stockOk } = await admin.rpc("decrement_shop_product_stock", {
-          p_product_id: shopOrder.product_id,
-          p_qty: shopOrder.qty ?? 1,
-        });
-
-        if (stockOk === false) {
-          const ownerIdForFail = studio?.owner_id ?? null;
-          if (ownerIdForFail) {
-            await admin.rpc("refund_payment_with_invoice_void", {
-              p_payment_id: payment.id,
-              p_operator_id: ownerIdForFail,
-              p_reason: "shop_out_of_stock",
-            });
-          } else {
-            // No owner_id — directly mark payment refunded to keep financial state consistent.
-            await admin
-              .from("payments")
-              .update({ status: "refunded", updated_at: new Date().toISOString() })
-              .eq("id", payment.id);
-          }
-          await admin
-            .from("shop_orders")
-            .update({ status: "refunded", updated_at: new Date().toISOString() })
-            .eq("id", shopOrder.id)
-            .eq("status", "processing");
-
-          // Notify buyer of out-of-stock refund before exiting.
-          const oosItemName = giftRow?.shop_product_name_snapshot ?? "a shop order";
-          const { data: oosStudio } = await admin
-            .from("studios")
-            .select("name")
-            .eq("id", payment.studio_id)
-            .maybeSingle<{ name: string }>();
-          let oosBuyerEmail: string | null = giftRow?.guest_email ?? null;
-          let oosBuyerName: string | null = giftRow?.guest_name ?? null;
-          if (!oosBuyerEmail && giftRow?.client_id) {
-            const [pRes, aRes] = await Promise.all([
-              admin.from("user_profiles").select("full_name").eq("id", giftRow.client_id).maybeSingle<{ full_name: string | null }>(),
-              admin.from("users").select("email").eq("id", giftRow.client_id).maybeSingle<{ email: string | null }>(),
-            ]);
-            oosBuyerName = oosBuyerName ?? pRes.data?.full_name ?? null;
-            oosBuyerEmail = aRes.data?.email ?? null;
-          }
-          if (oosBuyerEmail) {
-            void sendRefundNotice({
-              to: oosBuyerEmail,
-              buyerName: oosBuyerName,
-              studioName: oosStudio?.name ?? "the studio",
-              itemDescription: oosItemName,
-              amount: giftRow?.amount ?? 0,
-              currency: giftRow?.currency ?? "SGD",
-              referenceCode: giftRow?.reference_code,
-              orderCategory: "shop",
-            });
-          }
-          return;
-        }
-
-        await admin
-          .from("shop_orders")
-          .update({
-            status: "paid",
-            paid_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", shopOrder.id)
-          .eq("status", "processing");
-      }
-      // If status is already 'paid' or other terminal state, fall through to email logic.
+    await syncMemberZonePurchasePaymentStatus(admin, payment.id, "paid");
+    const shopResult = await settlePaidShopOrder(admin, {
+      paymentId: payment.id,
+      studioId: payment.studio_id,
+      ownerId: studio?.owner_id ?? null,
+    });
+    if (
+      shopResult.kind === "in_flight" ||
+      shopResult.kind === "lost_race" ||
+      shopResult.kind === "refunded_out_of_stock"
+    ) {
+      return;
     }
 
     // Fetch studio info (needed for both gift + buyer confirmation emails).
@@ -305,36 +217,12 @@ export async function applyHitpayPaymentRequestStatus(
   }
 
   if (providerStatus === "failed" || providerStatus === "canceled" || providerStatus === "cancelled") {
-    if (payment.event_booking_id) {
-      await admin.rpc("cancel_pending_event_payment", { p_payment_id: payment.id, p_new_status: "failed" });
-    } else {
-      await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "failed" });
-    }
-    await admin
-      .from("member_zone_purchases")
-      .update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("payment_id", payment.id);
-    await admin
-      .from("shop_orders")
-      .update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("payment_id", payment.id);
+    await cancelPendingPaymentLifecycle(admin, payment, "failed");
     return;
   }
 
   if (providerStatus === "expired") {
-    if (payment.event_booking_id) {
-      await admin.rpc("cancel_pending_event_payment", { p_payment_id: payment.id, p_new_status: "expired" });
-    } else {
-      await admin.rpc("cancel_pending_payment", { p_payment_id: payment.id, p_new_status: "expired" });
-    }
-    await admin
-      .from("member_zone_purchases")
-      .update({ status: "expired", updated_at: new Date().toISOString() })
-      .eq("payment_id", payment.id);
-    await admin
-      .from("shop_orders")
-      .update({ status: "expired", updated_at: new Date().toISOString() })
-      .eq("payment_id", payment.id);
+    await cancelPendingPaymentLifecycle(admin, payment, "expired");
     return;
   }
 
@@ -347,21 +235,8 @@ export async function applyHitpayPaymentRequestStatus(
         p_reason: "hitpay_webhook_refund",
       });
     }
-    await admin
-      .from("member_zone_purchases")
-      .update({
-        status: "refunded",
-        refunded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", payment.id);
-    await admin
-      .from("shop_orders")
-      .update({
-        status: "refunded",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("payment_id", payment.id);
+    await syncMemberZonePurchasePaymentStatus(admin, payment.id, "refunded");
+    await syncShopOrderPaymentStatus(admin, payment.id, "refunded");
 
     // Send refund notification to buyer (non-blocking).
     if (previousStatus !== "refunded") {

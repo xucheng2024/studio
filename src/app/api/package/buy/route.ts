@@ -7,6 +7,7 @@ import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import { cancelPendingPaymentLifecycle } from "@/lib/paymentStatusTransitions";
 import { finalizeZeroAmountPayment } from "@/lib/finalizeZeroAmountPayment";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -174,10 +175,7 @@ export async function POST(req: Request) {
         checkout_url: returnUrl,
       });
     } catch {
-      await admin.rpc("cancel_pending_payment", {
-        p_payment_id: payment.id,
-        p_new_status: "failed",
-      });
+      await cancelPendingPaymentLifecycle(admin, payment, "failed");
       return NextResponse.json({ error: "free_payment_finalize_failed" }, { status: 500 });
     }
   }
@@ -209,10 +207,7 @@ export async function POST(req: Request) {
       checkout_url: hitpay.checkoutUrl,
     });
   } catch (e) {
-    await admin.rpc("cancel_pending_payment", {
-      p_payment_id: payment.id,
-      p_new_status: "failed",
-    });
+    await cancelPendingPaymentLifecycle(admin, payment, "failed");
     const normalized = normalizeHitpayError(e instanceof Error ? e.message : "hitpay_create_failed");
     return NextResponse.json(
       { error: normalized.error, error_detail: normalized.error_detail },
