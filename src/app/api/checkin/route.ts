@@ -40,18 +40,17 @@ export async function POST(req: Request) {
   const sC = Array.isArray(sessionForContract) ? sessionForContract[0] : sessionForContract;
   const classesC = sC?.classes;
   const checkinStudioId = Array.isArray(classesC) ? classesC[0]?.studio_id : classesC?.studio_id;
-  if (checkinStudioId) {
-    const blocked = await respondIfStudioContractSuspended(admin, checkinStudioId);
-    if (blocked) return blocked;
-    if (
-      role !== "instructor"
-      && !ctx.isSuperAdmin
-      && !ctx.memberships.some(
-        (m) => m.studio_id === checkinStudioId && ["owner", "manager", "frontdesk"].includes(m.role),
-      )
-    ) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+  if (!checkinStudioId) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const blocked = await respondIfStudioContractSuspended(admin, checkinStudioId);
+  if (blocked) return blocked;
+  if (
+    role !== "instructor"
+    && !ctx.isSuperAdmin
+    && !ctx.memberships.some(
+      (m) => m.studio_id === checkinStudioId && ["owner", "manager", "frontdesk"].includes(m.role),
+    )
+  ) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   if (role === "instructor") {

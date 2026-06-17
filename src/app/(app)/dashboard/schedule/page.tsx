@@ -144,9 +144,10 @@ export default async function SchedulePage({ searchParams }: Props) {
     .lte("start_time", dateTo)
     .order("start_time", { ascending: true })
     .limit(300);
-  if (selectedLocationId) sessionQuery = sessionQuery.eq("location_id", selectedLocationId);
-  const { data: sessions } = await sessionQuery;
   const sessionStatusFilter = sp.session_status ?? "scheduled";
+  if (selectedLocationId) sessionQuery = sessionQuery.eq("location_id", selectedLocationId);
+  if (sessionStatusFilter !== "all") sessionQuery = sessionQuery.eq("status", sessionStatusFilter);
+  const { data: sessions } = await sessionQuery;
   const sessionRows = sessions ?? [];
   const { data: activeStudio } = await supabase
     .from("studios")
@@ -178,11 +179,7 @@ export default async function SchedulePage({ searchParams }: Props) {
       }));
     }
   }
-  const filteredSessions = sessionRows.filter((s) => {
-    const status = (s as { status?: string | null }).status ?? "scheduled";
-    if (sessionStatusFilter !== "all" && status !== sessionStatusFilter) return false;
-    return true;
-  });
+  const filteredSessions = sessionRows;
 
   const renderSessionCard = (s: (typeof filteredSessions)[number]) => {
     const cls = sessionClassRef((s as { classes?: unknown }).classes);

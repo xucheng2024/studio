@@ -61,6 +61,10 @@ function formatOncePreview(datetime: string): string {
   return `on ${date} at ${time}`;
 }
 
+function nextClassId(classes: ClassOption[], canManage: boolean) {
+  return classes.length > 0 ? classes[0].id : (canManage ? "new" : "");
+}
+
 const LS_KEY = (studioId: string) => `studio-session-panel:${studioId}`;
 
 type Persisted = {
@@ -75,7 +79,7 @@ type Persisted = {
 
 export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId, canManage }: Props) {
   const [open, setOpen] = useState(true);
-  const defaultClassId = classes.length > 0 ? classes[0].id : (canManage ? "new" : "");
+  const defaultClassId = nextClassId(classes, canManage);
   const [classId, setClassId] = useState(defaultClassId);
   const [sessionType, setSessionType] = useState<"once" | "weekly">("once");
 
@@ -128,9 +132,19 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
         classId, guestPrice, creditsRequired, address, addressDetails,
       }));
     } catch {}
+    setClassId(nextClassId(classes, canManage));
+    setSessionType("once");
+    setGuestPrice("25");
+    setCreditsRequired("");
+    setAddress("");
+    setAddressDetails("");
+    setStartDatetime(defaultDatetime);
+    setWeekdays("mon,wed");
+    setStartDate("");
+    setNewClassName("");
     const t = setTimeout(() => setOpen(false), 2500);
     return () => clearTimeout(t);
-  }, [state, activeStudioId, classId, guestPrice, creditsRequired, address, addressDetails]);
+  }, [state, activeStudioId, classId, guestPrice, creditsRequired, address, addressDetails, classes, canManage, defaultDatetime]);
 
   // NL preview
   const previewLine = useMemo(() => {
