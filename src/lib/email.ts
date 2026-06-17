@@ -125,6 +125,7 @@ export async function sendBookingOutcomeNotice(params: {
 export async function sendInvoiceNotice(params: {
   to: string;
   studioName: string;
+  studioEmail?: string | null;
   invoiceNumber: string;
   customerName: string;
   currency: string;
@@ -148,6 +149,7 @@ export async function sendInvoiceNotice(params: {
           <td style="background:#0d9488;padding:28px 32px;">
             <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">${params.studioName}</p>
             <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">Invoice ${params.invoiceNumber}</p>
+            ${params.studioEmail ? `<p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);">${params.studioEmail}</p>` : ""}
           </td>
         </tr>
 
@@ -200,7 +202,7 @@ export async function sendInvoiceNotice(params: {
             <!-- Footer note -->
             <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
               This invoice was sent by <strong style="color:#6b7280;">${params.studioName}</strong> via Studio platform.
-              If you have questions about this invoice, please contact the studio directly.
+              If you have questions about this invoice, please contact the studio directly${params.studioEmail ? ` at ${params.studioEmail}` : ""}.
             </p>
           </td>
         </tr>
@@ -323,7 +325,6 @@ export async function sendPurchaseConfirmation(params: {
 </body>
 </html>`;
 
-  const fromPlain = (params.buyerName ?? "").trim() || "there";
   const subjectLine = isGift
     ? `Gift sent — ${params.itemDescription}`
     : isShopOrder

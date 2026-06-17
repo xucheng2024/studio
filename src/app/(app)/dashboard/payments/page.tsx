@@ -606,8 +606,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
               {/* ── Action buttons ────────────────────────────────── */}
               <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
-                {p.status === "paid" && p.invoice_status !== "void" && Number(p.amount ?? 0) > 0 ? (
-                  <InvoiceSendButton paymentId={p.id} invoiceNumber={p.invoice_number} />
+                {p.invoice_status !== "void" && Number(p.amount ?? 0) > 0 ? (
+                  <InvoiceSendButton
+                    paymentId={p.id}
+                    invoiceNumber={p.invoice_number}
+                    previewMode={p.status === "paid" || Boolean(p.invoice_number) ? "invoice" : "draft"}
+                    allowSend={p.status === "paid"}
+                  />
                 ) : null}
                 {p.status === "paid" && Number(p.amount ?? 0) > 0 ? (
                   <PaymentMarkButton

@@ -17,9 +17,20 @@ function invoiceSendErrorMessage(code: string | undefined) {
   return "Failed to send invoice";
 }
 
-export function InvoiceSendButton({ paymentId, invoiceNumber }: { paymentId: string; invoiceNumber?: string | null }) {
+export function InvoiceSendButton({
+  paymentId,
+  invoiceNumber,
+  previewMode = "draft",
+  allowSend = true,
+}: {
+  paymentId: string;
+  invoiceNumber?: string | null;
+  previewMode?: "draft" | "invoice";
+  allowSend?: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const previewLabel = previewMode === "invoice" ? "Preview invoice" : "Preview draft";
 
   return (
     <div className="flex items-center gap-2">
@@ -28,37 +39,38 @@ export function InvoiceSendButton({ paymentId, invoiceNumber }: { paymentId: str
         href={`/api/invoice/pdf/${paymentId}`}
         target="_blank"
         rel="noopener noreferrer"
-        title={invoiceNumber ? `Preview ${invoiceNumber}` : "Preview invoice"}
+        title={invoiceNumber ? `${previewLabel} ${invoiceNumber}` : previewLabel}
         className={ui.btnSecondarySm}
       >
         <FileText size={13} />
-        Preview
+        {previewLabel}
       </a>
 
-      {/* Send by email */}
-      <button
-        type="button"
-        disabled={busy}
-        className={`${ui.btnSecondarySm} disabled:opacity-50`}
-        onClick={async () => {
-          setBusy(true);
-          const res = await fetch("/api/invoice/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ payment_id: paymentId }),
-          });
-          const json = (await res.json().catch(() => null)) as { error?: string } | null;
-          setBusy(false);
-          if (!res.ok) {
-            toast.error(invoiceSendErrorMessage(json?.error));
-            return;
-          }
-          toast.success("Invoice sent");
-          throttledRefresh(router);
-        }}
-      >
-        {busy ? "Sending…" : "Send invoice"}
-      </button>
+      {allowSend ? (
+        <button
+          type="button"
+          disabled={busy}
+          className={`${ui.btnSecondarySm} disabled:opacity-50`}
+          onClick={async () => {
+            setBusy(true);
+            const res = await fetch("/api/invoice/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ payment_id: paymentId }),
+            });
+            const json = (await res.json().catch(() => null)) as { error?: string } | null;
+            setBusy(false);
+            if (!res.ok) {
+              toast.error(invoiceSendErrorMessage(json?.error));
+              return;
+            }
+            toast.success("Invoice sent");
+            throttledRefresh(router);
+          }}
+        >
+          {busy ? "Sending…" : "Send invoice"}
+        </button>
+      ) : null}
     </div>
   );
 }
