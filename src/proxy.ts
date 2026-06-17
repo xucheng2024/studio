@@ -30,6 +30,19 @@ const APP_HOSTNAME = (process.env.NEXT_PUBLIC_APP_URL ?? "")
 function shouldSkipCustomDomainRewrite(pathname: string): boolean {
   if (pathname.startsWith("/api/") || pathname === "/api") return true;
   if (pathname.startsWith("/.well-known/") || pathname === "/.well-known") return true;
+  if (
+    pathname === "/auth" ||
+    pathname.startsWith("/auth/") ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/register" ||
+    pathname === "/post-auth" ||
+    pathname.startsWith("/post-auth/") ||
+    pathname === "/account" ||
+    pathname.startsWith("/account/")
+  ) {
+    return true;
+  }
   return pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname === "/manifest.webmanifest";
 }
 
@@ -49,17 +62,21 @@ export async function proxy(request: NextRequest) {
   const incomingHost = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "")
     .split(":")[0]
     .toLowerCase();
-  if (incomingHost && APP_HOSTNAME && incomingHost !== APP_HOSTNAME && !shouldSkipCustomDomainRewrite(request.nextUrl.pathname)) {
-    const slug = await resolveCustomDomain(incomingHost);
-    if (slug) {
-      const { pathname, search } = request.nextUrl;
-      const rewriteUrl = new URL(`/${slug}${pathname === "/" ? "" : pathname}${search}`, request.url);
-      return NextResponse.rewrite(rewriteUrl);
-    }
+  const customDomainSlug =
+    incomingHost && APP_HOSTNAME && incomingHost !== APP_HOSTNAME
+      ? await resolveCustomDomain(incomingHost)
+      : null;
+  if (customDomainSlug && !shouldSkipCustomDomainRewrite(request.nextUrl.pathname)) {
+    const { pathname, search } = request.nextUrl;
+    const rewriteUrl = new URL(`/${customDomainSlug}${pathname === "/" ? "" : pathname}${search}`, request.url);
+    const rewriteHeaders = new Headers(request.headers);
+    rewriteHeaders.set("x-studio-slug", customDomainSlug);
+    return NextResponse.rewrite(rewriteUrl, { request: { headers: rewriteHeaders } });
   }
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  if (customDomainSlug) requestHeaders.set("x-studio-slug", customDomainSlug);
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   const studioSlug = parseStudioSlugFromPath(request.nextUrl.pathname);
   const studioCookie = studioSlug

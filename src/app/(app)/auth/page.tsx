@@ -1,7 +1,9 @@
 import { Suspense } from "react";
+import { resolveStudioSlugFromCurrentHost } from "@/lib/member-auth.server";
 import { AuthPageInner } from "./AuthPageInner";
 
-export default function AuthPage() {
+export default async function AuthPage() {
+  const memberStudioSlug = await resolveStudioSlugFromCurrentHost();
   return (
     <Suspense
       fallback={
@@ -13,7 +15,11 @@ export default function AuthPage() {
         </main>
       }
     >
-      <AuthPageInner />
+      <AuthPageInner
+        memberStudioSlug={memberStudioSlug}
+        memberHomePath={memberStudioSlug ? "/" : null}
+        memberClassesPath={memberStudioSlug ? "/classes" : null}
+      />
     </Suspense>
   );
 }

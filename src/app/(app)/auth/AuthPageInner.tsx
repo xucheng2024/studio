@@ -7,29 +7,38 @@ import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { site } from "@/lib/brand";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
-import { studioHomePath } from "@/lib/public-paths";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { throttledRefresh } from "@/lib/throttledRefresh";
 import { ui } from "@/lib/ui";
 
 type OtpStep = "request" | "verify" | "profile";
 
-export function AuthPageInner() {
+export function AuthPageInner({
+  memberStudioSlug: memberStudioSlugProp = null,
+  memberHomePath: memberHomePathProp = null,
+  memberClassesPath: memberClassesPathProp = null,
+}: {
+  memberStudioSlug?: string | null;
+  memberHomePath?: string | null;
+  memberClassesPath?: string | null;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const memberScopedMatch =
     pathname.match(/^\/([a-z0-9-]{3,60})\/auth(?:\/|$)/i) ??
     pathname.match(/^\/m\/([a-z0-9-]{3,60})\/auth(?:\/|$)/i);
-  const memberScopedSlug = memberScopedMatch?.[1]?.toLowerCase() ?? null;
+  const memberScopedSlug = memberStudioSlugProp ?? memberScopedMatch?.[1]?.toLowerCase() ?? null;
   const isMemberAuth = Boolean(memberScopedSlug);
+  const memberHomePath = memberHomePathProp ?? (memberScopedSlug ? `/${memberScopedSlug}` : "/");
+  const memberClassesPath = memberClassesPathProp ?? (memberScopedSlug ? `/${memberScopedSlug}/classes` : "/");
   const inviteToken = searchParams.get("invite_token") ?? "";
   const nextRaw = searchParams.get("next");
   const safeNext =
     nextRaw && nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : null;
 
   const postAuthPath = isMemberAuth
-    ? safeNext ?? (memberScopedSlug ? `/${memberScopedSlug}` : "/")
+    ? safeNext ?? memberHomePath
     : inviteToken
       ? `/post-auth?invite_token=${encodeURIComponent(inviteToken)}&staff_portal=1`
       : safeNext ?? "/post-auth?staff_portal=1";
@@ -103,7 +112,7 @@ export function AuthPageInner() {
     <main className={`${ui.page} max-w-5xl`}>
       {isMemberAuth && memberScopedSlug ? (
         <div className="mb-4">
-          <StudioPublicBackNav href={studioHomePath(memberScopedSlug)}>Back to studio</StudioPublicBackNav>
+          <StudioPublicBackNav href={memberHomePath}>Back to studio</StudioPublicBackNav>
         </div>
       ) : null}
       <div className="grid gap-6 md:grid-cols-5 md:items-stretch">
@@ -142,7 +151,7 @@ export function AuthPageInner() {
           ) : null}
           <p className={`mt-5 text-sm ${ui.muted}`}>
             Want to look around first?{" "}
-            <Link href={memberScopedSlug ? `/${memberScopedSlug}/classes` : "/"} className={ui.link}>
+            <Link href={isMemberAuth ? memberClassesPath : "/"} className={ui.link}>
               Browse the class schedule →
             </Link>
           </p>

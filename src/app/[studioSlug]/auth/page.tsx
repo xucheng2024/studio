@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AuthPageInner } from "@/app/(app)/auth/AuthPageInner";
+import { studioClassesPath, studioHomePath } from "@/lib/public-paths";
+import { normalizeStudioSlug } from "@/lib/slug";
 
 export const metadata: Metadata = {
   robots: {
@@ -9,7 +11,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function MemberScopedAuthPage() {
+type Props = {
+  params: Promise<{ studioSlug: string }>;
+};
+
+export default async function MemberScopedAuthPage({ params }: Props) {
+  const { studioSlug: rawStudioSlug } = await params;
+  const studioSlug = normalizeStudioSlug(rawStudioSlug ?? "");
   return (
     <Suspense
       fallback={
@@ -21,7 +29,11 @@ export default function MemberScopedAuthPage() {
         </main>
       }
     >
-      <AuthPageInner />
+      <AuthPageInner
+        memberStudioSlug={studioSlug}
+        memberHomePath={studioSlug ? studioHomePath(studioSlug) : "/"}
+        memberClassesPath={studioSlug ? studioClassesPath(studioSlug) : "/"}
+      />
     </Suspense>
   );
 }
