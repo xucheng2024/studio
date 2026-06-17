@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle,
+  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle, Globe,
   type LucideIcon,
 } from "lucide-react";
 
@@ -120,7 +120,14 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, selectedLocationId)}
           icon={Building2}
           title="Studio profile"
-          desc="Edit public intro, media, WhatsApp contact, and profile details"
+          desc="Edit public intro, media, social links, contact details, and booking profile"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId, selectedLocationId)}
+          icon={Globe}
+          title="Custom domain"
+          desc="Connect your own domain, review DNS instructions, and verify activation"
         />
         <SettingCard
           as={DashboardAppLink}

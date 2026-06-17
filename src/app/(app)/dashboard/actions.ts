@@ -9,6 +9,14 @@ import { generateShareSlugSegment } from "@/lib/shareSlug";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import { normalizeCustomDomainInput, toCustomDomainUiStatus, type CustomDomainUiStatus } from "@/lib/customDomain";
+import {
+  getNotConfiguredSnapshot,
+  persistCustomDomainSnapshot,
+  registerDomainWithVercel,
+  removeDomainFromVercel,
+  verifyCustomDomain,
+} from "@/lib/customDomain.server";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -158,40 +166,44 @@ export async function updateStudioBasics(formData: FormData): Promise<void> {
   revalidatePublicStudioPath(studio.public_slug);
 }
 
-async function vercelDomainRequest(method: "POST" | "DELETE", domain: string): Promise<void> {
-  const token = process.env.VERCEL_TOKEN;
-  const projectId = process.env.VERCEL_PROJECT_ID;
-  if (!token || !projectId) return;
-  const base = `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/domains`;
-  const url = method === "DELETE" ? `${base}/${encodeURIComponent(domain)}` : base;
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: method === "POST" ? JSON.stringify({ name: domain }) : undefined,
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error(`[vercelDomainRequest] ${method} ${domain} → ${res.status}`, body);
-    }
-  } catch (e) {
-    console.error("[vercelDomainRequest]", e);
-  }
-}
+export type CustomDomainFormResult = {
+  ok: boolean;
+  message: string;
+  status: CustomDomainUiStatus;
+};
 
-export async function updateStudioCustomDomain(formData: FormData): Promise<void> {
+export async function updateStudioCustomDomain(
+  _prevState: CustomDomainFormResult | null,
+  formData: FormData,
+): Promise<CustomDomainFormResult> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!studio) {
+    return {
+      ok: false,
+      message: "Studio not found.",
+      status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
+    };
+  }
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) {
+    return {
+      ok: false,
+      message: "You do not have permission to manage this domain.",
+      status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
+    };
+  }
 
   const raw = String(formData.get("custom_domain") ?? "").trim();
-  // Strip protocol and trailing slash if accidentally pasted as a full URL
-  const domain = raw.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase();
+  const domain = normalizeCustomDomainInput(raw);
 
-  if (domain && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) return;
+  if (domain && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) {
+    return {
+      ok: false,
+      message: "Enter a valid domain such as book.yourstudio.com.",
+      status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
+    };
+  }
 
-  // Read current domain before overwriting so we can remove the old one from Vercel
   const { data: current } = await supabase
     .from("studios")
     .select("custom_domain")
@@ -199,20 +211,60 @@ export async function updateStudioCustomDomain(formData: FormData): Promise<void
     .single();
   const oldDomain = current?.custom_domain ?? null;
 
-  const { error } = await supabase
-    .from("studios")
-    .update({ custom_domain: domain || null })
-    .eq("id", studio.id);
-  if (error) {
-    console.error("[updateStudioCustomDomain]", error.message);
-    return;
+  if (!domain) {
+    try {
+      await persistCustomDomainSnapshot(studio.id, getNotConfiguredSnapshot());
+      if (oldDomain) await removeDomainFromVercel(oldDomain);
+    } catch (error) {
+      console.error("[updateStudioCustomDomain remove]", error);
+      return {
+        ok: false,
+        message: "Could not remove the custom domain.",
+        status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
+      };
+    }
+
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/settings/public-profile");
+    revalidatePath("/dashboard/settings/custom-domain");
+    return {
+      ok: true,
+      message: "Custom domain removed.",
+      status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
+    };
   }
 
-  // Sync with Vercel: remove old domain, register new one
-  if (oldDomain && oldDomain !== domain) await vercelDomainRequest("DELETE", oldDomain);
-  if (domain) await vercelDomainRequest("POST", domain);
+  try {
+    const registration = await registerDomainWithVercel(domain);
+    const snapshot = await verifyCustomDomain({
+      domain,
+      vercelStatus: registration.vercelStatus,
+      lastError: registration.lastError,
+    });
+    await persistCustomDomainSnapshot(studio.id, snapshot);
+    if (oldDomain && oldDomain !== domain) await removeDomainFromVercel(oldDomain);
 
-  revalidatePath("/dashboard/settings/public-profile");
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/settings/public-profile");
+    revalidatePath("/dashboard/settings/custom-domain");
+
+    const uiStatus = toCustomDomainUiStatus(snapshot);
+    return {
+      ok: true,
+      message:
+        snapshot.overallStatus === "active"
+          ? `Custom domain is active on ${domain}.`
+          : `Domain saved for ${domain}. Complete DNS and verify again if needed.`,
+      status: uiStatus,
+    };
+  } catch (error) {
+    console.error("[updateStudioCustomDomain]", error);
+    return {
+      ok: false,
+      message: "Could not save the custom domain.",
+      status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
+    };
+  }
 }
 
 export async function updateStudioHitpaySettings(formData: FormData): Promise<void> {

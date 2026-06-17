@@ -1,6 +1,5 @@
 import {
   updateStudioBasics,
-  updateStudioCustomDomain,
   updateStudioPublicBranding,
   updateStudioPublicProfile,
   savePublicLogoUrl,
@@ -51,7 +50,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, custom_domain, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, public_instagram_url, public_linkedin_url, public_facebook_url, public_tiktok_url, public_youtube_url, public_x_url, public_contact_email, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, calcom_booking_enabled, calcom_embed_url")
+    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, public_instagram_url, public_linkedin_url, public_facebook_url, public_tiktok_url, public_youtube_url, public_x_url, public_contact_email, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, calcom_booking_enabled, calcom_embed_url")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -97,46 +96,6 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         </label>
         <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
           Save basics
-        </SubmitButton>
-      </form>
-
-      <form action={updateStudioCustomDomain} className={`${ui.card} grid gap-3`}>
-        <input type="hidden" name="studio_id" value={studio.id} />
-        <div>
-          <h2 className={ui.h2}>Custom domain</h2>
-          <p className={`text-xs ${ui.muted} mt-0.5`}>Serve your public studio page on your own domain. The visitor&apos;s address bar will show your domain.</p>
-        </div>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Domain</span>
-          <input
-            name="custom_domain"
-            type="text"
-            className={`${ui.input} font-mono text-sm`}
-            defaultValue={studio.custom_domain ?? ""}
-            placeholder="yoga.example.com"
-            maxLength={253}
-          />
-          {(() => {
-            const appHost = (process.env.NEXT_PUBLIC_APP_URL ?? "")
-              .replace(/^https?:\/\//, "")
-              .replace(/\/.*$/, "")
-              .replace(/:\d+$/, "");
-            const cnameTarget = appHost && !appHost.startsWith("localhost") ? appHost : null;
-            return (
-              <p className={`text-xs ${ui.muted}`}>
-                On your DNS provider, add a <strong>CNAME</strong> record for this domain pointing to{" "}
-                {cnameTarget ? (
-                  <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{cnameTarget}</code>
-                ) : (
-                  "your app's production domain"
-                )}
-                . Saving will register the domain on Vercel automatically — SSL is provisioned within minutes. Leave blank to remove.
-              </p>
-            );
-          })()}
-        </label>
-        <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
-          Save domain
         </SubmitButton>
       </form>
 
@@ -224,6 +183,23 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
             <span className={ui.label}>Shop section title</span>
             <input name="public_shop_title" className={ui.input} defaultValue={(studio as { public_shop_title?: string | null }).public_shop_title ?? ""} placeholder="Shop" />
           </label>
+        </div>
+
+        <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Custom domain</h2>
+              <p className={`mt-1 text-xs ${ui.muted}`}>
+                Domain setup has moved into its own settings page with DNS instructions and a verification tool.
+              </p>
+            </div>
+            <DashboardAppLink
+              href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId, selectedLocationId)}
+              className={ui.btnSecondarySm}
+            >
+              Manage domain
+            </DashboardAppLink>
+          </div>
         </div>
 
         <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
