@@ -43,6 +43,15 @@ export async function POST(req: Request) {
   if (checkinStudioId) {
     const blocked = await respondIfStudioContractSuspended(admin, checkinStudioId);
     if (blocked) return blocked;
+    if (
+      role !== "instructor"
+      && !ctx.isSuperAdmin
+      && !ctx.memberships.some(
+        (m) => m.studio_id === checkinStudioId && ["owner", "manager", "frontdesk"].includes(m.role),
+      )
+    ) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
   }
 
   if (role === "instructor") {

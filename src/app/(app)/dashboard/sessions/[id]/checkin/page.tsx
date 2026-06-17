@@ -3,7 +3,8 @@ import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { CheckInToggleButton } from "@/components/CheckInToggleButton";
 import { getDashboardScope } from "@/lib/dashboard";
-import { LocalTime } from "@/components/ui/LocalTime";import { bestRole } from "@/lib/rbac";
+import { LocalTime } from "@/components/ui/LocalTime";
+import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -61,7 +62,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
     .from("bookings")
     .select("id, client_id, status, guest_name, guest_email, guest_phone, users(email)")
     .eq("session_id", id)
-    .in("status", ["booked", "attended"])
+    .in("status", ["pending", "booked", "attended"])
     .order("created_at", { ascending: true });
 
   const clientIds = Array.from(
@@ -80,11 +81,17 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
     const name = b.guest_name?.trim() || profile?.full_name?.trim() || null;
     const phone = b.guest_phone?.trim() || profile?.phone?.trim() || null;
     const label = name || email?.trim() || "Guest";
-    const status = (b.status === "attended" ? "attended" : "booked") as "booked" | "attended";
+    const status =
+      (b.status === "attended" ? "attended" : b.status === "booked" ? "booked" : "pending") as
+        | "pending"
+        | "booked"
+        | "attended";
     return { id: b.id, label, name, email, phone, status };
   });
 
   const checkedInCount = attendees.filter((a) => a.status === "attended").length;
+  const readyToCheckInCount = attendees.filter((a) => a.status === "booked").length;
+  const pendingPaymentCount = attendees.filter((a) => a.status === "pending").length;
   const total = attendees.length;
   const dt = session.start_time ? new Date(session.start_time) : null;
   const loc = session.locations as { name?: string | null } | { name?: string | null }[] | null | undefined;
@@ -113,7 +120,10 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
           <div className="mt-3 flex flex-wrap gap-2">
             <span className={ui.badgeNeutral}>Enrolled: {total}</span>
             <span className={ui.badge}>Checked-in: {checkedInCount}</span>
-            <span className={ui.badgeAmber}>Pending: {Math.max(0, total - checkedInCount)}</span>
+            <span className={ui.badgeAmber}>Ready to check in: {readyToCheckInCount}</span>
+            {pendingPaymentCount > 0 ? (
+              <span className={ui.badgeAmber}>Pending payment: {pendingPaymentCount}</span>
+            ) : null}
           </div>
         </section>
 
@@ -136,13 +146,15 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       {a.email && a.email !== a.label ? <p className={`truncate text-xs ${ui.muted}`}>{a.email}</p> : null}
                       {a.phone ? <p className={`text-xs ${ui.muted}`}>{a.phone}</p> : null}
-                      <span className={a.status === "attended" ? ui.badge : ui.badgeNeutral}>
-                        {a.status === "attended" ? "Checked-in" : "Booked"}
+                      <span className={a.status === "attended" ? ui.badge : a.status === "booked" ? ui.badgeNeutral : ui.badgeAmber}>
+                        {a.status === "attended" ? "Checked-in" : a.status === "booked" ? "Booked" : "Pending payment"}
                       </span>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center gap-2">
-                    <CheckInToggleButton bookingId={a.id} status={a.status} />
+                    {a.status === "booked" || a.status === "attended" ? (
+                      <CheckInToggleButton bookingId={a.id} status={a.status} />
+                    ) : null}
                     {a.status === "booked" ? <CancelBookingButton bookingId={a.id} label={a.label} /> : null}
                   </div>
                 </li>

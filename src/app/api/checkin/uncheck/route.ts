@@ -57,6 +57,13 @@ export async function POST(req: Request) {
     if (!classInstructorId || !instructor?.id || classInstructorId !== instructor.id) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
+  } else if (
+    !ctx.isSuperAdmin
+    && !ctx.memberships.some(
+      (m) => m.studio_id === studioId && ["owner", "manager", "frontdesk"].includes(m.role),
+    )
+  ) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   if (bookingForScope.status !== "attended") {

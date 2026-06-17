@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
+import { parseDatetimeLocalAsSgt, toLocalDateTimeInputValue } from "@/lib/date";
 import { Check, Pencil, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ui } from "@/lib/ui";
@@ -29,11 +30,7 @@ export function SessionEditPanel({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [validationMsg, setValidationMsg] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState(() => {
-    const d = new Date(initial.start_time);
-    const tzOffsetMs = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
-  });
+  const [startTime, setStartTime] = useState(() => toLocalDateTimeInputValue(initial.start_time));
   const [capacity, setCapacity] = useState(String(initial.capacity));
   const [guestPrice, setGuestPrice] = useState(initial.guest_price != null ? String(initial.guest_price) : "");
   const [creditsRequired, setCreditsRequired] = useState(initial.credits_required != null ? String(initial.credits_required) : "");
@@ -124,7 +121,12 @@ export function SessionEditPanel({
             }
             setBusy(true);
             setValidationMsg(null);
-            const local = new Date(startTime);
+            const local = parseDatetimeLocalAsSgt(startTime);
+            if (!local) {
+              setBusy(false);
+              setValidationMsg("Start time is invalid");
+              return;
+            }
             const res = await fetch(`/api/dashboard/sessions/${sessionId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },

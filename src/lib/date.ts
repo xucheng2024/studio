@@ -13,6 +13,15 @@ export function parseDatetimeLocalAsSgt(raw: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+export function parseDateAndTimeAsSgt(dateText: string, timeText: string): Date | null {
+  const date = dateText.trim();
+  const time = timeText.trim();
+  if (!date || !time) return null;
+  const normalizedTime = /^\d{2}:\d{2}$/.test(time) ? `${time}:00` : time;
+  const d = new Date(`${date}T${normalizedTime}${BUSINESS_UTC_OFFSET}`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function localISODate(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: BUSINESS_TIME_ZONE,

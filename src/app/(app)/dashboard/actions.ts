@@ -20,7 +20,7 @@ import {
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
-import { parseDatetimeLocalAsSgt } from "@/lib/date";
+import { parseDateAndTimeAsSgt, parseDatetimeLocalAsSgt } from "@/lib/date";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -1089,8 +1089,11 @@ async function insertRecurringRule(
   while (d < end) {
     const dow = d.getDay();
     if (targetDays.length === 0 || targetDays.includes(dow)) {
-      const [h, m] = startTime.split(":").map(Number);
-      const st = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), h || 0, m || 0));
+      const st = parseDateAndTimeAsSgt(d.toISOString().slice(0, 10), startTime);
+      if (!st) {
+        console.error("insertRecurringRule: invalid_start_time", startDate, startTime);
+        return -1;
+      }
       const en = new Date(st.getTime() + duration * 60000);
       const exists = await supabase
         .from("class_sessions")

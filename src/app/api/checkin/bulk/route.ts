@@ -45,6 +45,15 @@ export async function POST(req: Request) {
   for (const sid of bulkStudioIds) {
     const blocked = await respondIfStudioContractSuspended(admin, sid);
     if (blocked) return blocked;
+    if (
+      role !== "instructor"
+      && !ctx.isSuperAdmin
+      && !ctx.memberships.some(
+        (m) => m.studio_id === sid && ["owner", "manager", "frontdesk"].includes(m.role),
+      )
+    ) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
   }
 
   let instructorId: string | null = null;

@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
+import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { bestRole, buildAccessContext } from "@/lib/rbac";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -218,35 +219,21 @@ const getQueuePayloadCached = unstable_cache(
 );
 
 function normalizeDateRange(dateFrom: string | null, dateTo: string | null) {
-  if (!dateFrom && !dateTo) {
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    return { startIso: start.toISOString(), endIso: end.toISOString() };
+  const fallbackDate = localISODate();
+  const startText = dateFrom ?? dateTo ?? fallbackDate;
+  const endText = dateTo ?? dateFrom ?? fallbackDate;
+  const normalizedStartText = dateFrom && dateTo && dateFrom > dateTo ? endText : startText;
+  const normalizedEndText = dateFrom && dateTo && dateFrom > dateTo ? startText : endText;
+
+  const startIso = dayRangeStartIso(normalizedStartText);
+  const endIso = dayRangeEndExclusiveIso(normalizedEndText);
+  if (startIso && endIso) {
+    return { startIso, endIso };
   }
 
-  const start = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
-  const end = dateTo ? new Date(`${dateTo}T00:00:00`) : null;
-
-  if (!start || Number.isNaN(start.getTime())) {
-    const s = new Date();
-    s.setHours(0, 0, 0, 0);
-    const e = new Date(s);
-    e.setDate(e.getDate() + 1);
-    return { startIso: s.toISOString(), endIso: e.toISOString() };
-  }
-
-  if (!end || Number.isNaN(end.getTime())) {
-    const e = new Date(start);
-    e.setDate(e.getDate() + 1);
-    return { startIso: start.toISOString(), endIso: e.toISOString() };
-  }
-
-  end.setDate(end.getDate() + 1);
-  if (start > end) return { startIso: end.toISOString(), endIso: start.toISOString() };
-  return { startIso: start.toISOString(), endIso: end.toISOString() };
+  const fallbackStartIso = dayRangeStartIso(fallbackDate) ?? new Date().toISOString();
+  const fallbackEndIso = dayRangeEndExclusiveIso(fallbackDate) ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  return { startIso: fallbackStartIso, endIso: fallbackEndIso };
 }
 
 export async function GET(req: Request) {
