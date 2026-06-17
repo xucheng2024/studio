@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  createManualPackageClassBooking,
+  loadClassSessionBookingStudio,
+} from "@/lib/bookingTransitions";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -24,38 +28,29 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
   await sweepExpiredPendingPayments(admin);
-  const { data: sessionRow } = await admin
-    .from("class_sessions")
-    .select("id, status, classes!inner(studio_id)")
-    .eq("id", parsed.data.session_id)
-    .maybeSingle();
-
-  if (!sessionRow) {
-    return NextResponse.json({ error: "session_not_found" }, { status: 404 });
-  }
-  if ((sessionRow.status ?? "scheduled") !== "scheduled") {
-    return NextResponse.json({ error: "session_not_available" }, { status: 409 });
+  const sessionContext = await loadClassSessionBookingStudio(admin, parsed.data.session_id);
+  if (!sessionContext.ok) {
+    return NextResponse.json({ error: sessionContext.error }, { status: sessionContext.status });
   }
 
-  const cls = sessionRow.classes as { studio_id?: string } | { studio_id?: string }[] | null;
-  const pkgStudioId = Array.isArray(cls) ? cls[0]?.studio_id : cls?.studio_id;
-  if (pkgStudioId) {
-    const { data: st } = await admin.from("studios").select("contract_status").eq("id", pkgStudioId).maybeSingle();
+  const { studioId } = sessionContext;
+  if (studioId) {
+    const { data: st } = await admin.from("studios").select("contract_status").eq("id", studioId).maybeSingle();
     if (st?.contract_status === "suspended") {
       return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
     }
   }
 
-  const { data, error } = await admin.rpc("create_package_booking", {
-    p_session_id: parsed.data.session_id,
-    p_client_id: user.id,
-    p_client_package_id: parsed.data.client_package_id,
+  const result = await createManualPackageClassBooking(admin, {
+    sessionId: parsed.data.session_id,
+    clientId: user.id,
+    clientPackageId: parsed.data.client_package_id,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const r = data as { ok?: boolean; error?: string; booking_id?: string; credits_required?: number };
-  if (!r?.ok) return NextResponse.json({ error: r?.error ?? "package_booking_failed" }, { status: 409 });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
   return NextResponse.json(
-    { ok: true, booking_id: r.booking_id, credits_required: r.credits_required },
+    { ok: true, booking_id: result.bookingId, credits_required: result.creditsRequired },
     {
       headers: {
         Deprecation: "true",

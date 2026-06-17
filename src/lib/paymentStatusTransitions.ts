@@ -7,6 +7,7 @@ type ShopOrderDirectStatus = Exclude<PaymentLifecycleStatus, "paid">;
 export type PaymentLifecycleRow = {
   id: string;
   studio_id?: string | null;
+  booking_id?: string | null;
   event_booking_id?: string | null;
 };
 

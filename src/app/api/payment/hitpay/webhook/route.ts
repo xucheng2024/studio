@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { isMembershipEnded } from "@/lib/membership-subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
-import { normalizeHitpayRecurringBillingStatus } from "@/lib/hitpayRecurringStatus";
 import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
+import {
+  applyRecurringSubscriptionStatus,
+  recordRecurringSubscriptionCharge,
+} from "@/lib/subscriptionTransitions";
 
 type HitpayWebhookPayload = {
   id?: string;
@@ -110,14 +112,6 @@ type RecurringSubscriptionContext = {
   cancel_at_period_end?: boolean | null;
 };
 
-function addMembershipPeriod(anchorIso: string, interval: string | null | undefined) {
-  const next = new Date(anchorIso);
-  if (Number.isNaN(next.getTime())) return null;
-  if (interval === "yearly") next.setFullYear(next.getFullYear() + 1);
-  else next.setMonth(next.getMonth() + 1);
-  return next.toISOString();
-}
-
 async function resolveRecurringWebhookContext(args: {
   rawBody: string;
   signature: string | null;
@@ -215,43 +209,12 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
     hitpayEventTypeMatches(eventType, "method_detached") ||
     hitpayEventTypeMatches(eventType, "subscription_updated")
   ) {
-    const recurringStatus = normalizeHitpayRecurringBillingStatus(payload.status);
-    const nowIso = new Date().toISOString();
-    const update: Record<string, string | null> = {
-      gateway_payload: rawBody,
-      updated_at: nowIso,
-    };
-    const endingAtPeriodEnd =
-      recurringStatus === "canceled" &&
-      subscription.cancel_at_period_end &&
-      subscription.current_period_end &&
-      !isMembershipEnded(
-        {
-          status: subscription.status,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          current_period_end: subscription.current_period_end,
-        },
-        new Date(),
-      );
-    const currentLower = String(subscription.status ?? "").toLowerCase();
-
-    if (hitpayEventTypeMatches(eventType, "method_attached")) {
-      update.payment_method_attached_at = payload.updated_at ?? payload.created_at ?? nowIso;
-      if (currentLower === "scheduled") {
-        update.status = "active";
-      }
-    } else if (recurringStatus && !endingAtPeriodEnd) {
-      const wouldDowngrade =
-        ["active", "retrying", "paused", "inactive"].includes(currentLower) &&
-        recurringStatus === "scheduled";
-      if (!wouldDowngrade) {
-        update.status = recurringStatus;
-      }
-    }
-    if (recurringStatus === "canceled" && !endingAtPeriodEnd) {
-      update.canceled_at = payload.updated_at ?? payload.created_at ?? nowIso;
-    }
-    await admin.from("customer_subscriptions").update(update).eq("id", subscription.id);
+    await applyRecurringSubscriptionStatus(admin, subscription, {
+      recurringStatusRaw: payload.status,
+      gatewayPayload: rawBody,
+      eventKind: hitpayEventTypeMatches(eventType, "method_attached") ? "method_attached" : "provider_status",
+      occurredAt: payload.updated_at ?? payload.created_at ?? null,
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -268,63 +231,15 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
   const currency = String(payload.currency ?? "SGD").toUpperCase();
   const effectiveAt = payload.closed_at ?? payload.created_at ?? new Date().toISOString();
   const gatewayStatus = String(payload.status ?? "").trim().toLowerCase() || null;
-  const currentPeriodEnd = addMembershipPeriod(effectiveAt, subscription.billing_interval_snapshot);
-
-  const { data: existingPayment } = await admin
-    .from("payments")
-    .select("id, paid_at")
-    .eq("gateway_payment_id", chargeId)
-    .eq("source", "membership_subscription")
-    .maybeSingle();
-
-  if (existingPayment?.id) {
-    await admin
-      .from("payments")
-      .update({
-        status: paymentStatus,
-        gateway_status: gatewayStatus,
-        gateway_payload: rawBody,
-        gateway_refund_payment_id: chargeId,
-        paid_at: paymentStatus === "paid" ? effectiveAt : existingPayment.paid_at ?? null,
-      })
-      .eq("id", existingPayment.id);
-  } else {
-    await admin.from("payments").insert({
-      studio_id: subscription.studio_id,
-      client_id: subscription.client_id,
-      membership_product_id: subscription.membership_product_id,
-      customer_subscription_id: subscription.id,
-      membership_name_snapshot: subscription.membership_name_snapshot ?? null,
-      amount,
-      currency,
-      payment_method: "hitpay",
-      source: "membership_subscription",
-      type: "subscription",
-      status: paymentStatus,
-      reference_code: `${subscription.reference_code}:${chargeId.slice(0, 8)}`,
-      gateway_payment_id: chargeId,
-      gateway_refund_payment_id: chargeId,
-      gateway_status: gatewayStatus,
-      gateway_payload: rawBody,
-      created_at: effectiveAt,
-      paid_at: paymentStatus === "paid" ? effectiveAt : null,
-    });
-  }
-
-  const subscriptionUpdate: Record<string, string | null> = {
-    status: paymentStatus === "paid" ? "active" : subscription.status ?? "scheduled",
-    gateway_payload: rawBody,
-    updated_at: new Date().toISOString(),
-  };
-  if (paymentStatus === "paid") {
-    subscriptionUpdate.last_charge_at = effectiveAt;
-    if (currentPeriodEnd) subscriptionUpdate.current_period_end = currentPeriodEnd;
-  }
-
-  await admin
-    .from("customer_subscriptions")
-    .update(subscriptionUpdate)
-    .eq("id", subscription.id);
+  await recordRecurringSubscriptionCharge(admin, subscription, {
+    chargeId,
+    paymentStatus,
+    amount,
+    currency,
+    gatewayStatus,
+    gatewayPayload: rawBody,
+    effectiveAt,
+  });
 
   return NextResponse.json({ ok: true });
 }

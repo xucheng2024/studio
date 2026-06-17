@@ -9,6 +9,11 @@ import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
+import {
+  attachRecurringBillingToSubscription,
+  createScheduledSubscriptionRecord,
+  getMembershipStartDateInSingapore,
+} from "@/lib/subscriptionTransitions";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -20,32 +25,6 @@ const bodySchema = z.object({
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional().nullable(),
 });
-
-function todayInSingapore() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Singapore",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${pick("year")}-${pick("month")}-${pick("day")}`;
-}
-
-function startDateInSingapore(trialDays: number) {
-  const today = todayInSingapore();
-  const base = new Date(`${today}T00:00:00+08:00`);
-  const days = Number.isFinite(trialDays) ? Math.max(0, Math.floor(trialDays)) : 0;
-  base.setDate(base.getDate() + days);
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Singapore",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(base);
-  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${pick("year")}-${pick("month")}-${pick("day")}`;
-}
 
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
@@ -170,25 +149,19 @@ export async function POST(req: Request) {
 
   const reference = generatePaymentReference();
   const trialDays = Number((membership as { trial_days?: number | null }).trial_days ?? 0);
-  const startDate = startDateInSingapore(trialDays);
-  const { data: localSubscription, error: insertErr } = await admin
-    .from("customer_subscriptions")
-    .insert({
-      studio_id: membership.studio_id,
-      client_id: clientId,
-      membership_product_id: membership.id,
-      reference_code: reference,
-      status: "scheduled",
-      customer_name_snapshot: customerName,
-      customer_email_snapshot: customerEmail,
-      membership_name_snapshot: membership.name,
-      membership_price_snapshot: membership.price,
-      billing_interval_snapshot: membership.billing_interval,
-      cancel_at_period_end: false,
-      billing_start_date: startDate,
-    })
-    .select("id")
-    .single();
+  const startDate = getMembershipStartDateInSingapore(trialDays);
+  const { data: localSubscription, error: insertErr } = await createScheduledSubscriptionRecord(admin, {
+    studioId: membership.studio_id,
+    clientId,
+    membershipProductId: membership.id,
+    referenceCode: reference,
+    customerName,
+    customerEmail,
+    membershipName: membership.name,
+    membershipPrice: membership.price,
+    billingInterval: membership.billing_interval,
+    billingStartDate: startDate,
+  });
   if (insertErr || !localSubscription) {
     return NextResponse.json({ error: insertErr?.message ?? "subscription_create_failed" }, { status: 500 });
   }
@@ -216,15 +189,12 @@ export async function POST(req: Request) {
       reference,
     });
 
-    await admin
-      .from("customer_subscriptions")
-      .update({
-        recurring_billing_id: hitpay.recurringBillingId,
-        checkout_url: hitpay.checkoutUrl,
-        status: hitpay.status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", localSubscription.id);
+    await attachRecurringBillingToSubscription(admin, {
+      subscriptionId: localSubscription.id,
+      recurringBillingId: hitpay.recurringBillingId,
+      checkoutUrl: hitpay.checkoutUrl,
+      status: hitpay.status,
+    });
 
     return NextResponse.json({
       subscription_id: localSubscription.id,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { cancelHitpayRecurringBilling, isHitpayPlatformMerchantKeyConflict, refundHitpayPayment } from "@/lib/hitpay";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cancelMembershipSubscription } from "@/lib/subscriptionTransitions";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -29,196 +29,22 @@ export async function POST(req: Request) {
   if (sub.client_id !== user.id) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const membership = Array.isArray(sub.membership_products) ? sub.membership_products[0] : sub.membership_products;
   const trialDays = Number(membership?.trial_days ?? 0);
-
-  const now = new Date();
-  const nowIso = now.toISOString();
-  let recurringCancelFallback = false;
-
-  if (sub.recurring_billing_id) {
-    const { data: secrets } = await admin
-      .from("studio_payment_secrets")
-      .select("hitpay_api_key")
-      .eq("studio_id", sub.studio_id)
-      .maybeSingle();
-    const apiKey = secrets?.hitpay_api_key ?? null;
-    if (!apiKey) return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
-    try {
-      const result = await cancelHitpayRecurringBilling({
-        apiKey,
-        recurringBillingId: sub.recurring_billing_id,
-      });
-      if (result.expiresAt) {
-        (sub as { current_period_end?: string | null }).current_period_end = result.expiresAt;
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "hitpay_recurring_cancel_failed";
-      const pendingUncharged =
-        String(sub.status ?? "").toLowerCase() === "scheduled" &&
-        !(sub as { last_charge_at?: string | null }).last_charge_at;
-      const platformKeyConflict = isHitpayPlatformMerchantKeyConflict(message);
-      /** Allow finishing cancel locally when HitPay recurring DELETE cannot run (e.g. pending checkout, or trial cancel when DELETE rejects duplicate platform/merchant keys). */
-      const allowLocalWithoutRemoteCancel =
-        pendingUncharged || (platformKeyConflict && trialDays > 0);
-
-      if (allowLocalWithoutRemoteCancel) {
-        recurringCancelFallback = true;
-      } else {
-        return NextResponse.json(
-          {
-            error: message,
-            ...(platformKeyConflict
-              ? {
-                  error_detail:
-                    "HitPay platform mode requires different values for env HITPAY_PLATFORM_API_KEY (platform) and the studio merchant API key. They must not be identical. Fix keys or cancel the subscription in the HitPay dashboard.",
-                }
-              : {}),
-          },
-          { status: 409 },
-        );
-      }
-    }
+  const result = await cancelMembershipSubscription(admin, {
+    subscription: sub,
+    actorId: user.id,
+    actorKind: "member",
+    trialDays,
+    allowRemoteCancelFallback: true,
+  });
+  if (!result.ok) {
+    return NextResponse.json(
+      result.error_detail ? { error: result.error, error_detail: result.error_detail } : { error: result.error },
+      { status: result.status },
+    );
   }
-
-  // Pending activation with no successful charge should be cancellable locally
-  // even when upstream recurring cancellation cannot be confirmed.
-  if (
-    String(sub.status ?? "").toLowerCase() === "scheduled" &&
-    !(sub as { last_charge_at?: string | null }).last_charge_at
-  ) {
-    const { error } = await admin
-      .from("customer_subscriptions")
-      .update({
-        status: "canceled",
-        canceled_at: nowIso,
-        cancel_at_period_end: false,
-        cancel_requested_at: nowIso,
-        current_period_end: nowIso,
-        updated_at: nowIso,
-        cancel_reason: recurringCancelFallback
-          ? "cancelled_pending_activation_local_fallback"
-          : "cancelled_pending_activation",
-      })
-      .eq("id", sub.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, mode: "pending_activation" });
-  }
-
-  if (trialDays > 0) {
-    const { data: latestPayment } = await admin
-      .from("payments")
-      .select("id, status, amount, paid_amount, gateway_refund_payment_id, gateway_payment_id, payment_method, paid_at, created_at")
-      .eq("customer_subscription_id", sub.id)
-      .eq("source", "membership_subscription")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    /**
-     * Use billing_start_date (= the scheduled first charge date) as the trial boundary so it
-     * matches what the UI shows ("first charge on …"). Fall back to the old anchor+trialDays
-     * calculation for legacy rows that may not have billing_start_date set.
-     */
-    const billingStartDate = (sub as { billing_start_date?: string | null }).billing_start_date ?? null;
-    const trialDeadline = billingStartDate
-      ? new Date(`${billingStartDate}T00:00:00+08:00`)
-      : (() => {
-          const anchorRaw = latestPayment?.status === "paid"
-            ? (latestPayment.paid_at ?? latestPayment.created_at ?? sub.last_charge_at ?? sub.created_at ?? nowIso)
-            : (sub.last_charge_at ?? sub.created_at ?? nowIso);
-          const d = new Date(anchorRaw);
-          d.setDate(d.getDate() + Math.max(0, trialDays));
-          return d;
-        })();
-    const withinTrial = now.getTime() <= trialDeadline.getTime();
-
-    if (withinTrial && latestPayment?.status === "paid") {
-      const { data: secrets } = await admin
-        .from("studio_payment_secrets")
-        .select("hitpay_api_key")
-        .eq("studio_id", sub.studio_id)
-        .maybeSingle();
-      const apiKey = secrets?.hitpay_api_key ?? null;
-      if (!apiKey) return NextResponse.json({ error: "hitpay_not_configured" }, { status: 409 });
-      const gatewayPaymentId = latestPayment.gateway_refund_payment_id ?? latestPayment.gateway_payment_id ?? null;
-      if (!gatewayPaymentId) return NextResponse.json({ error: "gateway_payment_id_missing" }, { status: 409 });
-
-      try {
-        await refundHitpayPayment({
-          apiKey,
-          paymentId: gatewayPaymentId,
-          amount: Number(latestPayment.paid_amount ?? latestPayment.amount ?? 0),
-        });
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "hitpay_refund_failed";
-        const platformKeyConflict = isHitpayPlatformMerchantKeyConflict(message);
-        return NextResponse.json(
-          {
-            error: message,
-            ...(platformKeyConflict
-              ? {
-                  error_detail:
-                    "HitPay refund rejected: platform and merchant API keys must differ (see env HITPAY_PLATFORM_API_KEY vs studio merchant key). Fix keys or process refund in HitPay dashboard.",
-                }
-              : {}),
-          },
-          { status: 409 },
-        );
-      }
-
-      const { data: refundResult, error: refundErr } = await admin.rpc("refund_payment_with_invoice_void", {
-        p_payment_id: latestPayment.id,
-        p_operator_id: user.id,
-        p_reason: "cancelled_within_membership_trial",
-      });
-      if (refundErr) return NextResponse.json({ error: refundErr.message }, { status: 500 });
-      const rr = refundResult as { ok?: boolean; error?: string };
-      if (!rr?.ok) return NextResponse.json({ error: rr?.error ?? "refund_failed" }, { status: 409 });
-    }
-
-    if (withinTrial) {
-      const { error } = await admin
-        .from("customer_subscriptions")
-        .update({
-          status: "canceled",
-          canceled_at: nowIso,
-          cancel_at_period_end: false,
-          cancel_requested_at: nowIso,
-          updated_at: nowIso,
-          cancel_reason: latestPayment?.status === "paid" ? "cancelled_by_member_trial_refund" : "cancelled_by_member_trial",
-        })
-        .eq("id", sub.id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, mode: latestPayment?.status === "paid" ? "trial_refunded" : "trial" });
-    }
-    // Trial window has passed — fall through to normal period-end cancellation.
-  }
-
-  // Already billed (or trial window passed): cancel renewals, keep access until period end.
-  const interval = (sub as { billing_interval_snapshot?: string | null }).billing_interval_snapshot === "yearly" ? "yearly" : "monthly";
-  const derivePeriodEnd = () => {
-    const existing = (sub as { current_period_end?: string | null }).current_period_end ?? null;
-    if (existing) return existing;
-    const anchor = (sub as { last_charge_at?: string | null }).last_charge_at ?? (sub as { created_at?: string | null }).created_at ?? nowIso;
-    const next = new Date(anchor);
-    if (Number.isNaN(next.getTime())) return null;
-    if (interval === "yearly") next.setFullYear(next.getFullYear() + 1);
-    else next.setMonth(next.getMonth() + 1);
-    return next.toISOString();
-  };
-  const finalPeriodEnd = derivePeriodEnd();
-
-  const { error } = await admin
-    .from("customer_subscriptions")
-    .update({
-      // Do not flip to canceled immediately; keep status and mark ending.
-      cancel_at_period_end: true,
-      cancel_requested_at: nowIso,
-      current_period_end: finalPeriodEnd,
-      updated_at: nowIso,
-      cancel_reason: "cancelled_by_member",
-    })
-    .eq("id", sub.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json({ ok: true, mode: "period_end", current_period_end: finalPeriodEnd });
+  return NextResponse.json({
+    ok: true,
+    mode: result.mode,
+    current_period_end: "current_period_end" in result ? result.current_period_end ?? null : null,
+  });
 }

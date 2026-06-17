@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitpay";
+import { generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -10,8 +10,17 @@ import { getAppBaseUrlFromRequest } from "@/lib/app-url";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { findClientIdByEmail } from "@/lib/resolveClientId";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
-import { cancelPendingPaymentLifecycle } from "@/lib/paymentStatusTransitions";
-import { finalizeZeroAmountPayment } from "@/lib/finalizeZeroAmountPayment";
+import {
+  attachHitpayCheckoutToBookingPayment,
+  attachPaymentToBookingReservation,
+  cancelPendingBookingCheckout,
+  createBookingCheckoutPayment,
+  createHitpayBookingCheckout,
+  createPendingEventBookingReservation,
+  finalizeBookingCheckout,
+  getTimedBookingCheckoutExpiry,
+  rollbackPendingBookingReservation,
+} from "@/lib/bookingTransitions";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -158,99 +167,82 @@ export async function POST(req: Request) {
   }
 
   const reference = generatePaymentReference();
-  // Expire before event start to avoid holding reserved seats too long.
-  // Target: now + 15m. Clamp to [now+1m, now+15m], and never after start-5m.
-  const eventStart = event.start_time ? new Date(event.start_time as string).getTime() : null;
-  const holdWindowMs = 15 * 60 * 1000;
-  const nowMs = Date.now();
-  const minExpiry = nowMs + 60 * 1000;
-  const maxExpiry = nowMs + holdWindowMs;
-  const hardCap = eventStart ? eventStart - 5 * 60 * 1000 : null;
-  const rawExpiry = maxExpiry;
-  const upperBound = hardCap != null ? Math.min(maxExpiry, hardCap) : maxExpiry;
-  const expiresAt = new Date(Math.max(minExpiry, Math.min(upperBound, rawExpiry))).toISOString();
-
-  // For gift bookings made by a logged-in user, treat the seat reservation as a
-  // guest-style entry (p_client_id=null) so the RPC's duplicate-booking guard doesn't
-  // fire against the buyer's own booking history. The booking's client_id will be
-  // reassigned to the recipient when the payment webhook confirms.
-  const rpcClientId = isGift ? null : (user?.id ?? null);
-  // RPC requires guest name/email when client_id is null.
-  const rpcGuestName = rpcClientId ? null : (guestName ?? giftRecipientName ?? "Gift recipient");
-  const rpcGuestEmail = rpcClientId ? null : (guestEmail ?? giftRecipientEmail ?? null);
-  const { data: bookingRpc, error: bErr } = await admin.rpc("create_pending_event_booking", {
-    p_event_id: parsed.data.event_id,
-    p_client_id: rpcClientId,
-    p_guest_name: rpcGuestName,
-    p_guest_email: rpcGuestEmail,
-    p_guest_phone: rpcClientId ? null : guestPhone,
+  const expiresAt = getTimedBookingCheckoutExpiry(event.start_time as string | null | undefined);
+  const bookingResult = await createPendingEventBookingReservation(admin, {
+    eventId: parsed.data.event_id,
+    userId: user?.id ?? null,
+    guestName,
+    guestEmail,
+    guestPhone,
+    isGift,
+    giftRecipientName,
+    giftRecipientEmail,
   });
-  if (bErr) return NextResponse.json({ error: bErr.message }, { status: 500 });
-  const bookingResult = bookingRpc as { ok?: boolean; error?: string; event_booking_id?: string };
-  if (!bookingResult?.ok || !bookingResult.event_booking_id) {
-    return NextResponse.json({ error: bookingResult?.error ?? "booking_create_failed" }, { status: 409 });
+  if (!bookingResult.ok) {
+    return NextResponse.json({ error: bookingResult.error }, { status: bookingResult.status });
   }
 
   const currency = STUDIO_CURRENCY;
-  const { data: payment, error: pErr } = await admin
-    .from("payments")
-    .insert({
-      booking_id: null,
-      package_id: null,
-      event_booking_id: bookingResult.event_booking_id,
-      studio_id: studioId,
-      location_id: null,
-      client_id: user?.id ?? null,
-      guest_name: user ? null : guestName ?? null,
-      guest_email: user ? null : guestEmail ?? null,
-      guest_phone: user ? null : guestPhone,
-      is_gift: isGift,
-      gift_recipient_name: isGift ? giftRecipientName : null,
-      gift_recipient_email: isGift ? giftRecipientEmail : null,
-      gift_message: isGift ? giftMessage : null,
-      amount,
-      currency,
-      payment_method: isZeroAmount ? "free" : "hitpay",
-      source: "event_booking",
-      status: "pending",
-      reference_code: reference,
-      expires_at: expiresAt,
-      type: "single",
-      remaining_uses: 0,
-    })
-    .select("id")
-    .single();
-
-  if (pErr || !payment) {
-    // Payment row failed to create; undo the seat reservation + pending booking.
-    await admin.from("event_bookings").delete().eq("id", bookingResult.event_booking_id);
-    await admin.from("events").update({ spots_left: (event.spots_left ?? 0) + 1 }).eq("id", event.id);
-    return NextResponse.json({ error: pErr?.message ?? "payment_create_failed" }, { status: 500 });
+  const paymentResult = await createBookingCheckoutPayment(admin, {
+    kind: "event",
+    reservationId: bookingResult.reservationId,
+    studioId,
+    locationId: null,
+    userId: user?.id ?? null,
+    guestName,
+    guestEmail,
+    guestPhone,
+    isGift,
+    giftRecipientName,
+    giftRecipientEmail,
+    giftMessage,
+    amount,
+    currency,
+    referenceCode: reference,
+    expiresAt,
+  });
+  if (!paymentResult.ok) {
+    await rollbackPendingBookingReservation(admin, {
+      kind: "event",
+      reservationId: bookingResult.reservationId,
+      eventId: event.id,
+      restoreEventSpot: true,
+    });
+    return NextResponse.json({ error: paymentResult.error }, { status: 500 });
   }
 
-  await admin.from("event_bookings").update({ payment_id: payment.id }).eq("id", bookingResult.event_booking_id);
+  await attachPaymentToBookingReservation(admin, {
+    kind: "event",
+    reservationId: bookingResult.reservationId,
+    paymentId: paymentResult.paymentId,
+  });
 
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
-  const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;
+  const returnUrl = `${baseUrl}/${studioSlug}/checkout/${paymentResult.paymentId}`;
   if (isZeroAmount) {
     try {
-      await finalizeZeroAmountPayment(admin, {
-        id: payment.id,
-        studio_id: studioId,
-        booking_id: null,
-        event_booking_id: bookingResult.event_booking_id,
+      await finalizeBookingCheckout(admin, {
+        paymentId: paymentResult.paymentId,
+        studioId,
+        reservationId: bookingResult.reservationId,
+        kind: "event",
       });
       return NextResponse.json({
-        event_booking_id: bookingResult.event_booking_id,
-        payment_id: payment.id,
+        event_booking_id: bookingResult.reservationId,
+        payment_id: paymentResult.paymentId,
         amount,
         currency,
         reference_code: reference,
         checkout_url: returnUrl,
       });
     } catch {
-      await cancelPendingPaymentLifecycle(admin, payment, "failed");
+      await cancelPendingBookingCheckout(admin, {
+        paymentId: paymentResult.paymentId,
+        studioId,
+        reservationId: bookingResult.reservationId,
+        kind: "event",
+      });
       return NextResponse.json({ error: "free_payment_finalize_failed" }, { status: 500 });
     }
   }
@@ -258,28 +250,26 @@ export async function POST(req: Request) {
   const guestDisplayEmail = guestEmail ?? user?.email ?? null;
 
   try {
-    const hitpay = await createHitpayPaymentRequest({
+    const hitpay = await createHitpayBookingCheckout({
       apiKey: merchantApiKey,
-      amount: amount.toFixed(2),
+      amount,
       currency,
-      email: guestDisplayEmail,
+      email: guestDisplayEmail ?? null,
       name: guestDisplayName,
-      reference_number: reference,
-      redirect_url: returnUrl,
+      referenceCode: reference,
+      returnUrl,
       purpose: `Event booking ${event.id}`,
     });
-    await admin
-      .from("payments")
-      .update({
-        gateway_payment_id: hitpay.providerPaymentId,
-        gateway_checkout_url: hitpay.checkoutUrl,
-        gateway_status: hitpay.providerStatus,
-      })
-      .eq("id", payment.id);
+    await attachHitpayCheckoutToBookingPayment(admin, {
+      paymentId: paymentResult.paymentId,
+      providerPaymentId: hitpay.providerPaymentId,
+      checkoutUrl: hitpay.checkoutUrl,
+      providerStatus: hitpay.providerStatus,
+    });
 
     return NextResponse.json({
-      event_booking_id: bookingResult.event_booking_id,
-      payment_id: payment.id,
+      event_booking_id: bookingResult.reservationId,
+      payment_id: paymentResult.paymentId,
       amount,
       currency,
       reference_code: reference,
@@ -287,7 +277,12 @@ export async function POST(req: Request) {
       checkout_url: hitpay.checkoutUrl,
     });
   } catch (e) {
-    await cancelPendingPaymentLifecycle(admin, payment, "failed");
+    await cancelPendingBookingCheckout(admin, {
+      paymentId: paymentResult.paymentId,
+      studioId,
+      reservationId: bookingResult.reservationId,
+      kind: "event",
+    });
     const normalized = normalizeHitpayError(e instanceof Error ? e.message : "hitpay_create_failed");
     return NextResponse.json(
       { error: normalized.error, error_detail: normalized.error_detail },

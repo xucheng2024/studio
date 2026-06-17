@@ -3,6 +3,7 @@ import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
 import { eventGuestHasActiveBooking } from "@/lib/eventBookingDedup";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
+import { createInstantBookingSale, runInstantBookingCheckin } from "@/lib/bookingTransitions";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
@@ -88,77 +89,42 @@ async function handleSessionWalkin(
   });
   if (!scoped.ok) return staffScopeFailureResponse(scoped);
 
-  const { data: booking, error: bErr } = await admin
-    .from("bookings")
-    .insert({
-      session_id: data.target_id,
-      location_id: session.location_id ?? null,
-      client_id: null,
-      guest_name: data.guest_name.trim(),
-      guest_email: data.guest_email ?? null,
-      guest_phone: data.guest_phone?.trim() ?? null,
-      status: "booked",
-      payment_status: "paid",
-    })
-    .select("id")
-    .single();
-  if (bErr || !booking) return NextResponse.json({ error: bErr?.message ?? "booking_create_failed" }, { status: 500 });
-
-  const { data: payment, error: pErr } = await admin
-    .from("payments")
-    .insert({
-      booking_id: booking.id,
-      studio_id: studioId,
-      location_id: session.location_id ?? null,
-      amount: data.amount,
-      currency: STUDIO_CURRENCY,
-      type: "single",
-      source: "walkin",
-      status: "paid",
-      payment_method: data.payment_method,
-      paid_at: new Date().toISOString(),
-      verified_at: new Date().toISOString(),
-      verified_by: userId,
-      remaining_uses: 1,
-    })
-    .select("id")
-    .single();
-  if (pErr || !payment) return NextResponse.json({ error: pErr?.message ?? "payment_create_failed" }, { status: 500 });
-
-  await admin.from("bookings").update({ payment_id: payment.id }).eq("id", booking.id);
-  const { data: seatRow } = await admin
-    .from("class_sessions")
-    .update({ spots_left: (session.spots_left ?? 1) - 1 })
-    .eq("id", session.id)
-    .gt("spots_left", 0)
-    .select("id")
-    .maybeSingle();
-  if (!seatRow) {
-    await admin.from("bookings").update({ status: "cancelled", cancel_reason: "full_race" }).eq("id", booking.id);
-    await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
-    return NextResponse.json({ error: "full" }, { status: 409 });
-  }
+  const sale = await createInstantBookingSale(admin, {
+    kind: "class",
+    targetId: data.target_id,
+    studioId,
+    locationId: session.location_id ?? null,
+    guestName: data.guest_name.trim(),
+    guestEmail: data.guest_email ?? null,
+    guestPhone: data.guest_phone?.trim() ?? null,
+    amount: data.amount,
+    currency: STUDIO_CURRENCY,
+    paymentMethod: data.payment_method,
+    actorId: userId,
+    availableSpots: session.spots_left ?? 0,
+  });
+  if (!sale.ok) return NextResponse.json({ error: sale.error }, { status: sale.status });
 
   let checkinOk = false;
   let checkinError: string | undefined;
   if (data.mark_checkin) {
-    const { data: checkinData, error: checkinErr } = await admin.rpc("checkin_booking", {
-      p_booking_id: booking.id,
-      p_actor_id: userId,
+    const result = await runInstantBookingCheckin(admin, {
+      kind: "class",
+      bookingId: sale.bookingId,
+      actorId: userId,
     });
-    const cr = checkinData as { ok?: boolean; error?: string } | null;
-    checkinOk = !checkinErr && cr?.ok === true;
-    checkinError = checkinErr?.message ?? (cr?.ok === false ? (cr?.error ?? "checkin_failed") : undefined);
+    checkinOk = result.ok;
+    checkinError = result.error;
   }
   await writeOperationAudit({
     actorId: userId,
     actorRole: scoped.role,
     action: "frontdesk_walkin",
     targetType: "booking",
-    targetId: booking.id,
+    targetId: sale.bookingId,
     afterState: {
       booking_type: "session",
-      payment_id: payment.id,
+      payment_id: sale.paymentId,
       payment_method: data.payment_method,
       checkin: checkinOk,
       checkin_error: checkinError ?? null,
@@ -167,8 +133,8 @@ async function handleSessionWalkin(
   return NextResponse.json({
     ok: true,
     booking_type: "session",
-    booking_id: booking.id,
-    payment_id: payment.id,
+    booking_id: sale.bookingId,
+    payment_id: sale.paymentId,
     checkin: checkinOk,
     ...(checkinError ? { checkin_error: checkinError } : {}),
   });
@@ -209,74 +175,32 @@ async function handleEventWalkin(
     return NextResponse.json({ error: "already_has_booking" }, { status: 409 });
   }
 
-  const { data: booking, error: bErr } = await admin
-    .from("event_bookings")
-    .insert({
-      event_id: data.target_id,
-      location_id: event.location_id ?? null,
-      client_id: null,
-      guest_name: data.guest_name.trim(),
-      guest_email: data.guest_email,
-      guest_phone: data.guest_phone?.trim() ?? null,
-      status: "booked",
-      payment_status: "paid",
-    })
-    .select("id")
-    .single();
-  if (bErr || !booking) return NextResponse.json({ error: bErr?.message ?? "booking_create_failed" }, { status: 500 });
-
-  const currency = STUDIO_CURRENCY;
-  const { data: payment, error: pErr } = await admin
-    .from("payments")
-    .insert({
-      event_booking_id: booking.id,
-      studio_id: studioId,
-      location_id: event.location_id ?? null,
-      guest_name: data.guest_name.trim(),
-      guest_email: data.guest_email,
-      guest_phone: data.guest_phone?.trim() ?? null,
-      amount: data.amount,
-      currency,
-      type: "single",
-      source: "walkin",
-      status: "paid",
-      payment_method: data.payment_method,
-      paid_at: new Date().toISOString(),
-      verified_at: new Date().toISOString(),
-      verified_by: userId,
-      remaining_uses: 1,
-    })
-    .select("id")
-    .single();
-  if (pErr || !payment) {
-    await admin.from("event_bookings").delete().eq("id", booking.id);
-    return NextResponse.json({ error: pErr?.message ?? "payment_create_failed" }, { status: 500 });
-  }
-
-  await admin.from("event_bookings").update({ payment_id: payment.id }).eq("id", booking.id);
-  const { data: seatRow } = await admin
-    .from("events")
-    .update({ spots_left: (event.spots_left ?? 1) - 1 })
-    .eq("id", event.id)
-    .gt("spots_left", 0)
-    .select("id")
-    .maybeSingle();
-  if (!seatRow) {
-    await admin.from("event_bookings").update({ status: "cancelled" }).eq("id", booking.id);
-    await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
-    return NextResponse.json({ error: "full" }, { status: 409 });
-  }
+  const sale = await createInstantBookingSale(admin, {
+    kind: "event",
+    targetId: data.target_id,
+    studioId,
+    locationId: event.location_id ?? null,
+    guestName: data.guest_name.trim(),
+    guestEmail: data.guest_email,
+    guestPhone: data.guest_phone?.trim() ?? null,
+    amount: data.amount,
+    currency: STUDIO_CURRENCY,
+    paymentMethod: data.payment_method,
+    actorId: userId,
+    availableSpots: event.spots_left ?? 0,
+  });
+  if (!sale.ok) return NextResponse.json({ error: sale.error }, { status: sale.status });
 
   let checkinOk = false;
   let checkinError: string | undefined;
   if (data.mark_checkin) {
-    const { data: checkinData, error: checkinErr } = await admin.rpc("checkin_event_booking", {
-      p_event_booking_id: booking.id,
-      p_actor_id: userId,
+    const result = await runInstantBookingCheckin(admin, {
+      kind: "event",
+      bookingId: sale.bookingId,
+      actorId: userId,
     });
-    const cr = checkinData as { ok?: boolean; error?: string } | null;
-    checkinOk = !checkinErr && cr?.ok === true;
-    checkinError = checkinErr?.message ?? (cr?.ok === false ? (cr?.error ?? "checkin_failed") : undefined);
+    checkinOk = result.ok;
+    checkinError = result.error;
   }
 
   await writeOperationAudit({
@@ -284,10 +208,10 @@ async function handleEventWalkin(
     actorRole: scoped.role,
     action: "frontdesk_walkin",
     targetType: "event_booking",
-    targetId: booking.id,
+    targetId: sale.bookingId,
     afterState: {
       booking_type: "event",
-      payment_id: payment.id,
+      payment_id: sale.paymentId,
       payment_method: data.payment_method,
       checkin: checkinOk,
       checkin_error: checkinError ?? null,
@@ -299,15 +223,15 @@ async function handleEventWalkin(
       actorRole: scoped.role,
       action: "event_checkin",
       targetType: "event_booking",
-      targetId: booking.id,
+      targetId: sale.bookingId,
       afterState: { status: "attended", via: "frontdesk_walkin" },
     });
   }
   return NextResponse.json({
     ok: true,
     booking_type: "event",
-    event_booking_id: booking.id,
-    payment_id: payment.id,
+    event_booking_id: sale.bookingId,
+    payment_id: sale.paymentId,
     checkin: checkinOk,
     ...(checkinError ? { checkin_error: checkinError } : {}),
   });
