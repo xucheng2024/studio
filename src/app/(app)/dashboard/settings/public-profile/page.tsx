@@ -186,23 +186,6 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         </div>
 
         <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Custom domain</h2>
-              <p className={`mt-1 text-xs ${ui.muted}`}>
-                Domain setup has moved into its own settings page with DNS instructions and a verification tool.
-              </p>
-            </div>
-            <DashboardAppLink
-              href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId, selectedLocationId)}
-              className={ui.btnSecondarySm}
-            >
-              Manage domain
-            </DashboardAppLink>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
           <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Social links</h2>
           <p className={`mt-1 text-xs ${ui.muted}`}>
             Shown on the public intro section only when configured.
@@ -308,23 +291,6 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
                 placeholder="Hi, I'm interested in your services."
               />
             </label>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Booking settings</h2>
-              <p className={`mt-1 text-xs ${ui.muted}`}>
-                Cal.com setup has moved into its own settings page with step-by-step instructions and clearer status feedback.
-              </p>
-            </div>
-            <DashboardAppLink
-              href={scopedHref("/dashboard/settings/booking", selectedStudioId, selectedLocationId)}
-              className={ui.btnSecondarySm}
-            >
-              Manage booking
-            </DashboardAppLink>
           </div>
         </div>
 
