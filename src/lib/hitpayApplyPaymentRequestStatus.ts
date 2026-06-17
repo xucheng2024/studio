@@ -36,14 +36,17 @@ export async function applyHitpayPaymentRequestStatus(
     .eq("id", payment.id)
     .maybeSingle<{ status: string | null }>();
   const previousStatus = String(statusBeforeUpdate?.status ?? "").trim().toLowerCase();
+  const paymentPatch: Record<string, string | null> = {
+    gateway_status: providerStatus || null,
+    gateway_payload: gatewayPayload,
+  };
+  if (providerPaymentId) {
+    paymentPatch.gateway_refund_payment_id = providerPaymentId;
+  }
 
   await admin
     .from("payments")
-    .update({
-      gateway_status: providerStatus || null,
-      gateway_payload: gatewayPayload,
-      gateway_refund_payment_id: providerPaymentId,
-    })
+    .update(paymentPatch)
     .eq("id", payment.id);
 
   if (providerStatus === "completed" || providerStatus === "succeeded" || providerStatus === "paid") {
@@ -234,6 +237,11 @@ export async function applyHitpayPaymentRequestStatus(
         p_operator_id: ownerId,
         p_reason: "hitpay_webhook_refund",
       });
+    } else {
+      await admin
+        .from("payments")
+        .update({ status: "refunded", updated_at: new Date().toISOString() })
+        .eq("id", payment.id);
     }
     await syncMemberZonePurchasePaymentStatus(admin, payment.id, "refunded");
     await syncShopOrderPaymentStatus(admin, payment.id, "refunded");

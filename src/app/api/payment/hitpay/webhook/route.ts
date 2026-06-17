@@ -254,7 +254,6 @@ export async function POST(req: Request) {
   if (
     payload.channel === "recurrent" ||
     eventObject === "recurring_billing" ||
-    eventObject === "charge" ||
     hitpayEventTypeMatches(eventType, "method_attached") ||
     hitpayEventTypeMatches(eventType, "method_detached") ||
     hitpayEventTypeMatches(eventType, "subscription_updated")

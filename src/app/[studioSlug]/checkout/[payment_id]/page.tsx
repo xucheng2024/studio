@@ -307,6 +307,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
             <HitpayCheckoutSync
               paymentId={payment_id}
               studioSlug={studioSlug}
+              gatewayPaymentId={payment.gateway_payment_id ?? null}
               enabled={shouldUseGatewaySync}
             />
           </>

@@ -166,7 +166,10 @@ export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
 export function verifyHitpayWebhookSignature(rawBody: string, signature: string | null, webhookSalt: string | null) {
   if (!webhookSalt || !signature) return false;
   const digest = crypto.createHmac("sha256", webhookSalt).update(rawBody, "utf8").digest("hex");
-  return digest === signature;
+  const expected = Buffer.from(digest, "utf8");
+  const received = Buffer.from(signature, "utf8");
+  if (expected.length !== received.length) return false;
+  return crypto.timingSafeEqual(expected, received);
 }
 
 export async function createHitpayRecurringBilling(input: HitpayRecurringBillingRequest) {

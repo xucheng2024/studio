@@ -10,10 +10,12 @@ import { useEffect, useRef } from "react";
 export function HitpayCheckoutSync({
   paymentId,
   studioSlug,
+  gatewayPaymentId,
   enabled,
 }: {
   paymentId: string;
   studioSlug: string;
+  gatewayPaymentId: string | null;
   enabled: boolean;
 }) {
   const router = useRouter();
@@ -33,7 +35,11 @@ export function HitpayCheckoutSync({
         const res = await fetch("/api/payment/hitpay/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payment_id: paymentId, studio_slug: studioSlug }),
+          body: JSON.stringify({
+            payment_id: paymentId,
+            studio_slug: studioSlug,
+            gateway_payment_id: gatewayPaymentId,
+          }),
         });
         if (!res.ok) return;
         const payload = (await res.json().catch(() => null)) as { payment_status?: string | null } | null;
@@ -67,7 +73,7 @@ export function HitpayCheckoutSync({
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [enabled, paymentId, router, studioSlug]);
+  }, [enabled, gatewayPaymentId, paymentId, router, studioSlug]);
 
   return null;
 }
