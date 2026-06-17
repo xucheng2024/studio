@@ -154,6 +154,22 @@ export function revalidateDashboardMembershipViews() {
   revalidatePath("/me/memberships");
 }
 
+export function revalidateDashboardStaffViews() {
+  revalidatePath("/dashboard/staff");
+}
+
+export function revalidateDashboardClientViews(clientId?: string | null) {
+  revalidatePath("/dashboard/clients");
+  const normalizedClientId = String(clientId ?? "").trim();
+  if (normalizedClientId) {
+    revalidatePath(`/dashboard/clients/${normalizedClientId}`);
+  }
+}
+
+export function revalidateDashboardCustomDomainViews() {
+  revalidatePath("/dashboard/settings/custom-domain");
+}
+
 export function revalidateDashboardCoreViews() {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");

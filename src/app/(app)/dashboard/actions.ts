@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import {
   revalidateDashboardContent,
+  revalidateDashboardClientViews,
   revalidateDashboardCoreViews,
+  revalidateDashboardCustomDomainViews,
   revalidateDashboardSettings,
+  revalidateDashboardStaffViews,
   revalidatePublicSectionPaths,
   revalidatePublicStudioPath,
   revalidateRbacCache,
@@ -230,7 +233,7 @@ export async function updateStudioCustomDomain(
     }
 
     revalidateDashboardSettings("public-profile");
-    revalidatePath("/dashboard/settings/custom-domain");
+    revalidateDashboardCustomDomainViews();
     return {
       ok: true,
       message: "Custom domain removed.",
@@ -249,7 +252,7 @@ export async function updateStudioCustomDomain(
     if (oldDomain && oldDomain !== domain) await removeDomainFromVercel(oldDomain);
 
     revalidateDashboardSettings("public-profile");
-    revalidatePath("/dashboard/settings/custom-domain");
+    revalidateDashboardCustomDomainViews();
 
     const uiStatus = toCustomDomainUiStatus(snapshot);
     return {
@@ -904,8 +907,7 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
     redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=save_failed`);
   }
 
-  revalidatePath("/dashboard/clients");
-  revalidatePath(`/dashboard/clients/${clientId}`);
+  revalidateDashboardClientViews(clientId);
   redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_saved=1`);
 }
 
@@ -1946,7 +1948,7 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
     }
   }
 
-  revalidatePath("/dashboard/staff");
+  revalidateDashboardStaffViews();
   revalidateRbacCache();
   redirect("/dashboard/staff?staff_msg=staff_membership_saved");
 }
@@ -1979,7 +1981,7 @@ export async function toggleStaffMembership(formData: FormData): Promise<void> {
     .update({ is_active: nextActive })
     .eq("id", membership.id);
 
-  revalidatePath("/dashboard/staff");
+  revalidateDashboardStaffViews();
   revalidateRbacCache();
 }
 

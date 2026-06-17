@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import {
   revalidateDashboardCoreViews,
   revalidateDashboardSettings,
@@ -359,7 +358,7 @@ export async function setOwnerInviteStatus(formData: FormData): Promise<void> {
     },
   });
 
-  revalidatePath("/dashboard/settings/owners");
+  revalidateDashboardSettings("owners");
   revalidateRbacCache();
   redirect(`/dashboard/settings/owners?owners_success=${nextActive ? "invite_reenabled" : "invite_cancelled"}`);
 }
@@ -396,7 +395,7 @@ export async function deleteOwnerInvite(formData: FormData): Promise<void> {
     afterState: null,
   });
 
-  revalidatePath("/dashboard/settings/owners");
+  revalidateDashboardSettings("owners");
   revalidateRbacCache();
   redirect("/dashboard/settings/owners?owners_success=invite_deleted");
 }
