@@ -45,7 +45,7 @@ export function BookingSettingsForm({ studioId, initialEnabled, initialUrl }: Pr
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
-        <div className="grid gap-4">
+        <div className="grid content-start gap-4">
           <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-700">
             <div className="flex items-center gap-2">
               <CalendarDays size={16} className="text-teal-600 dark:text-teal-400" />
@@ -95,7 +95,7 @@ export function BookingSettingsForm({ studioId, initialEnabled, initialUrl }: Pr
           </SubmitButton>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid content-start gap-4">
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-4 dark:border-stone-700 dark:bg-stone-950/40">
             <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">How to set it up in Cal.com</h3>
             <ol className={`mt-3 list-decimal space-y-2 pl-5 text-sm ${ui.muted}`}>
