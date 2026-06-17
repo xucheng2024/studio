@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle, Globe,
+  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle, Globe, CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 
@@ -120,7 +120,14 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, selectedLocationId)}
           icon={Building2}
           title="Studio profile"
-          desc="Edit public intro, media, social links, contact details, and booking profile"
+          desc="Edit public intro, media, social links, and contact details"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/booking", selectedStudioId, selectedLocationId)}
+          icon={CalendarDays}
+          title="Booking settings"
+          desc="Connect Cal.com, save the event URL, and control booking on your public page"
         />
         <SettingCard
           as={DashboardAppLink}

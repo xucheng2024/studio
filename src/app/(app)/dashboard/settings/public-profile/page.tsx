@@ -50,7 +50,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, public_instagram_url, public_linkedin_url, public_facebook_url, public_tiktok_url, public_youtube_url, public_x_url, public_contact_email, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, calcom_booking_enabled, calcom_embed_url")
+    .select("id, name, public_slug, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, public_instagram_url, public_linkedin_url, public_facebook_url, public_tiktok_url, public_youtube_url, public_x_url, public_contact_email, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("id", studioId)
     .maybeSingle();
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
@@ -312,27 +312,20 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         </div>
 
         <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
-          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Booking (Cal.com)</h2>
-          <label className="mt-2 flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              name="calcom_booking_enabled"
-              defaultChecked={Boolean((studio as { calcom_booking_enabled?: boolean }).calcom_booking_enabled)}
-            />
-            Enable booking widget
-          </label>
-          <label className="mt-3 flex flex-col gap-1.5">
-            <span className={ui.label}>Cal.com embed URL</span>
-            <input
-              name="calcom_embed_url"
-              className={ui.input}
-              defaultValue={(studio as { calcom_embed_url?: string | null }).calcom_embed_url ?? ""}
-              placeholder="https://cal.com/your-username/service"
-            />
-          </label>
-          <p className={`mt-1.5 text-xs ${ui.muted}`}>
-            From your Cal.com dashboard → Event → Embed → inline embed URL.
-          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Booking settings</h2>
+              <p className={`mt-1 text-xs ${ui.muted}`}>
+                Cal.com setup has moved into its own settings page with step-by-step instructions and clearer status feedback.
+              </p>
+            </div>
+            <DashboardAppLink
+              href={scopedHref("/dashboard/settings/booking", selectedStudioId, selectedLocationId)}
+              className={ui.btnSecondarySm}
+            >
+              Manage booking
+            </DashboardAppLink>
+          </div>
         </div>
 
         <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Saving...">

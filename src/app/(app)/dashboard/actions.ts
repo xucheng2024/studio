@@ -359,12 +359,6 @@ function sanitizeTrustedLogoUrl(raw: string | null): string | null {
   return isTrustedCoverImageUrl(value) ? value : null;
 }
 
-function sanitizePrice(raw: FormDataEntryValue | null): number {
-  const n = Number(raw ?? 0);
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.round(n * 100) / 100;
-}
-
 function sanitizePriceNullable(raw: FormDataEntryValue | null): number | null {
   if (raw === null || String(raw).trim() === "") return null;
   const n = Number(raw);
@@ -391,7 +385,7 @@ async function generateUniqueServiceShareSlug(
 
 export async function updateStudioPublicProfile(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
 
@@ -423,19 +417,6 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const rawWhatsapp = String(formData.get("whatsapp_number_e164") ?? "");
   const whatsapp_number_e164 = normalizeE164(rawWhatsapp);
   const whatsapp_prefill_text = String(formData.get("whatsapp_prefill_text") ?? "").trim() || null;
-  const calcom_booking_enabled = formData.get("calcom_booking_enabled") === "on";
-  const calcom_embed_url_raw = String(formData.get("calcom_embed_url") ?? "").trim();
-  let calcom_embed_url: string | null = null;
-  if (calcom_embed_url_raw) {
-    try {
-      const u = new URL(calcom_embed_url_raw);
-      if (u.protocol === "https:" && u.hostname === "cal.com") {
-        calcom_embed_url = u.toString();
-      }
-    } catch {
-      /* invalid, leave null */
-    }
-  }
 
   if (rawVideo.trim() && !public_video_url) return;
   if (rawInstagramUrl.trim() && !public_instagram_url) return;
@@ -470,8 +451,6 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
       whatsapp_enabled,
       whatsapp_number_e164,
       whatsapp_prefill_text,
-      calcom_booking_enabled,
-      calcom_embed_url,
     })
     .eq("id", studio.id);
   if (error) {
@@ -481,6 +460,81 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
 
   revalidatePath("/dashboard/settings/public-profile");
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+}
+
+export type BookingSettingsResult = {
+  ok: boolean;
+  message: string;
+  enabled?: boolean;
+  url?: string | null;
+};
+
+export async function updateStudioBookingSettings(
+  _prevState: BookingSettingsResult | null,
+  formData: FormData,
+): Promise<BookingSettingsResult> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) return { ok: false, message: "Studio not found." };
+  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) {
+    return { ok: false, message: "You do not have permission to update booking settings." };
+  }
+
+  const calcom_booking_enabled = formData.get("calcom_booking_enabled") === "on";
+  const rawUrl = String(formData.get("calcom_embed_url") ?? "").trim();
+  let calcom_embed_url: string | null = null;
+
+  if (rawUrl) {
+    try {
+      const u = new URL(rawUrl);
+      if (u.protocol === "https:" && (u.hostname === "cal.com" || u.hostname === "www.cal.com")) {
+        calcom_embed_url = u.toString();
+      }
+    } catch {
+      // handled below
+    }
+  }
+
+  if (rawUrl && !calcom_embed_url) {
+    return {
+      ok: false,
+      message: "Enter a valid https://cal.com/... or https://www.cal.com/... URL.",
+    };
+  }
+  if (calcom_booking_enabled && !calcom_embed_url) {
+    return {
+      ok: false,
+      message: "Paste your Cal.com URL before enabling booking on the public page.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("studios")
+    .update({
+      calcom_booking_enabled,
+      calcom_embed_url,
+    })
+    .eq("id", studio.id);
+  if (error) {
+    console.error("[updateStudioBookingSettings]", error.message);
+    return { ok: false, message: "Could not save booking settings." };
+  }
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/settings/public-profile");
+  revalidatePath("/dashboard/settings/booking");
+  if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+
+  return {
+    ok: true,
+    enabled: calcom_booking_enabled,
+    url: calcom_embed_url,
+    message: calcom_booking_enabled
+      ? "Booking is enabled on your public page."
+      : calcom_embed_url
+        ? "Cal.com URL saved, but booking is currently disabled."
+        : "Booking integration removed.",
+  };
 }
 
 export async function savePublicLogoUrl(studioId: string, logoUrl: string | null): Promise<void> {
