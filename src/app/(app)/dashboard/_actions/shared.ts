@@ -70,13 +70,16 @@ export async function requireOwnedStudioAccess(
   userId: string,
   redirectTo: string,
 ) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const ctx = await buildAccessContext(userId, user?.email ?? null, null);
   const { data: studio } = await supabase
     .from("studios")
     .select("id, contract_status")
     .eq("id", studioId)
-    .eq("owner_id", userId)
     .maybeSingle();
-  if (!studio) {
+  if (!studio || !hasStudioRole(ctx, studioId, ["owner"])) {
     redirect(redirectTo);
   }
   return studio;

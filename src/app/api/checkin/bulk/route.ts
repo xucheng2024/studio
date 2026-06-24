@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
-import { resolveInstructorIdForEmail } from "@/lib/instructor-access";
+import { resolveInstructorIdForEmail, resolveStaffActorRoleForStudio } from "@/lib/instructor-access";
 import { bestRole, buildAccessContext, hasAnyRole } from "@/lib/rbac";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -98,12 +98,14 @@ export async function POST(req: Request) {
       results.push({ booking_id: bookingId, ok: false, error: r?.error ?? "checkin_failed" });
       continue;
     }
+    const booking = bookingsById.get(bookingId);
+    const actorRole =
+      booking?.studioId && (ctx.isSuperAdmin || staffStudioIds.has(booking.studioId))
+        ? resolveStaffActorRoleForStudio(ctx, booking.studioId) ?? bestRole(ctx)
+        : "instructor";
     await writeOperationAudit({
       actorId: user.id,
-      actorRole:
-        instructorId && !ctx.isSuperAdmin && [...bulkStudioIds].every((studioId) => !staffStudioIds.has(studioId))
-          ? "instructor"
-          : bestRole(ctx),
+      actorRole,
       action: "bulk_checkin",
       targetType: "booking",
       targetId: bookingId,

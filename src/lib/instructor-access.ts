@@ -17,6 +17,22 @@ export async function resolveInstructorIdForEmail(
   return instructor?.id ?? null;
 }
 
+export function resolveStaffActorRoleForStudio(
+  ctx: AccessContext,
+  studioId: string,
+): StaffRole | null {
+  if (ctx.isSuperAdmin) return "owner";
+  const roles = new Set(
+    ctx.memberships
+      .filter((membership) => membership.studio_id === studioId)
+      .map((membership) => membership.role),
+  );
+  if (roles.has("owner")) return "owner";
+  if (roles.has("manager")) return "manager";
+  if (roles.has("frontdesk")) return "frontdesk";
+  return null;
+}
+
 export async function resolveSessionActorRole(params: {
   admin: AdminClient;
   ctx: AccessContext;
@@ -25,7 +41,7 @@ export async function resolveSessionActorRole(params: {
   classInstructorId: string | null | undefined;
 }): Promise<StaffRole | null> {
   if (hasStudioRole(params.ctx, params.studioId, ["owner", "manager", "frontdesk"])) {
-    return bestRole(params.ctx);
+    return resolveStaffActorRoleForStudio(params.ctx, params.studioId) ?? bestRole(params.ctx);
   }
   if (!hasInstructorRole(params.ctx)) {
     return null;

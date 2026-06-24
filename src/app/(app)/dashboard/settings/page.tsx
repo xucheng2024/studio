@@ -152,13 +152,15 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
             desc="Invite staff, assign roles, and manage access"
           />
         ) : null}
-        <SettingCard
-          as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/locations", selectedStudioId, selectedLocationId)}
-          icon={MapPin}
-          title="Locations"
-          desc="Add or edit studio locations and addresses"
-        />
+        {isStudioOwner ? (
+          <SettingCard
+            as={DashboardAppLink}
+            href={scopedHref("/dashboard/settings/locations", selectedStudioId, selectedLocationId)}
+            icon={MapPin}
+            title="Locations"
+            desc="Add or edit studio locations and addresses"
+          />
+        ) : null}
         {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
