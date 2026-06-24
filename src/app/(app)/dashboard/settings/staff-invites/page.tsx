@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { createStaffInvite, revokeStaffInvite } from "@/app/(app)/dashboard/actions";
 import { SubmitButton } from "@/components/SubmitButton";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
-  searchParams: Promise<{ invite_error?: string; invite_success?: string }>;
+  searchParams: Promise<{ invite_error?: string; invite_success?: string; studio_id?: string; location_id?: string }>;
 };
 
 export default async function StaffInvitesPage({ searchParams }: Props) {
@@ -16,18 +17,31 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const { studioIds, selectedStudioId } = await getDashboardScopeForRoles({
+    userId: user.id,
+    email: user.email,
+    studioId: sp.studio_id ?? null,
+    locationId: sp.location_id ?? null,
+  }, ["owner"]);
+  if (studioIds.length === 0) {
+    return <p className={ui.muted}>Only studio owners can send invites.</p>;
+  }
+  if (!selectedStudioId && studioIds.length > 1) {
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
+  }
+
   const { data: studios } = await supabase
     .from("studios")
     .select("id, name, locations(id, name)")
-    .eq("owner_id", user.id)
+    .in("id", studioIds)
     .order("created_at", { ascending: true });
 
-  const studioIds = (studios ?? []).map((s) => s.id);
-  const { data: invites } = studioIds.length
+  const activeStudioId = selectedStudioId ?? studioIds[0];
+  const { data: invites } = activeStudioId
     ? await supabase
         .from("staff_invites")
         .select("id, studio_id, location_id, email, role, status, token, expires_at, created_at")
-        .in("studio_id", studioIds)
+        .eq("studio_id", activeStudioId)
         .order("created_at", { ascending: false })
     : { data: [] as Array<Record<string, unknown>> };
 
@@ -71,8 +85,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Studio</span>
-          <select name="studio_id" className={ui.select} required>
-            <option value="">Select a studio</option>
+          <select name="studio_id" className={ui.select} required defaultValue={activeStudioId}>
             {(studios ?? []).map((studio) => (
               <option key={studio.id} value={studio.id}>
                 {studio.name}
@@ -84,7 +97,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
           <span className={ui.label}>Location (optional)</span>
           <select name="location_id" className={ui.select}>
             <option value="">All locations</option>
-            {(studios ?? []).flatMap((studio) => {
+            {(studios ?? []).filter((studio) => studio.id === activeStudioId).flatMap((studio) => {
               const locations = Array.isArray(studio.locations) ? studio.locations : [];
               return locations.map((loc) => (
                 <option key={loc.id} value={loc.id}>

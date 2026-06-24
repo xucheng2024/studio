@@ -1,10 +1,18 @@
 import { toggleStaffMembership } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+ 
+type Props = { searchParams: Promise<{ staff_error?: string; studio_id?: string; location_id?: string }> };
 
-type Props = { searchParams: Promise<{ staff_error?: string }> };
+function scopedHref(path: string, studioId: string | null, locationId: string | null) {
+  const params = new URLSearchParams();
+  if (studioId) params.set("studio_id", studioId);
+  if (locationId) params.set("location_id", locationId);
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
+}
 
 export default async function StaffPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -14,16 +22,24 @@ export default async function StaffPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  if (bestRole(ctx) !== "owner") {
+  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+    userId: user.id,
+    email: user.email,
+    studioId: sp.studio_id ?? null,
+    locationId: sp.location_id ?? null,
+  }, ["owner"]);
+  if (studioIds.length === 0) {
     return <p className={ui.muted}>Only owners can manage staff.</p>;
   }
+  if (!selectedStudioId && studioIds.length > 1) {
+    return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
+  }
 
-  const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
+  const studioId = selectedStudioId ?? studioIds[0];
   const { data: staff } = await supabase
     .from("staff_memberships")
     .select("id, user_id, studio_id, location_id, role, is_active, created_at, users(email)")
-    .in("studio_id", studioIds)
+    .eq("studio_id", studioId)
     .order("created_at", { ascending: false });
 
   const staffErrorMsg =
@@ -41,7 +57,7 @@ export default async function StaffPage({ searchParams }: Props) {
       <div className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={ui.muted}>Send invites to grant staff access. Accepted invites appear below.</p>
-          <DashboardAppLink href="/dashboard/settings/staff-invites" className={ui.btnPrimary}>
+          <DashboardAppLink href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId, selectedLocationId)} className={ui.btnPrimary}>
             Open staff invites
           </DashboardAppLink>
         </div>

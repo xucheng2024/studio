@@ -6,8 +6,7 @@ import {
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
-import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,17 +35,13 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
-  const role = bestRole(ctx);
-  if (!["owner", "manager"].includes(role)) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
-  }
-  if (studioIds.length === 0) return <p className={ui.muted}>Create a studio first.</p>;
+  }, ["owner"]);
+  if (studioIds.length === 0) return <p className={ui.muted}>Only owners can manage locations.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
@@ -104,30 +99,26 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
       {errorMsg ? <p className={ui.error}>{errorMsg}</p> : null}
       {successMsg ? <p className={ui.success}>{successMsg}</p> : null}
 
-      {role === "owner" ? (
-        <form action={createLocation} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
-          <input type="hidden" name="studio_id" value={studio.id} />
-          <label className="flex flex-col gap-1.5 md:col-span-2">
-            <span className={ui.label}>Location name</span>
-            <input name="name" required className={ui.input} placeholder="Downtown" />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Address (optional)</span>
-            <input name="address" className={ui.input} placeholder="123 Main St" />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Phone (optional)</span>
-            <FormPhoneField name="phone" />
-          </label>
-          <div className="md:col-span-2">
-            <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
-              Add location
-            </SubmitButton>
-          </div>
-        </form>
-      ) : (
-        <p className={ui.muted}>Manager view is read-only. Ask the owner to add or edit locations.</p>
-      )}
+      <form action={createLocation} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
+        <input type="hidden" name="studio_id" value={studio.id} />
+        <label className="flex flex-col gap-1.5 md:col-span-2">
+          <span className={ui.label}>Location name</span>
+          <input name="name" required className={ui.input} placeholder="Downtown" />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Address (optional)</span>
+          <input name="address" className={ui.input} placeholder="123 Main St" />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Phone (optional)</span>
+          <FormPhoneField name="phone" />
+        </label>
+        <div className="md:col-span-2">
+          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
+            Add location
+          </SubmitButton>
+        </div>
+      </form>
 
       <div className={ui.card}>
         <p className={`mb-3 text-xs ${ui.muted}`}>Locations are used for schedule/frontdesk/operations filters and scoped staff access.</p>
@@ -149,35 +140,26 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
                     {loc.is_active ? "Active" : "Disabled"}
                   </span>
                 </div>
-                {role === "owner" ? (
-                  <form action={updateLocation} className="grid gap-2 md:grid-cols-3">
-                    <input type="hidden" name="location_id" value={loc.id} />
-                    <input name="name" required defaultValue={loc.name} className={ui.input} />
-                    <input name="address" defaultValue={loc.address ?? ""} className={ui.input} placeholder="Address" />
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <div className="min-w-0 flex-1">
-                        <FormPhoneField name="phone" defaultValue={loc.phone ?? ""} />
-                      </div>
-                      <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
-                        Save
-                      </SubmitButton>
+                <form action={updateLocation} className="grid gap-2 md:grid-cols-3">
+                  <input type="hidden" name="location_id" value={loc.id} />
+                  <input name="name" required defaultValue={loc.name} className={ui.input} />
+                  <input name="address" defaultValue={loc.address ?? ""} className={ui.input} placeholder="Address" />
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="min-w-0 flex-1">
+                      <FormPhoneField name="phone" defaultValue={loc.phone ?? ""} />
                     </div>
-                  </form>
-                ) : (
-                  <p className={`text-sm ${ui.muted}`}>
-                    {loc.address ? `${loc.address} · ` : ""}
-                    {loc.phone ?? "No phone"}
-                  </p>
-                )}
-                {role === "owner" ? (
-                  <form action={toggleLocationActive} className="mt-2">
-                    <input type="hidden" name="location_id" value={loc.id} />
-                    <input type="hidden" name="next_active" value={loc.is_active ? "false" : "true"} />
-                    <SubmitButton className={`${loc.is_active ? ui.btnGhost : ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Updating...">
-                      {loc.is_active ? "Disable" : "Enable"}
+                    <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
+                      Save
                     </SubmitButton>
-                  </form>
-                ) : null}
+                  </div>
+                </form>
+                <form action={toggleLocationActive} className="mt-2">
+                  <input type="hidden" name="location_id" value={loc.id} />
+                  <input type="hidden" name="next_active" value={loc.is_active ? "false" : "true"} />
+                  <SubmitButton className={`${loc.is_active ? ui.btnGhost : ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Updating...">
+                    {loc.is_active ? "Disable" : "Enable"}
+                  </SubmitButton>
+                </form>
               </div>
             ))}
           </div>

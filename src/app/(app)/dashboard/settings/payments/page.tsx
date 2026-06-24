@@ -2,8 +2,7 @@ import { updateStudioHitpaySettings } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Toggle } from "@/components/ui/Toggle";
-import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -60,17 +59,15 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
   if (!user) return null;
   const isSuperAdmin = isSuperAdminEmail(user.email);
 
-  const { ctx, studioIds, selectedStudioId } = await getDashboardScope({
+  const { studioIds, selectedStudioId } = await getDashboardScopeForRoles({
     userId: user.id,
+    email: user.email,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
-  if (studioIds.length === 0) return <p className={ui.muted}>Create a studio first.</p>;
+  }, ["owner"]);
+  if (studioIds.length === 0) return <p className={ui.muted}>Only owners can update payment settings.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
-  }
-  if (bestRole(ctx) !== "owner") {
-    return <p className={ui.muted}>Only owners can update payment settings.</p>;
   }
 
   const studioId = selectedStudioId ?? studioIds[0];

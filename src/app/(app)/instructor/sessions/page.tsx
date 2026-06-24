@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { CheckInApiButton } from "@/components/CheckInApiButton";
-import { buildAccessContext } from "@/lib/rbac";
+import { resolveInstructorIdForEmail } from "@/lib/instructor-access";
+import { buildAccessContext, hasInstructorRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function InstructorSessionsPage() {
@@ -12,19 +14,15 @@ export default async function InstructorSessionsPage() {
   if (!user) redirect("/login");
 
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  if (!ctx.roles.has("instructor") && ctx.hasSuspendedBackofficeAccess) {
+  if (!hasInstructorRole(ctx) && ctx.hasSuspendedBackofficeAccess) {
     redirect("/account/suspended");
   }
-  if (!ctx.roles.has("instructor")) {
+  if (!hasInstructorRole(ctx)) {
     return <p className={ui.muted}>Instructor access only.</p>;
   }
 
-  const { data: instructors } = await supabase
-    .from("instructors")
-    .select("id")
-    .eq("email", user.email ?? "")
-    .limit(1);
-  const instructorId = instructors?.[0]?.id;
+  const admin = createAdminClient();
+  const instructorId = await resolveInstructorIdForEmail(admin, user.email);
   if (!instructorId) {
     return <p className={ui.muted}>No instructor profile matched your account yet.</p>;
   }

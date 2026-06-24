@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { resolveInstructorIdForEmail } from "@/lib/instructor-access";
+import { bestRole, buildAccessContext, hasAnyRole } from "@/lib/rbac";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  if (!ctx.isSuperAdmin && ![...ctx.roles].some((role) => ["owner", "manager", "frontdesk", "instructor"].includes(role))) {
+  if (!hasAnyRole(ctx, ["owner", "manager", "frontdesk", "instructor"])) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
@@ -57,12 +58,7 @@ export async function POST(req: Request) {
 
   let instructorId: string | null = null;
   if ([...bookingsById.values()].some((booking) => booking.studioId && !ctx.isSuperAdmin && !staffStudioIds.has(booking.studioId))) {
-    const { data: instructor } = await admin
-      .from("instructors")
-      .select("id")
-      .eq("email", user.email ?? "")
-      .maybeSingle();
-    instructorId = instructor?.id ?? null;
+    instructorId = await resolveInstructorIdForEmail(admin, user.email);
     if (!instructorId) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }

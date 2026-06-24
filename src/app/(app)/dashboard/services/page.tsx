@@ -4,9 +4,8 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { ServiceDetailLinkButton } from "@/components/dashboard/ServiceDetailLinkButton";
-import { getDashboardScope } from "@/lib/dashboard";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { formatPublicTagsInput } from "@/lib/publicTags";
-import { bestRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,18 +26,17 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
+  }, ["owner", "manager"]);
+  if (studioIds.length === 0) {
+    return <p className={ui.muted}>You do not have access to this page.</p>;
+  }
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
-  }
-  const role = bestRole(ctx);
-  if (!["owner", "manager"].includes(role)) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   const studioId = selectedStudioId ?? studioIds[0] ?? null;
   if (!studioId) return <p className={ui.muted}>Create a studio first.</p>;

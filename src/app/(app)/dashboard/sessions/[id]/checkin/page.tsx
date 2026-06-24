@@ -3,8 +3,9 @@ import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { CheckInToggleButton } from "@/components/CheckInToggleButton";
 import { getDashboardScope } from "@/lib/dashboard";
+import { resolveSessionActorRole } from "@/lib/instructor-access";
 import { LocalTime } from "@/components/ui/LocalTime";
-import { hasStudioRole } from "@/lib/rbac";
+import { hasAnyRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -28,7 +29,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
   });
-  if (!ctx.isSuperAdmin && ![...ctx.roles].some((role) => ["owner", "manager", "frontdesk", "instructor"].includes(role))) {
+  if (!hasAnyRole(ctx, ["owner", "manager", "frontdesk", "instructor"])) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
@@ -46,16 +47,15 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
     return <p className={ui.muted}>Forbidden.</p>;
   }
 
-  const hasBackofficeAccess = hasStudioRole(ctx, studioId, ["owner", "manager", "frontdesk"]);
-  if (!hasBackofficeAccess) {
-    const { data: instructor } = await admin
-      .from("instructors")
-      .select("id")
-      .eq("email", user.email ?? "")
-      .maybeSingle();
-    if (!instructor?.id || cls?.instructor_id !== instructor.id) {
-      return <p className={ui.muted}>Forbidden.</p>;
-    }
+  const actorRole = await resolveSessionActorRole({
+    admin,
+    ctx,
+    userEmail: user.email,
+    studioId,
+    classInstructorId: cls?.instructor_id ?? null,
+  });
+  if (!actorRole) {
+    return <p className={ui.muted}>Forbidden.</p>;
   }
 
   const { data: bookingRows } = await admin

@@ -65,6 +65,18 @@ export function hasStudioRole(
   );
 }
 
+export function hasAnyRole(
+  ctx: AccessContext,
+  roles: StaffRole[],
+) {
+  if (ctx.isSuperAdmin) return true;
+  return roles.some((role) => ctx.roles.has(role));
+}
+
+export function hasInstructorRole(ctx: AccessContext) {
+  return hasAnyRole(ctx, ["instructor"]);
+}
+
 export function filterStudioIdsByRoles(
   ctx: AccessContext,
   studioIds: string[],

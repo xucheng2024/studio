@@ -127,10 +127,15 @@ export default async function PostAuthPage({ searchParams }: Props) {
   if (fromStaffPortal && !access.hasBackofficeAccess) {
     redirect("/account/access-required");
   }
+  const hasBackofficeDashboardRole =
+    access.ctx.isSuperAdmin ||
+    access.ctx.roles.has("owner") ||
+    access.ctx.roles.has("manager") ||
+    access.ctx.roles.has("frontdesk");
   const c = await cookies();
   const studioSlug = normalizeStudioSlug(c.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "");
   const nextPath =
-    access.bestRole === "instructor"
+    access.ctx.roles.has("instructor") && !hasBackofficeDashboardRole
       ? "/instructor/sessions"
       : access.hasBackofficeAccess
         ? "/dashboard/operations"

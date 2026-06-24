@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { resolveSessionActorRole } from "@/lib/instructor-access";
+import { buildAccessContext, hasAnyRole } from "@/lib/rbac";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  if (!ctx.isSuperAdmin && ![...ctx.roles].some((role) => ["owner", "manager", "frontdesk", "instructor"].includes(role))) {
+  if (!hasAnyRole(ctx, ["owner", "manager", "frontdesk", "instructor"])) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
@@ -47,21 +48,15 @@ export async function POST(req: Request) {
   const blocked = await respondIfStudioContractSuspended(admin, studioId);
   if (blocked) return blocked;
 
-  const hasBackofficeAccess =
-    ctx.isSuperAdmin
-    || ctx.memberships.some(
-      (membership) => membership.studio_id === studioId && ["owner", "manager", "frontdesk"].includes(membership.role),
-    );
-
-  if (!hasBackofficeAccess) {
-    const { data: instructor } = await admin
-      .from("instructors")
-      .select("id")
-      .eq("email", user.email ?? "")
-      .maybeSingle();
-    if (!classInstructorId || !instructor?.id || classInstructorId !== instructor.id) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+  const actorRole = await resolveSessionActorRole({
+    admin,
+    ctx,
+    userEmail: user.email,
+    studioId,
+    classInstructorId,
+  });
+  if (!actorRole) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   if (bookingForScope.status !== "attended") {
@@ -77,7 +72,7 @@ export async function POST(req: Request) {
 
   await writeOperationAudit({
     actorId: user.id,
-    actorRole: hasBackofficeAccess ? bestRole(ctx) : "instructor",
+    actorRole,
     action: "uncheckin",
     targetType: "booking",
     targetId: parsed.data.booking_id,
