@@ -252,6 +252,7 @@ export async function POST(req: Request) {
 
   const baseUrl = getAppBaseUrlFromRequest(req);
   if (!baseUrl) {
+    await cancelPendingPaymentLifecycle(admin, payment, "failed");
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
   const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;

@@ -218,7 +218,15 @@ export async function POST(req: Request) {
   });
 
   const baseUrl = getAppBaseUrlFromRequest(req);
-  if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
+  if (!baseUrl) {
+    await cancelPendingBookingCheckout(admin, {
+      paymentId: paymentResult.paymentId,
+      studioId,
+      reservationId: bookingResult.reservationId,
+      kind: "event",
+    });
+    return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
+  }
   const returnUrl = `${baseUrl}/${studioSlug}/checkout/${paymentResult.paymentId}`;
   if (isZeroAmount) {
     try {

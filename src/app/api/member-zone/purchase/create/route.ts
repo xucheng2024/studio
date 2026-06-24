@@ -343,7 +343,11 @@ export async function POST(req: Request) {
   }
 
   const baseUrl = getAppBaseUrlFromRequest(req);
-  if (!baseUrl) return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
+  if (!baseUrl) {
+    await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
+    await syncMemberZonePurchasePaymentStatus(admin, payment.id, "failed");
+    return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
+  }
   const redirectUrl = `${baseUrl}/${studio.public_slug}/checkout/${payment.id}`;
   if (isZeroAmount) {
     try {

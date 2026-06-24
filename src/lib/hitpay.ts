@@ -241,6 +241,8 @@ export async function getHitpayRecurringBilling(input: {
   /** HitPay filters by status; UK spelling `cancelled` may omit rows when only `canceled` is queried. */
   const statuses = ["scheduled", "active", "retrying", "inactive", "paused", "canceled", "cancelled"] as const;
   const rid = input.recurringBillingId?.trim() ?? null;
+  let hadSuccessfulLookup = false;
+  const failedLookups: Array<{ status: string; httpStatus: number; message: string }> = [];
 
   const normalizeListPayload = (payload: unknown): HitpayRecurringBillingResponse[] => {
     if (Array.isArray(payload)) return payload as HitpayRecurringBillingResponse[];
@@ -263,7 +265,19 @@ export async function getHitpayRecurringBilling(input: {
       cache: "no-store",
     });
     const payload = await res.json().catch(() => ({}));
-    if (!res.ok) continue;
+    if (!res.ok) {
+      const message =
+        payload && typeof payload === "object" && "message" in payload
+          ? String((payload as { message?: string }).message ?? "").trim()
+          : "";
+      failedLookups.push({
+        status,
+        httpStatus: res.status,
+        message: message || "hitpay_recurring_lookup_failed",
+      });
+      continue;
+    }
+    hadSuccessfulLookup = true;
 
     const rows = normalizeListPayload(payload);
     const row =
@@ -275,6 +289,14 @@ export async function getHitpayRecurringBilling(input: {
     }
   }
 
+  const actionableFailure = failedLookups.find(
+    (failure) =>
+      !(failure.status === "cancelled" && (failure.httpStatus === 400 || failure.httpStatus === 422)),
+  );
+  if (actionableFailure || (!hadSuccessfulLookup && failedLookups.length > 0)) {
+    const failure = actionableFailure ?? failedLookups[0];
+    throw new Error(failure?.message ?? "hitpay_recurring_lookup_failed");
+  }
   throw new Error("hitpay_recurring_not_found");
 }
 

@@ -155,7 +155,7 @@ export async function applyRecurringSubscriptionStatus(
       update.status = "active";
     }
   } else if (recurringStatus) {
-    if (input.eventKind === "provider_sync" && recurringStatus === "canceled") {
+    if (input.eventKind === "provider_sync" && recurringStatus === "canceled" && !endingAtPeriodEnd) {
       update.cancel_at_period_end = false;
       update.canceled_at = subscription.canceled_at ?? nowIso;
       update.status = "canceled";
