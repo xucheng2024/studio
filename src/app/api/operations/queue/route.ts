@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { buildAccessContext, filterStudioIdsByRoles } from "@/lib/rbac";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -258,12 +258,11 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk"].includes(role)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-
-  const allStudioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
+  const allStudioIds = filterStudioIdsByRoles(
+    ctx,
+    [...new Set(ctx.memberships.map((m) => m.studio_id))],
+    ["owner", "manager", "frontdesk"],
+  );
   if (allStudioIds.length === 0) {
     return NextResponse.json({ starting_soon_grouped: [], event_groups: [] });
   }

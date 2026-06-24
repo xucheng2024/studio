@@ -1,4 +1,4 @@
-import { buildAccessContext } from "@/lib/rbac";
+import { buildAccessContext, filterStudioIdsByRoles, type StaffRole } from "@/lib/rbac";
 import { cookies } from "next/headers";
 
 export async function getDashboardScope(params: {
@@ -29,4 +29,40 @@ export async function getDashboardScope(params: {
       : null;
 
   return { ctx, studioIds, selectedStudioId, selectedLocationId };
+}
+
+export async function getDashboardScopeForRoles(
+  params: {
+    userId: string;
+    email?: string | null;
+    studioId?: string | null;
+    locationId?: string | null;
+  },
+  roles: StaffRole[],
+) {
+  const scope = await getDashboardScope(params);
+  const studioIds = filterStudioIdsByRoles(scope.ctx, scope.studioIds, roles);
+  const selectedStudioId =
+    scope.selectedStudioId && studioIds.includes(scope.selectedStudioId)
+      ? scope.selectedStudioId
+      : studioIds.length === 1
+        ? studioIds[0]
+        : null;
+  const selectedLocationId =
+    scope.selectedLocationId &&
+    scope.ctx.locations.some(
+      (location) =>
+        location.id === scope.selectedLocationId &&
+        studioIds.includes(location.studio_id) &&
+        (selectedStudioId ? location.studio_id === selectedStudioId : true),
+    )
+      ? scope.selectedLocationId
+      : null;
+
+  return {
+    ...scope,
+    studioIds,
+    selectedStudioId,
+    selectedLocationId,
+  };
 }

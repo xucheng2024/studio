@@ -3,8 +3,7 @@ import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { OpsBoard } from "@/components/ops/OpsBoard";
 import { localISODate } from "@/lib/date";
-import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { ClipboardList } from "lucide-react";
@@ -27,11 +26,11 @@ export default async function OperationsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
+  }, ["owner", "manager", "frontdesk"]);
   if (studioIds.length === 0) {
     if (ctx.isSuperAdmin) {
       return (
@@ -100,11 +99,6 @@ export default async function OperationsPage({ searchParams }: Props) {
       </div>
     );
   }
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk"].includes(role)) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
-  }
-
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const { data: opContract } = await supabase
     .from("studios")

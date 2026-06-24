@@ -6,8 +6,7 @@ import { CreateSessionPanel } from "@/components/dashboard/CreateSessionPanel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
-import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { generateShareSlugSegment, isValidShareSlug } from "@/lib/shareSlug";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -57,19 +56,16 @@ export default async function SchedulePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
+  }, ["owner", "manager", "frontdesk"]);
   if (studioIds.length === 0) {
-    return <p className={ui.muted}>Create your first studio in Overview.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
-  }
-  if (!["owner", "manager", "frontdesk"].includes(bestRole(ctx))) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
   let classesQuery = supabase

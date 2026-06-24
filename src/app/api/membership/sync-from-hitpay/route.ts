@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: row } = await admin
     .from("customer_subscriptions")
-    .select("id, studio_id, client_id, recurring_billing_id, reference_code, status, payment_method_attached_at, canceled_at")
+    .select("id, studio_id, client_id, recurring_billing_id, reference_code, status, payment_method_attached_at, canceled_at, current_period_end, cancel_at_period_end")
     .eq("id", parsed.data.subscription_id)
     .eq("client_id", user.id)
     .maybeSingle();

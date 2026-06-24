@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { buildAccessContext, filterStudioIdsByRoles } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 
 function csvEscape(value: unknown) {
@@ -73,11 +73,11 @@ export async function GET(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk"].includes(role)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-  const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
+  const studioIds = filterStudioIdsByRoles(
+    ctx,
+    [...new Set(ctx.memberships.map((m) => m.studio_id))],
+    ["owner", "manager", "frontdesk"],
+  );
   if (!studioIds.length) return NextResponse.json({ error: "no_studio" }, { status: 404 });
   if (studioId && !studioIds.includes(studioId)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });

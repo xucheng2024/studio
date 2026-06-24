@@ -54,6 +54,26 @@ export function bestRole(ctx: AccessContext): StaffRole {
   return best;
 }
 
+export function hasStudioRole(
+  ctx: AccessContext,
+  studioId: string,
+  roles: StaffRole[],
+) {
+  if (ctx.isSuperAdmin) return true;
+  return ctx.memberships.some(
+    (membership) => membership.studio_id === studioId && roles.includes(membership.role),
+  );
+}
+
+export function filterStudioIdsByRoles(
+  ctx: AccessContext,
+  studioIds: string[],
+  roles: StaffRole[],
+) {
+  if (ctx.isSuperAdmin) return [...new Set(studioIds)];
+  return [...new Set(studioIds.filter((studioId) => hasStudioRole(ctx, studioId, roles)))];
+}
+
 export function canManageSchedule(ctx: AccessContext) {
   const r = bestRole(ctx);
   return r === "owner" || r === "manager" || r === "frontdesk";
