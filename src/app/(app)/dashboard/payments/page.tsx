@@ -7,6 +7,7 @@ import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/d
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
+import { hasStudioRole } from "@/lib/rbac";
 import {
   PAYMENT_METHOD_FILTER_OPTIONS,
   PAYMENT_SOURCE_FILTER_OPTIONS,
@@ -70,7 +71,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -80,6 +81,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const canRefundPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -610,7 +612,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     allowSend={p.status === "paid"}
                   />
                 ) : null}
-                {p.status === "paid" && Number(p.amount ?? 0) > 0 && p.source !== "membership_subscription" ? (
+                {canRefundPayments && p.status === "paid" && Number(p.amount ?? 0) > 0 && p.source !== "membership_subscription" ? (
                   <PaymentMarkButton
                     paymentId={p.id}
                     status="refunded"

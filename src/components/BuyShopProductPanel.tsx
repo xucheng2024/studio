@@ -15,6 +15,7 @@ import { ui } from "@/lib/ui";
 
 type Props = {
   productId: string;
+  studioSlug: string;
   disabled?: boolean;
   outOfStock?: boolean;
   shippingDefaults?: ShippingAddressDefaults | null;
@@ -48,6 +49,7 @@ function readShippingFromRoot(root: HTMLElement | null): ShippingAddressPayload 
 
 export function BuyShopProductPanel({
   productId,
+  studioSlug,
   disabled = false,
   outOfStock = false,
   shippingDefaults,
@@ -106,6 +108,7 @@ export function BuyShopProductPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_id: productId,
+          slug: studioSlug,
           guest_name: currentlyLoggedIn ? undefined : payload.guest_name,
           guest_email: currentlyLoggedIn ? undefined : payload.guest_email,
           guest_phone: currentlyLoggedIn ? undefined : payload.guest_phone,

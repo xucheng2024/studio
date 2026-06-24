@@ -134,6 +134,7 @@ export function MemberZoneUnlockPanel(props: {
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          slug: props.studioSlug,
           series_id: props.seriesId,
           lesson_id: props.lessonId ?? null,
           guest_name: hasBrowserSession ? undefined : name,

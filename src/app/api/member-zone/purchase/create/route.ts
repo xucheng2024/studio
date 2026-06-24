@@ -20,10 +20,12 @@ import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { syncMemberZonePurchasePaymentStatus } from "@/lib/paymentStatusTransitions";
 import { finalizeZeroAmountPayment } from "@/lib/finalizeZeroAmountPayment";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
+  slug: z.string().optional(),
   series_id: z.string().uuid(),
   lesson_id: z.string().uuid().optional().nullable(),
   guest_name: z.string().max(120).optional(),
@@ -101,6 +103,11 @@ export async function POST(req: Request) {
   if (!studio?.public_slug || studio.contract_status === "suspended") {
     return NextResponse.json({ error: "studio_unavailable" }, { status: 409 });
   }
+  const inputSlug = parsed.data.slug ? normalizeStudioSlug(parsed.data.slug) : null;
+  const studioSlug = normalizeStudioSlug(studio.public_slug ?? "");
+  if (inputSlug && studioSlug && inputSlug !== studioSlug) {
+    return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
+  }
 
   const blocked = await respondIfStudioContractSuspended(admin, series.studio_id);
   if (blocked) return blocked;
@@ -110,6 +117,7 @@ export async function POST(req: Request) {
       userId: user.id,
       studioId: series.studio_id,
       bootstrapIfMissing: true,
+      declaredStudioSlug: inputSlug,
     });
     if (!studioAccess.ok) {
       return NextResponse.json({ error: studioAccess.reason }, { status: 403 });

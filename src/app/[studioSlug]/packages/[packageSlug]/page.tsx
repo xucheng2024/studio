@@ -80,7 +80,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
             </p>
 
             <div className="mt-5">
-              <GuestBuyPackagePanel packageId={pkg.id} disabled={!paymentReady} actionLabel={isFreePackage ? "Get package" : "Buy package"} />
+              <GuestBuyPackagePanel studioSlug={studio.public_slug} packageId={pkg.id} disabled={!paymentReady} actionLabel={isFreePackage ? "Get package" : "Buy package"} />
             </div>
           </div>
         </div>

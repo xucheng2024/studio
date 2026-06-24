@@ -158,6 +158,7 @@ export default async function PublicShopProductPage({ params }: Props) {
             <div className="mt-5">
               <BuyShopProductPanel
                 productId={product.id}
+                studioSlug={studio.public_slug}
                 disabled={!paymentReady || outOfStock}
                 outOfStock={outOfStock}
                 shippingDefaults={shippingDefaults}

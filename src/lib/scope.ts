@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildAccessContext, hasStudioRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 
@@ -13,14 +14,15 @@ export async function requireStaffScope(params: {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, owner_id, contract_status")
+    .select("id, contract_status")
     .eq("id", params.studioId)
     .maybeSingle();
   if (!studio) return { ok: false as const, reason: "studio_not_found" as StaffScopeFailureReason };
   if (isStudioContractSuspended(studio)) {
     return { ok: false as const, reason: "studio_suspended" as StaffScopeFailureReason };
   }
-  if (studio.owner_id === params.userId) return { ok: true as const, role: "owner" };
+  const ctx = await buildAccessContext(params.userId, null, params.locationId ?? null);
+  if (hasStudioRole(ctx, params.studioId, ["owner"])) return { ok: true as const, role: "owner" };
 
   let q = admin
     .from("staff_memberships")

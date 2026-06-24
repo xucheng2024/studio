@@ -9,9 +9,11 @@ import { ui } from "@/lib/ui";
 
 export function BuyPackageButton({
   packageId,
+  studioSlug,
   disabled = false,
 }: {
   packageId: string;
+  studioSlug?: string;
   disabled?: boolean;
 }) {
   const router = useRouter();
@@ -28,7 +30,7 @@ export function BuyPackageButton({
           const res = await fetch("/api/package/buy", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ package_id: packageId }),
+            body: JSON.stringify({ package_id: packageId, slug: studioSlug }),
           });
           const body = await res.json().catch(() => ({}));
           if (!res.ok) {

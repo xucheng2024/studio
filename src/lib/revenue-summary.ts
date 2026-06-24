@@ -32,7 +32,10 @@ export function computeRevenueSummary(rows: RevenuePaymentRow[]) {
   for (const p of rows) {
     const amt = Number(p.amount ?? 0);
     if (p.status === "paid") gross += amt;
-    else if (p.status === "refunded") refunds += amt;
+    else if (p.status === "refunded") {
+      gross += amt;
+      refunds += amt;
+    }
   }
   return { gross, refunds, net: gross - refunds };
 }
@@ -46,7 +49,10 @@ export function revenueByDay(rows: RevenuePaymentRow[]) {
     const m = map.get(day)!;
     const amt = Number(p.amount ?? 0);
     if (p.status === "paid") m.gross += amt;
-    else if (p.status === "refunded") m.refunds += amt;
+    else if (p.status === "refunded") {
+      m.gross += amt;
+      m.refunds += amt;
+    }
   }
   return [...map.entries()]
     .map(([day, v]) => ({ day, gross: v.gross, refunds: v.refunds, net: v.gross - v.refunds }))
@@ -67,7 +73,10 @@ export function revenueByOrderType(rows: RevenuePaymentRow[]) {
     const entry = map.get(key)!;
     const amt = Number(p.amount ?? 0);
     if (p.status === "paid") entry.gross += amt;
-    else if (p.status === "refunded") entry.refunds += amt;
+    else if (p.status === "refunded") {
+      entry.gross += amt;
+      entry.refunds += amt;
+    }
   }
 
   return {
@@ -114,7 +123,9 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
       row[key].gross += amt;
       row.gross += amt;
     } else if (p.status === "refunded") {
+      row[key].gross += amt;
       row[key].refunds += amt;
+      row.gross += amt;
       row.refunds += amt;
     }
   }
@@ -147,7 +158,10 @@ export function revenueByLocationLabel(
     const m = map.get(label)!;
     const amt = Number(p.amount ?? 0);
     if (p.status === "paid") m.gross += amt;
-    else if (p.status === "refunded") m.refunds += amt;
+    else if (p.status === "refunded") {
+      m.gross += amt;
+      m.refunds += amt;
+    }
   }
   return [...map.entries()]
     .map(([name, v]) => ({ name, gross: v.gross, refunds: v.refunds, net: v.gross - v.refunds }))
@@ -164,7 +178,10 @@ export function revenueByClassTitle(
     const m = map.get(title)!;
     const amt = Number(p.amount ?? 0);
     if (p.status === "paid") m.gross += amt;
-    else if (p.status === "refunded") m.refunds += amt;
+    else if (p.status === "refunded") {
+      m.gross += amt;
+      m.refunds += amt;
+    }
   }
   return [...map.entries()]
     .map(([name, v]) => ({ name, gross: v.gross, refunds: v.refunds, net: v.gross - v.refunds }))

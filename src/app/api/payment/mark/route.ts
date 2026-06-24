@@ -72,6 +72,12 @@ export async function POST(req: Request) {
   if (!scoped.ok) {
     return staffScopeFailureResponse(scoped);
   }
+  if (parsed.data.status === "refunded" && scoped.role === "frontdesk") {
+    return NextResponse.json(
+      { error: "forbidden", message: "Only owners and managers can refund payments." },
+      { status: 403 },
+    );
+  }
 
   if (parsed.data.status === "paid") {
     if (payment.source === "membership_subscription") {

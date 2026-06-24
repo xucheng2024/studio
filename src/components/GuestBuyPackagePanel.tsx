@@ -10,10 +10,12 @@ import { ui } from "@/lib/ui";
 
 export function GuestBuyPackagePanel({
   packageId,
+  studioSlug,
   disabled = false,
   actionLabel = "Buy package",
 }: {
   packageId: string;
+  studioSlug: string;
   disabled?: boolean;
   actionLabel?: string;
 }) {
@@ -46,6 +48,7 @@ export function GuestBuyPackagePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           package_id: packageId,
+          slug: studioSlug,
           guest_name: isLoggedIn ? undefined : payload.guest_name,
           guest_email: isLoggedIn ? undefined : payload.guest_email,
           guest_phone: isLoggedIn ? undefined : payload.guest_phone,

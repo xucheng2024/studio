@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
   package_id: z.string().uuid(),
+  slug: z.string().optional(),
   guest_name: z.string().max(120).optional(),
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional().nullable(),
@@ -76,6 +77,10 @@ export async function POST(req: Request) {
   if (!studioSlug) {
     return NextResponse.json({ error: "studio_not_found" }, { status: 404 });
   }
+  const inputSlug = parsed.data.slug ? normalizeStudioSlug(parsed.data.slug) : null;
+  if (inputSlug && inputSlug !== studioSlug) {
+    return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
+  }
 
   const blockedPkg = await respondIfStudioContractSuspended(admin, pkg.studio_id);
   if (blockedPkg) return blockedPkg;
@@ -84,6 +89,7 @@ export async function POST(req: Request) {
       userId: user.id,
       studioId: pkg.studio_id,
       bootstrapIfMissing: true,
+      declaredStudioSlug: inputSlug,
     });
     if (!studioAccess.ok) {
       return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
