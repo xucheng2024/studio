@@ -1,3 +1,4 @@
+import { studioPwaIconAbsoluteUrl } from "@/lib/pwaIcons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWebPush } from "@/lib/webPush";
 
@@ -47,7 +48,11 @@ async function fanoutStudioPush(studioId: string, section: UpdateSection) {
   const admin = createAdminClient();
 
   const [{ data: studio }, { data: subscriptions }] = await Promise.all([
-    admin.from("studios").select("public_slug, name").eq("id", studioId).maybeSingle(),
+    admin
+      .from("studios")
+      .select("public_slug, name, public_brand_name, public_logo_url, custom_domain, custom_domain_status")
+      .eq("id", studioId)
+      .maybeSingle(),
     admin
       .from("pwa_push_subscriptions")
       .select("id, endpoint, p256dh, auth, path_prefix")
@@ -56,7 +61,16 @@ async function fanoutStudioPush(studioId: string, section: UpdateSection) {
 
   if (!studio?.public_slug || !subscriptions?.length) return;
 
-  const title = studio.name ?? "Studio";
+  const title =
+    studio.public_brand_name?.trim() ||
+    studio.name?.trim() ||
+    "Studio";
+  const pushIcon = studioPwaIconAbsoluteUrl(
+    studio.public_slug,
+    "192",
+    studio.custom_domain,
+    studio.custom_domain_status,
+  );
   const body = `New ${SECTION_LABEL[section]} update available.`;
   const sectionAnchor = section === "classes"
     ? "upcoming-classes"
@@ -76,8 +90,8 @@ async function fanoutStudioPush(studioId: string, section: UpdateSection) {
           body,
           url,
           tag: `${studioId}:${section}`,
-          badge: "/favicon.ico",
-          icon: "/favicon.ico",
+          badge: pushIcon,
+          icon: pushIcon,
         },
       );
       if (

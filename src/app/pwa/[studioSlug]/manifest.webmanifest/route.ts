@@ -2,6 +2,11 @@ import type { MetadataRoute } from "next";
 import { getStudioPathFromRequest } from "@/lib/app-url";
 import { NextResponse } from "next/server";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
+import {
+  PWA_ICON_VARIANTS,
+  studioPwaIconPath,
+  type PwaIconVariant,
+} from "@/lib/pwaIcons";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,12 +15,19 @@ type Props = {
   params: Promise<{ studioSlug: string }>;
 };
 
-function inferImageMimeType(url: string): "image/webp" | "image/jpeg" | "image/png" | null {
-  const normalized = url.trim().toLowerCase().split("?")[0]?.split("#")[0] ?? "";
-  if (normalized.endsWith(".webp")) return "image/webp";
-  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
-  if (normalized.endsWith(".png")) return "image/png";
-  return null;
+function studioPwaManifestIcons(studioSlug: string): MetadataRoute.Manifest["icons"] {
+  const manifestSizes: Record<PwaIconVariant, { sizes: string; purpose: "any" | "maskable" }> = {
+    "180": { sizes: "180x180", purpose: "any" },
+    "192": { sizes: "192x192", purpose: "any" },
+    "512": { sizes: "512x512", purpose: "any" },
+    maskable: { sizes: "512x512", purpose: "maskable" },
+  };
+  return PWA_ICON_VARIANTS.map((variant) => ({
+    src: studioPwaIconPath(studioSlug, variant),
+    sizes: manifestSizes[variant].sizes,
+    type: "image/png",
+    purpose: manifestSizes[variant].purpose,
+  }));
 }
 
 function buildManifest({
@@ -23,14 +35,54 @@ function buildManifest({
   name,
   description,
   logoUrl,
+  studioSlug,
 }: {
   appPath: string;
   name: string;
   description: string;
   logoUrl?: string | null;
+  studioSlug?: string | null;
 }): MetadataRoute.Manifest {
-  const trustedLogoUrl = logoUrl && isTrustedCoverImageUrl(logoUrl) ? logoUrl : null;
-  const trustedLogoType = trustedLogoUrl ? inferImageMimeType(trustedLogoUrl) : null;
+  const hasStudioLogo =
+    Boolean(studioSlug) && Boolean(logoUrl && isTrustedCoverImageUrl(logoUrl));
+  const platformFallbackIcons = [
+    {
+      src: "/icons/apple-touch-icon.png",
+      sizes: "180x180",
+      type: "image/png",
+      purpose: "any" as const,
+    },
+    {
+      src: "/icons/icon.svg",
+      sizes: "any",
+      type: "image/svg+xml",
+      purpose: "any" as const,
+    },
+    {
+      src: "/icons/icon.svg",
+      sizes: "any",
+      type: "image/svg+xml",
+      purpose: "maskable" as const,
+    },
+    {
+      src: "/icons/icon-192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "any" as const,
+    },
+    {
+      src: "/icons/icon-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any" as const,
+    },
+    {
+      src: "/icons/icon-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable" as const,
+    },
+  ];
   return {
     id: appPath,
     name,
@@ -45,34 +97,9 @@ function buildManifest({
     lang: "en",
     categories: ["health", "fitness", "lifestyle"],
     prefer_related_applications: false,
-    icons: [
-      // Static branded fallback — always present so browsers can install the PWA
-      // even when the studio has no logo. Two entries so both "any" and "maskable"
-      // purposes are declared (Next.js Manifest type does not allow combined strings).
-      {
-        src: "/icons/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
-      {
-        src: "/icons/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "maskable",
-      },
-      // Studio logo when available (arbitrary crop — "any" only, no safe-zone guarantee)
-      ...(trustedLogoUrl
-        ? [
-            {
-              src: trustedLogoUrl,
-              sizes: "800x800",
-              type: trustedLogoType ?? undefined,
-              purpose: "any" as const,
-            },
-          ]
-        : []),
-    ],
+    icons: hasStudioLogo && studioSlug
+      ? studioPwaManifestIcons(studioSlug)
+      : platformFallbackIcons,
   };
 }
 
@@ -125,12 +152,13 @@ export async function GET(req: Request, { params }: Props) {
     `Browse classes, packages, and bookings for ${name}.`;
 
   return NextResponse.json(
-    buildManifest({
-      appPath: getStudioPathFromRequest(req, studioSlug),
-      name,
-      description,
-      logoUrl: studio.public_logo_url ?? null,
-    }),
+      buildManifest({
+        appPath: getStudioPathFromRequest(req, studioSlug),
+        name,
+        description,
+        logoUrl: studio.public_logo_url ?? null,
+        studioSlug,
+      }),
     { headers: MANIFEST_HEADERS },
   );
 }

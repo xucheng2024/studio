@@ -43,8 +43,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const appleIcon =
     studio?.contract_status !== "suspended" &&
     isTrustedCoverImageUrl(studio?.public_logo_url)
-      ? studio?.public_logo_url
-      : "/favicon.ico";
+      ? `/pwa/${studioSlug}/icons/180`
+      : "/icons/apple-touch-icon.png";
 
   return {
     manifest: `/pwa/${studioSlug}/manifest.webmanifest`,

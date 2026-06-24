@@ -1,4 +1,4 @@
-const SW_VERSION = "studio-pwa-v9";
+const SW_VERSION = "studio-pwa-v10";
 const PAGE_CACHE = `${SW_VERSION}:pages`;
 const ASSET_CACHE = `${SW_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
@@ -84,6 +84,8 @@ async function networkNavigateThenCache(request, cacheName) {
 function isCacheableHtmlPath(pathname) {
   if (!pathname) return false;
   const segments = pathname.split("/").filter(Boolean);
+  // Custom domain storefront root.
+  if (segments.length === 0) return true;
   // /angle
   if (segments.length === 1) return true;
   // /angle/classes
@@ -91,7 +93,7 @@ function isCacheableHtmlPath(pathname) {
   // /angle/classes, /angle/events, /angle/services, /angle/packages, /angle/member-zone, /angle/shop
   if (
     segments.length === 2 &&
-    ["events", "services", "packages", "member-zone", "shop"].includes(segments[1])
+    ["events", "services", "packages", "memberships", "member-zone", "shop"].includes(segments[1])
   ) {
     return true;
   }

@@ -11,6 +11,12 @@ import {
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeCoverImage } from "@/lib/imageTransform";
+import {
+  PWA_ICON_VARIANTS,
+  pwaIconPathsFromLogoPath,
+  pwaIconStoragePathFromLogoPath,
+  renderPwaIconPng,
+} from "@/lib/pwaIcons";
 import { createClient } from "@/lib/supabase/server";
 
 function safeSegment(raw: string, fallback: string): string {
@@ -90,9 +96,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: upErr.message ?? "upload_failed" }, { status: 500 });
   }
 
+  const logoBase = objectPath.replace(/\.[^.]+$/, "");
+  if (isStudioPublicLogoUpload) {
+    for (const pwaVariant of PWA_ICON_VARIANTS) {
+      const pwaPath = pwaIconStoragePathFromLogoPath(logoBase, pwaVariant);
+      const png = await renderPwaIconPng(normalized.buffer, pwaVariant);
+      const { error: pwaErr } = await admin.storage.from(COVER_MEDIA_BUCKET).upload(pwaPath, png, {
+        contentType: "image/png",
+        upsert: true,
+      });
+      if (pwaErr) {
+        await admin.storage.from(COVER_MEDIA_BUCKET).remove([objectPath, ...pwaIconPathsFromLogoPath(logoBase)]);
+        return NextResponse.json({ error: pwaErr.message ?? "pwa_icon_upload_failed" }, { status: 500 });
+      }
+    }
+  }
+
   const { data } = admin.storage.from(COVER_MEDIA_BUCKET).getPublicUrl(objectPath);
   if (!isTrustedCoverImageUrl(data.publicUrl)) {
-    await admin.storage.from(COVER_MEDIA_BUCKET).remove([objectPath]);
+    const toRemove = isStudioPublicLogoUpload
+      ? [objectPath, ...pwaIconPathsFromLogoPath(logoBase)]
+      : [objectPath];
+    await admin.storage.from(COVER_MEDIA_BUCKET).remove(toRemove);
     return NextResponse.json({ error: "upload_integrity" }, { status: 500 });
   }
 
@@ -102,11 +127,15 @@ export async function POST(req: Request) {
       .update({ public_logo_url: data.publicUrl })
       .eq("id", studioId);
     if (dbErr) {
-      await admin.storage.from(COVER_MEDIA_BUCKET).remove([objectPath]);
+      await admin.storage
+        .from(COVER_MEDIA_BUCKET)
+        .remove([objectPath, ...pwaIconPathsFromLogoPath(logoBase)]);
       return NextResponse.json({ error: dbErr.message ?? "save_failed" }, { status: 500 });
     }
     if (previousLogoPath && previousLogoPath !== objectPath) {
-      await admin.storage.from(COVER_MEDIA_BUCKET).remove([previousLogoPath]);
+      await admin.storage
+        .from(COVER_MEDIA_BUCKET)
+        .remove([previousLogoPath, ...pwaIconPathsFromLogoPath(previousLogoPath)]);
     }
     revalidateDashboardSettings("public-profile");
     if (studioPublicSlug) revalidatePublicStudioPath(studioPublicSlug);
