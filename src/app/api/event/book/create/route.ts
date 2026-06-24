@@ -6,7 +6,7 @@ import { generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { normalizeStudioSlug } from "@/lib/slug";
-import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { getStudioUrlFromRequest } from "@/lib/app-url";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { findClientIdByEmail } from "@/lib/resolveClientId";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
@@ -217,8 +217,8 @@ export async function POST(req: Request) {
     paymentId: paymentResult.paymentId,
   });
 
-  const baseUrl = getAppBaseUrlFromRequest(req);
-  if (!baseUrl) {
+  const returnUrl = getStudioUrlFromRequest(req, studioSlug, `checkout/${paymentResult.paymentId}`);
+  if (!returnUrl) {
     await cancelPendingBookingCheckout(admin, {
       paymentId: paymentResult.paymentId,
       studioId,
@@ -227,7 +227,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
-  const returnUrl = `${baseUrl}/${studioSlug}/checkout/${paymentResult.paymentId}`;
   if (isZeroAmount) {
     try {
       await finalizeBookingCheckout(admin, {

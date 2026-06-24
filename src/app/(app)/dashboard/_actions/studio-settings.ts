@@ -11,7 +11,7 @@ import {
 import { redirect } from "next/navigation";
 import { resolveAccessContext } from "@/lib/rbac";
 import { normalizeStudioSlug } from "@/lib/slug";
-import { normalizeCustomDomainInput, toCustomDomainUiStatus, type CustomDomainUiStatus } from "@/lib/customDomain";
+import { isReservedCustomDomain, normalizeCustomDomainInput, toCustomDomainUiStatus, type CustomDomainUiStatus } from "@/lib/customDomain";
 import {
   getNotConfiguredSnapshot,
   persistCustomDomainSnapshot,
@@ -150,6 +150,14 @@ export async function updateStudioCustomDomain(
     return {
       ok: false,
       message: "Enter a valid domain such as book.yourstudio.com.",
+      status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
+    };
+  }
+
+  if (isReservedCustomDomain(domain)) {
+    return {
+      ok: false,
+      message: "Use a dedicated customer-facing domain, not the platform hostname.",
       status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
     };
   }

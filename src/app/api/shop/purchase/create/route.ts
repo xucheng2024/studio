@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitpay";
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
-import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { getStudioUrlFromRequest } from "@/lib/app-url";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
@@ -256,12 +256,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "order_create_failed" }, { status: 500 });
   }
 
-  const baseUrl = getAppBaseUrlFromRequest(req);
-  if (!baseUrl) {
+  const returnUrl = getStudioUrlFromRequest(req, studioSlug, `checkout/${payment.id}`);
+  if (!returnUrl) {
     await cancelPendingPaymentLifecycle(admin, payment, "failed");
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
-  const returnUrl = `${baseUrl}/${studioSlug}/checkout/${payment.id}`;
   if (isZeroAmount) {
     try {
       await finalizeZeroAmountPayment(admin, {

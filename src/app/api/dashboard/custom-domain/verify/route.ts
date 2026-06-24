@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { normalizeCustomDomainInput, toCustomDomainUiStatus } from "@/lib/customDomain";
+import { isReservedCustomDomain, normalizeCustomDomainInput, toCustomDomainUiStatus } from "@/lib/customDomain";
 import { persistCustomDomainSnapshot, verifyCustomDomain } from "@/lib/customDomain.server";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,6 +39,9 @@ export async function POST(req: Request) {
   const savedDomain = normalizeCustomDomainInput((studio as { custom_domain?: string | null } | null)?.custom_domain ?? "");
   if (!savedDomain) {
     return NextResponse.json({ error: "domain_not_saved" }, { status: 409 });
+  }
+  if (isReservedCustomDomain(savedDomain)) {
+    return NextResponse.json({ error: "reserved_domain" }, { status: 409 });
   }
   if (savedDomain !== domain) {
     return NextResponse.json({ error: "save_before_verify" }, { status: 409 });

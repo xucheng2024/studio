@@ -27,7 +27,16 @@ export type CustomDomainUiStatus = CustomDomainStatusSnapshot & {
 };
 
 export function normalizeCustomDomainInput(value: string): string {
-  return value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase();
+  return value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/\.$/, "").toLowerCase();
+}
+
+export function isReservedCustomDomain(domain: string | null | undefined): boolean {
+  const normalized = normalizeCustomDomainInput(domain ?? "");
+  if (!normalized) return false;
+
+  const appHost = normalizeCustomDomainInput(process.env.NEXT_PUBLIC_APP_URL ?? "");
+  const vercelHost = normalizeCustomDomainInput(process.env.VERCEL_URL ?? "");
+  return normalized === appHost || normalized === vercelHost || normalized === "localhost";
 }
 
 export function getCustomDomainKind(domain: string | null): CustomDomainKind | null {

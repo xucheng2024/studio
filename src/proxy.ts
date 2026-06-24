@@ -29,6 +29,7 @@ const APP_HOSTNAME = (process.env.NEXT_PUBLIC_APP_URL ?? "")
 
 function shouldSkipCustomDomainRewrite(pathname: string): boolean {
   if (pathname.startsWith("/api/") || pathname === "/api") return true;
+  if (pathname.startsWith("/pwa/") || pathname === "/pwa") return true;
   if (pathname.startsWith("/.well-known/") || pathname === "/.well-known") return true;
   if (
     pathname === "/auth" ||
@@ -44,6 +45,10 @@ function shouldSkipCustomDomainRewrite(pathname: string): boolean {
     return true;
   }
   return pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname === "/manifest.webmanifest";
+}
+
+function isAlreadyScopedToStudio(pathname: string, studioSlug: string): boolean {
+  return pathname === `/${studioSlug}` || pathname.startsWith(`/${studioSlug}/`);
 }
 
 function isSuperAdminEmail(email: string | null | undefined) {
@@ -66,7 +71,11 @@ export async function proxy(request: NextRequest) {
     incomingHost && APP_HOSTNAME && incomingHost !== APP_HOSTNAME
       ? await resolveCustomDomain(incomingHost)
       : null;
-  if (customDomainSlug && !shouldSkipCustomDomainRewrite(request.nextUrl.pathname)) {
+  if (
+    customDomainSlug &&
+    !shouldSkipCustomDomainRewrite(request.nextUrl.pathname) &&
+    !isAlreadyScopedToStudio(request.nextUrl.pathname, customDomainSlug)
+  ) {
     const { pathname, search } = request.nextUrl;
     const rewriteUrl = new URL(`/${customDomainSlug}${pathname === "/" ? "" : pathname}${search}`, request.url);
     const rewriteHeaders = new Headers(request.headers);

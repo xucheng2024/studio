@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { getStudioUrlFromRequest } from "@/lib/app-url";
 import {
   createHitpayPaymentRequest,
   generatePaymentReference,
@@ -350,13 +350,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "purchase_create_failed" }, { status: 500 });
   }
 
-  const baseUrl = getAppBaseUrlFromRequest(req);
-  if (!baseUrl) {
+  const redirectUrl = getStudioUrlFromRequest(req, studio.public_slug, `checkout/${payment.id}`);
+  if (!redirectUrl) {
     await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
     await syncMemberZonePurchasePaymentStatus(admin, payment.id, "failed");
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
-  const redirectUrl = `${baseUrl}/${studio.public_slug}/checkout/${payment.id}`;
   if (isZeroAmount) {
     try {
       await finalizeZeroAmountPayment(admin, {

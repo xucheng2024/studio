@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isMembershipActiveForAccess } from "@/lib/membership-subscription";
 import { z } from "zod";
-import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { getStudioUrlFromRequest } from "@/lib/app-url";
 import { createHitpayRecurringBilling, generatePaymentReference } from "@/lib/hitpay";
 import { upsertMemberStudioMembership, verifyMemberStudioAccess } from "@/lib/member-studio";
 import { findClientIdByEmail, resolveClientIdByEmail } from "@/lib/resolveClientId";
@@ -89,6 +89,9 @@ export async function POST(req: Request) {
   const merchantApiKey = studioSecrets?.hitpay_api_key ?? "";
 
   const studioSlug = normalizeStudioSlug(studio.public_slug ?? "");
+  if (!studioSlug) {
+    return NextResponse.json({ error: "studio_not_configured" }, { status: 409 });
+  }
   const inputSlug = parsed.data.slug ? normalizeStudioSlug(parsed.data.slug) : null;
   if (inputSlug && studioSlug && inputSlug !== studioSlug) {
     return NextResponse.json({ error: "studio_mismatch" }, { status: 400 });
@@ -166,14 +169,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: insertErr?.message ?? "subscription_create_failed" }, { status: 500 });
   }
 
-  const baseUrl = getAppBaseUrlFromRequest(req);
-  if (!baseUrl) {
+  const membershipSlug = (membership as { share_slug?: string | null }).share_slug ?? "";
+  const redirectUrl = getStudioUrlFromRequest(
+    req,
+    studioSlug,
+    `memberships/${membershipSlug}?membership_checkout=1&subscription_id=${encodeURIComponent(localSubscription.id)}`,
+  );
+  if (!redirectUrl) {
     await admin.from("customer_subscriptions").delete().eq("id", localSubscription.id);
     return NextResponse.json({ error: "app_url_missing" }, { status: 500 });
   }
-
-  const membershipSlug = (membership as { share_slug?: string | null }).share_slug ?? "";
-  const redirectUrl = `${baseUrl}/${studioSlug}/memberships/${membershipSlug}?membership_checkout=1&subscription_id=${encodeURIComponent(localSubscription.id)}`;
 
   try {
     const hitpay = await createHitpayRecurringBilling({

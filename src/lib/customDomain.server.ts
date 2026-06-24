@@ -18,6 +18,23 @@ function truncateError(message: string | null | undefined): string | null {
   return value ? value.slice(0, 400) : null;
 }
 
+async function getProjectDomainFromVercel(domain: string): Promise<boolean> {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return false;
+
+  const url = `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(domain)}`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function probeUrl(url: string) {
   for (const method of ["HEAD", "GET"] as const) {
     try {
@@ -117,6 +134,9 @@ export async function registerDomainWithVercel(domain: string): Promise<{
       return { vercelStatus: "registered", lastError: null };
     }
     const body = truncateError(await res.text().catch(() => "")) ?? `Vercel returned ${res.status}.`;
+    if ((res.status === 400 || res.status === 409) && (await getProjectDomainFromVercel(domain))) {
+      return { vercelStatus: "registered", lastError: null };
+    }
     console.error(`[registerDomainWithVercel] ${domain} → ${res.status}`, body);
     return { vercelStatus: "failed", lastError: body };
   } catch (error) {
