@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeOperationAudit } from "@/lib/audit";
+import { classGuestHasActiveBooking } from "@/lib/classBookingDedup";
 import { eventGuestHasActiveBooking } from "@/lib/eventBookingDedup";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { createInstantBookingSale, runInstantBookingCheckin } from "@/lib/bookingTransitions";
@@ -68,10 +69,16 @@ async function handleSessionWalkin(
 ) {
   const { data: session } = await admin
     .from("class_sessions")
-    .select("id, location_id, spots_left, classes!inner(studio_id)")
+    .select("id, location_id, status, start_time, spots_left, classes!inner(studio_id)")
     .eq("id", data.target_id)
     .maybeSingle();
   if (!session) return NextResponse.json({ error: "session_not_found" }, { status: 404 });
+  if ((session.status ?? "scheduled") !== "scheduled") {
+    return NextResponse.json({ error: "session_not_available" }, { status: 409 });
+  }
+  if (session.start_time && new Date(String(session.start_time)).getTime() < Date.now()) {
+    return NextResponse.json({ error: "session_not_available" }, { status: 409 });
+  }
   if ((session.spots_left ?? 0) <= 0) return NextResponse.json({ error: "full" }, { status: 409 });
 
   const classes = session.classes as { studio_id?: string } | { studio_id?: string }[] | null;
@@ -88,6 +95,10 @@ async function handleSessionWalkin(
     roles: ["owner", "manager", "frontdesk"],
   });
   if (!scoped.ok) return staffScopeFailureResponse(scoped);
+
+  if (data.guest_email && await classGuestHasActiveBooking(admin, data.target_id, data.guest_email)) {
+    return NextResponse.json({ error: "already_has_booking" }, { status: 409 });
+  }
 
   const sale = await createInstantBookingSale(admin, {
     kind: "class",
@@ -147,11 +158,14 @@ async function handleEventWalkin(
 ) {
   const { data: event } = await admin
     .from("events")
-    .select("id, studio_id, location_id, spots_left, is_active, external_booking_url")
+    .select("id, studio_id, location_id, spots_left, is_active, start_time, external_booking_url")
     .eq("id", data.target_id)
     .maybeSingle();
   if (!event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
   if (event.is_active === false) return NextResponse.json({ error: "event_not_available" }, { status: 409 });
+  if (event.start_time && new Date(String(event.start_time)).getTime() < Date.now()) {
+    return NextResponse.json({ error: "event_not_available" }, { status: 409 });
+  }
   if ((event.spots_left ?? 0) <= 0) return NextResponse.json({ error: "full" }, { status: 409 });
   if (sanitizeEventExternalBookingUrl(event.external_booking_url)) {
     return NextResponse.json({ error: "event_external_booking_url" }, { status: 409 });

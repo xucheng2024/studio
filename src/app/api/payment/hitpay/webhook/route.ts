@@ -157,7 +157,7 @@ async function resolveRecurringWebhookContext(args: {
     }
   }
 
-  if (!subscription) return { admin, subscription: null };
+  if (!subscription) return { admin, subscription: null, signatureValid: null as boolean | null };
 
   const { data: secrets } = await admin
     .from("studio_payment_secrets")
@@ -165,9 +165,9 @@ async function resolveRecurringWebhookContext(args: {
     .eq("studio_id", subscription.studio_id)
     .maybeSingle();
   const verified = verifyHitpayWebhookSignature(args.rawBody, args.signature, secrets?.hitpay_webhook_salt ?? null);
-  if (!verified) return { admin, subscription: null };
+  if (!verified) return { admin, subscription, signatureValid: false as boolean | null };
 
-  return { admin, subscription };
+  return { admin, subscription, signatureValid: true as boolean | null };
 }
 
 async function handleRecurringWebhook(req: Request, rawBody: string, payload: HitpayWebhookPayload) {
@@ -192,13 +192,16 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
     payload.charge_id?.trim() ||
     (eventObject === "charge" ? payload.id?.trim() || null : null);
 
-  const { admin, subscription } = await resolveRecurringWebhookContext({
+  const { admin, subscription, signatureValid } = await resolveRecurringWebhookContext({
     rawBody,
     signature,
     referenceCode,
     recurringBillingId,
     chargeId,
   });
+  if (signatureValid === false) {
+    return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
+  }
   if (!subscription?.id) {
     return NextResponse.json({ ok: true });
   }
