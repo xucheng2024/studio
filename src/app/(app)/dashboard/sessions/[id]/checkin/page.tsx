@@ -4,7 +4,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { CheckInToggleButton } from "@/components/CheckInToggleButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { LocalTime } from "@/components/ui/LocalTime";
-import { bestRole } from "@/lib/rbac";
+import { hasStudioRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -28,8 +28,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
   });
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk", "instructor"].includes(role)) {
+  if (!ctx.isSuperAdmin && ![...ctx.roles].some((role) => ["owner", "manager", "frontdesk", "instructor"].includes(role))) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
 
@@ -43,11 +42,12 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
 
   const cls = Array.isArray(session.classes) ? session.classes[0] : session.classes;
   const studioId = cls?.studio_id ?? null;
-  if (!studioId || !ctx.memberships.some((m) => m.studio_id === studioId)) {
+  if (!studioId) {
     return <p className={ui.muted}>Forbidden.</p>;
   }
 
-  if (role === "instructor") {
+  const hasBackofficeAccess = hasStudioRole(ctx, studioId, ["owner", "manager", "frontdesk"]);
+  if (!hasBackofficeAccess) {
     const { data: instructor } = await admin
       .from("instructors")
       .select("id")

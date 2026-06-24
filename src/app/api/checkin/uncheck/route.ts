@@ -22,8 +22,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk", "instructor"].includes(role)) {
+  if (!ctx.isSuperAdmin && ![...ctx.roles].some((role) => ["owner", "manager", "frontdesk", "instructor"].includes(role))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
@@ -48,7 +47,13 @@ export async function POST(req: Request) {
   const blocked = await respondIfStudioContractSuspended(admin, studioId);
   if (blocked) return blocked;
 
-  if (role === "instructor") {
+  const hasBackofficeAccess =
+    ctx.isSuperAdmin
+    || ctx.memberships.some(
+      (membership) => membership.studio_id === studioId && ["owner", "manager", "frontdesk"].includes(membership.role),
+    );
+
+  if (!hasBackofficeAccess) {
     const { data: instructor } = await admin
       .from("instructors")
       .select("id")
@@ -57,13 +62,6 @@ export async function POST(req: Request) {
     if (!classInstructorId || !instructor?.id || classInstructorId !== instructor.id) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-  } else if (
-    !ctx.isSuperAdmin
-    && !ctx.memberships.some(
-      (m) => m.studio_id === studioId && ["owner", "manager", "frontdesk"].includes(m.role),
-    )
-  ) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   if (bookingForScope.status !== "attended") {
@@ -79,7 +77,7 @@ export async function POST(req: Request) {
 
   await writeOperationAudit({
     actorId: user.id,
-    actorRole: role,
+    actorRole: hasBackofficeAccess ? bestRole(ctx) : "instructor",
     action: "uncheckin",
     targetType: "booking",
     targetId: parsed.data.booking_id,

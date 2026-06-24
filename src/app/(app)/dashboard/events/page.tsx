@@ -6,8 +6,8 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate, toLocalDateTimeInputValue } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
-import { getDashboardScope } from "@/lib/dashboard";
-import { bestRole } from "@/lib/rbac";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { hasStudioRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarRange, Clock3, Ticket } from "lucide-react";
@@ -39,17 +39,13 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
-  if (studioIds.length === 0) return <p className={ui.muted}>Create your first studio in Overview.</p>;
+  }, ["owner", "manager", "frontdesk"]);
+  if (studioIds.length === 0) return <p className={ui.muted}>You do not have access to this page.</p>;
   if (!selectedStudioId && studioIds.length > 1) return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
-
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk"].includes(role)) return <p className={ui.muted}>You do not have access to this page.</p>;
-  const canEdit = ["owner", "manager"].includes(role);
 
   const now = new Date();
   const defaultDate = localISODate(now);
@@ -74,6 +70,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   ]);
 
   const studioId = selectedStudioId ?? (events?.[0]?.studio_id as string | undefined) ?? studioIds[0];
+  const canEdit = hasStudioRole(ctx, studioId, ["owner", "manager"]);
   const studioPublicSlug =
     (studioMeta ?? []).find((s) => s.id === studioId)?.public_slug ?? null;
   const scopeParams = new URLSearchParams();

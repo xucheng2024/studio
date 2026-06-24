@@ -21,7 +21,7 @@ export async function requireStudio(requestedStudioId?: string) {
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
   const studioIds = [...new Set(ctx.memberships.map((membership) => membership.studio_id))];
   const studioId = requestedStudioId
-    ? studioIds.includes(requestedStudioId)
+    ? (ctx.isSuperAdmin || studioIds.includes(requestedStudioId))
       ? requestedStudioId
       : null
     : studioIds.length === 1
@@ -42,6 +42,7 @@ export function hasStudioRole(
   studioId: string,
   roles: Array<"owner" | "manager" | "frontdesk" | "instructor">,
 ) {
+  if (ctx.isSuperAdmin) return true;
   return ctx.memberships.some(
     (membership) => membership.studio_id === studioId && roles.includes(membership.role as (typeof roles)[number]),
   );

@@ -1,11 +1,12 @@
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { buildAccessContext, filterStudioIdsByRoles } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
+  studio_id: z.string().uuid(),
   name: z.string().min(1).max(120),
   email: z.string().email().max(320),
   phone: z.string().max(40).optional().nullable(),
@@ -14,7 +15,7 @@ const bodySchema = z.object({
 /**
  * Creates an auth user + public.users row (client) for email OTP / password flows.
  * Password is random; user should sign in via Supabase email OTP from the client.
- * Caller must be authenticated staff (owner / manager / frontdesk).
+ * Caller must be authenticated staff (owner / manager / frontdesk) for the target studio.
  */
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
@@ -32,8 +33,8 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk"].includes(role)) {
+  const allowedStudioIds = filterStudioIdsByRoles(ctx, [parsed.data.studio_id], ["owner", "manager", "frontdesk"]);
+  if (!allowedStudioIds.includes(parsed.data.studio_id)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

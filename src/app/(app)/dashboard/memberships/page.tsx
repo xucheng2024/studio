@@ -4,9 +4,9 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { MembershipLifecycleRow } from "@/components/dashboard/MembershipLifecycleRow";
 import { SubmitButton } from "@/components/SubmitButton";
 import { LocalDate } from "@/components/ui/LocalDate";
-import { getDashboardScope } from "@/lib/dashboard";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
-import { bestRole } from "@/lib/rbac";
+import { hasStudioRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -21,22 +21,18 @@ export default async function MembershipsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
-  if (studioIds.length === 0) return <p className={ui.muted}>Create your first studio in Overview.</p>;
+  }, ["owner", "manager", "frontdesk"]);
+  if (studioIds.length === 0) return <p className={ui.muted}>You do not have access to this page.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk"].includes(role)) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
-  }
-  const canEdit = ["owner", "manager"].includes(role);
-  const canCopyLink = ["owner", "manager", "frontdesk"].includes(role);
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const canEdit = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
+  const canCopyLink = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
 
   let membershipQuery = supabase
     .from("membership_products")

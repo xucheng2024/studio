@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { CheckInApiButton } from "@/components/CheckInApiButton";
-import { bestRole, buildAccessContext } from "@/lib/rbac";
+import { buildAccessContext } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,10 +12,10 @@ export default async function InstructorSessionsPage() {
   if (!user) redirect("/login");
 
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  if (bestRole(ctx) !== "instructor" && ctx.hasSuspendedBackofficeAccess) {
+  if (!ctx.roles.has("instructor") && ctx.hasSuspendedBackofficeAccess) {
     redirect("/account/suspended");
   }
-  if (bestRole(ctx) !== "instructor") {
+  if (!ctx.roles.has("instructor")) {
     return <p className={ui.muted}>Instructor access only.</p>;
   }
 

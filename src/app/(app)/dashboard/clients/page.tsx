@@ -140,7 +140,7 @@ export default async function ClientsPage({ searchParams }: Props) {
 
   const { data: subscriptionsRaw } = await admin
     .from("customer_subscriptions")
-    .select("id, client_id, status, membership_name_snapshot, billing_interval_snapshot, created_at, canceled_at, membership_products!inner(studio_id, location_id)")
+    .select("id, client_id, status, membership_name_snapshot, billing_interval_snapshot, created_at, current_period_end, cancel_at_period_end, canceled_at, membership_products!inner(studio_id, location_id)")
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
     .limit(2000);

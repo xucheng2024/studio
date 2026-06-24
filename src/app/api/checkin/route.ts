@@ -22,50 +22,34 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
-  const role = bestRole(ctx);
-  if (!["owner", "manager", "frontdesk", "instructor"].includes(role)) {
+  if (!ctx.isSuperAdmin && ![...ctx.roles].some((role) => ["owner", "manager", "frontdesk", "instructor"].includes(role))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const admin = createAdminClient();
   const { data: bookingForStudio } = await admin
     .from("bookings")
-    .select("id, class_sessions!inner(classes!inner(studio_id))")
+    .select("id, class_sessions!inner(classes!inner(studio_id, instructor_id))")
     .eq("id", parsed.data.booking_id)
     .maybeSingle();
   const sessionForContract = bookingForStudio?.class_sessions as
-    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }
-    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }[]
+    | { classes?: { studio_id?: string; instructor_id?: string | null } | { studio_id?: string; instructor_id?: string | null }[] | null }
+    | { classes?: { studio_id?: string; instructor_id?: string | null } | { studio_id?: string; instructor_id?: string | null }[] | null }[]
     | null;
   const sC = Array.isArray(sessionForContract) ? sessionForContract[0] : sessionForContract;
   const classesC = sC?.classes;
   const checkinStudioId = Array.isArray(classesC) ? classesC[0]?.studio_id : classesC?.studio_id;
+  const classInstructorId = Array.isArray(classesC) ? classesC[0]?.instructor_id : classesC?.instructor_id;
   if (!checkinStudioId) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const blocked = await respondIfStudioContractSuspended(admin, checkinStudioId);
   if (blocked) return blocked;
-  if (
-    role !== "instructor"
-    && !ctx.isSuperAdmin
-    && !ctx.memberships.some(
-      (m) => m.studio_id === checkinStudioId && ["owner", "manager", "frontdesk"].includes(m.role),
-    )
-  ) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const hasBackofficeAccess =
+    ctx.isSuperAdmin
+    || ctx.memberships.some(
+      (membership) => membership.studio_id === checkinStudioId && ["owner", "manager", "frontdesk"].includes(membership.role),
+    );
 
-  if (role === "instructor") {
-    const { data: booking } = await admin
-      .from("bookings")
-      .select("id, session_id, class_sessions!inner(classes!inner(instructor_id))")
-      .eq("id", parsed.data.booking_id)
-      .maybeSingle();
-    const session = booking?.class_sessions as
-      | { classes?: { instructor_id?: string } | { instructor_id?: string }[] | null }
-      | { classes?: { instructor_id?: string } | { instructor_id?: string }[] | null }[]
-      | null;
-    const s = Array.isArray(session) ? session[0] : session;
-    const classes = s?.classes;
-    const classInstructorId = Array.isArray(classes) ? classes[0]?.instructor_id : classes?.instructor_id;
+  if (!hasBackofficeAccess) {
     const { data: instructor } = await admin
       .from("instructors")
       .select("id")
@@ -88,7 +72,7 @@ export async function POST(req: Request) {
   }
   await writeOperationAudit({
     actorId: user.id,
-    actorRole: role,
+    actorRole: hasBackofficeAccess ? bestRole(ctx) : "instructor",
     action: "checkin",
     targetType: "booking",
     targetId: parsed.data.booking_id,

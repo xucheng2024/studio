@@ -4,9 +4,8 @@ import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { updateMemberProfile } from "@/app/(app)/dashboard/actions";
 import { LocalDate } from "@/components/ui/LocalDate";
 import { LocalTime } from "@/components/ui/LocalTime";
-import { getDashboardScope } from "@/lib/dashboard";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
-import { bestRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -25,16 +24,13 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
-  });
-  if (!["owner", "manager", "frontdesk"].includes(bestRole(ctx))) {
-    return <p className={ui.muted}>You do not have access to this page.</p>;
-  }
+  }, ["owner", "manager", "frontdesk"]);
   if (studioIds.length === 0) {
-    return <p className={ui.muted}>Create your first studio in Overview.</p>;
+    return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to view this user&apos;s ledger.</p>;
