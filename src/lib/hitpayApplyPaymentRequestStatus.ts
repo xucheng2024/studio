@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendGiftNotice, sendPurchaseConfirmation, sendRefundNotice } from "@/lib/email";
+import { getStudioPublicUrl } from "@/lib/app-url";
 import { upsertMemberStudioMembership } from "@/lib/member-studio";
 import {
   cancelPendingPaymentLifecycle,
@@ -143,15 +144,20 @@ export async function applyHitpayPaymentRequestStatus(
     // Fetch studio info (needed for both gift + buyer confirmation emails).
     const { data: studioRow } = await admin
       .from("studios")
-      .select("name, public_slug")
+      .select("name, public_slug, custom_domain, custom_domain_status")
       .eq("id", payment.studio_id)
-      .maybeSingle<{ name: string; public_slug: string }>();
+      .maybeSingle<{
+        name: string;
+        public_slug: string;
+        custom_domain: string | null;
+        custom_domain_status: string | null;
+      }>();
     const studioName = studioRow?.name ?? "the studio";
     const loginUrl = studioRow?.public_slug
-      ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/${studioRow.public_slug}`
+      ? getStudioPublicUrl(studioRow.public_slug, "", studioRow.custom_domain, studioRow.custom_domain_status)
       : (process.env.NEXT_PUBLIC_APP_URL ?? "");
     const shopOrdersUrl = studioRow?.public_slug
-      ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/${studioRow.public_slug}/me/orders`
+      ? getStudioPublicUrl(studioRow.public_slug, "me/orders", studioRow.custom_domain, studioRow.custom_domain_status)
       : loginUrl;
 
     // For logged-in buyers guest_name/guest_email is null; look up profile instead.

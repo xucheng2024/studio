@@ -84,6 +84,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete("x-studio-slug");
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
   if (customDomainSlug) requestHeaders.set("x-studio-slug", customDomainSlug);
   let response = NextResponse.next({ request: { headers: requestHeaders } });

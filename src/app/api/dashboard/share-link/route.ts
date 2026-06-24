@@ -1,7 +1,7 @@
 import { revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAppBaseUrlFromRequest } from "@/lib/app-url";
+import { getStudioUrlFromRequest } from "@/lib/app-url";
 import { generateShareSlugSegment, isValidShareSlug, normalizeShareSlugInput } from "@/lib/shareSlug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
@@ -25,7 +25,6 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
-  const base = getAppBaseUrlFromRequest(req);
 
   if (parsed.data.entity_type === "package") {
     const { data: row, error } = await admin
@@ -63,7 +62,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const url = `${base}/${studio.public_slug}/packages/${slugResult.slug}`;
+    const url = getStudioUrlFromRequest(req, studio.public_slug, `packages/${slugResult.slug}`);
     revalidatePublicSectionPaths(studio.public_slug, "packages", slugResult.slug);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
@@ -101,7 +100,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
     }
 
-    const url = `${base}/${studio.public_slug}/memberships/${slugResult.slug}`;
+    const url = getStudioUrlFromRequest(req, studio.public_slug, `memberships/${slugResult.slug}`);
     revalidatePublicSectionPaths(studio.public_slug, "memberships", slugResult.slug);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
@@ -136,7 +135,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
     }
 
-    const url = `${base}/${studio.public_slug}/services/${slugResult.slug}`;
+    const url = getStudioUrlFromRequest(req, studio.public_slug, `services/${slugResult.slug}`);
     revalidatePublicSectionPaths(studio.public_slug, "services", slugResult.slug);
     return NextResponse.json({ url, share_slug: slugResult.slug });
   }
@@ -196,7 +195,11 @@ export async function POST(req: Request) {
     // Use the human-readable session slug in the shared URL.
     // The class page accepts both ?session=<slug> and ?session_id=<uuid> so
     // direct links with UUIDs (e.g. from ops tools) keep working.
-    const url = `${base}/${studio.public_slug}/classes/${classSlugResult.slug}?session=${sessionSlugResult.slug}`;
+    const url = getStudioUrlFromRequest(
+      req,
+      studio.public_slug,
+      `classes/${classSlugResult.slug}?session=${sessionSlugResult.slug}`,
+    );
     revalidatePublicSectionPaths(studio.public_slug, "classes", classSlugResult.slug);
     return NextResponse.json({
       url,
@@ -235,7 +238,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: slugResult.error }, { status: slugResult.status });
   }
 
-  const url = `${base}/${studio.public_slug}/classes/${slugResult.slug}`;
+  const url = getStudioUrlFromRequest(req, studio.public_slug, `classes/${slugResult.slug}`);
   revalidatePublicSectionPaths(studio.public_slug, "classes", slugResult.slug);
   return NextResponse.json({ url, share_slug: slugResult.slug });
 }

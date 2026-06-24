@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getStudioPathFromRequest } from "@/lib/app-url";
 import { NextResponse } from "next/server";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
@@ -18,12 +19,12 @@ function inferImageMimeType(url: string): "image/webp" | "image/jpeg" | "image/p
 }
 
 function buildManifest({
-  studioSlug,
+  appPath,
   name,
   description,
   logoUrl,
 }: {
-  studioSlug: string;
+  appPath: string;
   name: string;
   description: string;
   logoUrl?: string | null;
@@ -31,12 +32,12 @@ function buildManifest({
   const trustedLogoUrl = logoUrl && isTrustedCoverImageUrl(logoUrl) ? logoUrl : null;
   const trustedLogoType = trustedLogoUrl ? inferImageMimeType(trustedLogoUrl) : null;
   return {
-    id: `/${studioSlug}`,
+    id: appPath,
     name,
     short_name: name.slice(0, 12) || "Studio",
     description,
-    start_url: `/${studioSlug}`,
-    scope: `/${studioSlug}`,
+    start_url: appPath,
+    scope: appPath,
     display: "standalone",
     orientation: "portrait",
     background_color: "#f7f4ef",
@@ -75,7 +76,7 @@ function buildManifest({
   };
 }
 
-export async function GET(_: Request, { params }: Props) {
+export async function GET(req: Request, { params }: Props) {
   const { studioSlug: rawStudioSlug } = await params;
   const studioSlug = normalizeStudioSlug(rawStudioSlug);
 
@@ -87,7 +88,7 @@ export async function GET(_: Request, { params }: Props) {
   if (!studioSlug || isReservedPublicSlug(studioSlug)) {
     return NextResponse.json(
       buildManifest({
-        studioSlug: "studio",
+        appPath: "/studio",
         name: "Studio",
         description: "Studio storefront",
         logoUrl: null,
@@ -106,7 +107,7 @@ export async function GET(_: Request, { params }: Props) {
   if (!studio || studio.contract_status === "suspended") {
     return NextResponse.json(
       buildManifest({
-        studioSlug,
+        appPath: getStudioPathFromRequest(req, studioSlug),
         name: "Studio",
         description: "Studio storefront",
         logoUrl: null,
@@ -125,7 +126,7 @@ export async function GET(_: Request, { params }: Props) {
 
   return NextResponse.json(
     buildManifest({
-      studioSlug,
+      appPath: getStudioPathFromRequest(req, studioSlug),
       name,
       description,
       logoUrl: studio.public_logo_url ?? null,
