@@ -5,6 +5,7 @@ import { normalizeStudioSlug } from "@/lib/slug";
 
 const BodySchema = z.object({
   studioSlug: z.string().min(1),
+  pathPrefix: z.string(),
   subscription: z.object({
     endpoint: z.string().url(),
     keys: z.object({
@@ -36,18 +37,29 @@ export async function POST(req: Request) {
   }
 
   const { endpoint, keys } = parsed.data.subscription;
+  const normalizedPathPrefix =
+    parsed.data.pathPrefix && parsed.data.pathPrefix.startsWith("/") && !parsed.data.pathPrefix.includes("://")
+      ? parsed.data.pathPrefix.replace(/\/+$/, "")
+      : "";
   const userAgent = req.headers.get("user-agent");
-  const { error } = await admin.from("pwa_push_subscriptions").upsert(
-    {
-      studio_id: studio.id,
-      endpoint,
-      p256dh: keys.p256dh,
-      auth: keys.auth,
-      user_agent: userAgent,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "studio_id,endpoint" },
-  );
+  const { error: deleteError } = await admin
+    .from("pwa_push_subscriptions")
+    .delete()
+    .eq("endpoint", endpoint);
+
+  if (deleteError) {
+    return NextResponse.json({ error: "subscribe_failed" }, { status: 500 });
+  }
+
+  const { error } = await admin.from("pwa_push_subscriptions").insert({
+    studio_id: studio.id,
+    endpoint,
+    p256dh: keys.p256dh,
+    auth: keys.auth,
+    user_agent: userAgent,
+    path_prefix: normalizedPathPrefix,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     return NextResponse.json({ error: "subscribe_failed" }, { status: 500 });

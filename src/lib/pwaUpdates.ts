@@ -12,6 +12,19 @@ const SECTION_LABEL: Record<UpdateSection, string> = {
   shop: "shop",
 };
 
+function normalizePathPrefix(pathPrefix: string | null | undefined, fallbackSlug: string) {
+  if (pathPrefix === "") {
+    return "/";
+  }
+
+  if (pathPrefix && pathPrefix.startsWith("/")) {
+    const normalized = pathPrefix.replace(/\/+$/, "");
+    return normalized || "/";
+  }
+
+  return `/${fallbackSlug}`;
+}
+
 export async function recordStudioContentUpdate(studioId: string, section: UpdateSection) {
   const admin = createAdminClient();
   await admin
@@ -37,7 +50,7 @@ async function fanoutStudioPush(studioId: string, section: UpdateSection) {
     admin.from("studios").select("public_slug, name").eq("id", studioId).maybeSingle(),
     admin
       .from("pwa_push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
+      .select("id, endpoint, p256dh, auth, path_prefix")
       .eq("studio_id", studioId),
   ]);
 
@@ -48,10 +61,11 @@ async function fanoutStudioPush(studioId: string, section: UpdateSection) {
   const sectionAnchor = section === "classes"
     ? "upcoming-classes"
     : section;
-  const url = `/${studio.public_slug}#${sectionAnchor}`;
 
   await Promise.all(
     subscriptions.map(async (sub) => {
+      const pathPrefix = normalizePathPrefix(sub.path_prefix, studio.public_slug);
+      const url = `${pathPrefix === "/" ? "" : pathPrefix}#${sectionAnchor}`;
       const result = await sendWebPush(
         {
           endpoint: sub.endpoint,

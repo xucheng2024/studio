@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizeStudioSlug } from "@/lib/slug";
 
 const BodySchema = z.object({
-  studioSlug: z.string().min(1),
   endpoint: z.string().url(),
 });
 
@@ -14,25 +12,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_payload" }, { status: 400 });
   }
 
-  const studioSlug = normalizeStudioSlug(parsed.data.studioSlug);
-  if (!studioSlug) {
-    return NextResponse.json({ error: "invalid_studio_slug" }, { status: 400 });
-  }
-
   const admin = createAdminClient();
-  const { data: studio } = await admin
-    .from("studios")
-    .select("id")
-    .eq("public_slug", studioSlug)
-    .maybeSingle();
-  if (!studio) {
-    return NextResponse.json({ error: "studio_not_found" }, { status: 404 });
-  }
-
   const { error } = await admin
     .from("pwa_push_subscriptions")
     .delete()
-    .eq("studio_id", studio.id)
     .eq("endpoint", parsed.data.endpoint);
 
   if (error) return NextResponse.json({ error: "unsubscribe_failed" }, { status: 500 });

@@ -24,18 +24,7 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
     if (!("serviceWorker" in navigator) || !("Notification" in window) || !studioSlug) return;
     setPermission(Notification.permission);
 
-    void fetch("/api/pwa/public-key")
-      .then((res) => res.json())
-      .then((json) => {
-        const key = String(json?.publicKey ?? "");
-        if (!key) return;
-        setPublicKey(key);
-
-        if (Notification.permission === "granted") {
-          setIsEnabled(true);
-          void subscribe(studioSlug, key);
-        }
-      })
+    void loadPushState(studioSlug)
       .catch(() => null);
   }, [studioSlug]);
 
@@ -44,6 +33,46 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
     window.addEventListener("studio:notifications:open", handleOpen);
     return () => window.removeEventListener("studio:notifications:open", handleOpen);
   }, []);
+
+  function getPathPrefix(slug: string) {
+    const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
+    const studioRoot = `/${slug}`;
+    return pathname === studioRoot || pathname.startsWith(`${studioRoot}/`) ? studioRoot : "";
+  }
+
+  async function loadPushState(slug: string) {
+    const [keyResponse, registration] = await Promise.all([
+      fetch("/api/pwa/public-key"),
+      navigator.serviceWorker.ready,
+    ]);
+    const keyJson = await keyResponse.json().catch(() => null);
+    const key = String(keyJson?.publicKey ?? "");
+    if (key) {
+      setPublicKey(key);
+    }
+
+    if (Notification.permission !== "granted") {
+      setIsEnabled(false);
+      return;
+    }
+
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      setIsEnabled(false);
+      return;
+    }
+
+    const statusResponse = await fetch("/api/pwa/subscription-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studioSlug: slug,
+        endpoint: subscription.endpoint,
+      }),
+    });
+    const statusJson = await statusResponse.json().catch(() => null);
+    setIsEnabled(Boolean(statusJson?.subscribed));
+  }
 
   async function subscribe(slug: string, key: string) {
     const registration = await navigator.serviceWorker.ready;
@@ -57,7 +86,11 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
     await fetch("/api/pwa/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studioSlug: slug, subscription: subscription.toJSON() }),
+      body: JSON.stringify({
+        studioSlug: slug,
+        subscription: subscription.toJSON(),
+        pathPrefix: getPathPrefix(slug),
+      }),
     });
   }
 
@@ -76,7 +109,7 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
       await fetch("/api/pwa/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studioSlug, endpoint }),
+        body: JSON.stringify({ endpoint }),
       });
       setIsEnabled(false);
       setShowPanel(false);
