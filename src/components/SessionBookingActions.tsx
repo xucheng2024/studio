@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Ticket, X, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { throttledRefresh } from "@/lib/throttledRefresh";
 import { toast } from "sonner";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { QuickBookPanel } from "@/components/QuickBookPanel";
+import { studioMePath } from "@/lib/public-paths";
 import { ui } from "@/lib/ui";
 
 const PENDING_PASS_SESSION_KEY = "pending_class_pass_session_id";
@@ -31,6 +32,7 @@ export function SessionBookingActions({
   const [showSignIn, setShowSignIn] = useState(false);
   const [showGuestCheckout, setShowGuestCheckout] = useState(false);
   const [passError, setPassError] = useState<string | null>(null);
+  const [passBooked, setPassBooked] = useState(false);
   const showPayForm = isSignedIn || showGuestCheckout;
 
   const toFriendly = (code: string) => {
@@ -59,10 +61,10 @@ export function SessionBookingActions({
       return false;
     }
     setPassError(null);
+    setPassBooked(true);
     toast.success("Booked with class pass");
-    throttledRefresh(router);
     return true;
-  }, [router, sessionId]);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -77,6 +79,26 @@ export function SessionBookingActions({
   const canGuestCheckout = guestPrice != null && guestPrice >= 0;
   const isFreeGuestCheckout = guestPrice != null && guestPrice === 0;
   const guestCheckoutLabel = isFreeGuestCheckout ? "Book free" : `Pay $${Number(guestPrice ?? 0).toFixed(2)}`;
+  const myBookingsHref = studioMePath(slug, "bookings");
+
+  if (passBooked) {
+    return (
+      <div className="flex flex-col gap-3 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3 dark:border-teal-800/50 dark:bg-teal-950/30">
+        <div>
+          <p className="text-sm font-semibold text-teal-900 dark:text-teal-200">Booked with class pass</p>
+          <p className="mt-1 text-sm text-teal-700 dark:text-teal-300">Your booking is confirmed and now available in your account.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href={myBookingsHref} className={ui.btnPrimarySm}>
+            View my bookings
+          </Link>
+          <button type="button" className={ui.btnSecondarySm} onClick={() => router.refresh()}>
+            Refresh availability
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Session doesn't accept class passes — show pay form directly
   if (creditsRequired === 0) {

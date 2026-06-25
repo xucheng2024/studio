@@ -55,6 +55,21 @@ export default async function InstructorSessionsPage() {
     .order("start_time", { ascending: true })
     .limit(100);
 
+  const clientIds = Array.from(
+    new Set(
+      (sessions ?? [])
+        .flatMap((session) => (session.bookings ?? []).map((booking) => booking.client_id))
+        .filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
+  );
+  const { data: profileRows } =
+    clientIds.length > 0
+      ? await admin.from("user_profiles").select("id, full_name").in("id", clientIds)
+      : { data: [] as { id: string; full_name: string | null }[] };
+  const profileById = new Map(
+    (profileRows ?? []).map((profile) => [profile.id, profile.full_name?.trim() || null] as const),
+  );
+
   return (
     <main className={ui.page}>
       <header className="mb-6">
@@ -126,9 +141,13 @@ export default async function InstructorSessionsPage() {
               {attendees.length > 0 ? (
                 <ul className="mt-3 divide-y divide-stone-100 dark:divide-stone-800">
                   {attendees.map((b) => {
+                    const profileName = b.client_id ? profileById.get(b.client_id) : null;
+                    const accountEmail = b.users?.email?.trim() || null;
+                    const guestName = b.guest_name?.trim() || null;
+                    const guestEmail = b.guest_email?.trim() || null;
                     const name = b.client_id
-                      ? (b.users?.email ?? b.client_id)
-                      : `${b.guest_name ?? "Guest"}${b.guest_email ? ` · ${b.guest_email}` : ""}`;
+                      ? (profileName ?? accountEmail ?? b.client_id)
+                      : `${guestName ?? "Guest"}${guestEmail ? ` · ${guestEmail}` : ""}`;
                     const isCancelled = b.status === "cancelled";
                     return (
                       <li key={b.id} className={`flex flex-wrap items-center justify-between gap-2 py-2 text-sm ${isCancelled ? "opacity-50" : ""}`}>

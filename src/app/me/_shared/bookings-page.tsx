@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
-import { studioHomePath } from "@/lib/public-paths";
+import { studioClassPath, studioHomePath } from "@/lib/public-paths";
 import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ui } from "@/lib/ui";
@@ -27,8 +28,9 @@ export async function renderBookingsPage(scope?: MePageScope) {
       cancelled_at,
       location_id,
       class_sessions (
+        id,
         start_time,
-        classes ( title, studio_id )
+        classes ( title, studio_id, share_slug, studios ( public_slug ) )
       )
     `)
     .eq("client_id", user.id)
@@ -95,9 +97,24 @@ export async function renderBookingsPage(scope?: MePageScope) {
                 const booking = item.data;
                 const session = Array.isArray(booking.class_sessions) ? booking.class_sessions[0] : booking.class_sessions;
                 const cls = Array.isArray(session?.classes) ? session?.classes[0] : session?.classes;
+                const studio = Array.isArray(cls?.studios) ? cls?.studios[0] : cls?.studios;
                 const bookingBadge = getUnifiedStatusBadges({ booking_status: booking.status }).booking;
                 const isPast = session?.start_time ? new Date(session.start_time) < new Date() : false;
                 const dateTime = session?.start_time ? new Date(session.start_time) : null;
+                const canOpenClass =
+                  typeof session?.id === "string" &&
+                  typeof cls?.share_slug === "string" &&
+                  typeof studio?.public_slug === "string";
+                const classHref = canOpenClass
+                  ? studioClassPath(
+                      String(studio?.public_slug),
+                      String(cls?.share_slug),
+                      `session_id=${encodeURIComponent(String(session?.id))}`,
+                    )
+                  : null;
+                const canRebook =
+                  Boolean(classHref) &&
+                  (isPast || booking.status === "cancelled" || booking.status === "late_cancel" || booking.status === "no_show");
                 const timeLabel = dateTime
                   ? dateTime.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" })
                   : null;
@@ -142,6 +159,18 @@ export async function renderBookingsPage(scope?: MePageScope) {
                           <span>Location: {locationLabel}</span>
                         </div>
                         {bookedAtLabel ? <p className={`mt-1 text-xs ${ui.muted}`}>Booked on {bookedAtLabel}</p> : null}
+                        {classHref ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Link href={classHref} className={ui.btnSecondarySm}>
+                              View details
+                            </Link>
+                            {canRebook ? (
+                              <Link href={classHref} className={ui.btnPrimarySm}>
+                                Book again
+                              </Link>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </li>

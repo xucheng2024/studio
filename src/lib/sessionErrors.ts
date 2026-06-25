@@ -35,3 +35,28 @@ export function sessionActionErrorMessage(
       return code ? code.replaceAll("_", " ") : "Something went wrong. Please try again.";
   }
 }
+
+export function sessionCheckinErrorMessage(error: string | null | undefined): string {
+  const code = String(error ?? "").trim();
+
+  switch (code) {
+    case "forbidden":
+      return "You do not have access to check in this attendee.";
+    case "not_found":
+      return "Booking not found.";
+    case "not_booked":
+      return "Only booked attendees can be checked in.";
+    case "not_attended":
+      return "This attendee is not checked in.";
+    case "invalid_body":
+      return "Please refresh and try again.";
+    case "unauthorized":
+      return "Please sign in again to continue.";
+    case "checkin_failed":
+      return "Check-in failed. Please try again.";
+    case "uncheckin_failed":
+      return "Could not undo check-in. Please try again.";
+    default:
+      return code ? code.replaceAll("_", " ") : "Something went wrong. Please try again.";
+  }
+}

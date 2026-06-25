@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { sessionCheckinErrorMessage } from "@/lib/sessionErrors";
 import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,7 +25,7 @@ export function CheckInApiButton({ bookingId, onDone }: { bookingId: string; onD
         setLoading(false);
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          toast.error(body.error ?? "Check-in failed");
+          toast.error(sessionCheckinErrorMessage(typeof body.error === "string" ? body.error : null));
           return;
         }
         toast.success("Checked in");
