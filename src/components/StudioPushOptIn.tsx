@@ -105,11 +105,10 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
     }
     const endpoint = subscription.endpoint;
     try {
-      await subscription.unsubscribe();
       await fetch("/api/pwa/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint }),
+        body: JSON.stringify({ studioSlug, endpoint }),
       });
       setIsEnabled(false);
       setShowPanel(false);

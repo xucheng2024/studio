@@ -119,16 +119,24 @@ export async function POST(req: Request) {
   /** Block if user already has any active or pending subscription at this studio (not just the same plan). */
   const { data: existingAnySub } = await admin
     .from("customer_subscriptions")
-    .select("id, status, cancel_at_period_end, current_period_end, membership_product_id")
+    .select("id, status, cancel_at_period_end, current_period_end, membership_product_id, checkout_url")
     .eq("client_id", existingClientId ?? "__missing__")
     .eq("studio_id", membership.studio_id)
     .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
     .limit(1)
     .maybeSingle();
   const existingAnyStatus = String(existingAnySub?.status ?? "").toLowerCase();
+  if (existingAnySub?.id && existingAnyStatus === "scheduled") {
+    return NextResponse.json({
+      ok: true,
+      already_pending: true,
+      subscription_id: existingAnySub.id,
+      checkout_url: existingAnySub.checkout_url ?? null,
+    });
+  }
   const hasPendingOrActiveSubscription =
     existingAnySub?.id != null &&
-    (existingAnyStatus === "scheduled" || isMembershipActiveForAccess(existingAnySub));
+    isMembershipActiveForAccess(existingAnySub);
   if (hasPendingOrActiveSubscription) {
     const isSamePlan = existingAnySub?.membership_product_id === membership.id;
     return NextResponse.json(
@@ -165,6 +173,35 @@ export async function POST(req: Request) {
     billingInterval: membership.billing_interval,
     billingStartDate: startDate,
   });
+  if (insertErr?.code === "23505") {
+    const { data: existingOpenSub } = await admin
+      .from("customer_subscriptions")
+      .select("id, status, checkout_url, membership_product_id, cancel_at_period_end, current_period_end")
+      .eq("client_id", clientId)
+      .eq("studio_id", membership.studio_id)
+      .in("status", ["scheduled", "active", "retrying", "inactive", "paused"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const existingStatus = String(existingOpenSub?.status ?? "").toLowerCase();
+    if (existingOpenSub?.id && existingStatus === "scheduled") {
+      return NextResponse.json({
+        ok: true,
+        already_pending: true,
+        subscription_id: existingOpenSub.id,
+        checkout_url: existingOpenSub.checkout_url ?? null,
+      });
+    }
+    if (existingOpenSub?.id && isMembershipActiveForAccess(existingOpenSub)) {
+      return NextResponse.json(
+        {
+          error: "subscription_exists",
+          same_plan: existingOpenSub.membership_product_id === membership.id,
+        },
+        { status: 409 },
+      );
+    }
+  }
   if (insertErr || !localSubscription) {
     return NextResponse.json({ error: insertErr?.message ?? "subscription_create_failed" }, { status: 500 });
   }

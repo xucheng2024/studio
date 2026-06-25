@@ -347,6 +347,49 @@ export async function POST(req: Request) {
   });
   if (purchaseInsertErr) {
     await admin.from("payments").delete().eq("id", payment.id);
+    if (purchaseInsertErr.code === "23505") {
+      const duplicateQuery = admin
+        .from("member_zone_purchases")
+        .select("id, status")
+        .eq("studio_id", series.studio_id)
+        .eq("client_id", effectiveClientId);
+      const { data: duplicateRows } =
+        accessRule.purchaseScope === "lesson" && lessonId
+          ? await duplicateQuery.eq("lesson_id", lessonId).limit(10)
+          : await duplicateQuery.eq("series_id", series.id).is("lesson_id", null).limit(10);
+      if ((duplicateRows ?? []).some((row) => row.status === "paid")) {
+        return NextResponse.json({ error: "already_purchased" }, { status: 409 });
+      }
+
+      const pendingPaymentsQuery = admin
+        .from("payments")
+        .select("gateway_checkout_url, expires_at")
+        .eq("studio_id", series.studio_id)
+        .eq("client_id", effectiveClientId)
+        .eq("source", "member_zone_purchase")
+        .eq("status", "pending");
+      const { data: pendingPayments } =
+        accessRule.purchaseScope === "lesson" && lessonId
+          ? await pendingPaymentsQuery.eq("member_zone_lesson_id", lessonId).limit(10)
+          : await pendingPaymentsQuery.eq("member_zone_series_id", series.id).is("member_zone_lesson_id", null).limit(10);
+      const reusablePending = (pendingPayments ?? []).find((row) => {
+        if (!row.gateway_checkout_url) return false;
+        if (!row.expires_at) return true;
+        return new Date(row.expires_at).getTime() > Date.now();
+      });
+      if (reusablePending?.gateway_checkout_url) {
+        return NextResponse.json(
+          {
+            error: "purchase_pending",
+            checkout_url: reusablePending.gateway_checkout_url,
+          },
+          { status: 409 },
+        );
+      }
+      if ((duplicateRows ?? []).some((row) => row.status === "pending")) {
+        return NextResponse.json({ error: "purchase_pending" }, { status: 409 });
+      }
+    }
     return NextResponse.json({ error: "purchase_create_failed" }, { status: 500 });
   }
 

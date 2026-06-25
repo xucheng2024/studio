@@ -42,24 +42,18 @@ export async function POST(req: Request) {
       ? parsed.data.pathPrefix.replace(/\/+$/, "")
       : "";
   const userAgent = req.headers.get("user-agent");
-  const { error: deleteError } = await admin
-    .from("pwa_push_subscriptions")
-    .delete()
-    .eq("endpoint", endpoint);
-
-  if (deleteError) {
-    return NextResponse.json({ error: "subscribe_failed" }, { status: 500 });
-  }
-
-  const { error } = await admin.from("pwa_push_subscriptions").insert({
-    studio_id: studio.id,
-    endpoint,
-    p256dh: keys.p256dh,
-    auth: keys.auth,
-    user_agent: userAgent,
-    path_prefix: normalizedPathPrefix,
-    updated_at: new Date().toISOString(),
-  });
+  const { error } = await admin.from("pwa_push_subscriptions").upsert(
+    {
+      studio_id: studio.id,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+      user_agent: userAgent,
+      path_prefix: normalizedPathPrefix,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "studio_id,endpoint" },
+  );
 
   if (error) {
     return NextResponse.json({ error: "subscribe_failed" }, { status: 500 });

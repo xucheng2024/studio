@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: Params) {
   if (!scoped.ok) return staffScopeFailureResponse(scoped);
 
   const payload = await resolveInvoicePayload(admin, payment, {
-    assignInvoiceNumberForPaid: payment.status === "paid",
+    assignInvoiceNumberForPaid: false,
   });
   const pdfBuffer = await renderInvoicePdf(payload);
 
