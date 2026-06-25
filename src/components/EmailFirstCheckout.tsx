@@ -50,34 +50,30 @@ export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", d
     if (!normalizedEmail) return;
     setBusy(true);
     setMessage(null);
-    const checkRes = await fetch("/api/auth/check-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: normalizedEmail }),
+    const supabase = createBrowserSupabase();
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: { shouldCreateUser: false },
     });
-    const checkBody = await checkRes.json().catch(() => ({}));
-    if (!checkRes.ok) {
-      setBusy(false);
-      setMessage("Enter a valid email address.");
-      return;
-    }
-    if (checkBody.exists) {
-      const supabase = createBrowserSupabase();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: normalizedEmail,
-        options: { shouldCreateUser: false },
-      });
-      setBusy(false);
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
+    setBusy(false);
+    if (!error) {
       setStep("verify");
       setMessage("Code sent. Check your email.");
       return;
     }
-    setBusy(false);
-    setStep("details");
+
+    const errorMessage = String(error.message ?? "").toLowerCase();
+    const errorCode = String((error as { code?: string | null }).code ?? "").toLowerCase();
+    const missingUser =
+      errorCode === "user_not_found" ||
+      errorMessage.includes("user not found") ||
+      errorMessage.includes("user does not exist");
+    if (missingUser) {
+      setStep("details");
+      return;
+    }
+
+    setMessage(error.message);
   };
 
   const verifyAndContinue = async () => {

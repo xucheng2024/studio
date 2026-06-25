@@ -4,6 +4,7 @@ import {
   createManualPackageClassBooking,
   loadClassSessionBookingStudio,
 } from "@/lib/bookingTransitions";
+import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +39,14 @@ export async function POST(req: Request) {
     const { data: st } = await admin.from("studios").select("contract_status").eq("id", studioId).maybeSingle();
     if (st?.contract_status === "suspended") {
       return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
+    }
+    const studioAccess = await verifyMemberStudioAccess(admin, {
+      userId: user.id,
+      studioId,
+      bootstrapIfMissing: true,
+    });
+    if (!studioAccess.ok) {
+      return NextResponse.json({ error: studioAccess.reason }, { status: 403 });
     }
   }
 
