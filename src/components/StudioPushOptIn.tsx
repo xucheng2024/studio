@@ -19,6 +19,7 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
   const [publicKey, setPublicKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("Notification" in window) || !studioSlug) return;
@@ -41,6 +42,7 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
   }
 
   async function loadPushState(slug: string) {
+    setErrorMessage("");
     const [keyResponse, registration] = await Promise.all([
       fetch("/api/pwa/public-key"),
       navigator.serviceWorker.ready,
@@ -70,6 +72,10 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
         endpoint: subscription.endpoint,
       }),
     });
+    if (!statusResponse.ok) {
+      setIsEnabled(false);
+      return;
+    }
     const statusJson = await statusResponse.json().catch(() => null);
     setIsEnabled(Boolean(statusJson?.subscribed));
   }
@@ -83,7 +89,7 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(key),
       }));
-    await fetch("/api/pwa/subscribe", {
+    const response = await fetch("/api/pwa/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -92,6 +98,14 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
         pathPrefix: getPathPrefix(slug),
       }),
     });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(
+        body?.error === "rate_limited"
+          ? "Too many notification requests. Please wait a bit and try again."
+          : "Could not enable notifications.",
+      );
+    }
   }
 
   async function unsubscribe() {
@@ -105,13 +119,24 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
     }
     const endpoint = subscription.endpoint;
     try {
-      await fetch("/api/pwa/unsubscribe", {
+      const response = await fetch("/api/pwa/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ studioSlug, endpoint }),
       });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          body?.error === "rate_limited"
+            ? "Too many notification requests. Please wait a bit and try again."
+            : "Could not turn off notifications.",
+        );
+      }
       setIsEnabled(false);
       setShowPanel(false);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not turn off notifications.");
     } finally {
       setBusy(false);
     }
@@ -121,6 +146,7 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
     if (!publicKey) return;
     setBusy(true);
     try {
+      setErrorMessage("");
       const permission = await Notification.requestPermission();
       setPermission(permission);
       if (permission === "granted") {
@@ -130,6 +156,8 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
       } else {
         setShowPanel(false);
       }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not enable notifications.");
     } finally {
       setBusy(false);
     }
@@ -145,6 +173,11 @@ export function StudioPushOptIn({ studioSlug }: { studioSlug: string }) {
           <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
             Get a system notification when this studio publishes new classes, events, packages, or member zone content.
           </p>
+          {errorMessage ? (
+            <p className="mt-2 text-[11px] text-red-600 dark:text-red-400">
+              {errorMessage}
+            </p>
+          ) : null}
           <div className="mt-3 flex items-center gap-2">
             {isEnabled ? (
               <button

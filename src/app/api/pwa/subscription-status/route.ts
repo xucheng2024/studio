@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { consumeApiRateLimit, getRequestIpAddress } from "@/lib/apiRateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeStudioSlug } from "@/lib/slug";
 
@@ -17,6 +18,19 @@ export async function POST(req: Request) {
   const studioSlug = normalizeStudioSlug(parsed.data.studioSlug);
   if (!studioSlug) {
     return NextResponse.json({ error: "invalid_studio_slug" }, { status: 400 });
+  }
+
+  const rateLimit = await consumeApiRateLimit({
+    action: "pwa_subscription_status",
+    scope: `${studioSlug}|${getRequestIpAddress(req)}`,
+    limit: 60,
+    windowSeconds: 300,
+  });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+    );
   }
 
   const admin = createAdminClient();

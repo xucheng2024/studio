@@ -87,7 +87,8 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
     redirect("/dashboard/staff?staff_error=invalid_location_scope");
   }
 
-  const { data: targetUser } = await supabase
+  const admin = createAdminClient();
+  const { data: targetUser } = await admin
     .from("users")
     .select("id, role")
     .eq("email", email)
@@ -102,7 +103,7 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
     redirect("/dashboard/staff?staff_error=invalid_role");
   }
 
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("staff_memberships")
     .select("id")
     .eq("user_id", targetUser.id)
@@ -111,7 +112,7 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
     .maybeSingle();
 
   if (existing?.id) {
-    const { error } = await supabase
+    const { error } = await admin
       .from("staff_memberships")
       .update({
         location_id: locationId,
@@ -122,7 +123,7 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
       redirect("/dashboard/staff?staff_error=update_membership_failed");
     }
   } else {
-    const { error } = await supabase.from("staff_memberships").insert({
+    const { error } = await admin.from("staff_memberships").insert({
       user_id: targetUser.id,
       studio_id: studio.id,
       location_id: locationId,
@@ -145,7 +146,8 @@ export async function toggleStaffMembership(formData: FormData): Promise<void> {
   const { supabase, user } = await requireUser();
   if (!membershipId) return;
 
-  const { data: membership } = await supabase
+  const admin = createAdminClient();
+  const { data: membership } = await admin
     .from("staff_memberships")
     .select("id, studio_id, role")
     .eq("id", membershipId)
@@ -156,7 +158,7 @@ export async function toggleStaffMembership(formData: FormData): Promise<void> {
   if (isStudioContractSuspended(studio)) return;
   if (membership.role === "owner") return;
 
-  await supabase
+  await admin
     .from("staff_memberships")
     .update({ is_active: nextActive })
     .eq("id", membership.id);

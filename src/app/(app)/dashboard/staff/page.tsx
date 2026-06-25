@@ -1,6 +1,7 @@
 import { toggleStaffMembership } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
  
@@ -36,7 +37,8 @@ export default async function StaffPage({ searchParams }: Props) {
   }
 
   const studioId = selectedStudioId ?? studioIds[0];
-  const { data: staff } = await supabase
+  const admin = createAdminClient();
+  const { data: staff } = await admin
     .from("staff_memberships")
     .select("id, user_id, studio_id, location_id, role, is_active, created_at, users(email)")
     .eq("studio_id", studioId)
