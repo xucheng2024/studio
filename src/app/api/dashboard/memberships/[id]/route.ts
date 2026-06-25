@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
-import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireStaffMutationScope, requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,18 +36,42 @@ export async function PATCH(req: Request, { params }: Params) {
     .maybeSingle();
   if (!row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const scope = await requireStaffScope({
+  const scope = await requireStaffMutationScope({
     userId: user.id,
     studioId: row.studio_id,
-    locationId: row.location_id,
+    currentLocationId: row.location_id,
+    targetLocationId:
+      parsed.data.location_id !== undefined ? parsed.data.location_id : row.location_id,
     roles: ["owner", "manager"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
 
-  const patch = {
-    ...parsed.data,
+  const patch: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  if (parsed.data.description !== undefined) patch.description = parsed.data.description;
+  if (parsed.data.price !== undefined) patch.price = parsed.data.price;
+  if (parsed.data.billing_interval !== undefined) patch.billing_interval = parsed.data.billing_interval;
+  if (parsed.data.trial_days !== undefined) patch.trial_days = parsed.data.trial_days;
+  if (parsed.data.location_id !== undefined) {
+    if (parsed.data.location_id) {
+      const { data: loc } = await admin
+        .from("locations")
+        .select("id")
+        .eq("id", parsed.data.location_id)
+        .eq("studio_id", row.studio_id)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (!loc) return NextResponse.json({ error: "invalid_location" }, { status: 400 });
+    }
+    patch.location_id = parsed.data.location_id;
+  }
+
+  if (Object.keys(patch).length === 1) {
+    return NextResponse.json({ ok: true });
+  }
+
   const { error } = await admin.from("membership_products").update(patch).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

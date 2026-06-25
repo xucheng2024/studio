@@ -22,6 +22,15 @@ export function isMembershipEnabledAccessType(accessType: AccessType) {
   return accessType === "member_only" || accessType === "member_or_paid";
 }
 
+export function hasValidMemberZonePurchasePrice(
+  accessType: string | null | undefined,
+  price: number | null | undefined,
+) {
+  const normalizedAccessType = normalizeMemberZoneAccessType(accessType);
+  if (!isPurchaseEnabledAccessType(normalizedAccessType)) return true;
+  return Number(price ?? 0) > 0;
+}
+
 export function normalizeMemberZoneAccessType(raw: string | null | undefined): AccessType {
   const value = String(raw ?? "").trim().toLowerCase();
   if (value === "free" || value === "paid_only" || value === "member_only" || value === "member_or_paid") {

@@ -8,7 +8,7 @@ import {
   isTrustedCoverImageUrl,
   storagePathFromCoverUrl,
 } from "@/lib/coverMedia";
-import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireGlobalStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeCoverImage } from "@/lib/imageTransform";
 import {
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   }
   if (!extensionForMime(file.type)) return NextResponse.json({ error: "invalid_file_type" }, { status: 400 });
 
-  const scope = await requireStaffScope({
+  const scope = await requireGlobalStaffScope({
     userId: user.id,
     studioId,
     roles: ["owner", "manager"],

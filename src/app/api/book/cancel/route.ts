@@ -26,12 +26,12 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: bookingScope } = await admin
     .from("bookings")
-    .select("id, class_sessions!inner(classes!inner(studio_id))")
+    .select("id, class_sessions!inner(location_id, classes!inner(studio_id))")
     .eq("id", parsed.data.booking_id)
     .maybeSingle();
   const session = bookingScope?.class_sessions as
-    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }
-    | { classes?: { studio_id?: string } | { studio_id?: string }[] | null }[]
+    | { location_id?: string | null; classes?: { studio_id?: string } | { studio_id?: string }[] | null }
+    | { location_id?: string | null; classes?: { studio_id?: string } | { studio_id?: string }[] | null }[]
     | null;
   const s0 = Array.isArray(session) ? session[0] : session;
   const classes = s0?.classes;
@@ -42,6 +42,7 @@ export async function POST(req: Request) {
   const scope = await requireStaffScope({
     userId: user.id,
     studioId: cancelStudioId,
+    locationId: s0?.location_id ?? null,
     roles: ["owner", "manager", "frontdesk"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);

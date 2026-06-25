@@ -197,8 +197,9 @@ export function FrontdeskWalkinForm({
             className={ui.input}
             required
             disabled={formDisabled}
-            onChange={(e) => setAmount(e.target.value)}
+            readOnly
           />
+          <span className={`${ui.muted} text-xs`}>Uses the current session or event price from the studio catalog.</span>
         </label>
 
         <label className="flex flex-col gap-1.5">

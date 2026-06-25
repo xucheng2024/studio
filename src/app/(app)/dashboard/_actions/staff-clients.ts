@@ -51,6 +51,48 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
   if (!inScopeMember) {
     redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=out_of_scope`);
   }
+  if (!ctx.hasAnyGlobalLocationAccess) {
+    if (!locationId) {
+      redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}&member_error=forbidden`);
+    }
+    const [bookingHit, packageHit, subscriptionHit, paymentHit] = await Promise.all([
+      admin
+        .from("bookings")
+        .select("id, class_sessions!inner(location_id, classes!inner(studio_id))")
+        .eq("client_id", clientId)
+        .eq("class_sessions.location_id", locationId)
+        .eq("class_sessions.classes.studio_id", studio.id)
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from("client_packages")
+        .select("id, packages!inner(studio_id, location_id)")
+        .eq("client_id", clientId)
+        .eq("packages.studio_id", studio.id)
+        .or(`packages.location_id.is.null,packages.location_id.eq.${locationId}`)
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from("customer_subscriptions")
+        .select("id, membership_products!inner(studio_id, location_id)")
+        .eq("client_id", clientId)
+        .eq("studio_id", studio.id)
+        .or(`membership_products.location_id.is.null,membership_products.location_id.eq.${locationId}`)
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from("payments")
+        .select("id")
+        .eq("client_id", clientId)
+        .eq("studio_id", studio.id)
+        .eq("location_id", locationId)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (!bookingHit.data && !packageHit.data && !subscriptionHit.data && !paymentHit.data) {
+      redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}&location_id=${locationId}&member_error=out_of_scope`);
+    }
+  }
 
   const { error } = await admin
     .from("user_profiles")

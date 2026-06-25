@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireGlobalStaffScope, requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,12 +25,18 @@ export async function GET(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const scoped = await requireStaffScope({
-    userId: user.id,
-    studioId: parsed.data.studio_id,
-    locationId: parsed.data.location_id ?? null,
-    roles: ["owner", "manager", "frontdesk"],
-  });
+  const scoped = parsed.data.location_id
+    ? await requireStaffScope({
+        userId: user.id,
+        studioId: parsed.data.studio_id,
+        locationId: parsed.data.location_id,
+        roles: ["owner", "manager", "frontdesk"],
+      })
+    : await requireGlobalStaffScope({
+        userId: user.id,
+        studioId: parsed.data.studio_id,
+        roles: ["owner", "manager", "frontdesk"],
+      });
   if (!scoped.ok) return staffScopeFailureResponse(scoped);
 
   const admin = createAdminClient();

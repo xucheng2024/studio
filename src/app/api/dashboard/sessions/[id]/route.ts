@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
-import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireStaffMutationScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
 const patchSchema = z.object({
@@ -51,10 +51,12 @@ export async function PATCH(req: Request, ctx: RouteParams) {
 
   const cls = Array.isArray(row.classes) ? row.classes[0] : row.classes;
   if (!cls?.studio_id) return NextResponse.json({ error: "invalid_session" }, { status: 409 });
-  const scope = await requireStaffScope({
+  const scope = await requireStaffMutationScope({
     userId: user.id,
     studioId: cls.studio_id,
-    locationId: row.location_id,
+    currentLocationId: row.location_id,
+    targetLocationId:
+      parsed.data.location_id !== undefined ? parsed.data.location_id : row.location_id,
     roles: ["owner", "manager", "frontdesk"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);

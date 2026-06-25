@@ -69,7 +69,7 @@ async function handleSessionWalkin(
 ) {
   const { data: session } = await admin
     .from("class_sessions")
-    .select("id, location_id, status, start_time, spots_left, classes!inner(studio_id)")
+    .select("id, location_id, guest_price, status, start_time, spots_left, classes!inner(studio_id)")
     .eq("id", data.target_id)
     .maybeSingle();
   if (!session) return NextResponse.json({ error: "session_not_found" }, { status: 404 });
@@ -108,7 +108,7 @@ async function handleSessionWalkin(
     guestName: data.guest_name.trim(),
     guestEmail: data.guest_email ?? null,
     guestPhone: data.guest_phone?.trim() ?? null,
-    amount: data.amount,
+    amount: Number(session.guest_price ?? 0),
     currency: STUDIO_CURRENCY,
     paymentMethod: data.payment_method,
     actorId: userId,
@@ -157,7 +157,7 @@ async function handleEventWalkin(
 ) {
   const { data: event } = await admin
     .from("events")
-    .select("id, studio_id, location_id, spots_left, is_active, start_time, external_booking_url")
+    .select("id, studio_id, location_id, price, spots_left, is_active, start_time, external_booking_url")
     .eq("id", data.target_id)
     .maybeSingle();
   if (!event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
@@ -196,7 +196,7 @@ async function handleEventWalkin(
     guestName: data.guest_name.trim(),
     guestEmail: data.guest_email,
     guestPhone: data.guest_phone?.trim() ?? null,
-    amount: data.amount,
+    amount: Number(event.price ?? 0),
     currency: STUDIO_CURRENCY,
     paymentMethod: data.payment_method,
     actorId: userId,

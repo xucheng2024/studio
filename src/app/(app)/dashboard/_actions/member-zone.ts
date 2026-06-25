@@ -4,6 +4,7 @@ import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { STUDIO_CURRENCY } from "@/lib/currency";
+import { hasValidMemberZonePurchasePrice } from "@/lib/memberZoneAccess";
 import {
   generateUniqueShareSlug,
   hasStudioRole,
@@ -33,6 +34,7 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
   const price = sanitizePriceNullable(formData.get("price"));
   const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
+  if (!hasValidMemberZonePurchasePrice(access_type, price)) return;
   const share_slug = await generateUniqueShareSlug(supabase, "member_zone_series", studio.id);
   if (!share_slug) return;
 
@@ -82,6 +84,7 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
   const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
+  if (!hasValidMemberZonePurchasePrice(access_type, price)) return;
   const { data: existingSeries } = await supabase
     .from("member_zone_series")
     .select("share_slug")
@@ -176,6 +179,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
   const override_price = sanitizePriceNullable(formData.get("override_price"));
   const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
+  if (access_override !== "inherit" && !hasValidMemberZonePurchasePrice(access_override, override_price)) return;
 
   const { error } = await supabase.from("member_zone_lessons").insert({
     series_id: series.id,
@@ -234,6 +238,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
   const currency = STUDIO_CURRENCY;
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
+  if (access_override !== "inherit" && !hasValidMemberZonePurchasePrice(access_override, override_price)) return;
 
   const { error } = await supabase
     .from("member_zone_lessons")

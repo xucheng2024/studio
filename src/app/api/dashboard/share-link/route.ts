@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioUrlFromRequest } from "@/lib/app-url";
 import { generateShareSlugSegment, isValidShareSlug, normalizeShareSlugInput } from "@/lib/shareSlug";
+import { requireGlobalStaffScope, requireStaffMutationScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -37,10 +37,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
-    const scope = await requireStaffScope({
+    const scope = await requireStaffMutationScope({
       userId: user.id,
       studioId: row.studio_id,
-      locationId: row.location_id,
+      currentLocationId: row.location_id,
+      targetLocationId: row.location_id,
       roles: ["owner", "manager", "frontdesk"],
     });
     if (!scope.ok) return staffScopeFailureResponse(scope);
@@ -78,10 +79,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
-    const scope = await requireStaffScope({
+    const scope = await requireStaffMutationScope({
       userId: user.id,
       studioId: row.studio_id,
-      locationId: row.location_id,
+      currentLocationId: row.location_id,
+      targetLocationId: row.location_id,
       roles: ["owner", "manager", "frontdesk"],
     });
     if (!scope.ok) return staffScopeFailureResponse(scope);
@@ -113,11 +115,10 @@ export async function POST(req: Request) {
       .maybeSingle();
     if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-    const scope = await requireStaffScope({
+    const scope = await requireGlobalStaffScope({
       userId: user.id,
       studioId: row.studio_id,
-      locationId: null,
-      roles: ["owner", "manager", "frontdesk"],
+      roles: ["owner", "manager"],
     });
     if (!scope.ok) return staffScopeFailureResponse(scope);
 
@@ -150,10 +151,11 @@ export async function POST(req: Request) {
     const sessionClass = Array.isArray(session.classes) ? session.classes[0] : session.classes;
     if (!sessionClass) return NextResponse.json({ error: "class_not_found" }, { status: 404 });
 
-    const scope = await requireStaffScope({
+    const scope = await requireStaffMutationScope({
       userId: user.id,
       studioId: sessionClass.studio_id,
-      locationId: session.location_id ?? sessionClass.location_id,
+      currentLocationId: session.location_id ?? sessionClass.location_id,
+      targetLocationId: session.location_id ?? sessionClass.location_id,
       roles: ["owner", "manager", "frontdesk"],
     });
     if (!scope.ok) return staffScopeFailureResponse(scope);
@@ -216,10 +218,11 @@ export async function POST(req: Request) {
     .maybeSingle();
   if (cErr || !cls) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const scope = await requireStaffScope({
+  const scope = await requireStaffMutationScope({
     userId: user.id,
     studioId: cls.studio_id,
-    locationId: cls.location_id,
+    currentLocationId: cls.location_id,
+    targetLocationId: cls.location_id,
     roles: ["owner", "manager", "frontdesk"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
