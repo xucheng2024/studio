@@ -107,8 +107,11 @@ async function insertRecurringRule(
   const targetDays = weekdays.length ? weekdays.map((weekday) => weekdayMap[weekday]).filter((day) => day != null) : [];
   const horizonEndExclusive = new Date(startDate);
   horizonEndExclusive.setDate(horizonEndExclusive.getDate() + 56);
-  const hardEnd = endDate ? new Date(endDate) : horizonEndExclusive;
-  const end = hardEnd < horizonEndExclusive ? hardEnd : horizonEndExclusive;
+  const hardEndExclusive = endDate ? new Date(endDate) : horizonEndExclusive;
+  if (endDate) {
+    hardEndExclusive.setDate(hardEndExclusive.getDate() + 1);
+  }
+  const end = hardEndExclusive < horizonEndExclusive ? hardEndExclusive : horizonEndExclusive;
 
   let count = 0;
   const cursor = new Date(startDate);

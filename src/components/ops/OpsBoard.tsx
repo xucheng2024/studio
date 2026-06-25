@@ -40,6 +40,7 @@ export function OpsBoard({
     if (dateFrom) p.set("date_from", dateFrom);
     if (dateTo) p.set("date_to", dateTo);
     if (sessionStatus) p.set("session_status", sessionStatus);
+    p.set("back_to", "operations");
     return p.toString();
   }, [studioId, locationId, dateFrom, dateTo, sessionStatus]);
 

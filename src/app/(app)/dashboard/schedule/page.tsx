@@ -185,6 +185,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     const sessionStatus = (s as { status?: string | null }).status ?? "scheduled";
     const isCancelled = sessionStatus === "cancelled";
     const isCompleted = sessionStatus === "completed";
+    const isEditable = !isCancelled && !isCompleted;
     const bookings = (s.bookings ?? []) as {
       id: string;
       client_id: string | null;
@@ -246,23 +247,25 @@ export default async function SchedulePage({ searchParams }: Props) {
           </div>
         </div>
 
-        <div className="mt-3">
-          <SessionEditPanel
-            sessionId={s.id}
-            initial={{
-              start_time: String(s.start_time),
-              capacity: Number(s.capacity ?? 1),
-              guest_price: s.guest_price != null ? Number(s.guest_price) : null,
-              credits_required: s.credits_required != null ? Number(s.credits_required) : null,
-              location_id: s.location_id ?? null,
-              address: (s as { address?: string | null }).address ?? null,
-              address_details: (s as { address_details?: string | null }).address_details ?? null,
-            }}
-            locations={(locations ?? [])
-              .filter((l) => l.studio_id === activeStudioId)
-              .map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }))}
-          />
-        </div>
+        {isEditable ? (
+          <div className="mt-3">
+            <SessionEditPanel
+              sessionId={s.id}
+              initial={{
+                start_time: String(s.start_time),
+                capacity: Number(s.capacity ?? 1),
+                guest_price: s.guest_price != null ? Number(s.guest_price) : null,
+                credits_required: s.credits_required != null ? Number(s.credits_required) : null,
+                location_id: s.location_id ?? null,
+                address: (s as { address?: string | null }).address ?? null,
+                address_details: (s as { address_details?: string | null }).address_details ?? null,
+              }}
+              locations={(locations ?? [])
+                .filter((l) => l.studio_id === activeStudioId)
+                .map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }))}
+            />
+          </div>
+        ) : null}
 
         <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
           <p className={`text-xs ${ui.muted}`}>

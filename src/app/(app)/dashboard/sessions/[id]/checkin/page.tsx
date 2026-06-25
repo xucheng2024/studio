@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ studio_id?: string; location_id?: string; date_from?: string; date_to?: string; session_status?: string; status?: string }>;
+  searchParams: Promise<{ studio_id?: string; location_id?: string; date_from?: string; date_to?: string; session_status?: string; status?: string; back_to?: string }>;
 };
 
 export default async function SessionCheckinPage({ params, searchParams }: Props) {
@@ -104,13 +104,15 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
   if (sp.date_to) backParams.set("date_to", sp.date_to);
   if (sp.session_status) backParams.set("session_status", sp.session_status);
   else if (sp.status) backParams.set("session_status", sp.status);
-  const backHref = `/dashboard/operations${backParams.toString() ? `?${backParams.toString()}` : ""}`;
+  const backTarget = sp.back_to === "schedule" ? "/dashboard/schedule" : "/dashboard/operations";
+  const backLabel = sp.back_to === "schedule" ? "Back to sessions" : "Back to booking management";
+  const backHref = `${backTarget}${backParams.toString() ? `?${backParams.toString()}` : ""}`;
 
   return (
     <div className={ui.pageNarrow}>
       <div className="flex flex-col gap-4">
         <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-          ← Back to booking management
+          {`← ${backLabel}`}
         </DashboardAppLink>
 
         <section className={ui.card}>

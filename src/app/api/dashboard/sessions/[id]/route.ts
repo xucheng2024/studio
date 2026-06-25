@@ -40,8 +40,12 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if ((row as { status?: string | null }).status === "cancelled") {
+  const sessionStatus = (row as { status?: string | null }).status ?? "scheduled";
+  if (sessionStatus === "cancelled") {
     return NextResponse.json({ error: "session_cancelled" }, { status: 409 });
+  }
+  if (sessionStatus === "completed") {
+    return NextResponse.json({ error: "session_completed" }, { status: 409 });
   }
 
   const cls = Array.isArray(row.classes) ? row.classes[0] : row.classes;
