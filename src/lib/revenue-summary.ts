@@ -5,6 +5,7 @@ export type RevenuePaymentRow = {
   status: string;
   amount: unknown;
   created_at?: string | null;
+  paid_at?: string | null;
   verified_at?: string | null;
   refunded_at?: string | null;
   location_id?: string | null;
@@ -32,10 +33,10 @@ export function revenueOrderTypeFromSource(source: string | null | undefined): R
 
 export function revenueEffectiveTimestamp(row: RevenuePaymentRow) {
   if (row.status === "refunded") {
-    return row.refunded_at ?? row.verified_at ?? row.created_at ?? null;
+    return row.refunded_at ?? row.verified_at ?? row.paid_at ?? row.created_at ?? null;
   }
   if (row.status === "paid") {
-    return row.verified_at ?? row.created_at ?? null;
+    return row.verified_at ?? row.paid_at ?? row.created_at ?? null;
   }
   return row.created_at ?? null;
 }

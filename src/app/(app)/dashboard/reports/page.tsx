@@ -57,7 +57,7 @@ export default async function ReportsPage({ searchParams }: Props) {
 
   let revenueQuery = supabase
     .from("payments")
-    .select("id, amount, type, payment_method, status, created_at, verified_at, refunded_at, location_id, source")
+    .select("id, amount, type, payment_method, status, created_at, paid_at, verified_at, refunded_at, location_id, source")
     .in("studio_id", studioIds)
     .in("status", ["paid", "refunded"])
     .order("verified_at", { ascending: false, nullsFirst: false })
@@ -66,15 +66,15 @@ export default async function ReportsPage({ searchParams }: Props) {
   if (source) revenueQuery = revenueQuery.eq("source", source);
   if (fromIso && toIso) {
     revenueQuery = revenueQuery.or(
-      `and(status.eq.paid,verified_at.gte.${fromIso},verified_at.lt.${toIso}),and(status.eq.refunded,refunded_at.gte.${fromIso},refunded_at.lt.${toIso})`,
+      `and(status.eq.paid,verified_at.gte.${fromIso},verified_at.lt.${toIso}),and(status.eq.paid,verified_at.is.null,paid_at.gte.${fromIso},paid_at.lt.${toIso}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.gte.${fromIso},created_at.lt.${toIso}),and(status.eq.refunded,refunded_at.gte.${fromIso},refunded_at.lt.${toIso})`,
     );
   } else if (fromIso) {
     revenueQuery = revenueQuery.or(
-      `and(status.eq.paid,verified_at.gte.${fromIso}),and(status.eq.refunded,refunded_at.gte.${fromIso})`,
+      `and(status.eq.paid,verified_at.gte.${fromIso}),and(status.eq.paid,verified_at.is.null,paid_at.gte.${fromIso}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.gte.${fromIso}),and(status.eq.refunded,refunded_at.gte.${fromIso})`,
     );
   } else if (toIso) {
     revenueQuery = revenueQuery.or(
-      `and(status.eq.paid,verified_at.lt.${toIso}),and(status.eq.refunded,refunded_at.lt.${toIso})`,
+      `and(status.eq.paid,verified_at.lt.${toIso}),and(status.eq.paid,verified_at.is.null,paid_at.lt.${toIso}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.lt.${toIso}),and(status.eq.refunded,refunded_at.lt.${toIso})`,
     );
   }
 
@@ -96,7 +96,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Reports</h1>
         <p className={`mt-1 ${ui.muted}`}>
           {selectedLocationId ? "Selected location" : "All locations"} · Revenue uses{" "}
-          <code className={ui.code}>verified_at</code> for paid records and{" "}
+          <code className={ui.code}>verified_at</code> or <code className={ui.code}>paid_at</code> for paid records and{" "}
           <code className={ui.code}>refunded_at</code> for refunds, grouped by your local calendar day.
         </p>
       </div>

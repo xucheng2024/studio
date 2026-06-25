@@ -34,6 +34,7 @@ type PaymentRow = {
   currency: string | null;
   reference_code: string | null;
   created_at: string | null;
+  paid_at: string | null;
   refunded_at: string | null;
   verified_at: string | null;
   verified_by: string | null;
@@ -48,10 +49,10 @@ type PaymentRow = {
 
 function paymentEffectiveTimestamp(row: PaymentRow) {
   if (row.status === "refunded") {
-    return row.refunded_at ?? row.verified_at ?? row.created_at;
+    return row.refunded_at ?? row.verified_at ?? row.paid_at ?? row.created_at;
   }
   if (row.status === "paid") {
-    return row.verified_at ?? row.created_at;
+    return row.verified_at ?? row.paid_at ?? row.created_at;
   }
   return row.created_at;
 }
@@ -106,7 +107,7 @@ export async function GET(req: Request) {
   let q = supabase
     .from("payments")
     .select(
-      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
+      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -116,15 +117,15 @@ export async function GET(req: Request) {
   if (source) q = q.eq("source", source);
   if (from && to) {
     q = q.or(
-      `and(status.eq.paid,verified_at.gte.${from},verified_at.lt.${to}),and(status.eq.refunded,refunded_at.gte.${from},refunded_at.lt.${to}),and(status.neq.paid,status.neq.refunded,created_at.gte.${from},created_at.lt.${to})`,
+      `and(status.eq.paid,verified_at.gte.${from},verified_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.gte.${from},paid_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.gte.${from},created_at.lt.${to}),and(status.eq.refunded,refunded_at.gte.${from},refunded_at.lt.${to}),and(status.neq.paid,status.neq.refunded,created_at.gte.${from},created_at.lt.${to})`,
     );
   } else if (from) {
     q = q.or(
-      `and(status.eq.paid,verified_at.gte.${from}),and(status.eq.refunded,refunded_at.gte.${from}),and(status.neq.paid,status.neq.refunded,created_at.gte.${from})`,
+      `and(status.eq.paid,verified_at.gte.${from}),and(status.eq.paid,verified_at.is.null,paid_at.gte.${from}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.gte.${from}),and(status.eq.refunded,refunded_at.gte.${from}),and(status.neq.paid,status.neq.refunded,created_at.gte.${from})`,
     );
   } else if (to) {
     q = q.or(
-      `and(status.eq.paid,verified_at.lt.${to}),and(status.eq.refunded,refunded_at.lt.${to}),and(status.neq.paid,status.neq.refunded,created_at.lt.${to})`,
+      `and(status.eq.paid,verified_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.lt.${to}),and(status.eq.refunded,refunded_at.lt.${to}),and(status.neq.paid,status.neq.refunded,created_at.lt.${to})`,
     );
   }
   const { data: payments } = await q;
@@ -227,6 +228,7 @@ export async function GET(req: Request) {
     "created_at",
     "submitted_at",
     "effective_at",
+    "paid_at",
     "verified_at",
     "operator_email",
     "recon_note",
@@ -291,6 +293,7 @@ export async function GET(req: Request) {
       p.created_at ?? "",
       p.created_at ?? "",
       paymentEffectiveTimestamp(p) ?? "",
+      p.paid_at ?? "",
       p.verified_at ?? "",
       operatorEmail,
       p.recon_note ?? "",
