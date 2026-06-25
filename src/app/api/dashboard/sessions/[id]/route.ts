@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const patchSchema = z.object({
   start_time: z.string().datetime().optional(),
+  duration_min: z.coerce.number().int().min(15).optional(),
   capacity: z.coerce.number().int().min(1).optional(),
   guest_price: z.union([z.coerce.number().min(0), z.null()]).optional(),
   credits_required: z.union([z.coerce.number().int().min(1), z.null()]).optional(),
@@ -84,11 +85,22 @@ export async function PATCH(req: Request, ctx: RouteParams) {
     }
     patch.location_id = parsed.data.location_id;
   }
-  if (parsed.data.start_time !== undefined) {
-    const startDate = new Date(parsed.data.start_time);
+  if (parsed.data.start_time !== undefined || parsed.data.duration_min !== undefined) {
+    const startDate =
+      parsed.data.start_time !== undefined
+        ? new Date(parsed.data.start_time)
+        : new Date(String(row.start_time));
     if (Number.isNaN(startDate.getTime())) return NextResponse.json({ error: "invalid_start_time" }, { status: 400 });
-    const duration = Number(cls.duration_min ?? 60);
-    patch.start_time = startDate.toISOString();
+    const currentDurationRaw =
+      Math.round((new Date(String(row.end_time)).getTime() - new Date(String(row.start_time)).getTime()) / 60000);
+    const currentDuration =
+      Number.isFinite(currentDurationRaw) && currentDurationRaw >= 15
+        ? currentDurationRaw
+        : Number(cls.duration_min ?? 60);
+    const duration = Number(parsed.data.duration_min ?? currentDuration);
+    if (parsed.data.start_time !== undefined) {
+      patch.start_time = startDate.toISOString();
+    }
     patch.end_time = new Date(startDate.getTime() + duration * 60000).toISOString();
   }
   if (parsed.data.address !== undefined) {

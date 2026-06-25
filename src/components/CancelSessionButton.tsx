@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { throttledRefresh } from "@/lib/throttledRefresh";
+import { sessionActionErrorMessage } from "@/lib/sessionErrors";
 import { useState } from "react";
 import { AlertTriangle, CalendarX, Check, X, Loader2 } from "lucide-react";
 import { ui } from "@/lib/ui";
@@ -45,7 +46,13 @@ export function CancelSessionButton({
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      setErrorMsg(data.error ? String(data.error) : "Cancel failed. Please try again.");
+      setErrorMsg(
+        sessionActionErrorMessage(
+          typeof data.error === "string" ? data.error : null,
+          typeof data.message === "string" ? data.message : null,
+          typeof data.session_status === "string" ? data.session_status : null,
+        ),
+      );
       setStep("error");
       return;
     }

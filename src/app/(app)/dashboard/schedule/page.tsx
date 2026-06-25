@@ -253,6 +253,12 @@ export default async function SchedulePage({ searchParams }: Props) {
               sessionId={s.id}
               initial={{
                 start_time: String(s.start_time),
+                duration_min: Math.max(
+                  Math.round(
+                    (new Date(String(s.end_time)).getTime() - new Date(String(s.start_time)).getTime()) / 60000,
+                  ),
+                  15,
+                ),
                 capacity: Number(s.capacity ?? 1),
                 guest_price: s.guest_price != null ? Number(s.guest_price) : null,
                 credits_required: s.credits_required != null ? Number(s.credits_required) : null,

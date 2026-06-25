@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { throttledRefresh } from "@/lib/throttledRefresh";
 import { useState } from "react";
 import { parseDatetimeLocalAsSgt, toLocalDateTimeInputValue } from "@/lib/date";
+import { sessionActionErrorMessage } from "@/lib/sessionErrors";
 import { Check, Pencil, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ui } from "@/lib/ui";
@@ -18,6 +19,7 @@ export function SessionEditPanel({
   sessionId: string;
   initial: {
     start_time: string;
+    duration_min: number;
     capacity: number;
     guest_price: number | null;
     credits_required: number | null;
@@ -31,6 +33,7 @@ export function SessionEditPanel({
   const [busy, setBusy] = useState(false);
   const [validationMsg, setValidationMsg] = useState<string | null>(null);
   const [startTime, setStartTime] = useState(() => toLocalDateTimeInputValue(initial.start_time));
+  const [durationMin, setDurationMin] = useState(String(initial.duration_min));
   const [capacity, setCapacity] = useState(String(initial.capacity));
   const [guestPrice, setGuestPrice] = useState(initial.guest_price != null ? String(initial.guest_price) : "");
   const [creditsRequired, setCreditsRequired] = useState(initial.credits_required != null ? String(initial.credits_required) : "");
@@ -53,6 +56,10 @@ export function SessionEditPanel({
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
           />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={ui.label}>Duration (min)</span>
+          <input className={ui.input} type="number" min={15} step="5" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1">
           <span className={ui.label}>Capacity</span>
@@ -102,11 +109,16 @@ export function SessionEditPanel({
           className={`${ui.btnPrimarySm} w-fit sm:col-span-2`}
           disabled={busy}
           onClick={async () => {
+            const parsedDurationMin = Number(durationMin);
             const parsedCapacity = Number(capacity);
             const guestPriceRaw = guestPrice.trim();
             const parsedGuestPrice = guestPriceRaw === "" ? null : Number(guestPriceRaw);
             const creditsRaw = creditsRequired.trim();
             const parsedCredits = creditsRaw === "" ? null : Number(creditsRaw);
+            if (!Number.isFinite(parsedDurationMin) || parsedDurationMin < 15) {
+              setValidationMsg("Duration must be at least 15 minutes");
+              return;
+            }
             if (!Number.isFinite(parsedCapacity) || parsedCapacity < 1) {
               setValidationMsg("Capacity must be a positive number");
               return;
@@ -132,6 +144,7 @@ export function SessionEditPanel({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 start_time: local.toISOString(),
+                duration_min: parsedDurationMin,
                 capacity: parsedCapacity,
                 guest_price: parsedGuestPrice,
                 credits_required: parsedCredits,
@@ -143,7 +156,13 @@ export function SessionEditPanel({
             const body = await res.json().catch(() => ({}));
             setBusy(false);
             if (!res.ok) {
-              toast.error(body.error ?? "Save failed");
+              toast.error(
+                sessionActionErrorMessage(
+                  typeof body.error === "string" ? body.error : null,
+                  typeof body.message === "string" ? body.message : null,
+                  typeof body.session_status === "string" ? body.session_status : null,
+                ),
+              );
               return;
             }
             toast.success("Session saved");

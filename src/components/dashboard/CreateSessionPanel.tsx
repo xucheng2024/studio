@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { createSessionWithTemplate } from "@/app/(app)/dashboard/actions";
 import type { SessionPanelResult } from "@/app/(app)/dashboard/actions";
+import { PublicMediaUploader } from "@/components/dashboard/PublicMediaUploader";
 import { SubmitButton } from "@/components/SubmitButton";
 import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { ui } from "@/lib/ui";
@@ -117,10 +119,13 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [newClassName, setNewClassName] = useState("");
+  const [newClassImageUrl, setNewClassImageUrl] = useState("");
   const [newClassDuration, setNewClassDuration] = useState("60");
   const [newClassCapacity, setNewClassCapacity] = useState("10");
   const [onceDuration, setOnceDuration] = useState("60");
   const [onceCapacity, setOnceCapacity] = useState("10");
+  const [weeklyDuration, setWeeklyDuration] = useState("60");
+  const [weeklyCapacity, setWeeklyCapacity] = useState("10");
 
   const [state, formAction] = useActionState<SessionPanelResult | null, FormData>(
     createSessionWithTemplate,
@@ -162,16 +167,23 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
     if (isNew) {
       setOnceDuration(newClassDuration);
       setOnceCapacity(newClassCapacity);
+      setWeeklyDuration(newClassDuration);
+      setWeeklyCapacity(newClassCapacity);
       return;
     }
     if (selectedClass) {
       setOnceDuration(String(selectedClass.duration_min));
       setOnceCapacity(String(selectedClass.capacity));
-      if (!locationId && selectedClass.location_id) {
-        setLocationId(selectedClass.location_id);
-      }
+      setWeeklyDuration(String(selectedClass.duration_min));
+      setWeeklyCapacity(String(selectedClass.capacity));
     }
-  }, [classId, isNew, locationId, newClassCapacity, newClassDuration, selectedClass]);
+  }, [classId, isNew, newClassCapacity, newClassDuration, selectedClass]);
+
+  useEffect(() => {
+    if (!locationId && selectedClass?.location_id) {
+      setLocationId(selectedClass.location_id);
+    }
+  }, [locationId, selectedClass]);
 
   // On success: persist values + auto-collapse after delay
   const prevStateRef = useRef(state);
@@ -195,10 +207,13 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
     setStartDate("");
     setEndDate("");
     setNewClassName("");
+    setNewClassImageUrl("");
     setNewClassDuration("60");
     setNewClassCapacity("10");
     setOnceDuration("60");
     setOnceCapacity("10");
+    setWeeklyDuration("60");
+    setWeeklyCapacity("10");
     const t = setTimeout(() => setOpen(false), 2500);
     return () => clearTimeout(t);
   }, [state, activeStudioId, address, addressDetails, canManage, classId, classes, creditsRequired, defaultDatetime, guestPrice, locationId, locations, selectedLocationId]);
@@ -339,8 +354,25 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                 <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Cover image URL</span>
-                <input name="new_class_image_url" type="url" className={ui.input} placeholder="https://… (optional)" />
+                <span className={ui.label}>Cover image</span>
+                <input type="hidden" name="new_class_image_url" value={newClassImageUrl} />
+                <PublicMediaUploader
+                  studioId={activeStudioId}
+                  folder="classes"
+                  entityId="new-class"
+                  label={newClassImageUrl ? "Replace image" : "Upload image"}
+                  onUploaded={(url) => setNewClassImageUrl(url)}
+                />
+                {newClassImageUrl ? (
+                  <div className="mt-1 space-y-2">
+                    <div className="relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
+                      <Image src={newClassImageUrl} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
+                    </div>
+                    <button type="button" className={ui.btnGhost} onClick={() => setNewClassImageUrl("")}>
+                      Remove image
+                    </button>
+                  </div>
+                ) : null}
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Video URL</span>
@@ -470,12 +502,27 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Duration (min)</span>
-                  <input type="number" name="duration_min" defaultValue={60} min={15} className={ui.input} />
+                  <input
+                    type="number"
+                    name="duration_min"
+                    min={15}
+                    step={5}
+                    className={ui.input}
+                    value={weeklyDuration}
+                    onChange={(e) => setWeeklyDuration(e.target.value)}
+                  />
                 </label>
               </div>
               <label className="flex flex-col gap-1.5">
                 <span className={ui.label}>Capacity</span>
-                <input type="number" name="capacity" defaultValue={10} min={1} className={ui.input} />
+                <input
+                  type="number"
+                  name="capacity"
+                  min={1}
+                  className={ui.input}
+                  value={weeklyCapacity}
+                  onChange={(e) => setWeeklyCapacity(e.target.value)}
+                />
               </label>
             </>
           )}
