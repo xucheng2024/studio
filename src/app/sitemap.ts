@@ -1,5 +1,11 @@
 import type { MetadataRoute } from "next";
 import { getAppOriginForOg } from "@/lib/coverMedia";
+import { headers } from "next/headers";
+import {
+  isPlatformHost,
+  normalizeCustomDomainHost,
+  resolveActiveCustomDomainStudio,
+} from "@/lib/customDomainLookup";
 import {
   studioClassPath,
   studioEventPath,
@@ -22,8 +28,23 @@ type SiteEntry = {
   priority: number;
 };
 
+function stripStudioPrefix(path: string, studioSlug: string): string {
+  const prefix = `/${studioSlug}`;
+  if (path === prefix) return "/";
+  return path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : path;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const origin = getAppOriginForOg();
+  const h = await headers();
+  const headerSlug = h.get("x-studio-slug")?.trim().toLowerCase() ?? "";
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const normalizedHost = normalizeCustomDomainHost(host);
+  const customDomainStudio = headerSlug && normalizedHost && !isPlatformHost(normalizedHost)
+    ? { publicSlug: headerSlug, customDomain: normalizedHost }
+    : await resolveActiveCustomDomainStudio(host);
+  const origin = customDomainStudio
+    ? `https://${customDomainStudio.customDomain}`
+    : getAppOriginForOg();
   if (!origin) return [];
 
   const admin = createAdminClient();
@@ -63,8 +84,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const studio of studios ?? []) {
     const slug = studioMap.get(studio.id);
     if (!slug) continue;
+    if (customDomainStudio && slug !== customDomainStudio.publicSlug) continue;
     entries.push({
-      url: `${origin}${studioHomePath(slug)}`,
+      url: `${origin}${customDomainStudio ? "/" : studioHomePath(slug)}`,
       lastModified: studio.created_at ? new Date(studio.created_at) : now,
       changeFrequency: "daily",
       priority: 0.8,
@@ -79,8 +101,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const studioSlug = studioMap.get(row.studio_id);
       const shareSlug = String(row.share_slug ?? "").trim();
       if (!studioSlug || !shareSlug) continue;
+      if (customDomainStudio && studioSlug !== customDomainStudio.publicSlug) continue;
+      const path = toPath(studioSlug, shareSlug);
       entries.push({
-        url: `${origin}${toPath(studioSlug, shareSlug)}`,
+        url: `${origin}${customDomainStudio ? stripStudioPrefix(path, studioSlug) : path}`,
         lastModified: row.created_at ? new Date(row.created_at) : now,
         changeFrequency: "weekly",
         priority: 0.7,

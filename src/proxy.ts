@@ -1,25 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { resolveActiveCustomDomainStudio } from "@/lib/customDomainLookup";
 import { ACTIVE_MEMBER_STUDIO_COOKIE, parseStudioSlugFromPath } from "@/lib/member-studio-shared";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
-
-/** Returns the public_slug for a custom domain, or null if not found. */
-async function resolveCustomDomain(host: string): Promise<string | null> {
-  const url = getSupabaseUrl();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  try {
-    const res = await fetch(
-      `${url}/rest/v1/studios?custom_domain=ilike.${encodeURIComponent(host)}&contract_status=neq.suspended&select=public_slug&limit=1`,
-      { headers: { apikey: key, Authorization: `Bearer ${key}` }, cache: "no-store" },
-    );
-    if (!res.ok) return null;
-    const rows = (await res.json()) as { public_slug: string }[];
-    return rows[0]?.public_slug ?? null;
-  } catch {
-    return null;
-  }
-}
 
 const APP_HOSTNAME = (process.env.NEXT_PUBLIC_APP_URL ?? "")
   .replace(/^https?:\/\//, "")
@@ -67,10 +50,11 @@ export async function proxy(request: NextRequest) {
   const incomingHost = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "")
     .split(":")[0]
     .toLowerCase();
-  const customDomainSlug =
+  const customDomainStudio =
     incomingHost && APP_HOSTNAME && incomingHost !== APP_HOSTNAME
-      ? await resolveCustomDomain(incomingHost)
+      ? await resolveActiveCustomDomainStudio(incomingHost)
       : null;
+  const customDomainSlug = customDomainStudio?.publicSlug ?? null;
   if (
     customDomainSlug &&
     !shouldSkipCustomDomainRewrite(request.nextUrl.pathname) &&
