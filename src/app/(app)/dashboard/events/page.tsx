@@ -59,11 +59,14 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
 
   const eventsQuery = supabase
     .from("events")
-    .select("id, title, description, tags, studio_id, start_time, end_time, capacity, spots_left, price, is_active, share_slug, image_url, video_url, address, address_details, external_booking_url")
+    .select("id, title, description, tags, studio_id, location_id, start_time, end_time, capacity, spots_left, price, is_active, share_slug, image_url, video_url, address, address_details, external_booking_url")
     .in("studio_id", studioIds)
     .gte("start_time", dateFrom)
     .lte("start_time", dateTo)
     .order("start_time", { ascending: true });
+  if (selectedLocationId) {
+    eventsQuery.eq("location_id", selectedLocationId);
+  }
   const [{ data: events }, { data: studioMeta }] = await Promise.all([
     eventsQuery,
     supabase.from("studios").select("id, public_slug").in("id", studioIds).order("created_at", { ascending: true }),
@@ -330,6 +333,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
           </summary>
           <form action={createEvent} className="mt-4 grid gap-3 md:grid-cols-2">
             <input type="hidden" name="studio_id" value={studioId} />
+            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
             <label className="flex flex-col gap-1.5 md:col-span-2">
               <span className={ui.label}>Title</span>
               <input name="title" required className={ui.input} placeholder="Hotel partner workshop" />

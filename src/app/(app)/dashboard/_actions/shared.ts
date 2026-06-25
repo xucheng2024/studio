@@ -48,6 +48,25 @@ export function hasStudioRole(
   );
 }
 
+export function hasStudioLocationRole(
+  ctx: StudioScope["ctx"],
+  studioId: string,
+  locationId: string | null,
+  roles: Array<"owner" | "manager" | "frontdesk" | "instructor">,
+) {
+  if (ctx.isSuperAdmin) return true;
+  const scopedMemberships = ctx.memberships.filter(
+    (membership) =>
+      membership.studio_id === studioId &&
+      roles.includes(membership.role as (typeof roles)[number]),
+  );
+  if (scopedMemberships.some((membership) => membership.location_id == null)) {
+    return true;
+  }
+  if (!locationId) return false;
+  return scopedMemberships.some((membership) => membership.location_id === locationId);
+}
+
 export async function assertLocationInStudio(
   supabase: SupabaseClient,
   studioId: string,

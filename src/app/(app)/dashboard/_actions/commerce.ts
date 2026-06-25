@@ -11,6 +11,7 @@ import { STUDIO_CURRENCY } from "@/lib/currency";
 import {
   assertLocationInStudio,
   generateUniqueShareSlug,
+  hasStudioLocationRole,
   hasStudioRole,
   requireStudio,
   sanitizePriceNullable,
@@ -153,6 +154,7 @@ export async function createPackage(formData: FormData): Promise<void> {
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
+  if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager"])) return;
 
   const name = String(formData.get("name") ?? "").trim();
   const credits = Number(formData.get("credits") ?? 0);
@@ -190,6 +192,7 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
+  if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager"])) return;
 
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;

@@ -7,9 +7,11 @@ import { ui } from "@/lib/ui";
 export function LocationSwitcher({
   locations,
   selectedLocationId = null,
+  allowAll = true,
 }: {
   locations: { id: string; name: string }[];
   selectedLocationId?: string | null;
+  allowAll?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -22,7 +24,14 @@ export function LocationSwitcher({
       .find((v) => v.startsWith("last_location_id="));
     return hit ? decodeURIComponent(hit.split("=")[1] ?? "") : null;
   }, []);
-  const activeLocationId = selectedLocationId ?? search.get("location_id") ?? cookieLocation ?? "all";
+  const requestedLocationId = selectedLocationId ?? search.get("location_id") ?? cookieLocation;
+  const hasRequestedLocation =
+    requestedLocationId != null && locations.some((location) => location.id === requestedLocationId);
+  const activeLocationId = hasRequestedLocation
+    ? requestedLocationId!
+    : allowAll
+      ? "all"
+      : (locations[0]?.id ?? "all");
 
   return (
     <label className="flex w-full min-w-0 flex-col gap-1 text-xs text-stone-500">
@@ -43,7 +52,7 @@ export function LocationSwitcher({
           router.push(q ? `${pathname}?${q}` : pathname);
         }}
       >
-        <option value="all">All locations</option>
+        {allowAll ? <option value="all">All locations</option> : null}
         {locations.map((l) => (
           <option key={l.id} value={l.id}>
             {l.name}

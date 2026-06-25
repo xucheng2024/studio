@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createStudio } from "@/app/(app)/dashboard/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
+import { computeRevenueSummary, revenueEffectiveTimestamp, type RevenuePaymentRow } from "@/lib/revenue-summary";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -115,14 +116,17 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
   const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
   let paymentsQuery = admin
     .from("payments")
-    .select("amount")
+    .select("amount, status, created_at, paid_at, verified_at, refunded_at")
     .in("studio_id", studioIds)
-    .eq("status", "paid")
-    .gte("created_at", monthStart.toISOString());
+    .in("status", ["paid", "refunded"]);
   if (selectedLocationId) paymentsQuery = paymentsQuery.eq("location_id", selectedLocationId);
   const { data: payments } = await paymentsQuery;
-
-  const revenue = payments?.reduce((a, p) => a + Number(p.amount ?? 0), 0) ?? 0;
+  const monthStartIso = monthStart.toISOString();
+  const monthRevenueRows = ((payments ?? []) as RevenuePaymentRow[]).filter((payment) => {
+    const effectiveAt = revenueEffectiveTimestamp(payment);
+    return effectiveAt != null && effectiveAt >= monthStartIso;
+  });
+  const revenue = computeRevenueSummary(monthRevenueRows).net;
 
   return (
     <div className="flex flex-col gap-8">
@@ -172,7 +176,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
             <DollarSign size={18} />
           </div>
           <div>
-            <p className={`text-xs font-medium ${ui.muted}`}>Revenue this month</p>
+            <p className={`text-xs font-medium ${ui.muted}`}>Net revenue this month</p>
             <p className="mt-0.5 text-2xl font-bold tabular-nums text-teal-700 dark:text-teal-300">
               ${revenue.toFixed(2)}
             </p>

@@ -20,6 +20,7 @@ export type AccessContext = {
   memberships: { studio_id: string; location_id: string | null; role: StaffRole }[];
   locations: LocationScope[];
   selectedLocationId: string | null;
+  hasAnyGlobalLocationAccess: boolean;
   hasSuspendedBackofficeAccess: boolean;
 };
 
@@ -221,16 +222,38 @@ const buildAccessContextCore = async (
           .order("name")
       : { data: [] as { id: string; studio_id: string; name: string }[] };
 
-  const locs = (locations ?? []).map((l) => ({
-    id: l.id,
-    studio_id: l.studio_id,
-    name: l.name,
-  }));
+  const unrestrictedStudioIds = new Set(
+    normalizedMemberships
+      .filter((membership) => membership.location_id == null)
+      .map((membership) => membership.studio_id),
+  );
+  const locationIdsByStudio = new Map<string, Set<string>>();
+  for (const membership of normalizedMemberships) {
+    if (!membership.location_id) continue;
+    const existing = locationIdsByStudio.get(membership.studio_id) ?? new Set<string>();
+    existing.add(membership.location_id);
+    locationIdsByStudio.set(membership.studio_id, existing);
+  }
+
+  const locs = (locations ?? [])
+    .filter((location) => {
+      if (unrestrictedStudioIds.has(location.studio_id)) return true;
+      return locationIdsByStudio.get(location.studio_id)?.has(location.id) ?? false;
+    })
+    .map((l) => ({
+      id: l.id,
+      studio_id: l.studio_id,
+      name: l.name,
+    }));
+
+  const hasAnyGlobalLocationAccess = ctxHasGlobalLocationAccess(normalizedMemberships);
 
   const selected =
     selectedLocationId && locs.some((l) => l.id === selectedLocationId)
       ? selectedLocationId
-      : null;
+      : !hasAnyGlobalLocationAccess && locs.length > 0
+        ? locs[0].id
+        : null;
 
   return {
     userId,
@@ -239,6 +262,7 @@ const buildAccessContextCore = async (
     memberships: normalizedMemberships,
     locations: locs,
     selectedLocationId: selected,
+    hasAnyGlobalLocationAccess,
     hasSuspendedBackofficeAccess,
   } as SerializableAccessContext;
 };
@@ -261,6 +285,12 @@ export const buildAccessContext = cache(async (
     roles: new Set(cached.roles),
   } as AccessContext;
 });
+
+function ctxHasGlobalLocationAccess(
+  memberships: Array<{ studio_id: string; location_id: string | null; role: StaffRole }>,
+) {
+  return memberships.some((membership) => membership.location_id == null);
+}
 
 export async function resolveAccessContext(params: {
   userId: string;

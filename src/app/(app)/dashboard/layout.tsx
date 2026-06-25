@@ -130,6 +130,8 @@ export default async function DashboardLayout({
           {!superAdminNoStudioMode && !ownerNoStudioMode && (
             <LocationSwitcher
               locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
+              selectedLocationId={ctx.selectedLocationId}
+              allowAll={ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess}
             />
           )}
 
@@ -157,6 +159,8 @@ export default async function DashboardLayout({
               />
               <LocationSwitcher
                 locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
+                selectedLocationId={ctx.selectedLocationId}
+                allowAll={ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess}
               />
             </>
           )}

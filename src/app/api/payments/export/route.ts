@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { buildAccessContext, filterStudioIdsByRoles } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -86,6 +87,18 @@ export async function GET(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const dashboardScope = await getDashboardScopeForRoles({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    locationId,
+  }, ["owner", "manager", "frontdesk"]);
+  if (studioId && dashboardScope.selectedStudioId !== studioId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  if (locationId && dashboardScope.selectedLocationId !== locationId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
   const studioIds = filterStudioIdsByRoles(
     ctx,
@@ -98,6 +111,7 @@ export async function GET(req: Request) {
   }
 
   const exportStudioIds = studioId ? [studioId] : studioIds;
+  const effectiveLocationId = dashboardScope.selectedLocationId;
   const { data: contractRows } = await admin
     .from("studios")
     .select("id, contract_status")
@@ -114,7 +128,7 @@ export async function GET(req: Request) {
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
     .limit(5000); // Hard cap: export larger datasets via date-range pagination
-  if (locationId) q = q.eq("location_id", locationId);
+  if (effectiveLocationId) q = q.eq("location_id", effectiveLocationId);
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
   if (source) q = q.eq("source", source);
   if (from && to) {

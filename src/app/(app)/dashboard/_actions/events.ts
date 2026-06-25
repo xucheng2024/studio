@@ -8,7 +8,9 @@ import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { parseDatetimeLocalAsSgt } from "@/lib/date";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import {
+  assertLocationInStudio,
   generateUniqueShareSlug,
+  hasStudioLocationRole,
   hasStudioRole,
   requireStudio,
   sanitizePriceNullable,
@@ -17,10 +19,13 @@ import {
 
 export async function createEvent(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
+  if (!hasStudioLocationRole(ctx, studio.id, locationId, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
@@ -50,6 +55,7 @@ export async function createEvent(formData: FormData): Promise<void> {
 
   const { error } = await supabase.from("events").insert({
     studio_id: studio.id,
+    location_id: locationId,
     title,
     description,
     tags,
@@ -111,10 +117,12 @@ export async function updateEvent(formData: FormData): Promise<void> {
 
   const { data: existing } = await supabase
     .from("events")
-    .select("id, studio_id, capacity, spots_left, share_slug")
+    .select("id, studio_id, location_id, capacity, spots_left, share_slug")
     .eq("id", eventId)
     .maybeSingle();
   if (!existing || existing.studio_id !== studio.id) return;
+  if (!(await assertLocationInStudio(supabase, studio.id, existing.location_id ?? null))) return;
+  if (!hasStudioLocationRole(ctx, studio.id, existing.location_id ?? null, ["owner", "manager"])) return;
 
   const prevCapacity = Number(existing.capacity ?? 0);
   const prevSpots = Number(existing.spots_left ?? 0);
@@ -164,6 +172,15 @@ export async function deleteEvent(formData: FormData): Promise<void> {
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
 
+  const { data: existing } = await supabase
+    .from("events")
+    .select("id, studio_id, location_id, share_slug")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!existing || existing.studio_id !== studio.id) return;
+  if (!(await assertLocationInStudio(supabase, studio.id, existing.location_id ?? null))) return;
+  if (!hasStudioLocationRole(ctx, studio.id, existing.location_id ?? null, ["owner", "manager"])) return;
+
   const { error } = await supabase
     .from("events")
     .update({ is_active: false })
@@ -174,14 +191,8 @@ export async function deleteEvent(formData: FormData): Promise<void> {
     return;
   }
   revalidateDashboardContent("events");
-  const { data: eventRow } = await supabase
-    .from("events")
-    .select("share_slug")
-    .eq("id", eventId)
-    .eq("studio_id", studio.id)
-    .maybeSingle();
   if (studio.public_slug) {
-    revalidatePublicSectionPaths(studio.public_slug, "events", eventRow?.share_slug ?? null);
+    revalidatePublicSectionPaths(studio.public_slug, "events", existing.share_slug ?? null);
   }
   await recordStudioContentUpdate(studio.id, "events");
 }

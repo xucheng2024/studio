@@ -7,6 +7,7 @@ import { parseDateAndTimeAsSgt, parseDatetimeLocalAsSgt } from "@/lib/date";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import {
   assertLocationInStudio,
+  hasStudioLocationRole,
   hasStudioRole,
   requireStudio,
   sanitizePriceNullable,
@@ -176,6 +177,7 @@ export async function createInstructor(formData: FormData): Promise<void> {
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
+  if (!hasStudioLocationRole(ctx, studio.id, locationId, ["owner", "manager"])) return;
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
@@ -199,6 +201,7 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
   if (isStudioContractSuspended(studio)) return;
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
+  if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -322,8 +325,10 @@ export async function createSessionWithTemplate(
   const requiresManagerRole = isNewClass || sessionType === "weekly";
   if (requiresManagerRole) {
     if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return SESSION_PANEL_ERR;
+    if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager"])) return SESSION_PANEL_ERR;
   } else {
     if (!hasStudioRole(ctx, studio.id, ["owner", "manager", "frontdesk"])) return SESSION_PANEL_ERR;
+    if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager", "frontdesk"])) return SESSION_PANEL_ERR;
   }
 
   let classId = isNewClass ? "" : classIdRaw;

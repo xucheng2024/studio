@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LocalTime } from "@/components/ui/LocalTime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { badgeToneClass } from "@/lib/order-status";
 import { studioClassesPath } from "@/lib/public-paths";
 import { ui } from "@/lib/ui";
@@ -16,6 +17,7 @@ const paymentStatusColor: Record<string, string> = {
 export async function renderOrdersPage(scope?: MePageScope) {
   const studioSlug = scope?.studioSlug ?? null;
   const { supabase, user } = await requireMeUser(scope, "orders");
+  const admin = createAdminClient();
   const scopedStudio = studioSlug ? await requireStudioScope(studioSlug) : null;
 
   const paymentsQuery = supabase
@@ -47,10 +49,10 @@ export async function renderOrdersPage(scope?: MePageScope) {
     ? await supabase.from("packages").select("id, name").in("id", packageIds)
     : { data: [] };
   const { data: memberZoneSeriesRows } = memberZoneSeriesIds.length
-    ? await supabase.from("member_zone_series").select("id, title").in("id", memberZoneSeriesIds)
+    ? await admin.from("member_zone_series").select("id, title").in("id", memberZoneSeriesIds)
     : { data: [] };
   const { data: memberZoneLessonRows } = memberZoneLessonIds.length
-    ? await supabase.from("member_zone_lessons").select("id, title").in("id", memberZoneLessonIds)
+    ? await admin.from("member_zone_lessons").select("id, title").in("id", memberZoneLessonIds)
     : { data: [] };
 
   const bookingMap = new Map((bookingRows ?? []).map((row) => [row.id, row]));
