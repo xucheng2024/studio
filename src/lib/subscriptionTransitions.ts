@@ -235,6 +235,15 @@ export async function recordRecurringSubscriptionCharge(
   },
 ) {
   const currentPeriodEnd = addMembershipPeriod(input.effectiveAt, subscription.billing_interval_snapshot);
+  const membershipLocationId = subscription.membership_product_id
+    ? (
+        await admin
+          .from("membership_products")
+          .select("location_id")
+          .eq("id", subscription.membership_product_id)
+          .maybeSingle<{ location_id: string | null }>()
+      ).data?.location_id ?? null
+    : null;
   const { data: existingPayment } = await admin
     .from("payments")
     .select("id, paid_at")
@@ -247,6 +256,7 @@ export async function recordRecurringSubscriptionCharge(
       .from("payments")
       .update({
         status: input.paymentStatus,
+        location_id: membershipLocationId,
         gateway_status: input.gatewayStatus,
         gateway_payload: input.gatewayPayload,
         gateway_refund_payment_id: input.chargeId,
@@ -256,6 +266,7 @@ export async function recordRecurringSubscriptionCharge(
   } else {
     await admin.from("payments").insert({
       studio_id: subscription.studio_id,
+      location_id: membershipLocationId,
       client_id: subscription.client_id,
       membership_product_id: subscription.membership_product_id,
       customer_subscription_id: subscription.id,

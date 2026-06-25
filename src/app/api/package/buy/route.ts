@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
   const { data: pkg, error: pkgErr } = await admin
     .from("packages")
-    .select("id, studio_id, name, credits, price, expiry_days, is_active, deleted_at, studios(public_slug)")
+    .select("id, studio_id, location_id, name, credits, price, expiry_days, is_active, deleted_at, studios(public_slug)")
     .eq("id", parsed.data.package_id)
     .single();
 
@@ -136,6 +136,7 @@ export async function POST(req: Request) {
       package_id: pkg.id,
       package_name_snapshot: pkg.name,
       studio_id: pkg.studio_id,
+      location_id: pkg.location_id ?? null,
       client_id: user?.id ?? null,
       guest_name: user ? null : guestName ?? null,
       guest_email: user ? null : guestEmail ?? null,

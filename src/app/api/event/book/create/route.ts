@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   await sweepExpiredPendingPayments(admin);
   const { data: event, error: eErr } = await admin
     .from("events")
-    .select("id, studio_id, is_active, start_time, spots_left, price, external_booking_url, studios(public_slug)")
+    .select("id, studio_id, location_id, is_active, start_time, spots_left, price, external_booking_url, studios(public_slug)")
     .eq("id", parsed.data.event_id)
     .single();
 
@@ -187,7 +187,7 @@ export async function POST(req: Request) {
     kind: "event",
     reservationId: bookingResult.reservationId,
     studioId,
-    locationId: null,
+    locationId: event.location_id ?? null,
     userId: user?.id ?? null,
     guestName,
     guestEmail,

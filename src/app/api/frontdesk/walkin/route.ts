@@ -112,7 +112,6 @@ async function handleSessionWalkin(
     currency: STUDIO_CURRENCY,
     paymentMethod: data.payment_method,
     actorId: userId,
-    availableSpots: session.spots_left ?? 0,
   });
   if (!sale.ok) return NextResponse.json({ error: sale.error }, { status: sale.status });
 
@@ -201,7 +200,6 @@ async function handleEventWalkin(
     currency: STUDIO_CURRENCY,
     paymentMethod: data.payment_method,
     actorId: userId,
-    availableSpots: event.spots_left ?? 0,
   });
   if (!sale.ok) return NextResponse.json({ error: sale.error }, { status: sale.status });
 

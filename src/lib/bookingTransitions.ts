@@ -288,7 +288,6 @@ type CreateInstantBookingSaleInput = {
   currency: string;
   paymentMethod: "hitpay" | "cash";
   actorId: string;
-  availableSpots: number;
 };
 
 export async function createInstantBookingSale(
@@ -296,7 +295,6 @@ export async function createInstantBookingSale(
   input: CreateInstantBookingSaleInput,
 ) {
   const bookingTable = input.kind === "event" ? "event_bookings" : "bookings";
-  const targetTable = input.kind === "event" ? "events" : "class_sessions";
   const targetIdColumn = input.kind === "event" ? "event_id" : "session_id";
 
   const bookingInsert =
@@ -386,15 +384,17 @@ export async function createInstantBookingSale(
   }
 
   await admin.from(bookingTable).update({ payment_id: payment.id }).eq("id", booking.id);
-  const { data: seatRow } = await admin
-    .from(targetTable)
-    .update({ spots_left: Math.max(0, input.availableSpots - 1) })
-    .eq("id", input.targetId)
-    .gt("spots_left", 0)
-    .select("id")
-    .maybeSingle<{ id: string }>();
+  const seatRpcName =
+    input.kind === "event"
+      ? "decrement_event_spot_if_available"
+      : "decrement_class_session_spot_if_available";
+  const seatRpcParams =
+    input.kind === "event"
+      ? { p_event_id: input.targetId }
+      : { p_session_id: input.targetId };
+  const { data: seatReserved, error: seatError } = await admin.rpc(seatRpcName, seatRpcParams);
 
-  if (!seatRow) {
+  if (seatError || seatReserved !== true) {
     const failedBookingPatch =
       input.kind === "event"
         ? { status: "cancelled" }
@@ -403,8 +403,8 @@ export async function createInstantBookingSale(
     await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);
     return {
       ok: false as const,
-      status: 409,
-      error: "full",
+      status: seatError ? 500 : 409,
+      error: seatError?.message ?? "full",
     };
   }
 
