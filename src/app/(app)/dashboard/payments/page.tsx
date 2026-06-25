@@ -240,7 +240,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const ids = visible.map((p) => p.id);
   const { data: audits } =
     ids.length > 0
-      ? await supabase
+      ? await admin
           .from("operation_audits")
           .select("id, target_id, action, actor_id, actor_role, created_at")
           .eq("target_type", "payment")

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createStaffInvite, revokeStaffInvite } from "@/app/(app)/dashboard/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,6 +13,7 @@ type Props = {
 export default async function StaffInvitesPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -38,7 +40,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const { data: invites } = activeStudioId
-    ? await supabase
+    ? await admin
         .from("staff_invites")
         .select("id, studio_id, location_id, email, role, status, token, expires_at, created_at")
         .eq("studio_id", activeStudioId)

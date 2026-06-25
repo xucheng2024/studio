@@ -188,9 +188,10 @@ export async function createStaffInvite(formData: FormData): Promise<void> {
     redirect("/dashboard/settings/staff-invites?invite_error=invalid_location_scope");
   }
 
+  const admin = createAdminClient();
   const token = crypto.randomUUID().replaceAll("-", "");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { error } = await supabase.from("staff_invites").insert({
+  const { error } = await admin.from("staff_invites").insert({
     studio_id: studio.id,
     location_id: locationId,
     email,
@@ -213,7 +214,8 @@ export async function revokeStaffInvite(formData: FormData): Promise<void> {
   const { supabase, user } = await requireUser();
   if (!inviteId) return;
 
-  const { data: invite } = await supabase
+  const admin = createAdminClient();
+  const { data: invite } = await admin
     .from("staff_invites")
     .select("id, studio_id, status")
     .eq("id", inviteId)
@@ -221,7 +223,7 @@ export async function revokeStaffInvite(formData: FormData): Promise<void> {
   if (!invite || invite.status !== "pending") return;
   await requireOwnedStudioAccess(supabase, invite.studio_id, user.id, "/dashboard/settings/staff-invites?invite_error=forbidden");
 
-  await supabase.from("staff_invites").update({ status: "revoked" }).eq("id", invite.id);
+  await admin.from("staff_invites").update({ status: "revoked" }).eq("id", invite.id);
   revalidateDashboardSettings("staff-invites");
   revalidateRbacCache();
 }
