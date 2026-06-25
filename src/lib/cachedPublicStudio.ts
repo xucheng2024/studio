@@ -6,7 +6,7 @@ import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const STUDIO_SHELL_SELECT =
-  "id, name, public_slug, contract_status, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, public_instagram_url, public_linkedin_url, public_facebook_url, public_tiktok_url, public_youtube_url, public_x_url, public_contact_email, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled, calcom_booking_enabled, calcom_embed_url";
+  "id, name, public_slug, contract_status, custom_domain, custom_domain_status, public_brand_name, public_logo_url, public_intro, public_cover_image_url, public_video_url, public_services_title, public_classes_title, public_packages_title, public_events_title, public_member_zone_title, public_shop_title, public_instagram_url, public_linkedin_url, public_facebook_url, public_tiktok_url, public_youtube_url, public_x_url, public_contact_email, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled, calcom_booking_enabled, calcom_embed_url";
 
 const STUDIO_LAYOUT_META_SELECT =
   "name, public_brand_name, public_logo_url, contract_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text";

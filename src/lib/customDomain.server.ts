@@ -35,6 +35,36 @@ async function getProjectDomainFromVercel(domain: string): Promise<boolean> {
   }
 }
 
+export async function getCurrentVercelDomainStatus(domain: string): Promise<{
+  vercelStatus: CustomDomainVercelStatus;
+  lastError: string | null;
+}> {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) {
+    return {
+      vercelStatus: "unknown",
+      lastError: "Platform Vercel env is missing, so registration could not be confirmed from this server.",
+    };
+  }
+
+  try {
+    const registered = await getProjectDomainFromVercel(domain);
+    if (registered) {
+      return { vercelStatus: "registered", lastError: null };
+    }
+    return {
+      vercelStatus: "failed",
+      lastError: "This domain is not registered on the current Vercel project yet.",
+    };
+  } catch (error) {
+    return {
+      vercelStatus: "failed",
+      lastError: truncateError(error instanceof Error ? error.message : "Could not verify Vercel domain status."),
+    };
+  }
+}
+
 async function probeUrl(url: string) {
   for (const method of ["HEAD", "GET"] as const) {
     try {
@@ -105,7 +135,13 @@ function computeOverallStatus(params: {
 }): CustomDomainOverallStatus {
   if (!params.domain) return "not_configured";
   if (params.vercelStatus === "failed" || params.dnsStatus === "misconfigured") return "misconfigured";
-  if (params.dnsStatus === "verified" && params.sslStatus === "ready") return "active";
+  if (
+    params.vercelStatus === "registered" &&
+    params.dnsStatus === "verified" &&
+    params.sslStatus === "ready"
+  ) {
+    return "active";
+  }
   return "pending";
 }
 

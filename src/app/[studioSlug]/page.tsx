@@ -11,7 +11,7 @@ import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getRequestOriginForOg } from "@/lib/requestOrigin";
+import { getCanonicalUrlForStudioPath } from "@/lib/requestOrigin";
 import {
   studioClassPath,
   studioClassesPath,
@@ -54,7 +54,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug } = await params;
   const studio = await getPublicStudioShell(studioSlug);
   if (!studio) return { title: "Studio" };
-  const origin = await getRequestOriginForOg();
+  const canonicalUrl = await getCanonicalUrlForStudioPath(
+    `/${studio.public_slug}`,
+    studio.public_slug,
+    (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
+  );
   const intro = (studio.public_intro ?? "").trim();
   const description = intro || `Explore services at ${studio.name}.`;
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
@@ -63,10 +68,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${studio.name} · Studio`,
     description,
-    ...(origin
+    ...(canonicalUrl
       ? {
           alternates: {
-            canonical: `${origin}/${studio.public_slug}`,
+            canonical: canonicalUrl,
           },
         }
       : {}),
@@ -165,15 +170,19 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     (studio as { calcom_embed_url?: string | null }).calcom_embed_url?.trim()
       ? (studio as { calcom_embed_url: string }).calcom_embed_url.trim()
       : null;
-  const origin = await getRequestOriginForOg();
   const homePath = studioHomePath(studio.public_slug);
-  const canonicalUrl = origin ? `${origin}${homePath}` : null;
+  const canonicalUrl = await getCanonicalUrlForStudioPath(
+    homePath,
+    studio.public_slug,
+    (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
+  );
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "HealthClub",
     name: publicBrandName,
     description: (studio.public_intro ?? "").trim() || `Explore classes, services, and packages at ${publicBrandName}.`,
-    url: canonicalUrl ?? homePath,
+    url: canonicalUrl || homePath,
     image: studioMediaCover ?? absolutePlaceholderCoverUrl(),
     logo: logoUrl ?? undefined,
     sameAs: [

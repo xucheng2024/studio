@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getPublicStudioShell } from "@/lib/cachedPublicStudio";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getRequestOriginForOg } from "@/lib/requestOrigin";
+import { getCanonicalUrlForStudioPath } from "@/lib/requestOrigin";
 
 type BuildStudioListMetadataInput = {
   studioSlugRaw: string;
@@ -21,7 +21,12 @@ export async function buildStudioListMetadata({
 
   const pageTitle = `${title} · ${studio.name}`;
   const desc = description.trim() || `Explore ${title.toLowerCase()} at ${studio.name}.`;
-  const origin = await getRequestOriginForOg();
+  const canonicalUrl = await getCanonicalUrlForStudioPath(
+    path,
+    studio.public_slug,
+    (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
+  );
   const cover = studio.public_cover_image_url && isTrustedCoverImageUrl(studio.public_cover_image_url)
     ? studio.public_cover_image_url
     : absolutePlaceholderCoverUrl();
@@ -29,7 +34,7 @@ export async function buildStudioListMetadata({
   return {
     title: pageTitle,
     description: desc,
-    ...(origin ? { alternates: { canonical: `${origin}${path}` } } : {}),
+    ...(canonicalUrl ? { alternates: { canonical: canonicalUrl } } : {}),
     openGraph: {
       title: pageTitle,
       description: desc,

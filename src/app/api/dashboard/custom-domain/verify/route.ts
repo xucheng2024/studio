@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isReservedCustomDomain, normalizeCustomDomainInput, toCustomDomainUiStatus } from "@/lib/customDomain";
-import { persistCustomDomainSnapshot, verifyCustomDomain } from "@/lib/customDomain.server";
+import {
+  getCurrentVercelDomainStatus,
+  persistCustomDomainSnapshot,
+  verifyCustomDomain,
+} from "@/lib/customDomain.server";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -33,7 +37,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("custom_domain, custom_domain_vercel_status")
+    .select("custom_domain")
     .eq("id", parsed.data.studio_id)
     .maybeSingle();
   const savedDomain = normalizeCustomDomainInput((studio as { custom_domain?: string | null } | null)?.custom_domain ?? "");
@@ -46,9 +50,11 @@ export async function POST(req: Request) {
   if (savedDomain !== domain) {
     return NextResponse.json({ error: "save_before_verify" }, { status: 409 });
   }
+  const vercelCheck = await getCurrentVercelDomainStatus(savedDomain);
   const snapshot = await verifyCustomDomain({
     domain: savedDomain,
-    vercelStatus: (studio as { custom_domain_vercel_status?: "not_configured" | "registered" | "failed" | "unknown" | null } | null)?.custom_domain_vercel_status ?? "unknown",
+    vercelStatus: vercelCheck.vercelStatus,
+    lastError: vercelCheck.lastError,
   });
   await persistCustomDomainSnapshot(parsed.data.studio_id, snapshot);
   return NextResponse.json({ ok: true, status: toCustomDomainUiStatus(snapshot) });

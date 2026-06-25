@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { absolutePlaceholderCoverUrl, isTrustedCoverImageUrl } from "@/lib/coverMedia";
-import { getRequestOriginForOg } from "@/lib/requestOrigin";
+import { getCanonicalUrlForStudioPath } from "@/lib/requestOrigin";
 import { getCachedClassShareContext, getCachedEventShareContext, getCachedMemberZoneShareContext, getCachedMembershipShareContext, getCachedPackageShareContext, getCachedServiceShareContext } from "@/lib/cachedSharePages";
 import { studioClassPath, studioEventPath, studioMemberZonePath, studioMembershipPath, studioPackagePath, studioServicePath } from "@/lib/public-paths";
 
 type ShareMetadataInput = {
   path: string;
+  studioSlug: string;
+  customDomain?: string | null;
+  customDomainStatus?: string | null;
   pageTitle: string;
   socialTitle: string;
   description: string;
@@ -13,12 +16,17 @@ type ShareMetadataInput = {
   imageAlt: string;
 };
 
-async function withCanonical(path: string, metadata: Metadata): Promise<Metadata> {
-  const origin = await getRequestOriginForOg();
-  if (!origin) return metadata;
+async function withCanonical(
+  path: string,
+  studioSlug: string,
+  customDomain: string | null | undefined,
+  customDomainStatus: string | null | undefined,
+  metadata: Metadata,
+): Promise<Metadata> {
+  const canonicalUrl = await getCanonicalUrlForStudioPath(path, studioSlug, customDomain, customDomainStatus);
   return {
     ...metadata,
-    alternates: { canonical: `${origin}${path}` },
+    alternates: { canonical: canonicalUrl },
   };
 }
 
@@ -32,13 +40,16 @@ function shortText(value: string, max = 200) {
 
 async function buildShareMetadata({
   path,
+  studioSlug,
+  customDomain,
+  customDomainStatus,
   pageTitle,
   socialTitle,
   description,
   imageUrl,
   imageAlt,
 }: ShareMetadataInput): Promise<Metadata> {
-  return withCanonical(path, {
+  return withCanonical(path, studioSlug, customDomain, customDomainStatus, {
     title: pageTitle,
     description,
     openGraph: {
@@ -70,6 +81,9 @@ export async function buildClassShareMetadata(
 
   return buildShareMetadata({
     path,
+    studioSlug: studio.public_slug,
+    customDomain: (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    customDomainStatus: (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
     pageTitle: `${cls.title} · ${studio.name}`,
     socialTitle: cls.title,
     description: desc,
@@ -92,6 +106,9 @@ export async function buildPackageShareMetadata(
 
   return buildShareMetadata({
     path,
+    studioSlug: studio.public_slug,
+    customDomain: (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    customDomainStatus: (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
     pageTitle: `${pkg.name} · ${studio.name}`,
     socialTitle: pkg.name,
     description: desc,
@@ -115,6 +132,9 @@ export async function buildMembershipShareMetadata(
 
   return buildShareMetadata({
     path,
+    studioSlug: studio.public_slug,
+    customDomain: (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    customDomainStatus: (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
     pageTitle: `${membership.name} · ${studio.name}`,
     socialTitle: membership.name,
     description: desc,
@@ -138,6 +158,9 @@ export async function buildServiceShareMetadata(
 
   return buildShareMetadata({
     path,
+    studioSlug: studio.public_slug,
+    customDomain: (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    customDomainStatus: (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
     pageTitle: `${service.title} · ${studio.name}`,
     socialTitle: service.title,
     description: shortDesc,
@@ -160,6 +183,9 @@ export async function buildEventShareMetadata(
 
   return buildShareMetadata({
     path,
+    studioSlug: studio.public_slug,
+    customDomain: (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    customDomainStatus: (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
     pageTitle: `${event.title} · ${studio.name}`,
     socialTitle: event.title,
     description: desc,
@@ -183,6 +209,9 @@ export async function buildMemberZoneShareMetadata(
 
   return buildShareMetadata({
     path,
+    studioSlug: studio.public_slug,
+    customDomain: (studio as { custom_domain?: string | null }).custom_domain ?? null,
+    customDomainStatus: (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
     pageTitle: `${series.title} · ${studio.name}`,
     socialTitle: series.title,
     description: shortDesc,

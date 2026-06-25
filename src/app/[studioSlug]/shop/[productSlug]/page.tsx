@@ -10,19 +10,22 @@ import { normalizeStudioSlug } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
-import { getRequestOriginForOg } from "@/lib/requestOrigin";
+import { getCanonicalUrlForStudioPath } from "@/lib/requestOrigin";
 import { formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
 
 type Props = { params: Promise<{ studioSlug: string; productSlug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug: rawStudio, productSlug: rawProduct } = await params;
-  const origin = await getRequestOriginForOg();
   const studioSlug = normalizeStudioSlug(rawStudio ?? "");
   const productSlug = String(rawProduct ?? "").trim().toLowerCase();
   if (!studioSlug) return { title: "Shop" };
   const admin = createAdminClient();
-  const { data: studio } = await admin.from("studios").select("id, name").eq("public_slug", studioSlug).maybeSingle();
+  const { data: studio } = await admin
+    .from("studios")
+    .select("id, name, custom_domain, custom_domain_status")
+    .eq("public_slug", studioSlug)
+    .maybeSingle();
   if (!studio) return { title: "Shop" };
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productSlug);
   const { data: product } = await admin
@@ -34,11 +37,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .maybeSingle();
   const canonicalSlug = product?.share_slug ?? (isUuid ? product?.id : productSlug);
   const canonicalPath = canonicalSlug ? studioShopProductPath(studioSlug, canonicalSlug) : null;
+  const canonicalUrl = canonicalPath
+    ? await getCanonicalUrlForStudioPath(
+        canonicalPath,
+        studioSlug,
+        (studio as { custom_domain?: string | null }).custom_domain ?? null,
+        (studio as { custom_domain_status?: string | null }).custom_domain_status ?? null,
+      )
+    : null;
   const description = product?.summary?.trim() || product?.description?.trim() || `Shop ${studio.name}`;
   return {
     title: product?.title ? `${product.title} · ${studio.name}` : `Shop · ${studio.name}`,
     description,
-    ...(origin && canonicalPath ? { alternates: { canonical: `${origin}${canonicalPath}` } } : {}),
+    ...(canonicalUrl ? { alternates: { canonical: canonicalUrl } } : {}),
   };
 }
 

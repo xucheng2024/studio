@@ -21,7 +21,7 @@ export const getCachedClassShareContext = cache(async (studioSlugRaw: string, cl
   const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status, hitpay_enabled")
+    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -49,7 +49,7 @@ export const getCachedPackageShareContext = cache(async (studioSlugRaw: string, 
   const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status, hitpay_enabled")
+    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -75,7 +75,7 @@ export const getCachedMembershipShareContext = cache(async (studioSlugRaw: strin
   const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status, hitpay_enabled")
+    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -101,7 +101,7 @@ export const getCachedServiceShareContext = cache(async (studioSlugRaw: string, 
   const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -126,7 +126,7 @@ export const getCachedEventShareContext = cache(async (studioSlugRaw: string, ev
   const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status, hitpay_enabled")
+    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
@@ -153,7 +153,7 @@ export const getCachedMemberZoneShareContext = cache(async (studioSlugRaw: strin
   const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status")
+    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
