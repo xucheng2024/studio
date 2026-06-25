@@ -2,7 +2,7 @@ alter table public.payments
   add column if not exists refunded_at timestamptz;
 
 update public.payments
-set refunded_at = coalesce(refunded_at, invoice_voided_at, updated_at, verified_at, paid_at, created_at)
+set refunded_at = coalesce(refunded_at, invoice_voided_at, verified_at, paid_at, created_at)
 where status = 'refunded'
   and refunded_at is null;
 
