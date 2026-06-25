@@ -30,7 +30,8 @@ export function InvoiceSendButton({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const previewLabel = previewMode === "invoice" ? "Preview invoice" : "Preview draft";
+  const effectivePreviewMode = invoiceNumber ? previewMode : "draft";
+  const previewLabel = effectivePreviewMode === "invoice" ? "Preview invoice" : "Preview draft";
 
   return (
     <div className="flex items-center gap-2">

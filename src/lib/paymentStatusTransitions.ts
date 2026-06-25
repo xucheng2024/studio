@@ -109,7 +109,7 @@ export async function settlePaidShopOrder(
     } else {
       await admin
         .from("payments")
-        .update({ status: "refunded", updated_at: nowIso })
+        .update({ status: "refunded", refunded_at: nowIso, updated_at: nowIso })
         .eq("id", params.paymentId);
     }
 

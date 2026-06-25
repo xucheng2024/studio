@@ -2,6 +2,7 @@ import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import {
   computeRevenueSummary,
+  revenueEffectiveTimestamp,
   revenueByDayAndOrderType,
   revenueByOrderType,
   type RevenuePaymentRow,
@@ -9,7 +10,7 @@ import {
 import { PAYMENT_SOURCE_FILTER_OPTIONS } from "@/lib/payment-filter-options";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { TrendingUp, RefreshCcw, DollarSign, CalendarRange, Package, Repeat, ShoppingBag } from "lucide-react";
+import { TrendingUp, RefreshCcw, DollarSign, CalendarRange, Package, Repeat, ShoppingBag, PlaySquare } from "lucide-react";
 
 type Props = {
   searchParams: Promise<{
@@ -56,18 +57,35 @@ export default async function ReportsPage({ searchParams }: Props) {
 
   let revenueQuery = supabase
     .from("payments")
-    .select("id, amount, type, payment_method, status, created_at, location_id, source")
+    .select("id, amount, type, payment_method, status, created_at, verified_at, refunded_at, location_id, source")
     .in("studio_id", studioIds)
     .in("status", ["paid", "refunded"])
-    .order("created_at", { ascending: false })
+    .order("verified_at", { ascending: false, nullsFirst: false })
     .limit(5000);
   if (selectedLocationId) revenueQuery = revenueQuery.eq("location_id", selectedLocationId);
   if (source) revenueQuery = revenueQuery.eq("source", source);
-  if (fromIso) revenueQuery = revenueQuery.gte("created_at", fromIso);
-  if (toIso) revenueQuery = revenueQuery.lt("created_at", toIso);
+  if (fromIso && toIso) {
+    revenueQuery = revenueQuery.or(
+      `and(status.eq.paid,verified_at.gte.${fromIso},verified_at.lt.${toIso}),and(status.eq.refunded,refunded_at.gte.${fromIso},refunded_at.lt.${toIso})`,
+    );
+  } else if (fromIso) {
+    revenueQuery = revenueQuery.or(
+      `and(status.eq.paid,verified_at.gte.${fromIso}),and(status.eq.refunded,refunded_at.gte.${fromIso})`,
+    );
+  } else if (toIso) {
+    revenueQuery = revenueQuery.or(
+      `and(status.eq.paid,verified_at.lt.${toIso}),and(status.eq.refunded,refunded_at.lt.${toIso})`,
+    );
+  }
 
   const { data: revenuePaymentsRaw } = await revenueQuery;
-  const revenuePayments = (revenuePaymentsRaw ?? []) as RevenuePaymentRow[];
+  const revenuePayments = ((revenuePaymentsRaw ?? []) as RevenuePaymentRow[]).filter((row) => {
+    const effectiveAt = revenueEffectiveTimestamp(row);
+    if (!effectiveAt) return false;
+    if (fromIso && effectiveAt < fromIso) return false;
+    if (toIso && effectiveAt >= toIso) return false;
+    return true;
+  });
   const summary = computeRevenueSummary(revenuePayments);
   const byType = revenueByOrderType(revenuePayments);
   const byDay = revenueByDayAndOrderType(revenuePayments);
@@ -77,8 +95,9 @@ export default async function ReportsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Reports</h1>
         <p className={`mt-1 ${ui.muted}`}>
-          {selectedLocationId ? "Selected location" : "All locations"} · Revenue uses payment{" "}
-          <code className={ui.code}>created_at</code> within the date range (paid + refunded), grouped by your local calendar day.
+          {selectedLocationId ? "Selected location" : "All locations"} · Revenue uses{" "}
+          <code className={ui.code}>verified_at</code> for paid records and{" "}
+          <code className={ui.code}>refunded_at</code> for refunds, grouped by your local calendar day.
         </p>
       </div>
 
@@ -206,7 +225,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div className={`${ui.statCard} flex items-center gap-4`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
             <CalendarRange size={18} />
@@ -264,6 +283,20 @@ export default async function ReportsPage({ searchParams }: Props) {
           </div>
         </div>
         <div className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            <PlaySquare size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Member zone revenue</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
+              ${byType.memberZone.net.toFixed(2)}
+            </p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>
+              Gross ${byType.memberZone.gross.toFixed(2)} · Ref ${byType.memberZone.refunds.toFixed(2)}
+            </p>
+          </div>
+        </div>
+        <div className={`${ui.statCard} flex items-center gap-4`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300">
             <ShoppingBag size={18} />
           </span>
@@ -282,7 +315,7 @@ export default async function ReportsPage({ searchParams }: Props) {
       <div className={ui.card}>
         <h2 className={`${ui.h2} text-base`}>Revenue by day</h2>
         <p className={`mt-1 text-xs ${ui.muted}`}>
-          Each row shows net revenue split by session, event, package, membership, and shop, plus total gross, refunds, and net.
+          Each row shows net revenue split by session, event, package, membership, member zone, and shop, plus total gross, refunds, and net.
         </p>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -293,6 +326,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                 <th className="py-2 pr-4 font-medium">Event</th>
                 <th className="py-2 pr-4 font-medium">Package</th>
                 <th className="py-2 pr-4 font-medium">Membership</th>
+                <th className="py-2 pr-4 font-medium">Member zone</th>
                 <th className="py-2 pr-4 font-medium">Shop</th>
                 <th className="py-2 pr-4 font-medium">Gross</th>
                 <th className="py-2 pr-4 font-medium">Refunds</th>
@@ -307,6 +341,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                   <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.eventNet.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.packageNet.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.membershipNet.toFixed(2)}</td>
+                  <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.memberZoneNet.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">${row.shopNet.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-500 dark:text-stone-400">${row.gross.toFixed(2)}</td>
                   <td className="py-2.5 pr-4 tabular-nums text-stone-500 dark:text-stone-400">-${row.refunds.toFixed(2)}</td>

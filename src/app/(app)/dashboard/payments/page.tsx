@@ -571,7 +571,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                     </p>
                   ) : (
                     <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                      Invoice number missing — contact support.
+                      Invoice not issued yet — use Send invoice to issue and email it.
                     </p>
                   )}
                 </div>

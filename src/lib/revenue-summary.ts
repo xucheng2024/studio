@@ -1,15 +1,17 @@
 import { localDateKey } from "@/lib/date";
 
-/** Rows used for Gross / Refunds / Net (payment created_at within the report window). */
+/** Rows used for Gross / Refunds / Net (bucketed by finance-effective timestamp). */
 export type RevenuePaymentRow = {
   status: string;
   amount: unknown;
   created_at?: string | null;
+  verified_at?: string | null;
+  refunded_at?: string | null;
   location_id?: string | null;
   source?: string | null;
 };
 
-export type RevenueOrderType = "session" | "event" | "package" | "membership" | "shop";
+export type RevenueOrderType = "session" | "event" | "package" | "membership" | "member_zone" | "shop";
 
 export function revenueOrderTypeFromSource(source: string | null | undefined): RevenueOrderType {
   switch (source) {
@@ -19,11 +21,23 @@ export function revenueOrderTypeFromSource(source: string | null | undefined): R
       return "package";
     case "membership_subscription":
       return "membership";
+    case "member_zone_purchase":
+      return "member_zone";
     case "shop_purchase":
       return "shop";
     default:
       return "session";
   }
+}
+
+export function revenueEffectiveTimestamp(row: RevenuePaymentRow) {
+  if (row.status === "refunded") {
+    return row.refunded_at ?? row.verified_at ?? row.created_at ?? null;
+  }
+  if (row.status === "paid") {
+    return row.verified_at ?? row.created_at ?? null;
+  }
+  return row.created_at ?? null;
 }
 
 export function computeRevenueSummary(rows: RevenuePaymentRow[]) {
@@ -43,7 +57,7 @@ export function computeRevenueSummary(rows: RevenuePaymentRow[]) {
 export function revenueByDay(rows: RevenuePaymentRow[]) {
   const map = new Map<string, { gross: number; refunds: number }>();
   for (const p of rows) {
-    const day = localDateKey(p.created_at);
+    const day = localDateKey(revenueEffectiveTimestamp(p));
     if (!day) continue;
     if (!map.has(day)) map.set(day, { gross: 0, refunds: 0 });
     const m = map.get(day)!;
@@ -65,6 +79,7 @@ export function revenueByOrderType(rows: RevenuePaymentRow[]) {
     ["event", { gross: 0, refunds: 0 }],
     ["package", { gross: 0, refunds: 0 }],
     ["membership", { gross: 0, refunds: 0 }],
+    ["member_zone", { gross: 0, refunds: 0 }],
     ["shop", { gross: 0, refunds: 0 }],
   ]);
 
@@ -84,6 +99,7 @@ export function revenueByOrderType(rows: RevenuePaymentRow[]) {
     event: { ...map.get("event")!, net: map.get("event")!.gross - map.get("event")!.refunds },
     package: { ...map.get("package")!, net: map.get("package")!.gross - map.get("package")!.refunds },
     membership: { ...map.get("membership")!, net: map.get("membership")!.gross - map.get("membership")!.refunds },
+    memberZone: { ...map.get("member_zone")!, net: map.get("member_zone")!.gross - map.get("member_zone")!.refunds },
     shop: { ...map.get("shop")!, net: map.get("shop")!.gross - map.get("shop")!.refunds },
   };
 }
@@ -96,6 +112,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
       event: { gross: number; refunds: number };
       package: { gross: number; refunds: number };
       membership: { gross: number; refunds: number };
+      member_zone: { gross: number; refunds: number };
       shop: { gross: number; refunds: number };
       gross: number;
       refunds: number;
@@ -103,7 +120,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
   >();
 
   for (const p of rows) {
-    const day = localDateKey(p.created_at);
+    const day = localDateKey(revenueEffectiveTimestamp(p));
     if (!day) continue;
     if (!map.has(day)) {
       map.set(day, {
@@ -111,6 +128,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
         event: { gross: 0, refunds: 0 },
         package: { gross: 0, refunds: 0 },
         membership: { gross: 0, refunds: 0 },
+        member_zone: { gross: 0, refunds: 0 },
         shop: { gross: 0, refunds: 0 },
         gross: 0,
         refunds: 0,
@@ -140,6 +158,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
       eventNet: v.event.gross - v.event.refunds,
       packageNet: v.package.gross - v.package.refunds,
       membershipNet: v.membership.gross - v.membership.refunds,
+      memberZoneNet: v.member_zone.gross - v.member_zone.refunds,
       shopNet: v.shop.gross - v.shop.refunds,
     }))
     .sort((a, b) => a.day.localeCompare(b.day));
