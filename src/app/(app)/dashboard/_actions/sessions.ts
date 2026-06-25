@@ -37,9 +37,15 @@ async function insertOneTimeSession(
   cls: LoadedClass,
   locationId: string,
   startDate: Date,
+  overrides: {
+    duration: number;
+    capacity: number;
+  },
   pricing: SessionPricing,
 ): Promise<boolean> {
-  const endDate = new Date(startDate.getTime() + cls.duration_min * 60000);
+  const duration = Number.isFinite(overrides.duration) ? overrides.duration : cls.duration_min;
+  const capacity = Number.isFinite(overrides.capacity) ? overrides.capacity : cls.capacity;
+  const endDate = new Date(startDate.getTime() + duration * 60000);
   const { error } = await supabase.from("class_sessions").insert({
     class_id: cls.id,
     location_id: locationId || cls.location_id || null,
@@ -49,11 +55,11 @@ async function insertOneTimeSession(
     class_video_url_snapshot: cls.video_url ?? null,
     start_time: startDate.toISOString(),
     end_time: endDate.toISOString(),
-    capacity: cls.capacity,
+    capacity,
     guest_price: pricing.guest_price,
     credits_required: pricing.credits_required != null ? Math.floor(pricing.credits_required) : null,
     status: "scheduled",
-    spots_left: cls.capacity,
+    spots_left: capacity,
     address: pricing.address,
     address_details: pricing.address_details,
   });
@@ -276,23 +282,36 @@ export async function createSessionWithTemplate(
   } | null = null;
 
   if (sessionType === "weekly") {
-    if (!locationId) return SESSION_PANEL_ERR;
+    if (!locationId) {
+      return { ok: false, message: "Recurring schedules require a location." };
+    }
     const byWeekday = String(formData.get("by_weekday") ?? "");
     const startDate = String(formData.get("start_date") ?? "");
     const endDate = String(formData.get("end_date") ?? "");
     const startTime = String(formData.get("start_time") ?? "");
     const duration = Number(formData.get("duration_min") ?? 60);
     const capacity = Number(formData.get("capacity") ?? 10);
-    if (!startDate || !startTime || !byWeekday) return SESSION_PANEL_ERR;
+    if (!byWeekday) return { ok: false, message: "Select at least one weekday." };
+    if (!startDate || !startTime) return { ok: false, message: "Recurring schedules need a start date and time." };
     weeklyFields = { byWeekday, startDate, endDate, startTime, duration, capacity };
   }
 
   let onceStartDate: Date | null = null;
+  let onceDuration = 60;
+  let onceCapacity = 10;
   if (sessionType === "once") {
     const start = String(formData.get("start_time") ?? "");
-    if (!start) return SESSION_PANEL_ERR;
+    onceDuration = Number(formData.get("duration_min") ?? 60);
+    onceCapacity = Number(formData.get("capacity") ?? 10);
+    if (!start) return { ok: false, message: "Choose a session start time." };
     onceStartDate = parseDatetimeLocalAsSgt(start);
-    if (!onceStartDate) return SESSION_PANEL_ERR;
+    if (!onceStartDate) return { ok: false, message: "Start time is invalid." };
+    if (!Number.isFinite(onceDuration) || onceDuration < 15) {
+      return { ok: false, message: "Duration must be at least 15 minutes." };
+    }
+    if (!Number.isFinite(onceCapacity) || onceCapacity < 1) {
+      return { ok: false, message: "Capacity must be at least 1." };
+    }
   }
 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
@@ -346,7 +365,14 @@ export async function createSessionWithTemplate(
     if (cls.is_active === false) return SESSION_PANEL_ERR;
     if (locationId && cls.location_id && cls.location_id !== locationId) return SESSION_PANEL_ERR;
 
-    const ok = await insertOneTimeSession(supabase, cls, locationId, onceStartDate, pricing);
+    const ok = await insertOneTimeSession(
+      supabase,
+      cls,
+      locationId,
+      onceStartDate,
+      { duration: onceDuration, capacity: onceCapacity },
+      pricing,
+    );
     if (!ok) return { ok: false, message: "Failed to create session. Please try again." };
 
     revalidateDashboardContent("classes");

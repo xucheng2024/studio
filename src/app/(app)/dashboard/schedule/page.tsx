@@ -70,7 +70,7 @@ export default async function SchedulePage({ searchParams }: Props) {
 
   let classesQuery = supabase
     .from("classes")
-    .select("id, title, studio_id, location_id")
+    .select("id, title, studio_id, location_id, capacity, duration_min")
     .in("studio_id", studioIds)
     .is("deleted_at", null)
     .eq("is_active", true)
@@ -282,7 +282,16 @@ export default async function SchedulePage({ searchParams }: Props) {
         <p className={`mt-1 ${ui.muted}`}>Schedule sessions and manage upcoming runs.</p>
         <div className="mt-6">
           <CreateSessionPanel
-            classes={(classes ?? []).map((c) => ({ id: c.id, title: c.title ?? "" }))}
+            classes={(classes ?? []).map((c) => ({
+              id: c.id,
+              title: c.title ?? "",
+              capacity: c.capacity ?? 10,
+              duration_min: c.duration_min ?? 60,
+              location_id: c.location_id ?? null,
+            }))}
+            locations={(locations ?? [])
+              .filter((l) => l.studio_id === activeStudioId)
+              .map((l) => ({ id: l.id, name: l.name ?? "Unnamed location" }))}
             activeStudioId={activeStudioId}
             selectedLocationId={selectedLocationId ?? null}
             canManage={

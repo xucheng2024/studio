@@ -8,10 +8,19 @@ import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { ui } from "@/lib/ui";
 import { CalendarPlus, RefreshCw, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
 
-type ClassOption = { id: string; title: string };
+type ClassOption = {
+  id: string;
+  title: string;
+  capacity: number;
+  duration_min: number;
+  location_id: string | null;
+};
+
+type LocationOption = { id: string; name: string };
 
 type Props = {
   classes: ClassOption[];
+  locations: LocationOption[];
   activeStudioId: string;
   selectedLocationId: string | null;
   canManage: boolean;
@@ -29,15 +38,20 @@ function getDefaultDatetime(): string {
   return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:00`;
 }
 
-function estimateWeeklyCount(weekdays: string, startDate: string): number {
+function estimateWeeklyCount(weekdays: string, startDate: string, endDate: string): number {
   if (!startDate || !weekdays) return 0;
   const days = weekdays.split(",").map((s) => s.trim()).filter(Boolean);
   if (!days.length) return 0;
   const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   const targetDays = days.map((d) => map[d]).filter((d) => d != null);
   const start = new Date(startDate);
-  const endExclusive = new Date(startDate);
-  endExclusive.setDate(endExclusive.getDate() + 56);
+  const horizonEndExclusive = new Date(startDate);
+  horizonEndExclusive.setDate(horizonEndExclusive.getDate() + 56);
+  const hardEndExclusive = endDate ? new Date(endDate) : horizonEndExclusive;
+  if (endDate) {
+    hardEndExclusive.setDate(hardEndExclusive.getDate() + 1);
+  }
+  const endExclusive = hardEndExclusive < horizonEndExclusive ? hardEndExclusive : horizonEndExclusive;
   let count = 0;
   const d = new Date(start);
   while (d < endExclusive) {
@@ -65,10 +79,16 @@ function nextClassId(classes: ClassOption[], canManage: boolean) {
   return classes.length > 0 ? classes[0].id : (canManage ? "new" : "");
 }
 
+function defaultLocationId(locations: LocationOption[], selectedLocationId: string | null) {
+  if (selectedLocationId) return selectedLocationId;
+  return locations.length === 1 ? locations[0].id : "";
+}
+
 const LS_KEY = (studioId: string) => `studio-session-panel:${studioId}`;
 
 type Persisted = {
   classId?: string;
+  locationId?: string;
   guestPrice?: string;
   creditsRequired?: string;
   address?: string;
@@ -77,11 +97,12 @@ type Persisted = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId, canManage }: Props) {
+export function CreateSessionPanel({ classes, locations, activeStudioId, selectedLocationId, canManage }: Props) {
   const [open, setOpen] = useState(true);
   const defaultClassId = nextClassId(classes, canManage);
   const [classId, setClassId] = useState(defaultClassId);
   const [sessionType, setSessionType] = useState<"once" | "weekly">("once");
+  const [locationId, setLocationId] = useState(() => defaultLocationId(locations, selectedLocationId));
 
   // Controlled fields for persistence + preview
   const defaultDatetime = useMemo(getDefaultDatetime, []);
@@ -94,7 +115,12 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
   const [startDatetime, setStartDatetime] = useState(defaultDatetime);
   const [weekdays, setWeekdays] = useState("mon,wed");
   const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [newClassName, setNewClassName] = useState("");
+  const [newClassDuration, setNewClassDuration] = useState("60");
+  const [newClassCapacity, setNewClassCapacity] = useState("10");
+  const [onceDuration, setOnceDuration] = useState("60");
+  const [onceCapacity, setOnceCapacity] = useState("10");
 
   const [state, formAction] = useActionState<SessionPanelResult | null, FormData>(
     createSessionWithTemplate,
@@ -102,8 +128,9 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
   );
 
   const isNew = classId === "new";
-  const hasLocation = Boolean(selectedLocationId);
-  const classTitle = isNew ? newClassName : (classes.find((c) => c.id === classId)?.title ?? "");
+  const selectedClass = classes.find((c) => c.id === classId) ?? null;
+  const hasLocation = Boolean(locationId);
+  const classTitle = isNew ? newClassName : (selectedClass?.title ?? "");
 
   // Load persisted values on mount
   useEffect(() => {
@@ -114,6 +141,9 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
       if (saved.classId && (classes.some((c) => c.id === saved.classId) || saved.classId === "new")) {
         setClassId(saved.classId);
       }
+      if (saved.locationId && locations.some((location) => location.id === saved.locationId)) {
+        setLocationId(saved.locationId);
+      }
       if (saved.guestPrice !== undefined) setGuestPrice(saved.guestPrice);
       if (saved.creditsRequired !== undefined) setCreditsRequired(saved.creditsRequired);
       if (saved.address !== undefined) setAddress(saved.address);
@@ -122,6 +152,27 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (selectedLocationId && selectedLocationId !== locationId) {
+      setLocationId(selectedLocationId);
+    }
+  }, [selectedLocationId, locationId]);
+
+  useEffect(() => {
+    if (isNew) {
+      setOnceDuration(newClassDuration);
+      setOnceCapacity(newClassCapacity);
+      return;
+    }
+    if (selectedClass) {
+      setOnceDuration(String(selectedClass.duration_min));
+      setOnceCapacity(String(selectedClass.capacity));
+      if (!locationId && selectedClass.location_id) {
+        setLocationId(selectedClass.location_id);
+      }
+    }
+  }, [classId, isNew, locationId, newClassCapacity, newClassDuration, selectedClass]);
+
   // On success: persist values + auto-collapse after delay
   const prevStateRef = useRef(state);
   useEffect(() => {
@@ -129,10 +180,11 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
     prevStateRef.current = state;
     try {
       localStorage.setItem(LS_KEY(activeStudioId), JSON.stringify({
-        classId, guestPrice, creditsRequired, address, addressDetails,
+        classId, locationId, guestPrice, creditsRequired, address, addressDetails,
       }));
     } catch {}
     setClassId(nextClassId(classes, canManage));
+    setLocationId(defaultLocationId(locations, selectedLocationId));
     setSessionType("once");
     setGuestPrice("25");
     setCreditsRequired("");
@@ -141,10 +193,15 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
     setStartDatetime(defaultDatetime);
     setWeekdays("mon,wed");
     setStartDate("");
+    setEndDate("");
     setNewClassName("");
+    setNewClassDuration("60");
+    setNewClassCapacity("10");
+    setOnceDuration("60");
+    setOnceCapacity("10");
     const t = setTimeout(() => setOpen(false), 2500);
     return () => clearTimeout(t);
-  }, [state, activeStudioId, classId, guestPrice, creditsRequired, address, addressDetails, classes, canManage, defaultDatetime]);
+  }, [state, activeStudioId, address, addressDetails, canManage, classId, classes, creditsRequired, defaultDatetime, guestPrice, locationId, locations, selectedLocationId]);
 
   // NL preview
   const previewLine = useMemo(() => {
@@ -153,11 +210,11 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
       const when = formatOncePreview(startDatetime);
       return label && when ? `1 ${label} session ${when}` : "";
     }
-    const count = estimateWeeklyCount(weekdays, startDate);
+    const count = estimateWeeklyCount(weekdays, startDate, endDate);
     const days = weekdays ? formatWeekdays(weekdays) : "";
     if (!label || !count || !days) return "";
-    return `~${count} ${label} session${count !== 1 ? "s" : ""} every ${days} starting ${startDate}`;
-  }, [sessionType, classTitle, isNew, startDatetime, weekdays, startDate]);
+    return `~${count} ${label} session${count !== 1 ? "s" : ""} every ${days} starting ${startDate}${endDate ? ` through ${endDate}` : ""}`;
+  }, [classTitle, endDate, isNew, sessionType, startDate, startDatetime, weekdays]);
 
   return (
     <div className={`${ui.card} max-w-xl`}>
@@ -184,8 +241,27 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
       {open && (classes.length > 0 || canManage) && (
         <form action={formAction} className="mt-5 flex flex-col gap-4">
           <input type="hidden" name="studio_id" value={activeStudioId} />
-          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
           <input type="hidden" name="session_type" value={sessionType} />
+
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Location</span>
+            <select
+              name="location_id"
+              className={ui.select}
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+            >
+              <option value="">Unassigned</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+            {sessionType === "weekly" ? (
+              <p className={`text-xs ${ui.muted}`}>Recurring schedules require a location.</p>
+            ) : null}
+          </label>
 
           {/* Class selector */}
           <label className="flex flex-col gap-1.5">
@@ -226,11 +302,26 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Duration (min)</span>
-                  <input name="new_class_duration_min" type="number" min={15} step={5} defaultValue={60} className={ui.input} />
+                  <input
+                    name="new_class_duration_min"
+                    type="number"
+                    min={15}
+                    step={5}
+                    className={ui.input}
+                    value={newClassDuration}
+                    onChange={(e) => setNewClassDuration(e.target.value)}
+                  />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Capacity</span>
-                  <input name="new_class_capacity" type="number" min={1} defaultValue={10} className={ui.input} />
+                  <input
+                    name="new_class_capacity"
+                    type="number"
+                    min={1}
+                    className={ui.input}
+                    value={newClassCapacity}
+                    onChange={(e) => setNewClassCapacity(e.target.value)}
+                  />
                 </label>
               </div>
               <label className="flex flex-col gap-1.5">
@@ -262,7 +353,7 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
           <div className="flex flex-col gap-1.5">
             <span className={ui.label}>Schedule type</span>
             {canManage && !hasLocation && (
-              <p className={`text-xs ${ui.muted}`}>Select a location in the sidebar to enable weekly recurring.</p>
+              <p className={`text-xs ${ui.muted}`}>Choose a location above to enable weekly recurring.</p>
             )}
             <div className="flex gap-2">
               <button
@@ -303,17 +394,44 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
 
           {/* One-time fields */}
           {sessionType === "once" && (
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Start</span>
-              <input
-                type="datetime-local"
-                name="start_time"
-                required
-                className={ui.input}
-                defaultValue={defaultDatetime}
-                onChange={(e) => setStartDatetime(e.target.value)}
-              />
-            </label>
+            <>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Start</span>
+                <input
+                  type="datetime-local"
+                  name="start_time"
+                  required
+                  className={ui.input}
+                  value={startDatetime}
+                  onChange={(e) => setStartDatetime(e.target.value)}
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Duration (min)</span>
+                  <input
+                    type="number"
+                    name="duration_min"
+                    min={15}
+                    step={5}
+                    className={ui.input}
+                    value={onceDuration}
+                    onChange={(e) => setOnceDuration(e.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Capacity</span>
+                  <input
+                    type="number"
+                    name="capacity"
+                    min={1}
+                    className={ui.input}
+                    value={onceCapacity}
+                    onChange={(e) => setOnceCapacity(e.target.value)}
+                  />
+                </label>
+              </div>
+            </>
           )}
 
           {/* Recurring fields */}
@@ -336,7 +454,13 @@ export function CreateSessionPanel({ classes, activeStudioId, selectedLocationId
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>End date (optional)</span>
-                  <input type="date" name="end_date" className={ui.input} />
+                  <input
+                    type="date"
+                    name="end_date"
+                    className={ui.input}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
                 </label>
               </div>
               <div className="grid grid-cols-2 gap-3">
