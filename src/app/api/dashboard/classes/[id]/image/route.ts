@@ -11,7 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeCoverImage } from "@/lib/imageTransform";
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
-import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireStaffMutationScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,10 +36,11 @@ export async function POST(req: Request, ctx: RouteParams) {
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const scope = await requireStaffScope({
+  const scope = await requireStaffMutationScope({
     userId: user.id,
     studioId: row.studio_id,
-    locationId: row.location_id,
+    currentLocationId: row.location_id,
+    targetLocationId: row.location_id,
     roles: ["owner", "manager"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
@@ -124,10 +125,11 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const scope = await requireStaffScope({
+  const scope = await requireStaffMutationScope({
     userId: user.id,
     studioId: row.studio_id,
-    locationId: row.location_id,
+    currentLocationId: row.location_id,
+    targetLocationId: row.location_id,
     roles: ["owner", "manager"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);

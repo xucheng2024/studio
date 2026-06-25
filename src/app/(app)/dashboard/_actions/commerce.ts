@@ -11,8 +11,8 @@ import { STUDIO_CURRENCY } from "@/lib/currency";
 import {
   assertLocationInStudio,
   generateUniqueShareSlug,
+  hasStudioGlobalRole,
   hasStudioLocationRole,
-  hasStudioRole,
   requireStudio,
   sanitizePriceNullable,
   sanitizeVideoUrl,
@@ -22,7 +22,7 @@ export async function createStudioService(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
@@ -69,7 +69,7 @@ export async function updateStudioService(formData: FormData): Promise<void> {
   if (!serviceId || !studioId) return;
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
@@ -123,7 +123,7 @@ export async function deleteStudioService(formData: FormData): Promise<void> {
   if (!serviceId || !studioId) return;
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
   const { data: existingService } = await supabase
     .from("studio_services")
     .select("share_slug")
@@ -152,7 +152,7 @@ export async function createPackage(formData: FormData): Promise<void> {
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
   if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager"])) return;
 
@@ -190,7 +190,7 @@ export async function createMembershipProduct(formData: FormData): Promise<void>
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
   if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
   if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager"])) return;
 
@@ -260,7 +260,7 @@ export async function createShopProduct(formData: FormData): Promise<void> {
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
@@ -305,7 +305,7 @@ export async function updateShopProduct(formData: FormData): Promise<void> {
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !productId) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
@@ -358,7 +358,7 @@ export async function deleteShopProduct(formData: FormData): Promise<void> {
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !productId) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const { data: existingProduct } = await supabase
     .from("shop_products")
@@ -386,7 +386,7 @@ export async function updateShopOrderFulfillment(formData: FormData): Promise<vo
   const orderId = String(formData.get("order_id") ?? "").trim();
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !orderId) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const raw = String(formData.get("fulfillment_status") ?? "").trim().toLowerCase();
   const fulfillment_status =

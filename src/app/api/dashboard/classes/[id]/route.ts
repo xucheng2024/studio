@@ -4,7 +4,7 @@ import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePublicTags } from "@/lib/publicTags";
 import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
-import { requireStaffMutationScope, requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireStaffMutationScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
 
 const patchSchema = z.object({
@@ -156,10 +156,11 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const scope = await requireStaffScope({
+  const scope = await requireStaffMutationScope({
     userId: user.id,
     studioId: row.studio_id,
-    locationId: row.location_id,
+    currentLocationId: row.location_id,
+    targetLocationId: row.location_id,
     roles: ["owner", "manager"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);

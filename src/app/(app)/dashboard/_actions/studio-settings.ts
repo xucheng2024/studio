@@ -24,6 +24,7 @@ import { isSuperAdminEmail } from "@/lib/super-admin";
 import { parseDatetimeLocalAsSgt } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  hasStudioGlobalRole,
   hasStudioRole,
   normalizeE164,
   requireOwnedStudioAccess,
@@ -135,7 +136,7 @@ export async function updateStudioCustomDomain(
       status: toCustomDomainUiStatus(getNotConfiguredSnapshot()),
     };
   }
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) {
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) {
     return {
       ok: false,
       message: "You do not have permission to manage this domain.",
@@ -276,7 +277,7 @@ export async function updateStudioPublicProfile(formData: FormData): Promise<voi
   const studioId = String(formData.get("studio_id") ?? "");
   const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const public_intro = String(formData.get("public_intro") ?? "").trim() || null;
   const public_cover_image_url = String(formData.get("public_cover_image_url") ?? "").trim() || null;
@@ -365,7 +366,7 @@ export async function updateStudioBookingSettings(
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return { ok: false, message: "Studio not found." };
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) {
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) {
     return { ok: false, message: "You do not have permission to update booking settings." };
   }
 
@@ -428,7 +429,7 @@ export async function updateStudioBookingSettings(
 export async function savePublicLogoUrl(studioId: string, logoUrl: string | null): Promise<void> {
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const rawUrl = logoUrl ? logoUrl.trim() : null;
   const url = sanitizeTrustedLogoUrl(rawUrl);
@@ -450,7 +451,7 @@ export async function updateStudioPublicBranding(formData: FormData): Promise<vo
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const public_brand_name = String(formData.get("public_brand_name") ?? "").trim() || null;
   const rawLogoUrl = String(formData.get("public_logo_url") ?? "").trim() || null;

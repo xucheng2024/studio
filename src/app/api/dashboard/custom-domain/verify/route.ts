@@ -6,7 +6,7 @@ import {
   persistCustomDomainSnapshot,
   verifyCustomDomain,
 } from "@/lib/customDomain.server";
-import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireGlobalStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const scoped = await requireStaffScope({
+  const scoped = await requireGlobalStaffScope({
     userId: user.id,
     studioId: parsed.data.studio_id,
     roles: ["owner", "manager"],

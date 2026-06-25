@@ -67,6 +67,14 @@ export function hasStudioLocationRole(
   return scopedMemberships.some((membership) => membership.location_id === locationId);
 }
 
+export function hasStudioGlobalRole(
+  ctx: StudioScope["ctx"],
+  studioId: string,
+  roles: Array<"owner" | "manager" | "frontdesk" | "instructor">,
+) {
+  return hasStudioLocationRole(ctx, studioId, null, roles);
+}
+
 export async function assertLocationInStudio(
   supabase: SupabaseClient,
   studioId: string,

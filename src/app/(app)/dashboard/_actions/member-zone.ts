@@ -7,7 +7,7 @@ import { STUDIO_CURRENCY } from "@/lib/currency";
 import { hasValidMemberZonePurchasePrice } from "@/lib/memberZoneAccess";
 import {
   generateUniqueShareSlug,
-  hasStudioRole,
+  hasStudioGlobalRole,
   requireStudio,
   sanitizePriceNullable,
   sanitizeVideoUrl,
@@ -18,7 +18,7 @@ export async function createMemberZoneSeries(formData: FormData): Promise<void> 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
@@ -67,7 +67,7 @@ export async function updateMemberZoneSeries(formData: FormData): Promise<void> 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !seriesId) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
@@ -124,7 +124,7 @@ export async function deleteMemberZoneSeries(formData: FormData): Promise<void> 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !seriesId) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const { data: existingSeries } = await supabase
     .from("member_zone_series")
@@ -153,7 +153,7 @@ export async function createMemberZoneLesson(formData: FormData): Promise<void> 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !seriesId) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const { data: series } = await supabase
     .from("member_zone_series")
@@ -211,7 +211,7 @@ export async function updateMemberZoneLesson(formData: FormData): Promise<void> 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !seriesId || !lessonId) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const { data: series } = await supabase
     .from("member_zone_series")
@@ -274,7 +274,7 @@ export async function deleteMemberZoneLesson(formData: FormData): Promise<void> 
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio || !seriesId || !lessonId) return;
   if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
+  if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
   const { data: series } = await supabase
     .from("member_zone_series")

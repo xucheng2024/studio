@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
-import { requireStaffMutationScope, requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
+import { requireStaffMutationScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -99,10 +99,11 @@ export async function DELETE(_req: Request, { params }: Params) {
     .maybeSingle();
   if (!row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const scope = await requireStaffScope({
+  const scope = await requireStaffMutationScope({
     userId: user.id,
     studioId: row.studio_id,
-    locationId: row.location_id,
+    currentLocationId: row.location_id,
+    targetLocationId: row.location_id,
     roles: ["owner", "manager"],
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
