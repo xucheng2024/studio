@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { buildAccessContext, filterStudioIdsByRoles } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function csvEscape(value: unknown) {
@@ -80,6 +81,7 @@ export async function GET(req: Request) {
   const keyword = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -96,7 +98,7 @@ export async function GET(req: Request) {
   }
 
   const exportStudioIds = studioId ? [studioId] : studioIds;
-  const { data: contractRows } = await supabase
+  const { data: contractRows } = await admin
     .from("studios")
     .select("id, contract_status")
     .in("id", exportStudioIds);
@@ -104,7 +106,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "studio_suspended" }, { status: 403 });
   }
 
-  let q = supabase
+  let q = admin
     .from("payments")
     .select(
       "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
@@ -147,16 +149,16 @@ export async function GET(req: Request) {
 
   const [{ data: bookings }, { data: eventBookings }, { data: packages }, { data: userRows }] = await Promise.all([
     bookingIds.length > 0
-      ? supabase.from("bookings").select("id, guest_name, guest_email, class_sessions(classes(title))").in("id", bookingIds)
+      ? admin.from("bookings").select("id, guest_name, guest_email, class_sessions(classes(title))").in("id", bookingIds)
       : Promise.resolve({ data: [] as const }),
     eventBookingIds.length > 0
-      ? supabase.from("event_bookings").select("id, guest_name, guest_email, events(title)").in("id", eventBookingIds)
+      ? admin.from("event_bookings").select("id, guest_name, guest_email, events(title)").in("id", eventBookingIds)
       : Promise.resolve({ data: [] as const }),
     packageIds.length > 0
-      ? supabase.from("packages").select("id, name").in("id", packageIds)
+      ? admin.from("packages").select("id, name").in("id", packageIds)
       : Promise.resolve({ data: [] as const }),
     allUserIds.length > 0
-      ? supabase.from("users").select("id, email").in("id", allUserIds)
+      ? admin.from("users").select("id, email").in("id", allUserIds)
       : Promise.resolve({ data: [] as const }),
   ]);
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createStudio } from "@/app/(app)/dashboard/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarDays, Users, DollarSign } from "lucide-react";
@@ -13,6 +14,7 @@ type Props = {
 export default async function DashboardOverviewPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -101,7 +103,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
 
   let bookingsToday = 0;
   if (sessionIds.length) {
-    const { count } = await supabase
+    const { count } = await admin
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .in("session_id", sessionIds)
@@ -111,7 +113,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
 
   // Scope revenue to current calendar month to avoid loading full payment history.
   const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
-  let paymentsQuery = supabase
+  let paymentsQuery = admin
     .from("payments")
     .select("amount")
     .in("studio_id", studioIds)

@@ -39,7 +39,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   const admin = createAdminClient();
 
   const [{ data: clientUser }, { data: inScopeMember }] = await Promise.all([
-    supabase
+    admin
       .from("users")
       .select("id, email")
       .eq("id", clientId)
@@ -87,7 +87,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       canceled_at?: string | null;
     }>;
 
-  const { data: packRowsRaw } = await supabase
+  const { data: packRowsRaw } = await admin
     .from("client_packages")
     .select("id, package_id, credits_left, expiry_date, package_name_snapshot, package_credits_snapshot, packages!inner(studio_id, location_id)")
     .eq("client_id", clientId)
@@ -103,7 +103,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       })
     : (packRowsRaw ?? []);
 
-  let payQ = supabase
+  let payQ = admin
     .from("payments")
     .select("id, package_id, package_name_snapshot, amount, paid_amount, status, type, payment_method, reference_code, created_at")
     .eq("client_id", clientId)
@@ -113,7 +113,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   if (selectedLocationId) payQ = payQ.eq("location_id", selectedLocationId);
   const { data: paymentRows } = await payQ;
 
-  let bookingQ = supabase
+  let bookingQ = admin
     .from("bookings")
     .select(
       "id, status, created_at, checked_in_at, credit_consumed_at, client_package_id, class_sessions!inner(start_time, classes!inner(title, studio_id))",

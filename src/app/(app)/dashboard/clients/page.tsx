@@ -38,7 +38,7 @@ export default async function ClientsPage({ searchParams }: Props) {
   const keyword = (sp.q ?? "").trim().toLowerCase();
   const membershipStatusFilter = (sp.membership_status ?? "").trim().toLowerCase();
 
-  let paymentsQuery = supabase
+  let paymentsQuery = admin
     .from("payments")
     .select("client_id, amount, status, created_at, location_id")
     .in("studio_id", studioIds)
@@ -81,7 +81,7 @@ export default async function ClientsPage({ searchParams }: Props) {
 
   const [{ data: users }, { data: profiles }] = await Promise.all([
     allClientIds.length > 0
-      ? supabase.from("users").select("id, email").in("id", allClientIds)
+      ? admin.from("users").select("id, email").in("id", allClientIds)
       : Promise.resolve({ data: [] as const }),
     allClientIds.length > 0
       ? admin.from("user_profiles").select("id, full_name, phone").in("id", allClientIds)
@@ -90,7 +90,7 @@ export default async function ClientsPage({ searchParams }: Props) {
   const userMap = new Map((users ?? []).map((u) => [u.id, u]));
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-  const { data: packsRaw } = await supabase
+  const { data: packsRaw } = await admin
     .from("client_packages")
     .select(
       `
@@ -222,7 +222,7 @@ export default async function ClientsPage({ searchParams }: Props) {
     }
   }
 
-  let bookingsQuery = supabase
+  let bookingsQuery = admin
     .from("bookings")
     .select("id, client_id, status, created_at, session_id, class_sessions(start_time, classes(title, studio_id), location_id)")
     .in("client_id", allClientIds)

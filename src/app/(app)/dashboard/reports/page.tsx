@@ -8,6 +8,7 @@ import {
   type RevenuePaymentRow,
 } from "@/lib/revenue-summary";
 import { PAYMENT_SOURCE_FILTER_OPTIONS } from "@/lib/payment-filter-options";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { TrendingUp, RefreshCcw, DollarSign, CalendarRange, Package, Repeat, ShoppingBag, PlaySquare } from "lucide-react";
@@ -35,6 +36,7 @@ function monthBounds() {
 export default async function ReportsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -55,7 +57,7 @@ export default async function ReportsPage({ searchParams }: Props) {
   const fromIso = dayRangeStartIso(dateFrom);
   const toIso = dayRangeEndExclusiveIso(dateTo);
 
-  let revenueQuery = supabase
+  let revenueQuery = admin
     .from("payments")
     .select("id, amount, type, payment_method, status, created_at, paid_at, verified_at, refunded_at, location_id, source")
     .in("studio_id", studioIds)

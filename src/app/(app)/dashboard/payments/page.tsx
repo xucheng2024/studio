@@ -90,7 +90,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .order("name");
   const locationMap = new Map((locations ?? []).map((l) => [l.id, l.name ?? "Unnamed location"]));
 
-  let q = supabase
+  let q = admin
     .from("payments")
     .select(
       "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot",
@@ -120,37 +120,37 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
   const [{ data: bookings }, { data: eventBookings }, { data: packageRows }, { data: memberZoneSeriesRows }, { data: memberZoneLessonRows }, { data: clients }, { data: clientProfiles }] = await Promise.all([
     bookingIds.length > 0
-      ? supabase
+      ? admin
           .from("bookings")
           .select("id, guest_name, guest_email, guest_phone, class_sessions(start_time, classes(title))")
           .in("id", bookingIds)
       : Promise.resolve({ data: [] as const }),
     eventBookingIds.length > 0
-      ? supabase
+      ? admin
           .from("event_bookings")
           .select("id, guest_name, guest_email, guest_phone, events(title, start_time)")
           .in("id", eventBookingIds)
       : Promise.resolve({ data: [] as const }),
     packageIds.length > 0
-      ? supabase
+      ? admin
           .from("packages")
           .select("id, name")
           .in("id", packageIds)
       : Promise.resolve({ data: [] as const }),
     memberZoneSeriesIds.length > 0
-      ? supabase
+      ? admin
           .from("member_zone_series")
           .select("id, title")
           .in("id", memberZoneSeriesIds)
       : Promise.resolve({ data: [] as const }),
     memberZoneLessonIds.length > 0
-      ? supabase
+      ? admin
           .from("member_zone_lessons")
           .select("id, title")
           .in("id", memberZoneLessonIds)
       : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
-      ? supabase.from("users").select("id, email").in("id", clientIds)
+      ? admin.from("users").select("id, email").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
       ? admin.from("user_profiles").select("id, phone, full_name").in("id", clientIds)
