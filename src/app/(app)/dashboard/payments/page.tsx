@@ -27,8 +27,15 @@ type Props = {
     date_from?: string;
     date_to?: string;
     q?: string;
+    attention?: string;
   }>;
 };
+
+function isoDateDaysAgo(days: number) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return localISODate(d);
+}
 
 function paymentSourceLabel(source: string | null | undefined) {
   switch (source) {
@@ -121,6 +128,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const canRefundPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const canSyncHitpayPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
+  const isPendingHitpayAttention = sp.attention === "pending_hitpay";
   const { data: activeStudio } = await admin
     .from("studios")
     .select("id, public_slug")
@@ -144,15 +152,28 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .order("created_at", { ascending: false })
     .limit(300);
   if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
-  if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
+  if (isPendingHitpayAttention) q = q.eq("status", "pending").eq("payment_method", "hitpay");
+  else if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
   if (sp.source) q = q.eq("source", sp.source);
   const defaultDate = localISODate();
-  const dateFrom = sp.date_from ?? defaultDate;
+  const attentionDateFrom = isoDateDaysAgo(6);
+  const dateFrom = sp.date_from ?? (isPendingHitpayAttention ? attentionDateFrom : defaultDate);
   const dateTo = sp.date_to ?? defaultDate;
   const from = dayRangeStartIso(dateFrom);
   if (from) q = q.gte("created_at", from);
   const to = dayRangeEndExclusiveIso(dateTo);
   if (to) q = q.lt("created_at", to);
+
+  const pendingHitpayStart = dayRangeStartIso(attentionDateFrom) ?? "";
+  const pendingHitpayEnd = dayRangeEndExclusiveIso(defaultDate) ?? "";
+  const { count: pendingHitpayCount } = await admin
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("studio_id", activeStudioId)
+    .eq("status", "pending")
+    .eq("payment_method", "hitpay")
+    .gte("created_at", pendingHitpayStart)
+    .lt("created_at", pendingHitpayEnd);
 
   const { data: rawPayments } = await q;
   const payments = rawPayments ?? [];
@@ -316,6 +337,16 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   exportParams.set("date_from", dateFrom);
   exportParams.set("date_to", dateTo);
   if (sp.q) exportParams.set("q", sp.q);
+  if (sp.attention) exportParams.set("attention", sp.attention);
+
+  const baseScopeParams = new URLSearchParams();
+  baseScopeParams.set("studio_id", activeStudioId);
+  if (selectedLocationId) baseScopeParams.set("location_id", selectedLocationId);
+
+  const pendingHitpayParams = new URLSearchParams(baseScopeParams);
+  pendingHitpayParams.set("attention", "pending_hitpay");
+  pendingHitpayParams.set("date_from", attentionDateFrom);
+  pendingHitpayParams.set("date_to", defaultDate);
 
   return (
     <div className="flex flex-col gap-6">
@@ -325,6 +356,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <p className={`mt-1 ${ui.muted}`}>Check incoming payments, export records, and view action history.</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
+          <DashboardAppLink
+            href={`/dashboard/payments?${pendingHitpayParams.toString()}`}
+            className={isPendingHitpayAttention ? ui.btnPrimarySm : ui.btnSecondarySm}
+          >
+            Pending HitPay (7d)
+            {typeof pendingHitpayCount === "number" ? ` · ${pendingHitpayCount}` : ""}
+          </DashboardAppLink>
           <a
             className={`${ui.linkMuted} w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0 inline-flex items-center gap-1.5`}
             href={`/api/payments/export?${exportParams.toString()}`}
@@ -338,6 +376,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       <form method="get" className={`${ui.card} flex flex-col gap-4`}>
         {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+        {isPendingHitpayAttention ? <input type="hidden" name="attention" value="pending_hitpay" /> : null}
 
         {/* ── Always-visible quick filters ─────────────────────── */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -351,7 +390,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Payment method</span>
-            <select name="payment_method" className={ui.select} defaultValue={sp.payment_method ?? ""}>
+            <select
+              name="payment_method"
+              className={ui.select}
+              defaultValue={isPendingHitpayAttention ? "hitpay" : (sp.payment_method ?? "")}
+            >
               <option value="">All</option>
               {PAYMENT_METHOD_FILTER_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -379,13 +422,19 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             Apply filters
           </SubmitButton>
           <DashboardAppLink
-            href={`/dashboard/payments?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            href={`/dashboard/payments?${baseScopeParams.toString()}`}
             className={ui.btnGhost}
           >
             Clear filters
           </DashboardAppLink>
         </div>
       </form>
+
+      {isPendingHitpayAttention ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+          Showing pending one-time HitPay payments from the last 7 days so older exceptions do not disappear behind the default today filter.
+        </div>
+      ) : null}
 
       <ul className="flex flex-col gap-3">
         {visible.map((p) => {

@@ -1,5 +1,6 @@
 import { updateStudioContractSettings } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { toLocalDateTimeInputValue } from "@/lib/date";
 import { getDashboardScope } from "@/lib/dashboard";
@@ -181,7 +182,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         ) : null}
       </div>
       {isSuperAdmin && contractStudio ? (
-        <form action={updateStudioContractSettings} className={`${ui.card} flex max-w-lg flex-col gap-3`}>
+        <ServerActionToastForm action={updateStudioContractSettings} className={`${ui.card} flex max-w-lg flex-col gap-3`}>
           <input type="hidden" name="studio_id" value={contractStudio.id} />
           <div>
             <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Studio contract</h2>
@@ -210,7 +211,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Saving...">
             Save contract
           </SubmitButton>
-        </form>
+        </ServerActionToastForm>
       ) : null}
       {!isSuperAdmin && !isStudioOwner ? (
         <p className={`text-sm ${ui.muted}`}>

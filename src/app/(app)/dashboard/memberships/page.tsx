@@ -2,6 +2,7 @@ import { createMembershipProduct } from "@/app/(app)/dashboard/actions";
 import { CancelMembershipSubscriptionButton } from "@/components/CancelMembershipSubscriptionButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { MembershipLifecycleRow } from "@/components/dashboard/MembershipLifecycleRow";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { LocalDate } from "@/components/ui/LocalDate";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
@@ -84,7 +85,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
               <span>+ New membership</span>
               <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
             </summary>
-            <form action={createMembershipProduct} className="mt-4 grid gap-4 sm:grid-cols-2">
+            <ServerActionToastForm action={createMembershipProduct} className="mt-4 grid gap-4 sm:grid-cols-2">
               <input type="hidden" name="studio_id" value={activeStudioId} />
               <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
               <label className="flex flex-col gap-1.5 sm:col-span-2">
@@ -133,7 +134,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
               <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Saving...">
                 Save membership
               </SubmitButton>
-            </form>
+            </ServerActionToastForm>
           </details>
         ) : null}
       </div>

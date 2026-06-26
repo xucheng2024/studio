@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicVenueBlock } from "@/components/PublicVenueBlock";
+import { PurchaseAccountHint } from "@/components/PurchaseAccountHint";
 import { SessionBookingActions } from "@/components/SessionBookingActions";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
@@ -254,14 +255,17 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
                 {isFull ? (
                   <p className={`text-sm ${ui.muted}`}>This class is full. Please check back for other sessions.</p>
                 ) : (
-                  <SessionBookingActions
-                    slug={studioPublicSlug}
-                    sessionId={s.id}
-                    guestPrice={s.guest_price != null ? Number(s.guest_price) : null}
-                    paymentReady={isFreeGuestCheckout || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled)}
-                    isSignedIn={isSignedIn}
-                    creditsRequired={Number(s.credits_required ?? 0)}
-                  />
+                  <div className="flex flex-col gap-4">
+                    <SessionBookingActions
+                      slug={studioPublicSlug}
+                      sessionId={s.id}
+                      guestPrice={s.guest_price != null ? Number(s.guest_price) : null}
+                      paymentReady={isFreeGuestCheckout || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled)}
+                      isSignedIn={isSignedIn}
+                      creditsRequired={Number(s.credits_required ?? 0)}
+                    />
+                    <PurchaseAccountHint />
+                  </div>
                 )}
               </div>
             </div>
@@ -309,6 +313,7 @@ export default async function PublicClassBookingPage({ params, searchParams }: P
             Online payment is not configured for this studio.
           </p>
         ) : null}
+        <PurchaseAccountHint className="mt-4" />
       </div>
 
       {listSessions.length > 0 ? (

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createStaffInvite, revokeStaffInvite } from "@/app/(app)/dashboard/actions";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -7,7 +9,7 @@ import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
-  searchParams: Promise<{ invite_error?: string; invite_success?: string; studio_id?: string; location_id?: string }>;
+  searchParams: Promise<{ studio_id?: string; location_id?: string }>;
 };
 
 export default async function StaffInvitesPage({ searchParams }: Props) {
@@ -47,21 +49,6 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         .order("created_at", { ascending: false })
     : { data: [] as Array<Record<string, unknown>> };
 
-  const errorMsg =
-    sp.invite_error === "missing_required_fields"
-      ? "Please complete email, role, and studio."
-      : sp.invite_error === "invalid_role"
-        ? "Invalid role."
-        : sp.invite_error === "forbidden"
-          ? "Only studio owners can send invites."
-          : sp.invite_error === "invalid_location_scope"
-            ? "Location does not belong to selected studio."
-            : sp.invite_error === "create_failed"
-              ? "Could not create invite. An active invite may already exist."
-              : sp.invite_error === "studio_suspended"
-                ? "This studio is suspended. Set contract to active in Settings before sending invites."
-                : null;
-
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -72,7 +59,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         <p className={ui.muted}>Workspace access is managed by invitation.</p>
       </div>
 
-      <form action={createStaffInvite} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
+      <ServerActionToastForm action={createStaffInvite} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Email</span>
           <input name="email" type="email" className={ui.input} required placeholder="staff@studio.com" />
@@ -114,9 +101,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
             Send invite
           </SubmitButton>
         </div>
-        {sp.invite_success === "sent" ? <p className={`${ui.success} md:col-span-2`}>Invite created.</p> : null}
-        {errorMsg ? <p className={`${ui.error} md:col-span-2`}>{errorMsg}</p> : null}
-      </form>
+      </ServerActionToastForm>
 
       <section className={ui.card}>
         <h2 className={`${ui.h2} mb-3`}>Invites</h2>
@@ -149,12 +134,16 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
                     </div>
                     <div className="mt-2 shrink-0">
                       {invite.status === "pending" ? (
-                        <form action={revokeStaffInvite}>
+                        <ToastConfirmForm
+                          action={revokeStaffInvite}
+                          confirmMessage={`Revoke invite for ${invite.email}?`}
+                          pendingLabel="Revoking..."
+                        >
                           <input type="hidden" name="invite_id" value={invite.id} />
                           <SubmitButton className={`${ui.btnGhost} w-full sm:w-auto`} pendingText="Revoking...">
                             Revoke
                           </SubmitButton>
-                        </form>
+                        </ToastConfirmForm>
                       ) : (
                         <span className={`text-xs ${ui.muted}`}>—</span>
                       )}

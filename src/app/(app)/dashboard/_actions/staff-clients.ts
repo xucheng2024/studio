@@ -11,13 +11,19 @@ import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   assertLocationInStudio,
+  DashboardFormResult,
+  err,
   hasStudioRole,
+  ok,
   requireOwnedStudioAccess,
   requireStudio,
   requireUser,
 } from "./shared";
 
-export async function updateMemberProfile(formData: FormData): Promise<void> {
+export async function updateMemberProfile(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "").trim();
   const clientId = String(formData.get("client_id") ?? "").trim();
   const locationId = String(formData.get("location_id") ?? "").trim() || null;
@@ -28,15 +34,11 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
   const phone = phoneRaw || null;
   const notes = notesRaw || null;
 
-  if (!studioId || !clientId) {
-    redirect("/dashboard/clients?member_error=invalid_input");
-  }
+  if (!studioId || !clientId) return err("Missing required client or studio.");
   const { studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) {
-    redirect("/dashboard/clients?member_error=studio_not_found");
-  }
+  if (!studio) return err("Studio not found.");
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager", "frontdesk"])) {
-    redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=forbidden`);
+    return err("You do not have access to update this profile.");
   }
 
   const admin = createAdminClient();
@@ -48,13 +50,9 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
     .eq("status", "active")
     .limit(1)
     .maybeSingle();
-  if (!inScopeMember) {
-    redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=out_of_scope`);
-  }
+  if (!inScopeMember) return err("This user is not in the selected studio scope.");
   if (!ctx.hasAnyGlobalLocationAccess) {
-    if (!locationId) {
-      redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}&member_error=forbidden`);
-    }
+    if (!locationId) return err("You do not have access to update this profile.");
     const [bookingHit, packageHit, subscriptionHit, paymentHit] = await Promise.all([
       admin
         .from("bookings")
@@ -90,7 +88,7 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
         .maybeSingle(),
     ]);
     if (!bookingHit.data && !packageHit.data && !subscriptionHit.data && !paymentHit.data) {
-      redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}&location_id=${locationId}&member_error=out_of_scope`);
+      return err("This user is outside your location scope.");
     }
   }
 
@@ -102,12 +100,10 @@ export async function updateMemberProfile(formData: FormData): Promise<void> {
       phone,
       notes,
     });
-  if (error) {
-    redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_error=save_failed`);
-  }
+  if (error) return err("Could not save profile.");
 
   revalidateDashboardClientViews(clientId);
-  redirect(`/dashboard/clients/${clientId}?studio_id=${studio.id}${locationId ? `&location_id=${locationId}` : ""}&member_saved=1`);
+  return ok("Profile saved.");
 }
 
 export async function createStaffMembership(formData: FormData): Promise<void> {
@@ -182,11 +178,14 @@ export async function createStaffMembership(formData: FormData): Promise<void> {
   redirect("/dashboard/staff?staff_msg=staff_membership_saved");
 }
 
-export async function toggleStaffMembership(formData: FormData): Promise<void> {
+export async function toggleStaffMembership(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const membershipId = String(formData.get("membership_id") ?? "");
   const nextActive = formData.get("next_active") === "true";
   const { supabase, user } = await requireUser();
-  if (!membershipId) return;
+  if (!membershipId) return err("Missing staff membership.");
 
   const admin = createAdminClient();
   const { data: membership } = await admin
@@ -194,22 +193,27 @@ export async function toggleStaffMembership(formData: FormData): Promise<void> {
     .select("id, studio_id, role")
     .eq("id", membershipId)
     .maybeSingle();
-  if (!membership) return;
+  if (!membership) return err("Staff membership not found.");
 
   const studio = await requireOwnedStudioAccess(supabase, membership.studio_id, user.id, "/dashboard/staff?staff_error=forbidden");
-  if (isStudioContractSuspended(studio)) return;
-  if (membership.role === "owner") return;
+  if (isStudioContractSuspended(studio)) return err("This studio is suspended. Resume the contract before changing staff access.");
+  if (membership.role === "owner") return err("Owner access cannot be disabled here.");
 
-  await admin
+  const { error } = await admin
     .from("staff_memberships")
     .update({ is_active: nextActive })
     .eq("id", membership.id);
+  if (error) return err("Could not update staff access.");
 
   revalidateDashboardStaffViews();
   revalidateRbacCache();
+  return ok(nextActive ? "Staff member enabled." : "Staff member disabled.");
 }
 
-export async function createStaffInvite(formData: FormData): Promise<void> {
+export async function createStaffInvite(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "");
   const locationRaw = String(formData.get("location_id") ?? "").trim();
   const locationId = locationRaw || null;
@@ -218,19 +222,11 @@ export async function createStaffInvite(formData: FormData): Promise<void> {
     .toLowerCase();
   const role = String(formData.get("role") ?? "").trim();
   const { supabase, studio, user } = await requireStudio(studioId || undefined);
-  if (!studio || !email || !role) {
-    redirect("/dashboard/settings/staff-invites?invite_error=missing_required_fields");
-  }
-  if (isStudioContractSuspended(studio)) {
-    redirect("/dashboard/settings/staff-invites?invite_error=studio_suspended");
-  }
-  if (!["manager", "frontdesk", "instructor"].includes(role)) {
-    redirect("/dashboard/settings/staff-invites?invite_error=invalid_role");
-  }
+  if (!studio || !email || !role) return err("Please complete email, role, and studio.");
+  if (isStudioContractSuspended(studio)) return err("This studio is suspended. Set contract to active before sending invites.");
+  if (!["manager", "frontdesk", "instructor"].includes(role)) return err("Invalid role.");
   await requireOwnedStudioAccess(supabase, studio.id, user.id, "/dashboard/settings/staff-invites?invite_error=forbidden");
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) {
-    redirect("/dashboard/settings/staff-invites?invite_error=invalid_location_scope");
-  }
+  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return err("Location does not belong to the selected studio.");
 
   const admin = createAdminClient();
   const token = crypto.randomUUID().replaceAll("-", "");
@@ -245,18 +241,19 @@ export async function createStaffInvite(formData: FormData): Promise<void> {
     expires_at: expiresAt,
     invited_by: user.id,
   });
-  if (error) {
-    redirect("/dashboard/settings/staff-invites?invite_error=create_failed");
-  }
+  if (error) return err("Could not create invite. An active invite may already exist.");
   revalidateDashboardSettings("staff-invites");
   revalidateRbacCache();
-  redirect("/dashboard/settings/staff-invites?invite_success=sent");
+  return ok("Invite created.");
 }
 
-export async function revokeStaffInvite(formData: FormData): Promise<void> {
+export async function revokeStaffInvite(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const inviteId = String(formData.get("invite_id") ?? "");
   const { supabase, user } = await requireUser();
-  if (!inviteId) return;
+  if (!inviteId) return err("Missing invite.");
 
   const admin = createAdminClient();
   const { data: invite } = await admin
@@ -264,10 +261,12 @@ export async function revokeStaffInvite(formData: FormData): Promise<void> {
     .select("id, studio_id, status")
     .eq("id", inviteId)
     .maybeSingle();
-  if (!invite || invite.status !== "pending") return;
+  if (!invite || invite.status !== "pending") return err("Pending invite not found.");
   await requireOwnedStudioAccess(supabase, invite.studio_id, user.id, "/dashboard/settings/staff-invites?invite_error=forbidden");
 
-  await admin.from("staff_invites").update({ status: "revoked" }).eq("id", invite.id);
+  const { error } = await admin.from("staff_invites").update({ status: "revoked" }).eq("id", invite.id);
+  if (error) return err("Could not revoke invite.");
   revalidateDashboardSettings("staff-invites");
   revalidateRbacCache();
+  return ok("Invite revoked.");
 }

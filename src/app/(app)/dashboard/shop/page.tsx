@@ -6,7 +6,9 @@ import {
   updateShopProduct,
 } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
 import { ShopExtraImagesField } from "@/components/dashboard/ShopExtraImagesField";
 import { LocalTime } from "@/components/ui/LocalTime";
@@ -14,7 +16,7 @@ import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
+type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string; fulfillment?: string }> };
 
 export default async function DashboardShopPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -35,6 +37,10 @@ export default async function DashboardShopPage({ searchParams }: Props) {
   }
 
   const studioId = selectedStudioId ?? studioIds[0];
+  const fulfillmentFilter =
+    sp.fulfillment === "unfulfilled" || sp.fulfillment === "shipped" || sp.fulfillment === "cancelled"
+      ? sp.fulfillment
+      : "all";
   const [{ data: studio }, { data: products }, { data: orders }] = await Promise.all([
     supabase.from("studios").select("id, public_slug").eq("id", studioId).maybeSingle(),
     supabase
@@ -54,8 +60,24 @@ export default async function DashboardShopPage({ searchParams }: Props) {
       .limit(50),
   ]);
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
+  const filteredOrders = (orders ?? []).filter((order) =>
+    fulfillmentFilter === "all" ? true : (order.fulfillment_status ?? "unfulfilled") === fulfillmentFilter,
+  );
+  const orderCounts = {
+    all: (orders ?? []).length,
+    unfulfilled: (orders ?? []).filter((order) => (order.fulfillment_status ?? "unfulfilled") === "unfulfilled").length,
+    shipped: (orders ?? []).filter((order) => (order.fulfillment_status ?? "unfulfilled") === "shipped").length,
+    cancelled: (orders ?? []).filter((order) => (order.fulfillment_status ?? "unfulfilled") === "cancelled").length,
+  };
 
   const publicHref = studio.public_slug ? `/${studio.public_slug}#shop` : null;
+  const scopedShopHref = (fulfillment: "all" | "unfulfilled" | "shipped" | "cancelled") => {
+    const params = new URLSearchParams();
+    params.set("studio_id", studio.id);
+    if (sp.location_id) params.set("location_id", sp.location_id);
+    if (fulfillment !== "all") params.set("fulfillment", fulfillment);
+    return `/dashboard/shop?${params.toString()}`;
+  };
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
@@ -76,8 +98,10 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           <span>+ Add product</span>
           <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
         </summary>
-        <form action={createShopProduct} className="mt-4 grid gap-4 sm:grid-cols-2">
+        <ServerActionToastForm action={createShopProduct} className="mt-4 grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={studio.id} />
+          <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
+          <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Title</span>
             <input name="title" required className={ui.input} />
@@ -124,14 +148,16 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Creating...">
             Create product
           </SubmitButton>
-        </form>
+        </ServerActionToastForm>
       </details>
 
       <div className="grid gap-4">
         {(products ?? []).map((product) => (
           <div key={product.id} className={ui.card}>
-            <form action={updateShopProduct}>
+            <ServerActionToastForm action={updateShopProduct}>
               <input type="hidden" name="studio_id" value={studio.id} />
+              <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
+              <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
               <input type="hidden" name="product_id" value={product.id} />
               <details className="chevron">
                 <summary className="flex cursor-pointer items-center gap-3">
@@ -214,13 +240,24 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                     <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">
                       Save
                     </SubmitButton>
-                    <button type="submit" formAction={deleteShopProduct} className={ui.btnDangerSm}>
-                      Hide product
-                    </button>
+                    <ToastConfirmForm
+                      action={deleteShopProduct}
+                      confirmMessage="Hide this product from the public page?"
+                      confirmLabel="Hide"
+                      pendingLabel="Hiding..."
+                    >
+                      <input type="hidden" name="studio_id" value={studio.id} />
+                      <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
+                      <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
+                      <input type="hidden" name="product_id" value={product.id} />
+                      <button type="submit" className={ui.btnDangerSm}>
+                        Hide product
+                      </button>
+                    </ToastConfirmForm>
                   </div>
                 </div>
               </details>
-            </form>
+            </ServerActionToastForm>
           </div>
         ))}
         {!products?.length ? <p className={`text-sm ${ui.muted}`}>No products yet.</p> : null}
@@ -228,9 +265,28 @@ export default async function DashboardShopPage({ searchParams }: Props) {
 
       {(orders ?? []).length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className={ui.h2}>Completed orders</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className={ui.h2}>Completed orders</h2>
+              <p className={`mt-1 text-sm ${ui.muted}`}>Use the unfulfilled filter to work the shipping queue first.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <DashboardAppLink href={scopedShopHref("unfulfilled")} className={fulfillmentFilter === "unfulfilled" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+                Unfulfilled ({orderCounts.unfulfilled})
+              </DashboardAppLink>
+              <DashboardAppLink href={scopedShopHref("all")} className={fulfillmentFilter === "all" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+                All ({orderCounts.all})
+              </DashboardAppLink>
+              <DashboardAppLink href={scopedShopHref("shipped")} className={fulfillmentFilter === "shipped" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+                Shipped ({orderCounts.shipped})
+              </DashboardAppLink>
+              <DashboardAppLink href={scopedShopHref("cancelled")} className={fulfillmentFilter === "cancelled" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+                Cancelled ({orderCounts.cancelled})
+              </DashboardAppLink>
+            </div>
+          </div>
           <ul className="flex flex-col gap-2">
-            {(orders ?? []).map((order) => (
+            {filteredOrders.map((order) => (
               <li key={order.id} className={ui.card}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -245,8 +301,10 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                         : null}
                     </p>
                   </div>
-                  <form action={updateShopOrderFulfillment} className="flex items-center gap-2">
+                  <ServerActionToastForm action={updateShopOrderFulfillment} className="flex items-center gap-2">
                     <input type="hidden" name="studio_id" value={studio.id} />
+                    <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
+                    <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
                     <input type="hidden" name="order_id" value={order.id} />
                     <select name="fulfillment_status" defaultValue={order.fulfillment_status ?? "unfulfilled"} className={ui.select}>
                       <option value="unfulfilled">Unfulfilled</option>
@@ -256,11 +314,16 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                     <SubmitButton className={ui.btnSecondarySm} pendingText="...">
                       Update
                     </SubmitButton>
-                  </form>
+                  </ServerActionToastForm>
                 </div>
               </li>
             ))}
           </ul>
+          {!filteredOrders.length ? (
+            <div className={ui.emptyState}>
+              <p className={`text-sm ${ui.muted}`}>No orders in this fulfillment state.</p>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </div>

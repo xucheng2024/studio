@@ -27,6 +27,9 @@ import {
   hasStudioGlobalRole,
   hasStudioRole,
   normalizeE164,
+  DashboardFormResult,
+  err,
+  ok,
   requireOwnedStudioAccess,
   requireStudio,
   requireUser,
@@ -121,6 +124,15 @@ export type CustomDomainFormResult = {
   ok: boolean;
   message: string;
   status: CustomDomainUiStatus;
+};
+
+export type HitpaySettingsResult = {
+  ok: boolean;
+  message: string;
+  enabled: boolean;
+  hasBusinessName: boolean;
+  hasApiKey: boolean;
+  hasWebhookSalt: boolean;
 };
 
 export async function updateStudioCustomDomain(
@@ -224,11 +236,32 @@ export async function updateStudioCustomDomain(
   }
 }
 
-export async function updateStudioHitpaySettings(formData: FormData): Promise<void> {
+export async function updateStudioHitpaySettings(
+  _prevState: HitpaySettingsResult | null,
+  formData: FormData,
+): Promise<HitpaySettingsResult> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
+  if (!studio) {
+    return {
+      ok: false,
+      message: "Studio not found.",
+      enabled: false,
+      hasBusinessName: false,
+      hasApiKey: false,
+      hasWebhookSalt: false,
+    };
+  }
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) {
+    return {
+      ok: false,
+      message: "Only owners can update payment settings.",
+      enabled: false,
+      hasBusinessName: false,
+      hasApiKey: false,
+      hasWebhookSalt: false,
+    };
+  }
 
   const enabled = formData.get("hitpay_enabled") === "on";
   const businessName = String(formData.get("hitpay_business_name") ?? "").trim() || null;
@@ -242,7 +275,40 @@ export async function updateStudioHitpaySettings(formData: FormData): Promise<vo
     .maybeSingle();
   const nextApiKey = apiKeyInput || existingSecrets?.hitpay_api_key || null;
   const nextWebhookSalt = webhookSaltInput || existingSecrets?.hitpay_webhook_salt || null;
-  if (enabled && (!nextApiKey || !nextWebhookSalt)) return;
+  const hasBusinessName = Boolean(businessName);
+  const hasApiKey = Boolean(nextApiKey);
+  const hasWebhookSalt = Boolean(nextWebhookSalt);
+
+  if (enabled && !process.env.HITPAY_PLATFORM_API_KEY?.trim()) {
+    return {
+      ok: false,
+      message: "Platform HitPay key is missing on the server. Add HITPAY_PLATFORM_API_KEY before enabling this studio.",
+      enabled: false,
+      hasBusinessName,
+      hasApiKey,
+      hasWebhookSalt,
+    };
+  }
+  if (enabled && !hasBusinessName) {
+    return {
+      ok: false,
+      message: "Business name is required before enabling HitPay for this studio.",
+      enabled: false,
+      hasBusinessName,
+      hasApiKey,
+      hasWebhookSalt,
+    };
+  }
+  if (enabled && (!hasApiKey || !hasWebhookSalt)) {
+    return {
+      ok: false,
+      message: "Merchant API key and webhook salt are both required before enabling HitPay.",
+      enabled: false,
+      hasBusinessName,
+      hasApiKey,
+      hasWebhookSalt,
+    };
+  }
 
   const { error } = await supabase
     .from("studios")
@@ -253,7 +319,14 @@ export async function updateStudioHitpaySettings(formData: FormData): Promise<vo
     .eq("id", studio.id);
   if (error) {
     console.error(error.message);
-    return;
+    return {
+      ok: false,
+      message: "Could not save HitPay settings.",
+      enabled,
+      hasBusinessName,
+      hasApiKey,
+      hasWebhookSalt,
+    };
   }
   const { error: secretError } = await admin
     .from("studio_payment_secrets")
@@ -265,12 +338,29 @@ export async function updateStudioHitpaySettings(formData: FormData): Promise<vo
     });
   if (secretError) {
     console.error(secretError.message);
-    return;
+    return {
+      ok: false,
+      message: "Could not save HitPay credentials.",
+      enabled,
+      hasBusinessName,
+      hasApiKey,
+      hasWebhookSalt,
+    };
   }
 
   revalidateDashboardSettings("payments");
   revalidatePath("/");
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  return {
+    ok: true,
+    message: enabled
+      ? "HitPay settings saved. This studio is ready to accept HitPay payments."
+      : "HitPay settings saved.",
+    enabled,
+    hasBusinessName,
+    hasApiKey,
+    hasWebhookSalt,
+  };
 }
 
 export async function updateStudioPublicProfile(formData: FormData): Promise<void> {
@@ -474,13 +564,16 @@ export async function updateStudioPublicBranding(formData: FormData): Promise<vo
   if (studio.public_slug) revalidatePublicStudioPath(studio.public_slug);
 }
 
-export async function updateStudioContractSettings(formData: FormData): Promise<void> {
+export async function updateStudioContractSettings(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { user } = await requireUser();
   if (!isSuperAdminEmail(user.email)) {
-    redirect("/dashboard/settings?owner_error=forbidden");
+    return err("You do not have access to this action.");
   }
-  if (!studioId) return;
+  if (!studioId) return err("Missing studio.");
 
   const statusRaw = String(formData.get("contract_status") ?? "").trim().toLowerCase();
   const contract_status = statusRaw === "suspended" ? "suspended" : "active";
@@ -488,7 +581,7 @@ export async function updateStudioContractSettings(formData: FormData): Promise<
   let contract_ends_at: string | null = null;
   if (endsRaw) {
     const parsed = parseDatetimeLocalAsSgt(endsRaw);
-    if (!parsed) return;
+    if (!parsed) return err("Invalid contract end date.");
     contract_ends_at = parsed.toISOString();
   }
 
@@ -498,7 +591,7 @@ export async function updateStudioContractSettings(formData: FormData): Promise<
     .select("id")
     .eq("id", studioId)
     .maybeSingle();
-  if (!studio) return;
+  if (!studio) return err("Studio not found.");
 
   const { error } = await admin
     .from("studios")
@@ -506,26 +599,24 @@ export async function updateStudioContractSettings(formData: FormData): Promise<
     .eq("id", studio.id);
   if (error) {
     console.error(error.message);
-    return;
+    return err("Could not save contract settings.");
   }
   revalidateDashboardCoreViews();
+  return ok("Contract settings saved.");
 }
 
-export async function createLocation(formData: FormData): Promise<void> {
+export async function createLocation(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim() || null;
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio || !name) {
-    redirect("/dashboard/settings/locations?loc_error=missing_required_fields");
-  }
-  if (isStudioContractSuspended(studio)) {
-    redirect("/dashboard/settings/locations?loc_error=studio_suspended");
-  }
-  if (!hasStudioRole(ctx, studio.id, ["owner"])) {
-    redirect("/dashboard/settings/locations?loc_error=forbidden");
-  }
+  if (!studio || !name) return err("Please fill the required fields.");
+  if (isStudioContractSuspended(studio)) return err("Studio is suspended. Set contract back to active first.");
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) return err("Only owners can manage locations.");
 
   const { error } = await supabase.from("locations").insert({
     studio_id: studio.id,
@@ -534,70 +625,63 @@ export async function createLocation(formData: FormData): Promise<void> {
     phone,
     is_active: true,
   });
-  if (error) {
-    redirect("/dashboard/settings/locations?loc_error=create_failed");
-  }
+  if (error) return err("Could not create location.");
   revalidateDashboardSettings("locations");
-  redirect("/dashboard/settings/locations?loc_success=created");
+  return ok("Location created.");
 }
 
-export async function updateLocation(formData: FormData): Promise<void> {
+export async function updateLocation(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const locationId = String(formData.get("location_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim() || null;
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const { supabase, user } = await requireUser();
-  if (!locationId || !name) {
-    redirect("/dashboard/settings/locations?loc_error=missing_required_fields");
-  }
+  if (!locationId || !name) return err("Please fill the required fields.");
   const { data: location } = await supabase
     .from("locations")
     .select("id, studio_id")
     .eq("id", locationId)
     .maybeSingle();
-  if (!location) {
-    redirect("/dashboard/settings/locations?loc_error=not_found");
-  }
+  if (!location) return err("Location was not found.");
   const studio = await requireOwnedStudioAccess(supabase, location.studio_id, user.id, "/dashboard/settings/locations?loc_error=forbidden");
-  if (isStudioContractSuspended(studio)) {
-    redirect("/dashboard/settings/locations?loc_error=studio_suspended");
-  }
+  if (isStudioContractSuspended(studio)) return err("Studio is suspended. Set contract back to active first.");
 
   const { error } = await supabase
     .from("locations")
     .update({ name, address, phone })
     .eq("id", location.id);
-  if (error) {
-    redirect("/dashboard/settings/locations?loc_error=save_failed");
-  }
+  if (error) return err("Could not save location.");
   revalidateDashboardSettings("locations");
-  redirect("/dashboard/settings/locations?loc_success=updated");
+  return ok("Location updated.");
 }
 
-export async function toggleLocationActive(formData: FormData): Promise<void> {
+export async function toggleLocationActive(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const locationId = String(formData.get("location_id") ?? "").trim();
   const nextActive = formData.get("next_active") === "true";
   const { supabase, user } = await requireUser();
-  if (!locationId) return;
+  if (!locationId) return err("Missing location.");
 
   const { data: location } = await supabase
     .from("locations")
     .select("id, studio_id")
     .eq("id", locationId)
     .maybeSingle();
-  if (!location) {
-    redirect("/dashboard/settings/locations?loc_error=not_found");
-  }
+  if (!location) return err("Location was not found.");
   const studio = await requireOwnedStudioAccess(supabase, location.studio_id, user.id, "/dashboard/settings/locations?loc_error=forbidden");
-  if (isStudioContractSuspended(studio)) {
-    redirect("/dashboard/settings/locations?loc_error=studio_suspended");
-  }
+  if (isStudioContractSuspended(studio)) return err("Studio is suspended. Set contract back to active first.");
 
-  await supabase
+  const { error } = await supabase
     .from("locations")
     .update({ is_active: nextActive })
     .eq("id", location.id);
+  if (error) return err("Could not update location status.");
 
   revalidateDashboardSettings("locations");
-  redirect("/dashboard/settings/locations?loc_success=status_updated");
+  return ok(nextActive ? "Location enabled." : "Location disabled.");
 }

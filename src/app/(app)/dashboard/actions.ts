@@ -12,7 +12,7 @@ export {
   updateStudioPublicBranding,
   updateStudioPublicProfile,
 } from "./_actions/studio-settings";
-export type { BookingSettingsResult, CustomDomainFormResult } from "./_actions/studio-settings";
+export type { BookingSettingsResult, CustomDomainFormResult, HitpaySettingsResult } from "./_actions/studio-settings";
 
 export {
   createClassTemplate,
@@ -20,6 +20,7 @@ export {
   createSessionWithTemplate,
 } from "./_actions/sessions";
 export type { SessionPanelResult } from "./_actions/sessions";
+export type { DashboardFormResult } from "./_actions/shared";
 
 export { createEvent, deleteEvent, updateEvent } from "./_actions/events";
 

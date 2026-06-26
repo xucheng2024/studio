@@ -1,54 +1,13 @@
-import { updateStudioHitpaySettings } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
-import { SubmitButton } from "@/components/SubmitButton";
-import { Toggle } from "@/components/ui/Toggle";
+import { HitpaySettingsForm } from "@/components/dashboard/HitpaySettingsForm";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
-import { CheckCircle2, CircleDashed } from "lucide-react";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 
 type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
-
-function OnboardingStep({
-  title,
-  description,
-  done,
-}: {
-  title: string;
-  description: string;
-  done: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-950/50">
-      <div className="flex items-start gap-3">
-        <span
-          className={`mt-0.5 flex size-5 shrink-0 items-center justify-center ${
-            done ? "text-teal-600 dark:text-teal-400" : "text-stone-400 dark:text-stone-500"
-          }`}
-        >
-          {done ? <CheckCircle2 size={18} /> : <CircleDashed size={18} />}
-        </span>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">{title}</h3>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                done
-                  ? "bg-teal-100 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300"
-                  : "bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
-              }`}
-            >
-              {done ? "Ready" : "Pending"}
-            </span>
-          </div>
-          <p className={`mt-1 text-sm ${ui.muted}`}>{description}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default async function DashboardPaymentSettingsPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -87,11 +46,7 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
   const hasWebhookSalt = Boolean(secrets?.hitpay_webhook_salt);
   const hasPlatformKey = Boolean(process.env.HITPAY_PLATFORM_API_KEY?.trim());
   const apiBase = process.env.HITPAY_API_BASE_URL?.trim() || "https://api.hit-pay.com";
-  const hasBusinessName = Boolean(studio.hitpay_business_name?.trim());
   const platformReady = hasPlatformKey;
-  const merchantAccountReady = hasBusinessName;
-  const credentialsEntered = hasApiKey && hasWebhookSalt;
-  const enabled = Boolean(studio.hitpay_enabled) && platformReady && credentialsEntered;
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -125,99 +80,39 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
       <section className={ui.card}>
         <h2 className={ui.h2}>Setup progress</h2>
         <p className={`mt-2 text-sm ${ui.muted}`}>
-          Complete these steps to turn on HitPay for this studio with fewer surprises.
+          The platform layer and the studio layer both have to be ready before HitPay should be enabled.
         </p>
-        <div className="mt-4 grid gap-3">
-          {isSuperAdmin ? (
-            <OnboardingStep
-              title="1. Platform ready"
-              description="Your SaaS server has the shared HitPay platform key configured."
-              done={platformReady}
-            />
-          ) : null}
-          <OnboardingStep
-            title={isSuperAdmin ? "2. Merchant account ready" : "1. Merchant account ready"}
-            description="Confirm this studio has its own HitPay merchant account and use the business name below to match that account."
-            done={merchantAccountReady}
-          />
-          <OnboardingStep
-            title={isSuperAdmin ? "3. Credentials entered" : "2. Credentials entered"}
-            description="Enter this studio's merchant API key and webhook salt from its own HitPay merchant dashboard."
-            done={credentialsEntered}
-          />
-          <OnboardingStep
-            title={isSuperAdmin ? "4. Enabled" : "3. Enabled"}
-            description="Turn on HitPay for this studio only after the earlier steps are ready."
-            done={enabled}
-          />
+        <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-950/50">
+          <div className="flex items-start gap-3">
+            <span
+              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center ${
+                platformReady ? "text-teal-600 dark:text-teal-400" : "text-amber-600 dark:text-amber-400"
+              }`}
+            >
+              {platformReady ? <CheckCircle2 size={18} /> : <CircleAlert size={18} />}
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Platform ready</h3>
+                <span className={platformReady ? ui.badge : ui.badgeAmber}>
+                  {platformReady ? "Ready" : "Pending"}
+                </span>
+              </div>
+              <p className={`mt-1 text-sm ${ui.muted}`}>
+                Your SaaS server must have the shared HitPay platform key configured before any studio can go live.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <form action={updateStudioHitpaySettings} className={`${ui.card} grid gap-4`}>
-        <input type="hidden" name="studio_id" value={studio.id} />
-        <div>
-          <h2 className={ui.h2}>Sub-merchant setup</h2>
-          <p className={`mt-2 text-sm ${ui.muted}`}>
-            This studio still needs its own HitPay merchant account, merchant API key, and webhook salt.
-          </p>
-          <ul className={`mt-3 list-disc space-y-1 pl-5 text-sm ${ui.muted}`}>
-            <li>Use the API key from your own HitPay merchant account.</li>
-            <li>Your platform onboarding with HitPay must already be activated.</li>
-          </ul>
-        </div>
-        <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
-          <Toggle name="hitpay_enabled" defaultChecked={Boolean(studio.hitpay_enabled)} />
-          Enable HitPay for this studio
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Business name</span>
-          <input
-            name="hitpay_business_name"
-            defaultValue={studio.hitpay_business_name ?? ""}
-            placeholder="ACME Fitness Pte Ltd"
-            className={ui.input}
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="flex items-center gap-2">
-            <span className={ui.label}>Merchant API key</span>
-            {hasApiKey
-              ? <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-800 dark:bg-teal-950/40 dark:text-teal-300">Configured ✓</span>
-              : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Not set</span>
-            }
-          </span>
-          <input
-            name="hitpay_api_key"
-            type="password"
-            defaultValue=""
-            placeholder={hasApiKey ? "Leave blank to keep current key, or enter new key to rotate" : "Enter your HitPay merchant API key"}
-            className={ui.input}
-          />
-          <span className={`text-xs ${ui.muted}`}>
-            Use the API key from your own HitPay merchant account.
-          </span>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="flex items-center gap-2">
-            <span className={ui.label}>Webhook salt</span>
-            {hasWebhookSalt
-              ? <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-800 dark:bg-teal-950/40 dark:text-teal-300">Configured ✓</span>
-              : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Not set</span>
-            }
-          </span>
-          <input
-            name="hitpay_webhook_salt"
-            type="password"
-            defaultValue=""
-            placeholder={hasWebhookSalt ? "Leave blank to keep current salt, or enter new salt to rotate" : "Enter your HitPay webhook salt"}
-            className={ui.input}
-          />
-          <span className={`text-xs ${ui.muted}`}>This should match the webhook endpoint salt configured for this sub-merchant in HitPay.</span>
-        </label>
-        <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Saving...">
-          Save settings
-        </SubmitButton>
-      </form>
+      <HitpaySettingsForm
+        studioId={studio.id}
+        initialEnabled={Boolean(studio.hitpay_enabled)}
+        initialBusinessName={studio.hitpay_business_name ?? null}
+        initialHasApiKey={hasApiKey}
+        initialHasWebhookSalt={hasWebhookSalt}
+      />
 
       <section className={ui.card}>
         <h2 className={ui.h2}>Configuration status</h2>

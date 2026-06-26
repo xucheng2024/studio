@@ -1,5 +1,6 @@
 import { createClassTemplate, createInstructor } from "@/app/(app)/dashboard/actions";
 import { ClassTemplateLifecycleRow } from "@/components/dashboard/ClassTemplateLifecycleRow";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
@@ -112,7 +113,7 @@ export default async function ClassesPage({ searchParams }: Props) {
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-stone-800 dark:text-stone-200">
                 <span>+ Add instructor</span>
               </summary>
-              <form action={createInstructor} className="mt-3 flex flex-wrap items-end gap-3">
+              <ServerActionToastForm action={createInstructor} className="mt-3 flex flex-wrap items-end gap-3">
                 <input type="hidden" name="studio_id" value={studioId} />
                 <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                 <label className="flex min-w-40 flex-col gap-1.5">
@@ -122,7 +123,7 @@ export default async function ClassesPage({ searchParams }: Props) {
                 <SubmitButton className={ui.btnPrimarySm} pendingText="Adding...">
                   Add
                 </SubmitButton>
-              </form>
+              </ServerActionToastForm>
             </details>
           ) : null}
         </div>
@@ -149,7 +150,7 @@ export default async function ClassesPage({ searchParams }: Props) {
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-stone-900 dark:text-stone-100">
                 <span>+ New class template</span>
               </summary>
-              <form action={createClassTemplate} className="mt-4 grid min-w-[min(42rem,calc(100vw-4rem))] gap-3 md:grid-cols-2">
+              <ServerActionToastForm action={createClassTemplate} className="mt-4 grid min-w-[min(42rem,calc(100vw-4rem))] gap-3 md:grid-cols-2">
                 <input type="hidden" name="studio_id" value={studioId} />
                 <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                 <label className="flex flex-col gap-1.5 md:col-span-2">
@@ -204,7 +205,7 @@ export default async function ClassesPage({ searchParams }: Props) {
                 <SubmitButton className={`${ui.btnPrimarySm} md:col-span-2 w-fit`} pendingText="Saving...">
                   Save class template
                 </SubmitButton>
-              </form>
+              </ServerActionToastForm>
             </details>
           ) : null}
         </div>

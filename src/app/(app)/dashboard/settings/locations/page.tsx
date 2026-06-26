@@ -3,6 +3,7 @@ import {
   toggleLocationActive,
   updateLocation,
 } from "@/app/(app)/dashboard/actions";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
@@ -14,8 +15,6 @@ type Props = {
   searchParams: Promise<{
     studio_id?: string;
     location_id?: string;
-    loc_error?: string;
-    loc_success?: string;
   }>;
 };
 
@@ -61,29 +60,6 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
     .eq("studio_id", studio.id)
     .order("created_at", { ascending: true });
 
-  const errorMsg =
-    sp.loc_error === "missing_required_fields"
-      ? "Please fill the required fields."
-      : sp.loc_error === "forbidden"
-        ? "Only owners can manage locations."
-        : sp.loc_error === "studio_suspended"
-          ? "Studio is suspended. Set contract back to active first."
-          : sp.loc_error === "create_failed"
-            ? "Could not create location."
-            : sp.loc_error === "save_failed"
-              ? "Could not save location."
-              : sp.loc_error === "not_found"
-                ? "Location was not found."
-                : null;
-  const successMsg =
-    sp.loc_success === "created"
-      ? "Location created."
-      : sp.loc_success === "updated"
-        ? "Location updated."
-        : sp.loc_success === "status_updated"
-          ? "Location status updated."
-          : null;
-
   return (
     <div className="flex max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -96,10 +72,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
         </DashboardAppLink>
       </div>
 
-      {errorMsg ? <p className={ui.error}>{errorMsg}</p> : null}
-      {successMsg ? <p className={ui.success}>{successMsg}</p> : null}
-
-      <form action={createLocation} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
+      <ServerActionToastForm action={createLocation} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
         <input type="hidden" name="studio_id" value={studio.id} />
         <label className="flex flex-col gap-1.5 md:col-span-2">
           <span className={ui.label}>Location name</span>
@@ -118,7 +91,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
             Add location
           </SubmitButton>
         </div>
-      </form>
+      </ServerActionToastForm>
 
       <div className={ui.card}>
         <p className={`mb-3 text-xs ${ui.muted}`}>Locations are used for schedule/frontdesk/operations filters and scoped staff access.</p>
@@ -140,7 +113,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
                     {loc.is_active ? "Active" : "Disabled"}
                   </span>
                 </div>
-                <form action={updateLocation} className="grid gap-2 md:grid-cols-3">
+                <ServerActionToastForm action={updateLocation} className="grid gap-2 md:grid-cols-3">
                   <input type="hidden" name="location_id" value={loc.id} />
                   <input name="name" required defaultValue={loc.name} className={ui.input} />
                   <input name="address" defaultValue={loc.address ?? ""} className={ui.input} placeholder="Address" />
@@ -152,14 +125,14 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
                       Save
                     </SubmitButton>
                   </div>
-                </form>
-                <form action={toggleLocationActive} className="mt-2">
+                </ServerActionToastForm>
+                <ServerActionToastForm action={toggleLocationActive} className="mt-2">
                   <input type="hidden" name="location_id" value={loc.id} />
                   <input type="hidden" name="next_active" value={loc.is_active ? "false" : "true"} />
                   <SubmitButton className={`${loc.is_active ? ui.btnGhost : ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Updating...">
                     {loc.is_active ? "Disable" : "Enable"}
                   </SubmitButton>
-                </form>
+                </ServerActionToastForm>
               </div>
             ))}
           </div>

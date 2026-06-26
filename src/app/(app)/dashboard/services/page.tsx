@@ -1,9 +1,11 @@
 import { createStudioService, deleteStudioService, updateStudioService } from "@/app/(app)/dashboard/actions";
 import Image from "next/image";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { ServiceDetailLinkButton } from "@/components/dashboard/ServiceDetailLinkButton";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { formatPublicTagsInput } from "@/lib/publicTags";
 import { ui } from "@/lib/ui";
@@ -69,8 +71,9 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
           <span>+ Add service</span>
           <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
         </summary>
-        <form action={createStudioService} className="mt-4 grid gap-4 sm:grid-cols-2">
+        <ServerActionToastForm action={createStudioService} className="mt-4 grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={studio.id} />
+          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Title</span>
             <input name="title" required className={ui.input} />
@@ -123,13 +126,14 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
           <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Creating...">
             Create service
           </SubmitButton>
-        </form>
+        </ServerActionToastForm>
       </details>
 
       <div className="grid gap-4">
         {(services ?? []).map((svc) => (
-          <form key={svc.id} action={updateStudioService} className={ui.card}>
+          <ServerActionToastForm key={svc.id} action={updateStudioService} className={ui.card}>
             <input type="hidden" name="studio_id" value={studio.id} />
+            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
             <input type="hidden" name="service_id" value={svc.id} />
             <details className="chevron">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
@@ -179,9 +183,19 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
 
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                   <ServiceDetailLinkButton serviceId={svc.id} />
-                  <button type="submit" formAction={deleteStudioService} className={`${ui.btnDangerSm} px-2`}>
-                    Remove
-                  </button>
+                  <ToastConfirmForm
+                    action={deleteStudioService}
+                    confirmMessage="Remove this service?"
+                    confirmLabel="Remove"
+                    pendingLabel="Removing..."
+                  >
+                    <input type="hidden" name="studio_id" value={studio.id} />
+                    <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+                    <input type="hidden" name="service_id" value={svc.id} />
+                    <button type="submit" className={`${ui.btnDangerSm} px-2`}>
+                      Remove
+                    </button>
+                  </ToastConfirmForm>
                 </div>
               </summary>
 
@@ -245,7 +259,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                 </div>
               </div>
             </details>
-          </form>
+          </ServerActionToastForm>
         ))}
       </div>
     </div>

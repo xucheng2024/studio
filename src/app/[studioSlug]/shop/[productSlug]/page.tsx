@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BuyShopProductPanel } from "@/components/BuyShopProductPanel";
+import { PurchaseAccountHint } from "@/components/PurchaseAccountHint";
 import { ShopImageGallery } from "@/components/ShopImageGallery";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { STUDIO_CURRENCY } from "@/lib/currency";
@@ -176,6 +177,7 @@ export default async function PublicShopProductPage({ params }: Props) {
                 actionLabel={isFreeProduct ? "Place free order" : "Buy now"}
               />
             </div>
+            <PurchaseAccountHint className="mt-4" />
           </div>
         </div>
       </div>

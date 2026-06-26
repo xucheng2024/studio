@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { updateMemberProfile } from "@/app/(app)/dashboard/actions";
 import { LocalDate } from "@/components/ui/LocalDate";
@@ -12,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<{ location_id?: string; studio_id?: string; member_saved?: string; member_error?: string }>;
+  searchParams: Promise<{ location_id?: string; studio_id?: string }>;
 };
 
 export default async function ClientLedgerPage({ params, searchParams }: Props) {
@@ -158,10 +159,8 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className={ui.h2}>User profile</h2>
-          {sp.member_saved === "1" ? <p className={ui.success}>Saved.</p> : null}
-          {sp.member_error ? <p className={ui.error}>Save failed: {sp.member_error}</p> : null}
         </div>
-        <form action={updateMemberProfile} className="mt-3 grid gap-3 sm:grid-cols-2">
+        <ServerActionToastForm action={updateMemberProfile} className="mt-3 grid gap-3 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={activeStudioId} />
           {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
           <input type="hidden" name="client_id" value={clientId} />
@@ -193,7 +192,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           <div className="sm:col-span-2">
             <button type="submit" className={ui.btnPrimarySm}>Save profile</button>
           </div>
-        </form>
+        </ServerActionToastForm>
       </section>
 
       <section>

@@ -67,6 +67,49 @@ export function CustomDomainFields({
       : statusState.tone === "amber"
         ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
         : "border-stone-200 bg-stone-50 text-stone-700 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300";
+  const checklist = [
+    {
+      key: "saved",
+      label: "Domain saved",
+      done: Boolean(savedDomain),
+      pending: !savedDomain,
+      detail: savedDomain ? savedDomain : "Save the exact domain first.",
+    },
+    {
+      key: "vercel",
+      label: "Registered on Vercel",
+      done: statusState.vercelStatus === "registered",
+      pending: statusState.vercelStatus === "unknown",
+      detail:
+        statusState.vercelStatus === "registered"
+          ? "Domain is registered."
+          : statusState.vercelStatus === "failed"
+            ? "Registration failed. Check the last error."
+            : "Waiting for registration state.",
+    },
+    {
+      key: "dns",
+      label: "DNS record correct",
+      done: statusState.dnsStatus === "verified",
+      pending: statusState.dnsStatus === "pending" || statusState.dnsStatus === "unknown",
+      detail:
+        statusState.dnsStatus === "verified"
+          ? "DNS points to the expected target."
+          : statusState.dnsStatus === "misconfigured"
+            ? "DNS does not match the record below."
+            : "DNS change still needs to propagate.",
+    },
+    {
+      key: "ssl",
+      label: "SSL certificate ready",
+      done: statusState.sslStatus === "ready",
+      pending: statusState.sslStatus === "pending" || statusState.sslStatus === "unknown",
+      detail:
+        statusState.sslStatus === "ready"
+          ? "HTTPS is ready."
+          : "SSL is still provisioning or waiting on DNS.",
+    },
+  ];
 
   useEffect(() => {
     if (!remoteStatus) return;
@@ -197,6 +240,41 @@ export function CustomDomainFields({
           </span>
         ) : null}
       </div>
+
+      <div className="rounded-2xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950/40">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Current setup</p>
+          <p className={`text-xs ${ui.muted}`}>Work down this checklist until the domain becomes active.</p>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {checklist.map((item) => (
+            <div key={item.key} className="rounded-xl border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    item.done
+                      ? "bg-teal-100 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300"
+                      : item.pending
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                        : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300"
+                  }`}
+                >
+                  {item.done ? "Done" : item.pending ? "Pending" : "Needs action"}
+                </span>
+                <p className="text-sm font-medium text-stone-900 dark:text-stone-100">{item.label}</p>
+              </div>
+              <p className={`mt-2 text-xs ${ui.muted}`}>{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {statusState.lastError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 dark:border-red-900/40 dark:bg-red-950/20">
+          <p className="text-sm font-semibold text-red-800 dark:text-red-300">Last error</p>
+          <p className="mt-2 break-words text-xs text-red-700 dark:text-red-300">{statusState.lastError}</p>
+        </div>
+      ) : null}
 
       <div className="rounded-2xl border border-dashed border-stone-300 p-4 dark:border-stone-700">
         <div className="flex items-start justify-between gap-3">

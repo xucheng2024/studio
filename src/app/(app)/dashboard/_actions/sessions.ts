@@ -1,5 +1,4 @@
 "use server";
-
 import { revalidateDashboardContent, revalidatePublicSectionPaths } from "@/lib/revalidatePublic";
 import { parsePublicTagsInput } from "@/lib/publicTags";
 import { recordStudioContentUpdate } from "@/lib/pwaUpdates";
@@ -7,11 +6,14 @@ import { parseDateAndTimeAsSgt, parseDatetimeLocalAsSgt } from "@/lib/date";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import {
   assertLocationInStudio,
+  err,
   hasStudioLocationRole,
   hasStudioRole,
+  ok,
   requireStudio,
   sanitizePriceNullable,
   sanitizeVideoUrl,
+  type DashboardFormResult,
   type SupabaseClient,
 } from "./shared";
 
@@ -169,39 +171,48 @@ async function insertRecurringRule(
   return count;
 }
 
-export async function createInstructor(formData: FormData): Promise<void> {
+export async function createInstructor(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "");
   const locationId = String(formData.get("location_id") ?? "").trim() || null;
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) return;
-  if (!hasStudioLocationRole(ctx, studio.id, locationId, ["owner", "manager"])) return;
+  if (!studio) return err("Studio not found.");
+  const activeStudio = studio!;
+  if (isStudioContractSuspended(activeStudio)) return err("Studio is suspended. Reactivate the contract first.");
+  if (!hasStudioRole(ctx, activeStudio.id, ["owner", "manager"])) return err("You do not have permission to save class setup.");
+  if (!(await assertLocationInStudio(supabase, activeStudio.id, locationId))) return err("The selected location is out of scope for this class.");
+  if (!hasStudioLocationRole(ctx, activeStudio.id, locationId, ["owner", "manager"])) return err("The selected location is out of scope for this class.");
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
+  if (!name) return err("Please fill the required fields.");
 
   const { error } = await supabase.from("instructors").insert({
-    studio_id: studio.id,
+    studio_id: activeStudio.id,
     location_id: locationId,
     name,
   });
   if (error) {
     console.error(error.message);
-    return;
+    return err("Could not save changes.");
   }
   revalidateDashboardContent("classes");
+  return ok("Instructor added.");
 }
 
-export async function createClassTemplate(formData: FormData): Promise<void> {
+export async function createClassTemplate(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "");
   const locationId = String(formData.get("location_id") ?? "").trim();
   const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (isStudioContractSuspended(studio)) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner", "manager"])) return;
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId || null))) return;
-  if (!hasStudioLocationRole(ctx, studio.id, locationId || null, ["owner", "manager"])) return;
+  if (!studio) return err("Studio not found.");
+  const activeStudio = studio!;
+  if (isStudioContractSuspended(activeStudio)) return err("Studio is suspended. Reactivate the contract first.");
+  if (!hasStudioRole(ctx, activeStudio.id, ["owner", "manager"])) return err("You do not have permission to save class setup.");
+  if (!(await assertLocationInStudio(supabase, activeStudio.id, locationId || null))) return err("The selected location is out of scope for this class.");
+  if (!hasStudioLocationRole(ctx, activeStudio.id, locationId || null, ["owner", "manager"])) return err("The selected location is out of scope for this class.");
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -212,19 +223,20 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
   const image_url = String(formData.get("image_url") ?? "").trim() || null;
   const video_url = sanitizeVideoUrl(String(formData.get("video_url") ?? "")) || null;
 
-  if (!title) return;
+  if (!title) return err("Please fill the required fields.");
   if (instructor_id) {
     const { data: instructor } = await supabase
       .from("instructors")
       .select("id, studio_id, location_id")
       .eq("id", instructor_id)
       .maybeSingle();
-    if (!instructor || instructor.studio_id !== studio.id) return;
-    if (locationId && instructor.location_id && instructor.location_id !== locationId) return;
+    if (!instructor || instructor.studio_id !== activeStudio.id) return err("Choose an instructor from this studio/location.");
+    const activeInstructor = instructor!;
+    if (locationId && activeInstructor.location_id && activeInstructor.location_id !== locationId) return err("Choose an instructor from this studio/location.");
   }
 
   const { error } = await supabase.from("classes").insert({
-    studio_id: studio.id,
+    studio_id: activeStudio.id,
     location_id: locationId || null,
     title,
     description: description || null,
@@ -237,9 +249,10 @@ export async function createClassTemplate(formData: FormData): Promise<void> {
   });
   if (error) {
     console.error(error.message);
-    return;
+    return err("Could not save changes.");
   }
   revalidateDashboardContent("classes");
+  return ok("Class template created.");
 }
 
 export type SessionPanelResult = { ok: boolean; message: string };

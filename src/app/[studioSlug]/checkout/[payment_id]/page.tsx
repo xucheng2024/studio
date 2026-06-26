@@ -16,6 +16,7 @@ import {
   studioMemberZoneListPath,
   studioMemberZonePath,
   studioMePath,
+  studioMembershipsPath,
   studioPackagePath,
   studioPackagesPath,
   studioShopPath,
@@ -359,6 +360,18 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                     </Link>
                     <Link href={studioPackagesPath(studioSlug)} className={`${ui.btnSecondary} inline-flex justify-center sm:min-w-40`}>
                       Browse packages
+                    </Link>
+                  </div>
+                </>
+              ) : source === "membership_subscription" ? (
+                <>
+                  <p className={`text-sm ${ui.muted}`}>Your membership is active. You can manage it from your membership area.</p>
+                  <div className="mt-1 flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+                    <Link href={studioMePath(studioSlug, "memberships")} className={`${ui.btnPrimary} inline-flex justify-center sm:min-w-40`}>
+                      My memberships
+                    </Link>
+                    <Link href={studioMembershipsPath(studioSlug)} className={`${ui.btnSecondary} inline-flex justify-center sm:min-w-40`}>
+                      Browse memberships
                     </Link>
                   </div>
                 </>

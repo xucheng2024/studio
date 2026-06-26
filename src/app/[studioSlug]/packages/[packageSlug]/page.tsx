@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestBuyPackagePanel } from "@/components/GuestBuyPackagePanel";
+import { PurchaseAccountHint } from "@/components/PurchaseAccountHint";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import { STUDIO_CURRENCY } from "@/lib/currency";
@@ -82,6 +83,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
             <div className="mt-5">
               <GuestBuyPackagePanel studioSlug={studio.public_slug} packageId={pkg.id} disabled={!paymentReady} actionLabel={isFreePackage ? "Get package" : "Buy package"} />
             </div>
+            <PurchaseAccountHint className="mt-4" />
           </div>
         </div>
       </div>

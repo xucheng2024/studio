@@ -1,11 +1,12 @@
 import { toggleStaffMembership } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
  
-type Props = { searchParams: Promise<{ staff_error?: string; studio_id?: string; location_id?: string }> };
+type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
 
 function scopedHref(path: string, studioId: string | null, locationId: string | null) {
   const params = new URLSearchParams();
@@ -44,18 +45,12 @@ export default async function StaffPage({ searchParams }: Props) {
     .eq("studio_id", studioId)
     .order("created_at", { ascending: false });
 
-  const staffErrorMsg =
-    sp.staff_error === "studio_suspended"
-      ? "This studio is suspended. Set contract back to active in Settings before adding staff."
-      : null;
-
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className={ui.h1}>Staff</h1>
         <p className={`mt-1 ${ui.muted}`}>Workspace access is managed by invitation.</p>
       </div>
-      {staffErrorMsg ? <p className={ui.error}>{staffErrorMsg}</p> : null}
       <div className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={ui.muted}>Send invites to grant staff access. Accepted invites appear below.</p>
@@ -96,7 +91,7 @@ export default async function StaffPage({ searchParams }: Props) {
                       {s.location_id ? `Location-scoped` : "All locations"}
                     </span>
                   </div>
-                  <form action={toggleStaffMembership}>
+                  <ServerActionToastForm action={toggleStaffMembership}>
                     <input type="hidden" name="membership_id" value={s.id} />
                     <input type="hidden" name="next_active" value={String(!s.is_active)} />
                     <button
@@ -106,7 +101,7 @@ export default async function StaffPage({ searchParams }: Props) {
                     >
                       {s.is_active ? "Disable" : "Enable"}
                     </button>
-                  </form>
+                  </ServerActionToastForm>
                 </li>
               );
             })}

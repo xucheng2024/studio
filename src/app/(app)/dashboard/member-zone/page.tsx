@@ -8,9 +8,10 @@ import {
 } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
-import { ConfirmForm } from "@/components/ConfirmForm";
 import { LessonAccessPreview, SeriesAccessPreview } from "@/components/dashboard/MemberZoneAccessPreview";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -48,9 +49,6 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
   ]);
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
 
-  const overviewParams = new URLSearchParams();
-  if (selectedStudioId) overviewParams.set("studio_id", selectedStudioId);
-  if (selectedLocationId) overviewParams.set("location_id", selectedLocationId);
   const publicHref = studio.public_slug ? `/${studio.public_slug}#member-zone` : null;
 
   return (
@@ -72,8 +70,9 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
           <span>+ Add series</span>
           <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
         </summary>
-        <form action={createMemberZoneSeries} className="mt-4 grid gap-4 sm:grid-cols-2">
+        <ServerActionToastForm action={createMemberZoneSeries} className="mt-4 grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={studio.id} />
+          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Series title</span>
             <input name="title" required className={ui.input} />
@@ -123,7 +122,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
           <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Creating...">
             Create series
           </SubmitButton>
-        </form>
+        </ServerActionToastForm>
       </details>
 
       <div className="grid gap-4">
@@ -145,21 +144,23 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                     {lessons.length} lessons
                   </p>
                 </div>
-                <ConfirmForm
+                <ToastConfirmForm
                   action={deleteMemberZoneSeries}
                   confirmMessage="Remove this series? It will be hidden from members."
                   confirmLabel="Remove"
                   className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end"
                 >
                   <input type="hidden" name="studio_id" value={studio.id} />
+                  <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                   <input type="hidden" name="series_id" value={series.id} />
                   <button type="submit" className={ui.btnDangerSm}>
                     Remove
                   </button>
-                </ConfirmForm>
+                </ToastConfirmForm>
               </summary>
-              <form action={updateMemberZoneSeries} className="mt-3">
+              <ServerActionToastForm action={updateMemberZoneSeries} className="mt-3">
               <input type="hidden" name="studio_id" value={studio.id} />
+              <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
               <input type="hidden" name="series_id" value={series.id} />
               <div className="grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
@@ -221,7 +222,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">Save series</SubmitButton>
                 </div>
               </div>
-            </form>
+            </ServerActionToastForm>
 
             <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
               <div className="flex items-center justify-between gap-2">
@@ -235,8 +236,9 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   .sort((a, b) => Number(a.sort_order ?? 100) - Number(b.sort_order ?? 100))
                   .map((lesson) => (
                   <div key={lesson.id}>
-                  <form action={updateMemberZoneLesson} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+                  <ServerActionToastForm action={updateMemberZoneLesson} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
                     <input type="hidden" name="studio_id" value={studio.id} />
+                    <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                     <input type="hidden" name="series_id" value={series.id} />
                     <input type="hidden" name="lesson_id" value={lesson.id} />
                     <details className="chevron">
@@ -279,30 +281,32 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                         </div>
                         <div className="mt-2 flex w-full shrink-0 flex-wrap gap-2 sm:col-span-2 sm:justify-end">
                           <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">Save lesson</SubmitButton>
-                          <ConfirmForm
+                          <ToastConfirmForm
                             action={deleteMemberZoneLesson}
                             confirmMessage="Remove this lesson? It will be hidden from members."
                             confirmLabel="Remove"
                             className="inline-flex"
                           >
                             <input type="hidden" name="studio_id" value={studio.id} />
+                            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                             <input type="hidden" name="series_id" value={series.id} />
                             <input type="hidden" name="lesson_id" value={lesson.id} />
                             <button type="submit" className={ui.btnDangerSm}>
                               Remove
                             </button>
-                          </ConfirmForm>
+                          </ToastConfirmForm>
                         </div>
                       </div>
                     </details>
-                  </form>
+                  </ServerActionToastForm>
                   </div>
                 ))}
               </div>
               <details className="mt-3">
                 <summary className={`cursor-pointer text-sm font-medium ${ui.muted}`}>+ Add lesson</summary>
-                <form action={createMemberZoneLesson} className="mt-2 grid gap-2 rounded-xl border border-stone-200 p-3 dark:border-stone-700 sm:grid-cols-2">
+                <ServerActionToastForm action={createMemberZoneLesson} className="mt-2 grid gap-2 rounded-xl border border-stone-200 p-3 dark:border-stone-700 sm:grid-cols-2">
                   <input type="hidden" name="studio_id" value={studio.id} />
+                  <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                   <input type="hidden" name="series_id" value={series.id} />
                   <label className="flex flex-col gap-1 sm:col-span-2"><span className={ui.label}>Title</span><input name="title" required className={ui.input} /></label>
                   <label className="flex flex-col gap-1 sm:col-span-2"><span className={ui.label}>Summary</span><input name="summary" className={ui.input} /></label>
@@ -324,7 +328,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                     />
                   </div>
                   <div className="sm:col-span-2"><SubmitButton className={ui.btnPrimarySm} pendingText="Creating...">Create lesson</SubmitButton></div>
-                </form>
+                </ServerActionToastForm>
               </details>
             </div>
             </details>

@@ -1,6 +1,7 @@
 import { createPackage } from "@/app/(app)/dashboard/actions";
 import { PackageLifecycleRow } from "@/components/dashboard/PackageLifecycleRow";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioRole } from "@/lib/rbac";
@@ -75,7 +76,7 @@ export default async function PackagesPage({ searchParams }: Props) {
               <span>+ New package</span>
               <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
             </summary>
-            <form action={createPackage} className="mt-4 grid gap-4 sm:grid-cols-2">
+            <ServerActionToastForm action={createPackage} className="mt-4 grid gap-4 sm:grid-cols-2">
               <input type="hidden" name="studio_id" value={studioId} />
               <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
               <label className="flex flex-col gap-1.5 sm:col-span-2">
@@ -98,7 +99,7 @@ export default async function PackagesPage({ searchParams }: Props) {
               <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Saving...">
                 Save package
               </SubmitButton>
-            </form>
+            </ServerActionToastForm>
           </details>
         ) : null}
       </div>

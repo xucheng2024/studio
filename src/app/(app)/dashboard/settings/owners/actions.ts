@@ -7,6 +7,7 @@ import {
   revalidateRbacCache,
 } from "@/lib/revalidatePublic";
 import { redirect } from "next/navigation";
+import { err, ok, type DashboardFormResult } from "@/app/(app)/dashboard/_actions/shared";
 import { writeOperationAudit } from "@/lib/audit";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,20 +21,20 @@ async function requireSuperAdmin() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  if (!isSuperAdminEmail(user.email)) {
-    redirect("/dashboard/settings/owners?owners_error=forbidden");
-  }
-  return { user };
+  if (!isSuperAdminEmail(user.email)) return { user: null, error: err("You do not have access to this action.") };
+  return { user, error: null };
 }
 
-export async function grantOwnerAccessByEmail(formData: FormData): Promise<void> {
+export async function grantOwnerAccessByEmail(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
-  const { user } = await requireSuperAdmin();
-  if (!email) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_email");
-  }
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!email) return err("Please enter a valid email.");
 
   const admin = createAdminClient();
   const { data: target } = await admin.from("users").select("id").eq("email", email).maybeSingle();
@@ -57,9 +58,7 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
         },
         { onConflict: "email" },
       );
-    if (inviteErr) {
-      redirect("/dashboard/settings/owners?owners_error=save_failed");
-    }
+    if (inviteErr) return err("Could not save changes.");
     await writeOperationAudit({
       actorId: user.id,
       actorRole: "superadmin",
@@ -71,7 +70,7 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
     });
     revalidateDashboardSettings("owners");
     revalidateRbacCache();
-    redirect("/dashboard/settings/owners?owners_success=invite_pending");
+    return ok("Owner invite saved. Access will be granted automatically after first sign-in.");
   }
 
   const { data: beforeRow } = await admin
@@ -83,9 +82,7 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
   const { error } = await admin
     .from("platform_owner_grants")
     .upsert({ user_id: target.id, is_active: true, created_by: user.id }, { onConflict: "user_id" });
-  if (error) {
-    redirect("/dashboard/settings/owners?owners_error=save_failed");
-  }
+  if (error) return err("Could not save changes.");
 
   await writeOperationAudit({
     actorId: user.id,
@@ -108,17 +105,19 @@ export async function grantOwnerAccessByEmail(formData: FormData): Promise<void>
 
   revalidateDashboardSettings("owners");
   revalidateRbacCache();
-  redirect("/dashboard/settings/owners?owners_success=grant_email");
+  return ok("Owner workspace access granted.");
 }
 
 /** Toggle platform owner grant only (FormData: user_id, is_active = "true"|"false" desired next state). */
-export async function setOwnerGrantStatus(formData: FormData): Promise<void> {
+export async function setOwnerGrantStatus(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const userId = String(formData.get("user_id") ?? "").trim();
   const nextActive = String(formData.get("is_active") ?? "").trim() === "true";
-  const { user } = await requireSuperAdmin();
-  if (!userId || !UUID_RE.test(userId)) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_user");
-  }
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!userId || !UUID_RE.test(userId)) return err("Invalid user reference.");
 
   const admin = createAdminClient();
   const { data: beforeRow } = await admin
@@ -133,9 +132,7 @@ export async function setOwnerGrantStatus(formData: FormData): Promise<void> {
       { user_id: userId, is_active: nextActive, created_by: user.id },
       { onConflict: "user_id" },
     );
-  if (error) {
-    redirect("/dashboard/settings/owners?owners_error=save_failed");
-  }
+  if (error) return err("Could not save changes.");
 
   await writeOperationAudit({
     actorId: user.id,
@@ -149,15 +146,17 @@ export async function setOwnerGrantStatus(formData: FormData): Promise<void> {
 
   revalidateDashboardSettings("owners");
   revalidateRbacCache();
-  redirect(`/dashboard/settings/owners?owners_success=${nextActive ? "grant_on" : "grant_off"}`);
+  return ok(nextActive ? "Owner grant enabled." : "Owner grant disabled.");
 }
 
-export async function suspendStudio(formData: FormData): Promise<void> {
+export async function suspendStudio(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "").trim();
-  const { user } = await requireSuperAdmin();
-  if (!studioId || !UUID_RE.test(studioId)) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_studio");
-  }
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!studioId || !UUID_RE.test(studioId)) return err("Studio not found.");
 
   const admin = createAdminClient();
   const { data: row } = await admin
@@ -165,9 +164,7 @@ export async function suspendStudio(formData: FormData): Promise<void> {
     .select("id, owner_id, name, public_slug, contract_status, contract_ends_at")
     .eq("id", studioId)
     .maybeSingle();
-  if (!row) {
-    redirect("/dashboard/settings/owners?owners_error=unknown_studio");
-  }
+  if (!row) return err("Studio not found.");
 
   const beforeState = {
     contract_status: row.contract_status,
@@ -175,9 +172,7 @@ export async function suspendStudio(formData: FormData): Promise<void> {
   };
 
   const { error } = await admin.from("studios").update({ contract_status: "suspended" }).eq("id", studioId);
-  if (error) {
-    redirect("/dashboard/settings/owners?owners_error=save_failed");
-  }
+  if (error) return err("Could not save changes.");
 
   await writeOperationAudit({
     actorId: user.id,
@@ -193,23 +188,23 @@ export async function suspendStudio(formData: FormData): Promise<void> {
   revalidateDashboardSettings("owners");
   revalidatePublicStudioPath(row.public_slug);
   revalidateRbacCache();
-  redirect("/dashboard/settings/owners?owners_success=studio_suspended");
+  return ok("Studio suspended.");
 }
 
-export async function resumeStudio(formData: FormData): Promise<void> {
+export async function resumeStudio(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "").trim();
   const endsRaw = String(formData.get("contract_ends_at") ?? "").trim();
-  const { user } = await requireSuperAdmin();
-  if (!studioId || !UUID_RE.test(studioId)) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_studio");
-  }
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!studioId || !UUID_RE.test(studioId)) return err("Studio not found.");
 
   let contract_ends_at: string | null = null;
   if (endsRaw) {
     const d = new Date(endsRaw);
-    if (Number.isNaN(d.getTime())) {
-      redirect("/dashboard/settings/owners?owners_error=invalid_date");
-    }
+    if (Number.isNaN(d.getTime())) return err("Invalid contract end date.");
     contract_ends_at = d.toISOString();
   }
 
@@ -219,9 +214,7 @@ export async function resumeStudio(formData: FormData): Promise<void> {
     .select("id, owner_id, name, public_slug, contract_status, contract_ends_at")
     .eq("id", studioId)
     .maybeSingle();
-  if (!row) {
-    redirect("/dashboard/settings/owners?owners_error=unknown_studio");
-  }
+  if (!row) return err("Studio not found.");
 
   const beforeState = {
     contract_status: row.contract_status,
@@ -236,9 +229,7 @@ export async function resumeStudio(formData: FormData): Promise<void> {
   }
 
   const { error } = await admin.from("studios").update(patch).eq("id", studioId);
-  if (error) {
-    redirect("/dashboard/settings/owners?owners_error=save_failed");
-  }
+  if (error) return err("Could not save changes.");
 
   await writeOperationAudit({
     actorId: user.id,
@@ -258,21 +249,21 @@ export async function resumeStudio(formData: FormData): Promise<void> {
   revalidateDashboardSettings("owners");
   revalidatePublicStudioPath(row.public_slug);
   revalidateRbacCache();
-  redirect("/dashboard/settings/owners?owners_success=studio_resumed");
+  return ok("Studio resumed.");
 }
 
-export async function disableOwnerAndSuspendStudios(formData: FormData): Promise<void> {
+export async function disableOwnerAndSuspendStudios(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const ownerUserId = String(formData.get("owner_user_id") ?? "").trim();
-  const { user } = await requireSuperAdmin();
-  if (!ownerUserId || !UUID_RE.test(ownerUserId)) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_user");
-  }
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!ownerUserId || !UUID_RE.test(ownerUserId)) return err("Invalid user reference.");
 
   const admin = createAdminClient();
   const { data: ownerUser } = await admin.from("users").select("id").eq("id", ownerUserId).maybeSingle();
-  if (!ownerUser) {
-    redirect("/dashboard/settings/owners?owners_error=unknown_owner");
-  }
+  if (!ownerUser) return err("Owner not found.");
 
   const { data: beforeGrant } = await admin
     .from("platform_owner_grants")
@@ -289,13 +280,9 @@ export async function disableOwnerAndSuspendStudios(formData: FormData): Promise
     p_owner_user_id: ownerUserId,
   });
 
-  if (rpcError) {
-    redirect("/dashboard/settings/owners?owners_error=rpc_failed");
-  }
+  if (rpcError) return err("Bulk operation failed. Apply migration 021 or verify the RPC in Supabase.");
   const payload = rpcData as { ok?: boolean } | null;
-  if (!payload || payload.ok === false) {
-    redirect("/dashboard/settings/owners?owners_error=rpc_failed");
-  }
+  if (!payload || payload.ok === false) return err("Bulk operation failed. Apply migration 021 or verify the RPC in Supabase.");
 
   await writeOperationAudit({
     actorId: user.id,
@@ -313,16 +300,18 @@ export async function disableOwnerAndSuspendStudios(formData: FormData): Promise
   revalidateDashboardCoreViews();
   revalidateDashboardSettings("owners");
   revalidateRbacCache();
-  redirect("/dashboard/settings/owners?owners_success=disable_owner_suspend_all");
+  return ok("Owner grant disabled and all studios under this owner are now suspended.");
 }
 
-export async function setOwnerInviteStatus(formData: FormData): Promise<void> {
+export async function setOwnerInviteStatus(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const inviteId = String(formData.get("invite_id") ?? "").trim();
   const nextActive = String(formData.get("is_active") ?? "").trim() === "true";
-  const { user } = await requireSuperAdmin();
-  if (!inviteId || !UUID_RE.test(inviteId)) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
-  }
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!inviteId || !UUID_RE.test(inviteId)) return err("Invite not found.");
 
   const admin = createAdminClient();
   const { data: beforeRow } = await admin
@@ -330,9 +319,7 @@ export async function setOwnerInviteStatus(formData: FormData): Promise<void> {
     .select("id, email, is_active, accepted_user_id, accepted_at")
     .eq("id", inviteId)
     .maybeSingle();
-  if (!beforeRow) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
-  }
+  if (!beforeRow) return err("Invite not found.");
 
   const { error } = await admin
     .from("platform_owner_email_invites")
@@ -341,9 +328,7 @@ export async function setOwnerInviteStatus(formData: FormData): Promise<void> {
       updated_at: new Date().toISOString(),
     })
     .eq("id", inviteId);
-  if (error) {
-    redirect("/dashboard/settings/owners?owners_error=save_failed");
-  }
+  if (error) return err("Could not save changes.");
 
   await writeOperationAudit({
     actorId: user.id,
@@ -360,15 +345,17 @@ export async function setOwnerInviteStatus(formData: FormData): Promise<void> {
 
   revalidateDashboardSettings("owners");
   revalidateRbacCache();
-  redirect(`/dashboard/settings/owners?owners_success=${nextActive ? "invite_reenabled" : "invite_cancelled"}`);
+  return ok(nextActive ? "Owner invite re-enabled." : "Owner invite cancelled.");
 }
 
-export async function deleteOwnerInvite(formData: FormData): Promise<void> {
+export async function deleteOwnerInvite(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const inviteId = String(formData.get("invite_id") ?? "").trim();
-  const { user } = await requireSuperAdmin();
-  if (!inviteId || !UUID_RE.test(inviteId)) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
-  }
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!inviteId || !UUID_RE.test(inviteId)) return err("Invite not found.");
 
   const admin = createAdminClient();
   const { data: beforeRow } = await admin
@@ -376,14 +363,10 @@ export async function deleteOwnerInvite(formData: FormData): Promise<void> {
     .select("id, email, is_active, accepted_user_id, accepted_at")
     .eq("id", inviteId)
     .maybeSingle();
-  if (!beforeRow) {
-    redirect("/dashboard/settings/owners?owners_error=invalid_invite");
-  }
+  if (!beforeRow) return err("Invite not found.");
 
   const { error } = await admin.from("platform_owner_email_invites").delete().eq("id", inviteId);
-  if (error) {
-    redirect("/dashboard/settings/owners?owners_error=save_failed");
-  }
+  if (error) return err("Could not save changes.");
 
   await writeOperationAudit({
     actorId: user.id,
@@ -397,5 +380,5 @@ export async function deleteOwnerInvite(formData: FormData): Promise<void> {
 
   revalidateDashboardSettings("owners");
   revalidateRbacCache();
-  redirect("/dashboard/settings/owners?owners_success=invite_deleted");
+  return ok("Owner invite deleted.");
 }

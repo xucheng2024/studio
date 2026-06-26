@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { MembershipReturnNotice } from "@/components/MembershipReturnNotice";
+import { PurchaseAccountHint } from "@/components/PurchaseAccountHint";
 import { SubscribeMembershipPanel } from "@/components/SubscribeMembershipPanel";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
@@ -105,6 +106,7 @@ export default async function PublicMembershipPage({ params }: Props) {
                 disabled={!paymentReady}
               />
             </div>
+            <PurchaseAccountHint className="mt-4" />
           </div>
         </div>
       </div>

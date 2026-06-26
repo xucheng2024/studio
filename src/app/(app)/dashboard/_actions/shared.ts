@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 export type StudioScope = Awaited<ReturnType<typeof requireStudio>>;
+export type DashboardFormResult = {
+  ok: boolean;
+  message: string;
+};
 
 export async function requireUser() {
   const supabase = await createClient();
@@ -183,4 +187,32 @@ export function sanitizePriceNullable(raw: FormDataEntryValue | null): number | 
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0) return null;
   return Math.round(value * 100) / 100;
+}
+
+export function ok(message: string): DashboardFormResult {
+  return { ok: true, message };
+}
+
+export function err(message: string): DashboardFormResult {
+  return { ok: false, message };
+}
+
+export function buildScopedDashboardHref(
+  path: string,
+  opts: {
+    studioId?: string | null;
+    locationId?: string | null;
+    query?: Record<string, string | null | undefined>;
+  } = {},
+) {
+  const params = new URLSearchParams();
+  if (opts.studioId) params.set("studio_id", opts.studioId);
+  if (opts.locationId) params.set("location_id", opts.locationId);
+  for (const [key, value] of Object.entries(opts.query ?? {})) {
+    if (typeof value === "string" && value.length > 0) {
+      params.set(key, value);
+    }
+  }
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
 }

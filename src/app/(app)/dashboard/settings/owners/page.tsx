@@ -8,8 +8,9 @@ import {
   setOwnerGrantStatus,
   suspendStudio,
 } from "./actions";
-import { ConfirmForm } from "@/components/ConfirmForm";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { toLocalDateTimeInputValue } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { isSuperAdminEmail } from "@/lib/super-admin";
@@ -22,11 +23,6 @@ type Props = {
     q?: string;
     grant?: string;
     studio_contract?: string;
-    owners_success?: string;
-    owners_error?: string;
-    owner_error?: string;
-    owner_success?: string;
-    owner_grant_updated?: string;
   }>;
 };
 
@@ -158,53 +154,6 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const successMsg =
-    sp.owners_success === "grant_email" || sp.owner_success === "granted"
-      ? "Owner workspace access granted."
-      : sp.owners_success === "invite_pending"
-        ? "Owner invite saved. Ask the user to sign in at /auth. Access will be granted automatically after first sign-in."
-      : sp.owners_success === "invite_cancelled"
-        ? "Owner invite cancelled."
-      : sp.owners_success === "invite_reenabled"
-        ? "Owner invite re-enabled."
-      : sp.owners_success === "invite_deleted"
-        ? "Owner invite deleted."
-      : sp.owners_success === "grant_on" || sp.owner_grant_updated === "1"
-        ? "Owner grant enabled."
-        : sp.owners_success === "grant_off"
-          ? "Owner grant disabled (studios unchanged)."
-          : sp.owners_success === "disable_owner_suspend_all"
-            ? "Owner grant disabled and all studios under this owner are now suspended."
-            : sp.owners_success === "studio_suspended"
-              ? "Studio suspended."
-              : sp.owners_success === "studio_resumed"
-                ? "Studio resumed (contract active)."
-                : null;
-
-  const errKey = sp.owners_error ?? sp.owner_error;
-  const errorMsg =
-    errKey === "forbidden"
-      ? "You do not have access to this action."
-      : errKey === "invalid_email"
-        ? "Please enter a valid email."
-      : errKey === "save_failed"
-            ? "Could not save changes."
-      : errKey === "invalid_invite"
-              ? "Invite not found."
-            : errKey === "invalid_user"
-              ? "Invalid user reference."
-              : errKey === "invalid_studio" || errKey === "unknown_studio"
-                ? "Studio not found."
-                : errKey === "invalid_date"
-                  ? "Invalid contract end date."
-                  : errKey === "unknown_owner"
-                    ? "Owner not found."
-                    : errKey === "rpc_failed"
-                      ? "Bulk operation failed. Apply migration 021 or verify the RPC in Supabase."
-                      : errKey
-                        ? `Error (${errKey}).`
-                        : null;
-
   return (
     <div className="flex max-w-6xl flex-col gap-8">
       <div>
@@ -213,10 +162,6 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           Super admin only. Grant owner workspace access, review owners and venues, suspend contracts, or disable grants. Dangerous actions require confirmation.
         </p>
       </div>
-
-      {successMsg ? <p className={ui.success}>{successMsg}</p> : null}
-      {errorMsg ? <p className={ui.error}>{errorMsg}</p> : null}
-
       <form method="get" className={`${ui.card} flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end`}>
         <label className="flex w-full min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[200px]">
           <span className={ui.label}>Search owner email</span>
@@ -243,7 +188,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
         </button>
       </form>
 
-      <form action={grantOwnerAccessByEmail} className={`${ui.card} flex flex-col gap-3`}>
+      <ServerActionToastForm action={grantOwnerAccessByEmail} className={`${ui.card} flex flex-col gap-3`}>
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Grant platform owner access</h2>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Owner email</span>
@@ -255,7 +200,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
         <p className={`text-xs ${ui.muted}`}>
           You can grant by email before first sign-in. Share your login page URL (for example, /auth), and access will be granted automatically after first sign-in.
         </p>
-      </form>
+      </ServerActionToastForm>
 
       <div className="flex flex-col gap-4">
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Owner invite queue</h2>
@@ -309,7 +254,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                       <td className="py-2.5">
                         <div className="flex flex-wrap items-center gap-2">
                           {row.is_active ? (
-                            <ConfirmForm
+                            <ToastConfirmForm
                               action={setOwnerInviteStatus}
                               confirmMessage={`Cancel pending invite for ${row.email}? They will no longer auto-receive owner access on first sign-in.`}
                               className="inline"
@@ -319,9 +264,9 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                               <SubmitButton className={ui.btnSecondarySm} pendingText="Saving…">
                                 Cancel
                               </SubmitButton>
-                            </ConfirmForm>
+                            </ToastConfirmForm>
                           ) : (
-                            <ConfirmForm
+                            <ToastConfirmForm
                               action={setOwnerInviteStatus}
                               confirmMessage={`Re-enable invite for ${row.email}? Owner access will be granted on first sign-in.`}
                               className="inline"
@@ -331,9 +276,9 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                               <SubmitButton className={ui.btnSecondarySm} pendingText="Saving…">
                                 Re-enable
                               </SubmitButton>
-                            </ConfirmForm>
+                            </ToastConfirmForm>
                           )}
-                          <ConfirmForm
+                          <ToastConfirmForm
                             action={deleteOwnerInvite}
                             confirmMessage={`Delete invite record for ${row.email}? This removes the queue row.`}
                             className="inline"
@@ -342,7 +287,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                             <SubmitButton className={ui.btnSecondarySm} pendingText="Deleting…">
                               Delete
                             </SubmitButton>
-                          </ConfirmForm>
+                          </ToastConfirmForm>
                         </div>
                       </td>
                     </tr>
@@ -389,7 +334,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <ConfirmForm
+                      <ToastConfirmForm
                         action={setOwnerGrantStatus}
                         confirmMessage={
                           o.grantActive
@@ -406,8 +351,8 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                         >
                           {o.grantActive ? "Disable grant" : "Enable grant"}
                         </SubmitButton>
-                      </ConfirmForm>
-                      <ConfirmForm
+                      </ToastConfirmForm>
+                      <ToastConfirmForm
                         action={disableOwnerAndSuspendStudios}
                         confirmMessage={
                           "Disable owner grant AND set EVERY studio under this owner to suspended? Owner and staff lose back-office access for those venues until you resume contracts. Continue?"
@@ -418,7 +363,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                         <SubmitButton className={`${ui.btnSecondarySm} border-amber-300 text-amber-950 dark:border-amber-800 dark:text-amber-100`} pendingText="Working…">
                           Disable grant + suspend all studios
                         </SubmitButton>
-                      </ConfirmForm>
+                      </ToastConfirmForm>
                     </div>
                   </div>
 
@@ -468,7 +413,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                 <td className="py-2.5 align-top">
                                   <div className="flex flex-col items-start gap-2">
                                     {s.contract_status === "active" ? (
-                                      <ConfirmForm
+                                      <ToastConfirmForm
                                         action={suspendStudio}
                                         confirmMessage="Suspend this studio? Staff and owner lose back-office access for this venue until resumed."
                                         className="inline"
@@ -477,11 +422,10 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                         <SubmitButton className={ui.btnSecondarySm} pendingText="Suspending…">
                                           Suspend
                                         </SubmitButton>
-                                      </ConfirmForm>
+                                      </ToastConfirmForm>
                                     ) : (
-                                      <ConfirmForm
+                                      <ServerActionToastForm
                                         action={resumeStudio}
-                                        confirmMessage="Resume this studio (contract active)? Back-office access returns if other checks pass."
                                         className="flex flex-col items-start gap-2"
                                       >
                                         <input type="hidden" name="studio_id" value={s.id} />
@@ -497,7 +441,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                         <SubmitButton className={ui.btnPrimarySm} pendingText="Resuming…">
                                           Resume
                                         </SubmitButton>
-                                      </ConfirmForm>
+                                      </ServerActionToastForm>
                                     )}
                                   </div>
                                 </td>
@@ -534,7 +478,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                             </p>
                             <div className="mt-3">
                               {s.contract_status === "active" ? (
-                                <ConfirmForm
+                                <ToastConfirmForm
                                   action={suspendStudio}
                                   confirmMessage="Suspend this studio? Staff and owner lose back-office access for this venue until resumed."
                                   className="inline"
@@ -543,11 +487,10 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                   <SubmitButton className={ui.btnSecondarySm} pendingText="Suspending…">
                                     Suspend
                                   </SubmitButton>
-                                </ConfirmForm>
+                                </ToastConfirmForm>
                               ) : (
-                                <ConfirmForm
+                                <ServerActionToastForm
                                   action={resumeStudio}
-                                  confirmMessage="Resume this studio (contract active)? Back-office access returns if other checks pass."
                                   className="flex flex-col items-start gap-2"
                                 >
                                   <input type="hidden" name="studio_id" value={s.id} />
@@ -563,7 +506,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                   <SubmitButton className={ui.btnPrimarySm} pendingText="Resuming…">
                                     Resume
                                   </SubmitButton>
-                                </ConfirmForm>
+                                </ServerActionToastForm>
                               )}
                             </div>
                           </li>
