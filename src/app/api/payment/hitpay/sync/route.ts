@@ -49,8 +49,10 @@ export async function POST(req: Request) {
   }
   const paymentClientId = (payment as { client_id?: string | null }).client_id ?? null;
   const providedGatewayPaymentId = parsed.data.gateway_payment_id?.trim() ?? null;
+  const gatewayId = (payment as { gateway_payment_id?: string | null }).gateway_payment_id?.trim();
   if (paymentClientId) {
-    if (!user || user.id !== paymentClientId) {
+    const hasGatewayProof = Boolean(providedGatewayPaymentId && gatewayId && providedGatewayPaymentId === gatewayId);
+    if ((!user || user.id !== paymentClientId) && !hasGatewayProof) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
   } else if (!providedGatewayPaymentId) {
@@ -61,7 +63,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, state: payment.status });
   }
 
-  const gatewayId = (payment as { gateway_payment_id?: string | null }).gateway_payment_id?.trim();
   if (!gatewayId || (providedGatewayPaymentId && providedGatewayPaymentId !== gatewayId)) {
     return NextResponse.json({ error: "no_gateway_payment_id" }, { status: 409 });
   }
