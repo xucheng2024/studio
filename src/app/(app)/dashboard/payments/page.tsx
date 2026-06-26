@@ -2,6 +2,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
+import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
@@ -62,6 +63,43 @@ function paymentMethodLabel(method: string | null | undefined) {
   return method;
 }
 
+function paymentOpsHint(input: {
+  status: string | null | undefined;
+  paymentMethod: string | null | undefined;
+  source: string | null | undefined;
+  verifiedAt: string | null | undefined;
+}) {
+  const status = String(input.status ?? "").toLowerCase();
+  const method = String(input.paymentMethod ?? "").toLowerCase();
+  const source = String(input.source ?? "").toLowerCase();
+  if (status !== "pending" || input.verifiedAt) return null;
+
+  if (method === "hitpay") {
+    if (source === "membership_subscription") {
+      return {
+        tone: "amber" as const,
+        text: "Waiting for HitPay recurring confirmation. If the member says they already paid, use Sync HitPay on the membership record.",
+      };
+    }
+    return {
+      tone: "amber" as const,
+      text: "Waiting for HitPay confirmation. If the customer says they already paid, use Sync HitPay here before marking anything manually.",
+    };
+  }
+
+  if (method === "free") {
+    return {
+      tone: "neutral" as const,
+      text: "Free checkout is still being finalized.",
+    };
+  }
+
+  return {
+    tone: "neutral" as const,
+    text: "Pending payment. Confirm only after you have verified the funds.",
+  };
+}
+
 export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -82,6 +120,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const canRefundPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
+  const canSyncHitpayPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
+  const { data: activeStudio } = await admin
+    .from("studios")
+    .select("id, public_slug")
+    .eq("id", activeStudioId)
+    .maybeSingle();
+  const activeStudioSlug = activeStudio?.public_slug?.trim() ?? null;
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -93,7 +138,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = admin
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -406,6 +451,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               : source === "shop_purchase"
                 ? "Shop"
                 : "Session";
+          const opsHint = paymentOpsHint({
+            status: p.status,
+            paymentMethod: p.payment_method,
+            source,
+            verifiedAt: p.verified_at,
+          });
           const clientEmail = p.client_id ? clientMap.get(p.client_id) : null;
           const clientProfile = p.client_id ? clientProfileMap.get(p.client_id) : null;
           const clientPhone = clientProfile?.phone ?? null;
@@ -585,6 +636,17 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   </p>
                 </div>
               ) : null}
+              {opsHint ? (
+                <div
+                  className={`mt-3 rounded-xl px-3 py-2 text-xs ${
+                    opsHint.tone === "amber"
+                      ? "border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
+                      : "border border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-800/30 dark:text-stone-300"
+                  }`}
+                >
+                  {opsHint.text}
+                </div>
+              ) : null}
 
               {/* ── Audit timeline (collapsed) ────────────────────── */}
               {timeline.length ? (
@@ -604,6 +666,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
               {/* ── Action buttons ────────────────────────────────── */}
               <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
+                {canSyncHitpayPayments &&
+                activeStudioSlug &&
+                p.status === "pending" &&
+                (p.payment_method ?? "").toLowerCase() === "hitpay" &&
+                Boolean((p as { gateway_payment_id?: string | null }).gateway_payment_id) &&
+                p.source !== "membership_subscription" ? (
+                  <SyncHitpayPaymentButton paymentId={p.id} studioSlug={activeStudioSlug} />
+                ) : null}
                 {p.invoice_status !== "void" && Number(p.amount ?? 0) > 0 ? (
                   <InvoiceSendButton
                     paymentId={p.id}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getHitpayPaymentRequest } from "@/lib/hitpay";
 import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { requireStaffScope } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: payment, error } = await admin
     .from("payments")
-    .select("id, status, studio_id, client_id, booking_id, event_booking_id, gateway_payment_id, studios(owner_id, public_slug)")
+    .select("id, status, studio_id, location_id, client_id, booking_id, event_booking_id, gateway_payment_id, studios(owner_id, public_slug)")
     .eq("id", parsed.data.payment_id)
     .maybeSingle();
 
@@ -50,12 +51,22 @@ export async function POST(req: Request) {
   const paymentClientId = (payment as { client_id?: string | null }).client_id ?? null;
   const providedGatewayPaymentId = parsed.data.gateway_payment_id?.trim() ?? null;
   const gatewayId = (payment as { gateway_payment_id?: string | null }).gateway_payment_id?.trim();
-  if (paymentClientId) {
+  let isAuthorizedStaff = false;
+  if (user) {
+    const staffScope = await requireStaffScope({
+      userId: user.id,
+      studioId: payment.studio_id,
+      locationId: (payment as { location_id?: string | null }).location_id ?? null,
+      roles: ["owner", "manager", "frontdesk"],
+    });
+    isAuthorizedStaff = staffScope.ok;
+  }
+  if (!isAuthorizedStaff && paymentClientId) {
     const hasGatewayProof = Boolean(providedGatewayPaymentId && gatewayId && providedGatewayPaymentId === gatewayId);
     if ((!user || user.id !== paymentClientId) && !hasGatewayProof) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-  } else if (!providedGatewayPaymentId) {
+  } else if (!isAuthorizedStaff && !providedGatewayPaymentId) {
     return NextResponse.json({ error: "gateway_payment_id_required" }, { status: 400 });
   }
 

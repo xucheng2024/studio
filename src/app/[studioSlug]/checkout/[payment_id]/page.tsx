@@ -134,6 +134,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
     .select(
       `
       id,
+      client_id,
       amount,
       currency,
       payment_method,
@@ -142,6 +143,7 @@ export default async function PaymentCheckoutPage({ params }: Props) {
       reference_code,
       expires_at,
       verified_at,
+      guest_email,
       package_id,
       package_name_snapshot,
       gateway_checkout_url,
@@ -263,6 +265,8 @@ export default async function PaymentCheckoutPage({ params }: Props) {
   const itemNameSnapshot = packageNameSnapshot ?? shopProductNameSnapshot;
   const isGiftPayment = (payment as { is_gift?: boolean | null }).is_gift ?? false;
   const giftRecipientEmail = (payment as { gift_recipient_email?: string | null }).gift_recipient_email ?? null;
+  const checkoutEmail = (payment as { guest_email?: string | null }).guest_email?.trim() || null;
+  const showGuestRecoveryHint = !((payment as { client_id?: string | null }).client_id) && Boolean(checkoutEmail);
   const failedNav = failedPrimaryHref(studioSlug, source);
 
   return (
@@ -380,6 +384,11 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   </Link>
                 </>
               )}
+              {showGuestRecoveryHint ? (
+                <p className="mt-1 text-xs text-teal-700 dark:text-teal-300">
+                  Use <span className="font-medium">{checkoutEmail}</span> to sign in later and view this purchase.
+                </p>
+              ) : null}
 
               <dl className="mt-4 w-full space-y-2 border-t border-teal-200/80 pt-4 text-left text-xs dark:border-teal-800/50">
                 {itemNameSnapshot ? (
@@ -434,10 +443,24 @@ export default async function PaymentCheckoutPage({ params }: Props) {
               <div className="rounded-2xl border border-teal-200 bg-teal-50 px-5 py-5 dark:border-teal-800/50 dark:bg-teal-950/30">
                 <p className="text-sm font-semibold text-teal-900 dark:text-teal-200">Complete your payment</p>
                 <p className={`mt-1 text-sm ${ui.muted}`}>
-                  The button below opens HitPay in a new tab. When you&apos;re done, return to{" "}
-                  <strong className="font-medium text-teal-800 dark:text-teal-200">this tab</strong>
-                  — we&apos;ll update automatically. If nothing changes, refresh the page or use the button below.
+                  Pay on HitPay, then return to{" "}
+                  <strong className="font-medium text-teal-800 dark:text-teal-200">this tab</strong>.
+                  We check automatically and confirm the order here as soon as HitPay reports it.
                 </p>
+                <ol className="mt-4 space-y-2 text-left text-sm text-teal-900 dark:text-teal-100">
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-teal-600 text-[11px] font-semibold text-white">1</span>
+                    <span>Open HitPay and complete the payment.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-teal-600 text-[11px] font-semibold text-white">2</span>
+                    <span>Return to this page after paying.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-teal-600 text-[11px] font-semibold text-white">3</span>
+                    <span>Wait a few seconds for confirmation, or refresh manually below.</span>
+                  </li>
+                </ol>
                 <a
                   href={payment.gateway_checkout_url}
                   className={`${ui.btnPrimary} mt-4 inline-flex w-full items-center justify-center gap-2`}
@@ -448,6 +471,11 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                   <ExternalLink size={14} />
                 </a>
                 <CheckoutRefreshStatusButton />
+                {showGuestRecoveryHint ? (
+                  <p className="mt-3 text-xs text-teal-700 dark:text-teal-300">
+                    Keep this email for later sign-in: <span className="font-medium">{checkoutEmail}</span>
+                  </p>
+                ) : null}
                 {showExpiry ? (
                   <p className="mt-3 text-xs text-teal-700 dark:text-teal-400">
                     Link expires <LocalTime iso={payment.expires_at} options={{ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }} /> (your local time)
@@ -473,11 +501,23 @@ export default async function PaymentCheckoutPage({ params }: Props) {
                       {isFreePayment
                         ? "No payment is needed. We&apos;re finishing your order automatically."
                         : isGatewayReceived
-                          ? "Payment received — confirming your order…"
-                          : "Complete your transfer. We&apos;ll update this page once it&apos;s confirmed."}
+                          ? "HitPay has reported your payment. We&apos;re confirming your order now."
+                          : "Waiting for HitPay confirmation. This page updates automatically."}
                     </p>
                   </div>
                 </div>
+                {!isFreePayment ? (
+                  <div className="mt-3 rounded-xl border border-stone-200/80 bg-white/70 px-3 py-3 text-xs text-stone-600 dark:border-stone-700 dark:bg-stone-950/30 dark:text-stone-300">
+                    {isGatewayReceived
+                      ? "You do not need to pay again. If this page still shows pending after about 30 seconds, refresh once."
+                      : "If you already paid on HitPay, stay on this page for a moment or refresh once to pull the latest status."}
+                  </div>
+                ) : null}
+                {showGuestRecoveryHint ? (
+                  <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
+                    Use <span className="font-medium text-stone-700 dark:text-stone-200">{checkoutEmail}</span> to sign in later and find this order.
+                  </p>
+                ) : null}
                 {showExpiry ? (
                   <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
                     {isFreePayment ? "Order hold expires " : "Link expires "}
