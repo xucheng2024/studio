@@ -135,6 +135,13 @@ export async function sendInvoiceNotice(params: {
   referenceCode: string | null;
   pdfBase64: string;
 }) {
+  const studioNameSafe = escHtml(params.studioName);
+  const studioEmailSafe = params.studioEmail ? escHtml(params.studioEmail) : null;
+  const invoiceNumberSafe = escHtml(params.invoiceNumber);
+  const customerNameSafe = escHtml(params.customerName);
+  const issueDateSafe = escHtml(params.issueDate);
+  const lineItemSafe = escHtml(params.lineItem);
+  const referenceCodeSafe = params.referenceCode ? escHtml(params.referenceCode) : null;
   const amountFormatted = `${params.currency} ${params.amount.toFixed(2)}`;
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -147,9 +154,9 @@ export async function sendInvoiceNotice(params: {
         <!-- Header band -->
         <tr>
           <td style="background:#0d9488;padding:28px 32px;">
-            <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">${params.studioName}</p>
-            <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">Invoice ${params.invoiceNumber}</p>
-            ${params.studioEmail ? `<p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);">${params.studioEmail}</p>` : ""}
+            <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">${studioNameSafe}</p>
+            <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">Invoice ${invoiceNumberSafe}</p>
+            ${studioEmailSafe ? `<p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);">${studioEmailSafe}</p>` : ""}
           </td>
         </tr>
 
@@ -158,7 +165,7 @@ export async function sendInvoiceNotice(params: {
           <td style="padding:32px;">
 
             <!-- Greeting -->
-            <p style="margin:0 0 20px;font-size:15px;color:#111827;">Hi ${params.customerName},</p>
+            <p style="margin:0 0 20px;font-size:15px;color:#111827;">Hi ${customerNameSafe},</p>
             <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
               Thank you for your payment. Your invoice is attached as a PDF to this email. A summary is included below for your records.
             </p>
@@ -170,20 +177,20 @@ export async function sendInvoiceNotice(params: {
               </tr>
               <tr>
                 <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Invoice No.</td>
-                <td style="padding:10px 16px;font-size:13px;color:#111827;font-weight:600;text-align:right;border-bottom:1px solid #e5e7eb;">${params.invoiceNumber}</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;font-weight:600;text-align:right;border-bottom:1px solid #e5e7eb;">${invoiceNumberSafe}</td>
               </tr>
               <tr>
                 <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Issue Date</td>
-                <td style="padding:10px 16px;font-size:13px;color:#111827;text-align:right;border-bottom:1px solid #e5e7eb;">${params.issueDate}</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;text-align:right;border-bottom:1px solid #e5e7eb;">${issueDateSafe}</td>
               </tr>
               <tr>
                 <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Description</td>
-                <td style="padding:10px 16px;font-size:13px;color:#111827;text-align:right;border-bottom:1px solid #e5e7eb;">${params.lineItem}</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;text-align:right;border-bottom:1px solid #e5e7eb;">${lineItemSafe}</td>
               </tr>
-              ${params.referenceCode ? `
+              ${referenceCodeSafe ? `
               <tr>
                 <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Payment Ref.</td>
-                <td style="padding:10px 16px;font-size:13px;color:#111827;font-family:monospace;text-align:right;border-bottom:1px solid #e5e7eb;">${params.referenceCode}</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;font-family:monospace;text-align:right;border-bottom:1px solid #e5e7eb;">${referenceCodeSafe}</td>
               </tr>` : ""}
               <tr style="background:#0d9488;">
                 <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff;">Total Paid</td>
@@ -201,8 +208,8 @@ export async function sendInvoiceNotice(params: {
 
             <!-- Footer note -->
             <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
-              This invoice was sent by <strong style="color:#6b7280;">${params.studioName}</strong> via Studio platform.
-              If you have questions about this invoice, please contact the studio directly${params.studioEmail ? ` at ${params.studioEmail}` : ""}.
+              This invoice was sent by <strong style="color:#6b7280;">${studioNameSafe}</strong> via Studio platform.
+              If you have questions about this invoice, please contact the studio directly${studioEmailSafe ? ` at ${studioEmailSafe}` : ""}.
             </p>
           </td>
         </tr>
