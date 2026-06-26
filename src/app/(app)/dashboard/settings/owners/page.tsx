@@ -8,6 +8,7 @@ import {
   setOwnerGrantStatus,
   suspendStudio,
 } from "./actions";
+import { ConfirmingSubmitButton } from "@/components/ConfirmingSubmitButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
@@ -438,9 +439,13 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                             defaultValue={formatDatetimeLocal(s.contract_ends_at)}
                                           />
                                         </label>
-                                        <SubmitButton className={ui.btnPrimarySm} pendingText="Resuming…">
+                                        <ConfirmingSubmitButton
+                                          className={ui.btnPrimarySm}
+                                          pendingText="Resuming…"
+                                          confirmMessage="Resume this studio and restore back-office access if other checks pass?"
+                                        >
                                           Resume
-                                        </SubmitButton>
+                                        </ConfirmingSubmitButton>
                                       </ServerActionToastForm>
                                     )}
                                   </div>
@@ -503,9 +508,13 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                                       defaultValue={formatDatetimeLocal(s.contract_ends_at)}
                                     />
                                   </label>
-                                  <SubmitButton className={ui.btnPrimarySm} pendingText="Resuming…">
+                                  <ConfirmingSubmitButton
+                                    className={ui.btnPrimarySm}
+                                    pendingText="Resuming…"
+                                    confirmMessage="Resume this studio and restore back-office access if other checks pass?"
+                                  >
                                     Resume
-                                  </SubmitButton>
+                                  </ConfirmingSubmitButton>
                                 </ServerActionToastForm>
                               )}
                             </div>

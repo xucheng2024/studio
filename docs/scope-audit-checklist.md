@@ -36,7 +36,6 @@ Scope standard: every staff/owner operation must validate `studio_id` and, when 
 - `createPackage` - PASS (`owner/manager` + location-in-studio validation)
 - `createRecurringRule` - PASS (`owner/manager` + class/location scope validation)
 - `saveBookingRules` - PASS (`owner/manager` + location-in-studio validation)
-- `createStaffMembership` - PASS (`owner` check + location-in-studio validation)
 - `toggleStaffMembership` - PASS (`owner` check)
 
 ## Dashboard Pages (explicit scope behavior)

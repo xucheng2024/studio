@@ -6,7 +6,6 @@ import {
   revalidateDashboardStaffViews,
   revalidateRbacCache,
 } from "@/lib/revalidatePublic";
-import { redirect } from "next/navigation";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -104,78 +103,6 @@ export async function updateMemberProfile(
 
   revalidateDashboardClientViews(clientId);
   return ok("Profile saved.");
-}
-
-export async function createStaffMembership(formData: FormData): Promise<void> {
-  const studioId = String(formData.get("studio_id") ?? "");
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const role = String(formData.get("role") ?? "").trim();
-  const locationRaw = String(formData.get("location_id") ?? "").trim();
-  const locationId = locationRaw || null;
-  const { supabase, studio, user } = await requireStudio(studioId || undefined);
-  if (!studio || !email || !role) {
-    redirect("/dashboard/staff?staff_error=missing_required_fields");
-  }
-  if (isStudioContractSuspended(studio)) {
-    redirect("/dashboard/staff?staff_error=studio_suspended");
-  }
-
-  await requireOwnedStudioAccess(supabase, studio.id, user.id, "/dashboard/staff?staff_error=forbidden");
-  if (!(await assertLocationInStudio(supabase, studio.id, locationId))) {
-    redirect("/dashboard/staff?staff_error=invalid_location_scope");
-  }
-
-  const admin = createAdminClient();
-  const { data: targetUser } = await admin
-    .from("users")
-    .select("id, role")
-    .eq("email", email)
-    .maybeSingle();
-  if (!targetUser?.id) {
-    redirect("/dashboard/staff?staff_error=user_not_found_by_email");
-  }
-  if (targetUser.id === user.id && role !== "owner") {
-    redirect("/dashboard/staff?staff_error=cannot_assign_self_non_owner");
-  }
-  if (!["manager", "frontdesk", "instructor", "owner"].includes(role)) {
-    redirect("/dashboard/staff?staff_error=invalid_role");
-  }
-
-  const { data: existing } = await admin
-    .from("staff_memberships")
-    .select("id")
-    .eq("user_id", targetUser.id)
-    .eq("studio_id", studio.id)
-    .eq("role", role)
-    .maybeSingle();
-
-  if (existing?.id) {
-    const { error } = await admin
-      .from("staff_memberships")
-      .update({
-        location_id: locationId,
-        is_active: true,
-      })
-      .eq("id", existing.id);
-    if (error) {
-      redirect("/dashboard/staff?staff_error=update_membership_failed");
-    }
-  } else {
-    const { error } = await admin.from("staff_memberships").insert({
-      user_id: targetUser.id,
-      studio_id: studio.id,
-      location_id: locationId,
-      role,
-      is_active: true,
-    });
-    if (error) {
-      redirect("/dashboard/staff?staff_error=create_membership_failed");
-    }
-  }
-
-  revalidateDashboardStaffViews();
-  revalidateRbacCache();
-  redirect("/dashboard/staff?staff_msg=staff_membership_saved");
 }
 
 export async function toggleStaffMembership(

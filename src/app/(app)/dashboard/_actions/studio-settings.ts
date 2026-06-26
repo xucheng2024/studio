@@ -8,7 +8,6 @@ import {
   revalidatePublicStudioPath,
   revalidateRbacCache,
 } from "@/lib/revalidatePublic";
-import { redirect } from "next/navigation";
 import { resolveAccessContext } from "@/lib/rbac";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { isReservedCustomDomain, normalizeCustomDomainInput, toCustomDomainUiStatus, type CustomDomainUiStatus } from "@/lib/customDomain";
@@ -39,12 +38,15 @@ import {
   sanitizeVideoUrl,
 } from "./shared";
 
-export async function createStudio(formData: FormData): Promise<void> {
+export async function createStudio(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const { supabase, user } = await requireUser();
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
   if (access.bestRole !== "owner" && !access.ctx.isSuperAdmin) {
     console.error("createStudio: only studio owners can create a venue");
-    return;
+    return err("Only studio owners can create a venue.");
   }
 
   if (!access.ctx.isSuperAdmin) {
@@ -55,14 +57,14 @@ export async function createStudio(formData: FormData): Promise<void> {
       .eq("user_id", user.id)
       .maybeSingle();
     if (!grant?.is_active) {
-      redirect("/dashboard/overview?create_error=owner_grant_required");
+      return err("Your platform owner access is not active. Ask a platform admin to enable it before creating a new studio.");
     }
   }
 
   const name = String(formData.get("name") ?? "").trim();
   const slugRaw = String(formData.get("public_slug") ?? "");
   const public_slug = normalizeStudioSlug(slugRaw);
-  if (!name || !public_slug) return;
+  if (!name || !public_slug) return err("Please enter a studio name and valid public URL slug.");
 
   const { data: createdStudio, error } = await supabase
     .from("studios")
@@ -75,7 +77,7 @@ export async function createStudio(formData: FormData): Promise<void> {
     .single();
   if (error || !createdStudio?.id) {
     console.error(error?.message ?? "create_studio_failed");
-    return;
+    return err("Could not create studio.");
   }
 
   if (createdStudio.id) {
@@ -92,6 +94,7 @@ export async function createStudio(formData: FormData): Promise<void> {
   revalidateDashboardCoreViews();
   revalidatePublicStudioPath(public_slug);
   revalidateRbacCache();
+  return ok("Studio created.");
 }
 
 export async function updateStudioBasics(formData: FormData): Promise<void> {

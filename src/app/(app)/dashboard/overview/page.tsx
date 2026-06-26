@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createStudio } from "@/app/(app)/dashboard/actions";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { computeRevenueSummary, revenueEffectiveTimestamp, type RevenuePaymentRow } from "@/lib/revenue-summary";
@@ -9,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CalendarDays, Users, DollarSign } from "lucide-react";
 
 type Props = {
-  searchParams: Promise<{ location_id?: string; studio_id?: string; create_error?: string }>;
+  searchParams: Promise<{ location_id?: string; studio_id?: string }>;
 };
 
 export default async function DashboardOverviewPage({ searchParams }: Props) {
@@ -34,16 +35,11 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
     (selectedStudioId ? studios?.find((s) => s.id === selectedStudioId) : null) ?? studios?.[0];
 
   if (!studio) {
-    const createErr =
-      sp.create_error === "owner_grant_required"
-        ? "Your platform owner access is not active. Ask a platform admin to enable it before creating a new studio."
-        : null;
     return (
       <div className="max-w-lg">
         <h1 className={ui.h1}>Create your studio</h1>
         <p className={`mt-2 ${ui.lead}`}>Name it and pick a URL slug for your public booking page.</p>
-        {createErr ? <p className={`${ui.error} mt-4`}>{createErr}</p> : null}
-        <form action={createStudio} className={`${ui.card} mt-8 flex flex-col gap-4`}>
+        <ServerActionToastForm action={createStudio} className={`${ui.card} mt-8 flex flex-col gap-4`}>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Studio name</span>
             <input
@@ -72,7 +68,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
           <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Saving...">
             Save studio
           </SubmitButton>
-        </form>
+        </ServerActionToastForm>
       </div>
     );
   }

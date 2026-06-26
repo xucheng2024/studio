@@ -35,7 +35,6 @@ export {
 
 export {
   createStaffInvite,
-  createStaffMembership,
   revokeStaffInvite,
   toggleStaffMembership,
   updateMemberProfile,
