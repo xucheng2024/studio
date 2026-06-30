@@ -7,7 +7,7 @@ import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { site } from "@/lib/brand";
 import { detectInAppBrowser } from "@/lib/inAppBrowser";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { createBrowserSupabase, getBrowserUser } from "@/lib/supabase/client";
 import { throttledRefresh } from "@/lib/throttledRefresh";
 import { ui } from "@/lib/ui";
 
@@ -80,9 +80,9 @@ export function AuthPageInner({
         void goPostAuth();
       }
     });
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) void goPostAuth();
-    });
+    getBrowserUser().then((user) => {
+      if (user) void goPostAuth();
+    }).catch(() => null);
     return () => {
       subscription.unsubscribe();
     };

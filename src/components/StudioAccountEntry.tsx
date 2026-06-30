@@ -6,7 +6,7 @@ import { CircleUserRound, X } from "lucide-react";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { SignOutButton } from "@/components/SignOutButton";
 import { studioMePath } from "@/lib/public-paths";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { createBrowserSupabase, getBrowserSession } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 export function StudioAccountEntry({
@@ -27,9 +27,9 @@ export function StudioAccountEntry({
   useEffect(() => {
     const supabase = createBrowserSupabase();
     // Seed current state
-    supabase.auth.getSession().then(({ data }) => {
-      setSignedIn(Boolean(data.session?.user));
-    }).catch(() => null);
+    getBrowserSession().then((session) => {
+      setSignedIn(Boolean(session?.user));
+    }).catch(() => setSignedIn(false));
     // React to future changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const nowSignedIn = Boolean(session?.user);

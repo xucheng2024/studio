@@ -6,7 +6,7 @@ import { Loader2, X, AlertCircle } from "lucide-react";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { getBrowserSession } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 type Props = {
@@ -43,11 +43,14 @@ export function QuickBookPanel({
   const [gift, setGift] = useState<GiftPayload | null>(null);
 
   useEffect(() => {
-    createBrowserSupabase()
-      .auth.getSession()
-      .then(({ data }) => {
-        setIsLoggedIn(!!data.session?.user);
-        setUserEmail(data.session?.user?.email ?? null);
+    getBrowserSession()
+      .then((session) => {
+        setIsLoggedIn(!!session?.user);
+        setUserEmail(session?.user?.email ?? null);
+      })
+      .catch(() => {
+        setIsLoggedIn(false);
+        setUserEmail(null);
       });
   }, []);
 

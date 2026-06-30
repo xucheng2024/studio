@@ -1,10 +1,13 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { SiteHeaderConfigured } from "@/components/SiteHeaderClientNav";
+import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
+import { normalizeStudioSlug } from "@/lib/slug";
 import { site } from "@/lib/brand";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { ui } from "@/lib/ui";
 
-export function SiteHeader() {
+export async function SiteHeader() {
   if (!isSupabaseConfigured()) {
     return (
       <header className={ui.headerBar}>
@@ -21,9 +24,13 @@ export function SiteHeader() {
     );
   }
 
+  const cookieStore = await cookies();
+  const initialStudioSlug =
+    normalizeStudioSlug(cookieStore.get(ACTIVE_MEMBER_STUDIO_COOKIE)?.value ?? "") ?? "";
+
   return (
     <header className={ui.headerBar}>
-      <SiteHeaderConfigured />
+      <SiteHeaderConfigured initialStudioSlug={initialStudioSlug} />
     </header>
   );
 }

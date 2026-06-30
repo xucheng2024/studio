@@ -6,9 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MobileMenu } from "@/components/MobileMenu";
 import { SiteHeaderAccountDropdown } from "@/components/SiteHeaderAccountDropdown";
 import { site } from "@/lib/brand";
-import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
 import { studioClassesPath, studioMePath } from "@/lib/public-paths";
-import { normalizeStudioSlug } from "@/lib/slug";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
@@ -21,17 +19,6 @@ type HeaderNavPayload = {
   showMembershipsLink: boolean;
 };
 
-function readCookieValue(name: string) {
-  if (typeof document === "undefined") return "";
-  const prefix = `${name}=`;
-  const match = document.cookie
-    .split(";")
-    .map((v) => v.trim())
-    .find((v) => v.startsWith(prefix));
-  if (!match) return "";
-  return decodeURIComponent(match.slice(prefix.length));
-}
-
 function parseHeaderNavPayload(json: unknown): HeaderNavPayload | null {
   if (!json || typeof json !== "object") return null;
   const row = json as Record<string, unknown>;
@@ -43,11 +30,15 @@ function parseHeaderNavPayload(json: unknown): HeaderNavPayload | null {
   };
 }
 
-export function SiteHeaderConfigured() {
+export function SiteHeaderConfigured({
+  initialStudioSlug = "",
+}: {
+  initialStudioSlug?: string;
+}) {
   const pathname = usePathname() ?? "";
   const [ready, setReady] = useState(false);
   const [navEpoch, setNavEpoch] = useState(0);
-  const activeStudioSlug = normalizeStudioSlug(readCookieValue(ACTIVE_MEMBER_STUDIO_COOKIE)) ?? "";
+  const activeStudioSlug = initialStudioSlug;
   const [payload, setPayload] = useState<HeaderNavPayload>({
     isLoggedIn: false,
     hasBackofficeAccess: false,

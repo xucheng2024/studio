@@ -10,7 +10,7 @@ import {
   type ShippingAddressPayload,
 } from "@/components/ShippingAddressFields";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { getBrowserSession } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 type Props = {
@@ -64,19 +64,22 @@ export function BuyShopProductPanel({
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    createBrowserSupabase()
-      .auth.getSession()
-      .then(({ data }) => {
-        setIsLoggedIn(!!data.session?.user);
-        setUserEmail(data.session?.user?.email ?? null);
+    getBrowserSession()
+      .then((session) => {
+        setIsLoggedIn(!!session?.user);
+        setUserEmail(session?.user?.email ?? null);
+      })
+      .catch(() => {
+        setIsLoggedIn(false);
+        setUserEmail(null);
       });
   }, []);
 
   const submit = async (payload: EmailFirstCheckoutPayload = {}) => {
     // Re-check auth so OTP sign-ins that happened inside EmailFirstCheckout are reflected.
-    const { data: sessionData } = await createBrowserSupabase().auth.getSession();
-    const currentlyLoggedIn = !!sessionData.session?.user;
-    const currentUserEmail = sessionData.session?.user?.email ?? null;
+    const session = await getBrowserSession().catch(() => null);
+    const currentlyLoggedIn = !!session?.user;
+    const currentUserEmail = session?.user?.email ?? null;
 
     const buyerEmail = (payload.guest_email ?? currentUserEmail ?? "").trim().toLowerCase();
 

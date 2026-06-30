@@ -42,15 +42,15 @@ export async function createStudio(
   _prevState: DashboardFormResult | null,
   formData: FormData,
 ): Promise<DashboardFormResult> {
-  const { supabase, user } = await requireUser();
+  const { user } = await requireUser();
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
   if (access.bestRole !== "owner" && !access.ctx.isSuperAdmin) {
     console.error("createStudio: only studio owners can create a venue");
     return err("Only studio owners can create a venue.");
   }
 
+  const admin = createAdminClient();
   if (!access.ctx.isSuperAdmin) {
-    const admin = createAdminClient();
     const { data: grant } = await admin
       .from("platform_owner_grants")
       .select("is_active")
@@ -66,7 +66,7 @@ export async function createStudio(
   const public_slug = normalizeStudioSlug(slugRaw);
   if (!name || !public_slug) return err("Please enter a studio name and valid public URL slug.");
 
-  const { data: createdStudio, error } = await supabase
+  const { data: createdStudio, error } = await admin
     .from("studios")
     .insert({
       name,
@@ -81,7 +81,7 @@ export async function createStudio(
   }
 
   if (createdStudio.id) {
-    const { error: locationError } = await supabase.from("locations").insert({
+    const { error: locationError } = await admin.from("locations").insert({
       studio_id: createdStudio.id,
       name: "Main",
       is_active: true,
@@ -99,7 +99,7 @@ export async function createStudio(
 
 export async function updateStudioBasics(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
 
@@ -108,7 +108,8 @@ export async function updateStudioBasics(formData: FormData): Promise<void> {
   const public_slug = normalizeStudioSlug(slugRaw);
   if (!name || !public_slug) return;
 
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("studios")
     .update({ name, public_slug })
     .eq("id", studio.id);
@@ -244,7 +245,7 @@ export async function updateStudioHitpaySettings(
   formData: FormData,
 ): Promise<HitpaySettingsResult> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) {
     return {
       ok: false,
@@ -313,7 +314,7 @@ export async function updateStudioHitpaySettings(
     };
   }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("studios")
     .update({
       hitpay_enabled: enabled,
@@ -457,7 +458,7 @@ export async function updateStudioBookingSettings(
   formData: FormData,
 ): Promise<BookingSettingsResult> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return { ok: false, message: "Studio not found." };
   if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) {
     return { ok: false, message: "You do not have permission to update booking settings." };
@@ -491,7 +492,8 @@ export async function updateStudioBookingSettings(
     };
   }
 
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("studios")
     .update({
       calcom_booking_enabled,
@@ -520,7 +522,7 @@ export async function updateStudioBookingSettings(
 }
 
 export async function savePublicLogoUrl(studioId: string, logoUrl: string | null): Promise<void> {
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
@@ -528,7 +530,8 @@ export async function savePublicLogoUrl(studioId: string, logoUrl: string | null
   const url = sanitizeTrustedLogoUrl(rawUrl);
   if (rawUrl && !url) return;
 
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("studios")
     .update({ public_logo_url: url })
     .eq("id", studio.id);
@@ -542,7 +545,7 @@ export async function savePublicLogoUrl(studioId: string, logoUrl: string | null
 
 export async function updateStudioPublicBranding(formData: FormData): Promise<void> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return;
   if (!hasStudioGlobalRole(ctx, studio.id, ["owner", "manager"])) return;
 
@@ -551,7 +554,8 @@ export async function updateStudioPublicBranding(formData: FormData): Promise<vo
   const public_logo_url = sanitizeTrustedLogoUrl(rawLogoUrl);
   if (rawLogoUrl && !public_logo_url) return;
 
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("studios")
     .update({
       public_brand_name,

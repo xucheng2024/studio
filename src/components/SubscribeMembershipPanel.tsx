@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { getBrowserSession } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
 
 type InlineState =
@@ -31,9 +31,9 @@ export function SubscribeMembershipPanel({
   const [inline, setInline] = useState<InlineState>({ type: "idle" });
 
   useEffect(() => {
-    createBrowserSupabase()
-      .auth.getSession()
-      .then(({ data }) => setIsLoggedIn(!!data.session?.user));
+    getBrowserSession()
+      .then((session) => setIsLoggedIn(!!session?.user))
+      .catch(() => setIsLoggedIn(false));
   }, []);
 
   const myMembershipsHref = `/${studioSlug}/me/memberships`;

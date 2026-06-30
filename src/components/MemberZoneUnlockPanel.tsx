@@ -6,7 +6,7 @@ import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { createBrowserSupabase, getBrowserSession } from "@/lib/supabase/client";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { ui } from "@/lib/ui";
 
@@ -35,12 +35,11 @@ export function MemberZoneUnlockPanel(props: {
 
   useEffect(() => {
     let cancelled = false;
-    createBrowserSupabase()
-      .auth.getSession()
-      .then(({ data }) => {
+    getBrowserSession()
+      .then((session) => {
         if (!cancelled) {
-          setBrowserLoggedIn(Boolean(data.session?.user));
-          setUserEmail(data.session?.user?.email ?? null);
+          setBrowserLoggedIn(Boolean(session?.user));
+          setUserEmail(session?.user?.email ?? null);
         }
       })
       .catch(() => {
@@ -91,18 +90,18 @@ export function MemberZoneUnlockPanel(props: {
 
   const startPurchase = async () => {
     const supabase = createBrowserSupabase();
-    let { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session?.user && props.isAuthenticated) {
+    let session = await getBrowserSession().catch(() => null);
+    if (!session?.user && props.isAuthenticated) {
       try {
         await supabase.auth.refreshSession();
-        sessionData = (await supabase.auth.getSession()).data;
+        session = await getBrowserSession();
       } catch {
-        /* keep prior sessionData */
+        /* keep prior session */
       }
     }
     // In PWA/ITP contexts, browser SDK session can be temporarily unavailable
     // even when SSR already identified an authenticated user.
-    const hasBrowserSession = Boolean(sessionData.session?.user) || Boolean(props.isAuthenticated);
+    const hasBrowserSession = Boolean(session?.user) || Boolean(props.isAuthenticated);
     setBrowserLoggedIn(hasBrowserSession);
     if (hasBrowserSession) setShowGuestForm(false);
 
