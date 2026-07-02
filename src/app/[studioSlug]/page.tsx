@@ -211,7 +211,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         showMembershipsLink={memberships.length > 0}
         introSectionId="studio-intro"
         tabs={[
-          ...(calcomEmbedUrl ? [{ id: "booking", label: "Book" }] : []),
+          ...(calcomEmbedUrl ? [{ id: "booking", label: "Booking" }] : []),
           ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
           ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
           ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
