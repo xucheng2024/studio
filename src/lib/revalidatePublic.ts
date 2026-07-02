@@ -175,6 +175,7 @@ export function revalidateDashboardCoreViews() {
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/overview");
   revalidatePath("/dashboard/operations");
+  revalidatePath("/dashboard/studios/new");
 }
 
 export function revalidateRbacCache() {

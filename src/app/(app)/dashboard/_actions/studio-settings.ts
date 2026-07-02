@@ -38,6 +38,11 @@ import {
   sanitizeVideoUrl,
 } from "./shared";
 
+function parseStudioLimit(value: unknown) {
+  const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : null;
+}
+
 export async function createStudio(
   _prevState: DashboardFormResult | null,
   formData: FormData,
@@ -53,11 +58,19 @@ export async function createStudio(
   if (!access.ctx.isSuperAdmin) {
     const { data: grant } = await admin
       .from("platform_owner_grants")
-      .select("is_active")
+      .select("is_active, studio_limit")
       .eq("user_id", user.id)
       .maybeSingle();
     if (!grant?.is_active) {
       return err("Your platform owner access is not active. Ask a platform admin to enable it before creating a new studio.");
+    }
+    const studioLimit = parseStudioLimit(grant.studio_limit) ?? 1;
+    const { count: studioCount } = await admin
+      .from("studios")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", user.id);
+    if ((studioCount ?? 0) >= studioLimit) {
+      return err(`Studio limit reached (${studioLimit}). Ask a platform admin to increase your owner limit before creating another studio.`);
     }
   }
 

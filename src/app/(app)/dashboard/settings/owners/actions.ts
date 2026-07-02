@@ -15,6 +15,11 @@ import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function parseStudioLimit(raw: FormDataEntryValue | null) {
+  const value = Number.parseInt(String(raw ?? "").trim(), 10);
+  return Number.isFinite(value) && value >= 1 ? value : null;
+}
+
 async function requireSuperAdmin() {
   const supabase = await createClient();
   const {
@@ -35,6 +40,8 @@ export async function grantOwnerAccessByEmail(
   const { user, error: authError } = await requireSuperAdmin();
   if (authError || !user) return authError ?? err("You do not have access to this action.");
   if (!email) return err("Please enter a valid email.");
+  const studioLimit = parseStudioLimit(formData.get("studio_limit"));
+  if (!studioLimit) return err("Studio limit must be at least 1.");
 
   const admin = createAdminClient();
   const { data: target } = await admin.from("users").select("id").eq("email", email).maybeSingle();
@@ -42,7 +49,7 @@ export async function grantOwnerAccessByEmail(
     const nowIso = new Date().toISOString();
     const { data: beforeInvite } = await admin
       .from("platform_owner_email_invites")
-      .select("id, email, is_active, invited_by, accepted_user_id, accepted_at")
+      .select("id, email, is_active, invited_by, accepted_user_id, accepted_at, studio_limit")
       .eq("email", email)
       .maybeSingle();
     const { error: inviteErr } = await admin
@@ -54,6 +61,7 @@ export async function grantOwnerAccessByEmail(
           invited_by: user.id,
           accepted_user_id: null,
           accepted_at: null,
+          studio_limit: studioLimit,
           updated_at: nowIso,
         },
         { onConflict: "email" },
@@ -66,7 +74,7 @@ export async function grantOwnerAccessByEmail(
       targetType: "owner_invite",
       targetId: email,
       beforeState: beforeInvite ?? null,
-      afterState: { email, is_active: true },
+      afterState: { email, is_active: true, studio_limit: studioLimit },
     });
     revalidateDashboardSettings("owners");
     revalidateRbacCache();
@@ -75,13 +83,13 @@ export async function grantOwnerAccessByEmail(
 
   const { data: beforeRow } = await admin
     .from("platform_owner_grants")
-    .select("user_id, is_active")
+    .select("user_id, is_active, studio_limit")
     .eq("user_id", target.id)
     .maybeSingle();
 
   const { error } = await admin
     .from("platform_owner_grants")
-    .upsert({ user_id: target.id, is_active: true, created_by: user.id }, { onConflict: "user_id" });
+    .upsert({ user_id: target.id, is_active: true, studio_limit: studioLimit, created_by: user.id }, { onConflict: "user_id" });
   if (error) return err("Could not save changes.");
 
   await writeOperationAudit({
@@ -91,7 +99,7 @@ export async function grantOwnerAccessByEmail(
     targetType: "owner",
     targetId: target.id,
     beforeState: beforeRow ?? null,
-    afterState: { user_id: target.id, is_active: true },
+    afterState: { user_id: target.id, is_active: true, studio_limit: studioLimit },
   });
   await admin
     .from("platform_owner_email_invites")
@@ -108,6 +116,47 @@ export async function grantOwnerAccessByEmail(
   return ok("Owner workspace access granted.");
 }
 
+export async function updateOwnerStudioLimit(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const userId = String(formData.get("user_id") ?? "").trim();
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!userId || !UUID_RE.test(userId)) return err("Invalid user reference.");
+  const studioLimit = parseStudioLimit(formData.get("studio_limit"));
+  if (!studioLimit) return err("Studio limit must be at least 1.");
+
+  const admin = createAdminClient();
+  const { data: beforeRow } = await admin
+    .from("platform_owner_grants")
+    .select("user_id, is_active, studio_limit")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!beforeRow?.user_id) return err("Owner grant not found.");
+
+  const { error } = await admin
+    .from("platform_owner_grants")
+    .update({ studio_limit: studioLimit })
+    .eq("user_id", userId);
+  if (error) return err("Could not save changes.");
+
+  await writeOperationAudit({
+    actorId: user.id,
+    actorRole: "superadmin",
+    action: "owner_grant_limit_updated",
+    targetType: "owner",
+    targetId: userId,
+    beforeState: beforeRow,
+    afterState: { ...beforeRow, studio_limit: studioLimit },
+  });
+
+  revalidateDashboardCoreViews();
+  revalidateDashboardSettings("owners");
+  revalidateRbacCache();
+  return ok("Owner studio limit updated.");
+}
+
 /** Toggle platform owner grant only (FormData: user_id, is_active = "true"|"false" desired next state). */
 export async function setOwnerGrantStatus(
   _prevState: DashboardFormResult | null,
@@ -122,14 +171,14 @@ export async function setOwnerGrantStatus(
   const admin = createAdminClient();
   const { data: beforeRow } = await admin
     .from("platform_owner_grants")
-    .select("user_id, is_active")
+    .select("user_id, is_active, studio_limit")
     .eq("user_id", userId)
     .maybeSingle();
 
   const { error } = await admin
     .from("platform_owner_grants")
     .upsert(
-      { user_id: userId, is_active: nextActive, created_by: user.id },
+      { user_id: userId, is_active: nextActive, studio_limit: beforeRow?.studio_limit ?? 1, created_by: user.id },
       { onConflict: "user_id" },
     );
   if (error) return err("Could not save changes.");
@@ -141,12 +190,56 @@ export async function setOwnerGrantStatus(
     targetType: "owner",
     targetId: userId,
     beforeState: beforeRow ?? null,
-    afterState: { user_id: userId, is_active: nextActive },
+    afterState: { user_id: userId, is_active: nextActive, studio_limit: beforeRow?.studio_limit ?? 1 },
   });
 
   revalidateDashboardSettings("owners");
   revalidateRbacCache();
   return ok(nextActive ? "Owner grant enabled." : "Owner grant disabled.");
+}
+
+export async function updateOwnerInviteStudioLimit(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const inviteId = String(formData.get("invite_id") ?? "").trim();
+  const { user, error: authError } = await requireSuperAdmin();
+  if (authError || !user) return authError ?? err("You do not have access to this action.");
+  if (!inviteId || !UUID_RE.test(inviteId)) return err("Invite not found.");
+  const studioLimit = parseStudioLimit(formData.get("studio_limit"));
+  if (!studioLimit) return err("Studio limit must be at least 1.");
+
+  const admin = createAdminClient();
+  const { data: beforeRow } = await admin
+    .from("platform_owner_email_invites")
+    .select("id, email, is_active, accepted_user_id, accepted_at, studio_limit")
+    .eq("id", inviteId)
+    .maybeSingle();
+  if (!beforeRow) return err("Invite not found.");
+  if (beforeRow.accepted_user_id) return err("This invite has already been accepted. Update the owner grant instead.");
+
+  const { error } = await admin
+    .from("platform_owner_email_invites")
+    .update({
+      studio_limit: studioLimit,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", inviteId);
+  if (error) return err("Could not save changes.");
+
+  await writeOperationAudit({
+    actorId: user.id,
+    actorRole: "superadmin",
+    action: "owner_invite_limit_updated",
+    targetType: "owner_invite",
+    targetId: inviteId,
+    beforeState: beforeRow,
+    afterState: { ...beforeRow, studio_limit: studioLimit },
+  });
+
+  revalidateDashboardSettings("owners");
+  revalidateRbacCache();
+  return ok("Owner invite studio limit updated.");
 }
 
 export async function suspendStudio(

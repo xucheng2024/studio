@@ -70,7 +70,7 @@ async function acceptPendingOwnerInviteIfNeeded(userId: string, email: string | 
   const admin = createAdminClient();
   const { data: invite } = await admin
     .from("platform_owner_email_invites")
-    .select("id, invited_by, is_active")
+    .select("id, invited_by, is_active, studio_limit")
     .eq("email", normalizedEmail)
     .eq("is_active", true)
     .maybeSingle();
@@ -82,6 +82,7 @@ async function acceptPendingOwnerInviteIfNeeded(userId: string, email: string | 
       {
         user_id: userId,
         is_active: true,
+        studio_limit: invite.studio_limit,
         created_by: invite.invited_by ?? userId,
       },
       { onConflict: "user_id" },

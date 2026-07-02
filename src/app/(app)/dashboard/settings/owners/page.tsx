@@ -7,6 +7,8 @@ import {
   resumeStudio,
   setOwnerGrantStatus,
   suspendStudio,
+  updateOwnerInviteStudioLimit,
+  updateOwnerStudioLimit,
 } from "./actions";
 import { ConfirmingSubmitButton } from "@/components/ConfirmingSubmitButton";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -40,6 +42,7 @@ type OwnerAggRow = {
   userId: string;
   email: string;
   grantActive: boolean;
+  studioLimit: number;
   studioCount: number;
   activeStudioCount: number;
   suspendedStudioCount: number;
@@ -54,6 +57,7 @@ type OwnerInviteRow = {
   accepted_at: string | null;
   created_at: string;
   updated_at: string;
+  studio_limit: number;
 };
 
 function formatDatetimeLocal(iso: string | null) {
@@ -62,11 +66,16 @@ function formatDatetimeLocal(iso: string | null) {
 
 function buildOwnerRows(
   studios: StudioRow[],
-  grants: { user_id: string; is_active: boolean }[],
+  grants: { user_id: string; is_active: boolean; studio_limit: number }[],
   emails: Map<string, string | null>,
 ): OwnerAggRow[] {
-  const grantByUser = new Map<string, boolean>();
-  for (const g of grants) grantByUser.set(g.user_id, g.is_active);
+  const grantByUser = new Map<string, { isActive: boolean; studioLimit: number }>();
+  for (const g of grants) {
+    grantByUser.set(g.user_id, {
+      isActive: g.is_active,
+      studioLimit: typeof g.studio_limit === "number" && g.studio_limit >= 1 ? g.studio_limit : 1,
+    });
+  }
 
   const ownerIds = new Set<string>();
   for (const g of grants) ownerIds.add(g.user_id);
@@ -80,7 +89,8 @@ function buildOwnerRows(
     rows.push({
       userId: id,
       email: emails.get(id) ?? id,
-      grantActive: grantByUser.get(id) ?? false,
+      grantActive: grantByUser.get(id)?.isActive ?? false,
+      studioLimit: grantByUser.get(id)?.studioLimit ?? 1,
       studioCount: sts.length,
       activeStudioCount,
       suspendedStudioCount,
@@ -113,10 +123,10 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
 
   const studios = (studioRows ?? []) as StudioRow[];
 
-  const { data: grants } = await admin.from("platform_owner_grants").select("user_id, is_active, created_at");
+  const { data: grants } = await admin.from("platform_owner_grants").select("user_id, is_active, studio_limit, created_at");
   const { data: inviteRowsRaw } = await admin
     .from("platform_owner_email_invites")
-    .select("id, email, is_active, accepted_user_id, accepted_at, created_at, updated_at")
+    .select("id, email, is_active, accepted_user_id, accepted_at, created_at, updated_at, studio_limit")
     .order("created_at", { ascending: false });
   const ownerInvites = (inviteRowsRaw ?? []) as OwnerInviteRow[];
 
@@ -131,7 +141,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
     for (const u of users ?? []) emails.set(u.id, u.email ?? null);
   }
 
-  let owners = buildOwnerRows(studios, (grants ?? []) as { user_id: string; is_active: boolean }[], emails);
+  let owners = buildOwnerRows(studios, (grants ?? []) as { user_id: string; is_active: boolean; studio_limit: number }[], emails);
 
   if (q) {
     owners = owners.filter((o) => (o.email ?? "").toLowerCase().includes(q));
@@ -148,6 +158,8 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
     .in("action", [
       "owner_grant_enabled",
       "owner_grant_disabled",
+      "owner_grant_limit_updated",
+      "owner_invite_limit_updated",
       "owner_disabled_and_studios_suspended",
       "studio_suspended",
       "studio_resumed",
@@ -191,10 +203,16 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
 
       <ServerActionToastForm action={grantOwnerAccessByEmail} className={`${ui.card} flex flex-col gap-3`}>
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Grant platform owner access</h2>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Owner email</span>
-          <input name="email" type="email" required className={ui.input} placeholder="owner@studio.com" />
-        </label>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Owner email</span>
+            <input name="email" type="email" required className={ui.input} placeholder="owner@studio.com" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Studio limit</span>
+            <input name="studio_limit" type="number" min="1" step="1" required defaultValue="1" className={ui.input} />
+          </label>
+        </div>
         <SubmitButton className={`${ui.btnPrimary} w-fit`} pendingText="Granting…">
           Grant owner workspace access
         </SubmitButton>
@@ -214,6 +232,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                 <tr className="border-b border-stone-200 text-left text-stone-500 dark:border-stone-800">
                   <th className="pb-2 pr-3 font-medium">Email</th>
                   <th className="pb-2 pr-3 font-medium">Status</th>
+                  <th className="pb-2 pr-3 font-medium">Studio limit</th>
                   <th className="pb-2 pr-3 font-medium">Accepted user</th>
                   <th className="pb-2 pr-3 font-medium">Created</th>
                   <th className="pb-2 font-medium">Accepted at</th>
@@ -240,6 +259,27 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                       </td>
                       <td className="py-2.5 pr-3">
                         <span className={statusClass}>{statusLabel}</span>
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        {row.accepted_user_id ? (
+                          <span className="text-xs text-stone-600 dark:text-stone-400">{row.studio_limit}</span>
+                        ) : (
+                          <ServerActionToastForm action={updateOwnerInviteStudioLimit} className="flex min-w-[150px] items-center gap-2">
+                            <input type="hidden" name="invite_id" value={row.id} />
+                            <input
+                              name="studio_limit"
+                              type="number"
+                              min="1"
+                              step="1"
+                              required
+                              defaultValue={row.studio_limit}
+                              className={`${ui.input} min-w-0`}
+                            />
+                            <SubmitButton className={ui.btnSecondarySm} pendingText="Saving…">
+                              Save
+                            </SubmitButton>
+                          </ServerActionToastForm>
+                        )}
                       </td>
                       <td className="py-2.5 pr-3 font-mono text-[11px] text-stone-500">
                         {row.accepted_user_id ?? "—"}
@@ -332,9 +372,27 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                         <span className="rounded-md border border-stone-200 px-2 py-0.5 text-stone-600 dark:border-stone-700 dark:text-stone-400">
                           Studios {o.studioCount} (active {o.activeStudioCount} · suspended {o.suspendedStudioCount})
                         </span>
+                        <span className="rounded-md border border-stone-200 px-2 py-0.5 text-stone-600 dark:border-stone-700 dark:text-stone-400">
+                          Limit {o.studioLimit}
+                        </span>
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <ServerActionToastForm action={updateOwnerStudioLimit} className="flex items-center gap-2">
+                        <input type="hidden" name="user_id" value={o.userId} />
+                        <input
+                          name="studio_limit"
+                          type="number"
+                          min="1"
+                          step="1"
+                          required
+                          defaultValue={o.studioLimit}
+                          className={`${ui.input} w-24`}
+                        />
+                        <SubmitButton className={ui.btnSecondarySm} pendingText="Saving…">
+                          Save limit
+                        </SubmitButton>
+                      </ServerActionToastForm>
                       <ToastConfirmForm
                         action={setOwnerGrantStatus}
                         confirmMessage={
