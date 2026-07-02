@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { createStudio } from "@/app/(app)/dashboard/actions";
-import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
-import { SubmitButton } from "@/components/SubmitButton";
+import { CreateStudioForm } from "@/components/dashboard/CreateStudioForm";
 import { getDashboardScope } from "@/lib/dashboard";
 import { computeRevenueSummary, revenueEffectiveTimestamp, type RevenuePaymentRow } from "@/lib/revenue-summary";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,36 +37,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
       <div className="max-w-lg">
         <h1 className={ui.h1}>Create your studio</h1>
         <p className={`mt-2 ${ui.lead}`}>Name it and pick a URL slug for your public booking page.</p>
-        <ServerActionToastForm action={createStudio} className={`${ui.card} mt-8 flex flex-col gap-4`}>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Studio name</span>
-            <input
-              name="name"
-              required
-              className={ui.input}
-              placeholder="Downtown Gym"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Public URL slug</span>
-            <input
-              name="public_slug"
-              required
-              minLength={3}
-              maxLength={60}
-              pattern="[a-zA-Z0-9\\-]+"
-              placeholder="downtown-gym"
-              title="Letters, numbers, hyphens only"
-              className={`${ui.input} font-mono text-sm`}
-            />
-          </label>
-          <p className={`text-xs ${ui.muted}`}>
-            Live at <code className={ui.code}>/your-slug</code> — stored lowercase.
-          </p>
-          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Saving...">
-            Save studio
-          </SubmitButton>
-        </ServerActionToastForm>
+        <CreateStudioForm />
       </div>
     );
   }

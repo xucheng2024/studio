@@ -7,6 +7,7 @@ import { StudioSwitcher } from "@/components/StudioSwitcher";
 import { resolveAccessContext } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { Plus } from "lucide-react";
 
 export default async function DashboardLayout({
   children,
@@ -39,6 +40,7 @@ export default async function DashboardLayout({
   const studioIds = [...new Set(ctx.memberships.map((m) => m.studio_id))];
   const superAdminNoStudioMode = ctx.isSuperAdmin;
   const ownerNoStudioMode = !superAdminNoStudioMode && studioIds.length === 0;
+  const canCreateStudio = resolvedRole === "owner" && !superAdminNoStudioMode;
 
   const { data: studios } =
     studioIds.length > 0
@@ -97,13 +99,24 @@ export default async function DashboardLayout({
 
           {/* Studio switcher */}
           {!superAdminNoStudioMode && !ownerNoStudioMode && (
-            <StudioSwitcher
-              studios={(studios ?? []).map((s) => ({
-                id: s.id,
-                name: s.name,
-                contract_status: s.contract_status,
-              }))}
-            />
+            <div className="flex flex-col gap-2">
+              <StudioSwitcher
+                studios={(studios ?? []).map((s) => ({
+                  id: s.id,
+                  name: s.name,
+                  contract_status: s.contract_status,
+                }))}
+              />
+              {canCreateStudio ? (
+                <DashboardAppLink
+                  href="/dashboard/studios/new"
+                  className={`${ui.btnSecondarySm} w-full justify-center`}
+                >
+                  <Plus size={15} />
+                  Add studio
+                </DashboardAppLink>
+              ) : null}
+            </div>
           )}
 
           {/* No studio yet notice */}
@@ -150,13 +163,24 @@ export default async function DashboardLayout({
         <div className="flex flex-col gap-3 pt-2 md:hidden">
           {!superAdminNoStudioMode && !ownerNoStudioMode && (
             <>
-              <StudioSwitcher
-                studios={(studios ?? []).map((s) => ({
-                  id: s.id,
-                  name: s.name,
-                  contract_status: s.contract_status,
-                }))}
-              />
+              <div className="flex flex-col gap-2">
+                <StudioSwitcher
+                  studios={(studios ?? []).map((s) => ({
+                    id: s.id,
+                    name: s.name,
+                    contract_status: s.contract_status,
+                  }))}
+                />
+                {canCreateStudio ? (
+                  <DashboardAppLink
+                    href="/dashboard/studios/new"
+                    className={`${ui.btnSecondarySm} w-full justify-center`}
+                  >
+                    <Plus size={15} />
+                    Add studio
+                  </DashboardAppLink>
+                ) : null}
+              </div>
               <LocationSwitcher
                 locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
                 selectedLocationId={ctx.selectedLocationId}
