@@ -195,7 +195,7 @@ export function StudioIntroSection({
           {intro?.trim() ? (
             <details className="group">
               <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300">
-                <span className="line-clamp-3 whitespace-pre-wrap">{intro.trim()}</span>
+                <span className="line-clamp-3 whitespace-pre-wrap group-open:hidden">{intro.trim()}</span>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <span className="text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
                     Read more

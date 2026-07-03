@@ -11,7 +11,9 @@
     "test:revenue": "node scripts/verify-revenue-smoke.mjs",
     "seed:angle": "node scripts/reset-angle-therapy-seed.mjs",
     "seed:angle-online": "node scripts/seed-angle-online.mjs",
-    "seed:shop": "node scripts/seed-shop-only.mjs"
+    "seed:shop": "node scripts/seed-shop-only.mjs",
+    "seed:dr-truman": "node scripts/seed-dr-truman.mjs",
+    "verify:dr-truman": "node scripts/verify-dr-truman-public.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

@@ -53,6 +53,23 @@ function useVisibleLinks(
     : links.filter((l) => allowed.has(l.href));
 }
 
+function prioritizeMobileLinks(visibleLinks: NavLink[]) {
+  const priority = new Map([
+    ["/dashboard/operations", 0],
+    ["/dashboard/payments", 1],
+    ["/dashboard/settings", 2],
+    ["/dashboard/schedule", 3],
+    ["/dashboard/clients", 4],
+  ]);
+
+  return [...visibleLinks].sort((a, b) => {
+    const aPriority = priority.get(a.href) ?? 100;
+    const bPriority = priority.get(b.href) ?? 100;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    return visibleLinks.indexOf(a) - visibleLinks.indexOf(b);
+  });
+}
+
 function useNavState() {
   const pathname = usePathname();
   const search = useSearchParams();
@@ -124,12 +141,12 @@ export function MobileBottomNav({
   role: "owner" | "manager" | "frontdesk";
   superAdminNoStudioMode?: boolean;
 }) {
-  const visibleLinks = useVisibleLinks(role, superAdminNoStudioMode);
+  const visibleLinks = prioritizeMobileLinks(useVisibleLinks(role, superAdminNoStudioMode));
   const { pathname, keep, pendingHref, setPendingHref } = useNavState();
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-stone-200/80 bg-white/90 backdrop-blur-xl md:hidden dark:border-stone-800/80 dark:bg-stone-950/90"
+      className="fixed inset-x-0 bottom-0 z-40 flex items-stretch overflow-x-auto overscroll-x-contain border-t border-stone-200/80 bg-white/90 backdrop-blur-xl [scrollbar-width:none] md:hidden dark:border-stone-800/80 dark:bg-stone-950/90 [&::-webkit-scrollbar]:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {visibleLinks.map((l) => {
@@ -144,7 +161,7 @@ export function MobileBottomNav({
             href={href}
             prefetch
             onClick={() => { if (active) return; setPendingHref(pathFromHref(l.href)); }}
-            className={`flex flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-[color,opacity] duration-100 active:opacity-70 ${
+            className={`flex min-w-[4.5rem] flex-none flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-[color,opacity] duration-100 active:opacity-70 ${
               active
                 ? "text-teal-600 dark:text-teal-400"
                 : navigating
