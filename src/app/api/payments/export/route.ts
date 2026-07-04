@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { paymentOrderType, paymentSalesChannel } from "@/lib/payment-classification";
-import { buildAccessContext, filterStudioIdsByRoles } from "@/lib/rbac";
+import { buildAccessContext, filterStudioIdsByRoles, hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -105,9 +105,6 @@ export async function GET(req: Request) {
   if (rawLocationId && rawLocationId !== "__unassigned" && dashboardScope.selectedLocationId !== rawLocationId) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  if (rawLocationId === "__unassigned" && !(dashboardScope.ctx.isSuperAdmin || dashboardScope.ctx.hasAnyGlobalLocationAccess)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
   const studioIds = filterStudioIdsByRoles(
     ctx,
@@ -120,6 +117,9 @@ export async function GET(req: Request) {
   }
 
   const exportStudioIds = studioId ? [studioId] : studioIds;
+  if (rawLocationId === "__unassigned" && !exportStudioIds.every((id) => hasStudioGlobalLocationAccess(ctx, id))) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   const effectiveLocationFilter =
     rawLocationId === "__unassigned" ? "__unassigned" : dashboardScope.selectedLocationId;
   const { data: contractRows } = await admin

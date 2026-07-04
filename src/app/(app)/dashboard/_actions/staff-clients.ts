@@ -6,6 +6,7 @@ import {
   revalidateDashboardStaffViews,
   revalidateRbacCache,
 } from "@/lib/revalidatePublic";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -50,7 +51,7 @@ export async function updateMemberProfile(
     .limit(1)
     .maybeSingle();
   if (!inScopeMember) return err("This user is not in the selected studio scope.");
-  if (!ctx.hasAnyGlobalLocationAccess) {
+  if (!hasStudioGlobalLocationAccess(ctx, studio.id)) {
     if (!locationId) return err("You do not have access to update this profile.");
     const [bookingHit, packageHit, subscriptionHit, paymentHit] = await Promise.all([
       admin

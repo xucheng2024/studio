@@ -66,7 +66,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   });
   if (studioIds.length === 0 && !isSuperAdmin) return <p className={ui.muted}>Create a studio first.</p>;
   if (!selectedStudioId && studioIds.length > 1) {

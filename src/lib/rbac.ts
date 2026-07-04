@@ -66,6 +66,13 @@ export function hasStudioRole(
   );
 }
 
+export function hasStudioGlobalLocationAccess(ctx: AccessContext, studioId: string) {
+  if (ctx.isSuperAdmin) return true;
+  return ctx.memberships.some(
+    (membership) => membership.studio_id === studioId && membership.location_id == null,
+  );
+}
+
 export function hasAnyRole(
   ctx: AccessContext,
   roles: StaffRole[],

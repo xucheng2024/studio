@@ -9,6 +9,7 @@ import {
   type RevenuePaymentRow,
 } from "@/lib/revenue-summary";
 import { PAYMENT_SALES_CHANNEL_FILTER_OPTIONS, PAYMENT_SOURCE_FILTER_OPTIONS } from "@/lib/payment-filter-options";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -54,7 +55,7 @@ export default async function ReportsPage({ searchParams }: Props) {
   if (studioIds.length === 0) return <p className={ui.muted}>You do not have access to this page.</p>;
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
-  const allowsStudioLevelLocationFilter = ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess;
+  const allowsStudioLevelLocationFilter = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const locationFilter =
     sp.location_id === "__unassigned" && allowsStudioLevelLocationFilter
       ? "__unassigned"

@@ -9,7 +9,7 @@ import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/d
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
-import { hasStudioRole } from "@/lib/rbac";
+import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import {
   PAYMENT_METHOD_FILTER_OPTIONS,
   PAYMENT_SALES_CHANNEL_FILTER_OPTIONS,
@@ -148,7 +148,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
-  const allowsStudioLevelLocationFilter = ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess;
+  const allowsStudioLevelLocationFilter = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const locationFilter =
     sp.location_id === "__unassigned" && allowsStudioLevelLocationFilter
       ? "__unassigned"
