@@ -9,6 +9,7 @@ import {
 } from "@/lib/memberCredits";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { badgeToneClass } from "@/lib/order-status";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +25,7 @@ export default async function ClientsPage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -36,6 +37,7 @@ export default async function ClientsPage({ searchParams }: Props) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const { data: locationRows } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -303,6 +305,8 @@ export default async function ClientsPage({ searchParams }: Props) {
           locations={locationRows ?? []}
           selectedStudioId={activeStudioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       <div>

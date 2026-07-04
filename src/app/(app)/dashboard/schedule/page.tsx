@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { generateShareSlugSegment, isValidShareSlug } from "@/lib/shareSlug";
 import { ui } from "@/lib/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -57,7 +58,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -93,6 +94,7 @@ export default async function SchedulePage({ searchParams }: Props) {
     ? (locations ?? []).find((l) => l.id === selectedLocationId)
     : null;
   const activeStudioId = selectedLocation?.studio_id ?? (classes?.[0]?.studio_id ?? studioIds[0]);
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const scopeParams = new URLSearchParams();
   scopeParams.set("studio_id", activeStudioId);
   if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
@@ -289,6 +291,8 @@ export default async function SchedulePage({ searchParams }: Props) {
           locations={locations ?? []}
           selectedStudioId={activeStudioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       <div>

@@ -6,7 +6,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
-import { hasStudioRole } from "@/lib/rbac";
+import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,7 +19,7 @@ export default async function ClassesPage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -78,6 +78,7 @@ export default async function ClassesPage({ searchParams }: Props) {
   ]);
 
   const studioId = instructors?.[0]?.studio_id ?? classes?.[0]?.studio_id ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, studioId);
   const canEdit = hasStudioRole(ctx, studioId, ["owner", "manager"]);
   const canCopyLink = hasStudioRole(ctx, studioId, ["owner", "manager", "frontdesk"]);
 
@@ -103,6 +104,8 @@ export default async function ClassesPage({ searchParams }: Props) {
           locations={locationRows ?? []}
           selectedStudioId={studioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       <div>

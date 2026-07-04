@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CreateStudioForm } from "@/components/dashboard/CreateStudioForm";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { getDashboardScope } from "@/lib/dashboard";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { computeRevenueSummary, revenueEffectiveTimestamp, type RevenuePaymentRow } from "@/lib/revenue-summary";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -21,7 +22,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScope({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -46,6 +47,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const { data: locationRows } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -108,6 +110,8 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
           locations={locationRows ?? []}
           selectedStudioId={activeStudioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       {/* ── Header ──────────────────────────────────────────────── */}

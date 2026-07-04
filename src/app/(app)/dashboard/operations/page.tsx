@@ -5,6 +5,7 @@ import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { OpsBoard } from "@/components/ops/OpsBoard";
 import { localISODate } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { ClipboardList } from "lucide-react";
@@ -27,7 +28,7 @@ export default async function OperationsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -101,6 +102,7 @@ export default async function OperationsPage({ searchParams }: Props) {
     );
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -201,6 +203,8 @@ export default async function OperationsPage({ searchParams }: Props) {
           locations={locations ?? []}
           selectedStudioId={activeStudioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:items-start">

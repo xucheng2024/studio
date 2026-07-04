@@ -138,7 +138,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
   const requestedLocationId =
     sp.location_id && sp.location_id !== "__unassigned" ? sp.location_id : null;
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: requestedLocationId,
@@ -425,6 +425,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             locations={locations ?? []}
             selectedStudioId={activeStudioId}
             selectedLocationId={locationFilter}
+            allowAll={allowsStudioLevelLocationFilter}
+            accessibleLocationIds={accessibleLocationIds}
             unassignedLabel={allowsStudioLevelLocationFilter ? "Studio-level / Unassigned" : undefined}
           />
         </div>

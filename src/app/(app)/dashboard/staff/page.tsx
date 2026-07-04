@@ -3,6 +3,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -25,7 +26,7 @@ export default async function StaffPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
@@ -39,6 +40,7 @@ export default async function StaffPage({ searchParams }: Props) {
   }
 
   const studioId = selectedStudioId ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, studioId);
   const admin = createAdminClient();
   const { data: locationRows } = await supabase
     .from("locations")
@@ -62,6 +64,8 @@ export default async function StaffPage({ searchParams }: Props) {
           locations={locationRows ?? []}
           selectedStudioId={studioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       <div>

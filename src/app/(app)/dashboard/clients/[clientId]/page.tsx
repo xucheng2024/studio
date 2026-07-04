@@ -8,6 +8,7 @@ import { LocalDate } from "@/components/ui/LocalDate";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -26,7 +27,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -38,6 +39,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     return <p className={ui.muted}>Select a studio in the left sidebar to view this user&apos;s ledger.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const admin = createAdminClient();
   const { data: locationRows } = await supabase
     .from("locations")
@@ -155,6 +157,8 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           locations={locationRows ?? []}
           selectedStudioId={activeStudioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       {/* ── Header ──────────────────────────────────────────────── */}

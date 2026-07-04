@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate, toLocalDateTimeInputValue } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
-import { hasStudioRole } from "@/lib/rbac";
+import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarRange, Clock3, Ticket } from "lucide-react";
@@ -40,7 +40,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -74,6 +74,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   ]);
 
   const studioId = selectedStudioId ?? (events?.[0]?.studio_id as string | undefined) ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, studioId);
   const canEdit = hasStudioRole(ctx, studioId, ["owner", "manager"]);
   const studioPublicSlug =
     (studioMeta ?? []).find((s) => s.id === studioId)?.public_slug ?? null;
@@ -286,6 +287,8 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
           locations={locations ?? []}
           selectedStudioId={studioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       <div>

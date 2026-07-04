@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { LocalDate } from "@/components/ui/LocalDate";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
-import { hasStudioRole } from "@/lib/rbac";
+import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -23,7 +23,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
     locationId: sp.location_id ?? null,
@@ -33,6 +33,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const canEdit = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const canCopyLink = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
 
@@ -77,6 +78,8 @@ export default async function MembershipsPage({ searchParams }: Props) {
           locations={locationRows ?? []}
           selectedStudioId={activeStudioId}
           selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
         />
       </div>
       <div>

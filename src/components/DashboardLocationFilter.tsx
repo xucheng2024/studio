@@ -13,12 +13,16 @@ export function DashboardLocationFilter({
   locations,
   selectedStudioId,
   selectedLocationId,
+  allowAll = true,
+  accessibleLocationIds,
   allLabel = "All locations",
   unassignedLabel,
 }: {
   locations: LocationOption[];
   selectedStudioId: string | null;
   selectedLocationId: string | null;
+  allowAll?: boolean;
+  accessibleLocationIds?: string[];
   allLabel?: string;
   unassignedLabel?: string;
 }) {
@@ -26,9 +30,12 @@ export function DashboardLocationFilter({
   const router = useRouter();
   const search = useSearchParams();
 
-  const visibleLocations = selectedStudioId
+  const accessibleLocationIdSet =
+    !allowAll && accessibleLocationIds ? new Set(accessibleLocationIds) : null;
+  const visibleLocations = (selectedStudioId
     ? locations.filter((location) => location.studio_id === selectedStudioId)
-    : locations;
+    : locations
+  ).filter((location) => !accessibleLocationIdSet || accessibleLocationIdSet.has(location.id));
   const activeValue = selectedLocationId ?? "";
 
   return (
@@ -46,8 +53,9 @@ export function DashboardLocationFilter({
           router.push(q ? `${pathname}?${q}` : pathname);
         }}
       >
-        <option value="">{allLabel}</option>
-        {unassignedLabel ? <option value="__unassigned">{unassignedLabel}</option> : null}
+        {allowAll ? <option value="">{allLabel}</option> : null}
+        {!allowAll && visibleLocations.length === 0 ? <option value="">No locations</option> : null}
+        {allowAll && unassignedLabel ? <option value="__unassigned">{unassignedLabel}</option> : null}
         {visibleLocations.map((location) => (
           <option key={location.id} value={location.id}>
             {location.name}
