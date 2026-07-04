@@ -33,14 +33,14 @@ export default async function PublicServicesPage({ params }: Props) {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, public_services_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, contract_status")
+    .select("id, name, public_slug, public_services_title, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, contract_status, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") notFound();
 
   const { data: services } = await admin
     .from("studio_services")
-    .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, sort_order")
+    .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, sort_order, enable_enquiry, enable_payment")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -76,6 +76,9 @@ export default async function PublicServicesPage({ params }: Props) {
           const preview = getVideoPreview((svc as { video_url?: string | null }).video_url ?? "");
           const cover = svc.cover_image_url ?? preview.thumbnailUrl ?? null;
           const serviceWaLink = buildServiceWaLink(svc.title);
+          const paymentEnabled = Boolean((svc as { enable_payment?: boolean | null }).enable_payment);
+          const enquiryEnabled = Boolean((svc as { enable_enquiry?: boolean | null }).enable_enquiry);
+          const paymentReady = Number(svc.price ?? 0) === 0 || Boolean(studio.hitpay_enabled);
           const tags = Array.isArray((svc as { tags?: string[] | null }).tags) ? (svc as { tags: string[] }).tags : [];
           return (
             <article key={svc.id} className={ui.card}>
@@ -102,7 +105,12 @@ export default async function PublicServicesPage({ params }: Props) {
                     </div>
                   ) : null}
                   <div className="mt-4 flex flex-wrap items-center gap-2">
-                    {serviceWaLink ? <a href={serviceWaLink} target="_blank" rel="noreferrer" className={ui.btnSecondarySm}>Enquire Now</a> : null}
+                    {paymentEnabled ? (
+                      <Link href={href} className={ui.btnPrimarySm}>
+                        {paymentReady && svc.price != null && Number(svc.price) > 0 ? `Pay ${serviceCurrency} ${Number(svc.price).toFixed(2)}` : "Pay now"}
+                      </Link>
+                    ) : null}
+                    {enquiryEnabled && serviceWaLink ? <a href={serviceWaLink} target="_blank" rel="noreferrer" className={paymentEnabled ? ui.btnSecondarySm : ui.btnPrimarySm}>Enquire now</a> : null}
                     <SessionShareLinkButton sharePath={href} title={`${svc.title} · ${studio.name}`} text={`Check out this service: ${svc.title}`} />
                   </div>
                 </div>

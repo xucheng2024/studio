@@ -54,7 +54,7 @@ async function buildPublicStudioLandingData(slug: string) {
   ] = await Promise.all([
     admin
       .from("studio_services")
-      .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, sort_order")
+      .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, sort_order, enable_enquiry, enable_payment")
       .eq("studio_id", studio.id)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })

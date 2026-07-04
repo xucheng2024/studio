@@ -9,6 +9,7 @@ import {
   cancelPendingPaymentLifecycle,
   settlePaidShopOrder,
   syncMemberZonePurchasePaymentStatus,
+  syncServiceOrderPaymentStatus,
   syncShopOrderPaymentStatus,
 } from "@/lib/paymentStatusTransitions";
 import { ensurePaymentClientId } from "@/lib/resolveClientId";
@@ -137,6 +138,7 @@ export async function POST(req: Request) {
       }
     }
     await syncMemberZonePurchasePaymentStatus(admin, parsed.data.payment_id, "paid");
+    await syncServiceOrderPaymentStatus(admin, parsed.data.payment_id, "paid");
     await settlePaidShopOrder(admin, {
       paymentId: parsed.data.payment_id,
       studioId: payment.studio_id,
@@ -269,6 +271,7 @@ export async function POST(req: Request) {
     }
     await syncMemberZonePurchasePaymentStatus(admin, parsed.data.payment_id, "refunded");
     await syncShopOrderPaymentStatus(admin, parsed.data.payment_id, "refunded");
+    await syncServiceOrderPaymentStatus(admin, parsed.data.payment_id, "refunded");
     return NextResponse.json({
       ok: true,
       already_refunded: alreadyRefunded,

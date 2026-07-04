@@ -47,7 +47,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
     supabase.from("studios").select("id, name, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("studio_services")
-      .select("id, title, summary, description, price, cover_image_url, video_url, tags, is_active, sort_order")
+      .select("id, title, summary, description, price, cover_image_url, video_url, tags, is_active, sort_order, enable_enquiry, enable_payment")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -91,6 +91,15 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
             <input name="sort_order" type="number" defaultValue={100} className={ui.input} />
           </label>
           <div className="hidden sm:block" />
+
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="enable_enquiry" defaultChecked />
+            Enable enquiry
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="enable_payment" />
+            Enable payment
+          </label>
 
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Description</span>
@@ -158,6 +167,8 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                           SGD {Number(svc.price).toFixed(2)}
                         </>
                       ) : null}
+                      {svc.enable_payment ? `${svc.price != null ? " · " : ""}Pay enabled` : ""}
+                      {svc.enable_enquiry ? `${svc.price != null || svc.enable_payment ? " · " : ""}Enquiry enabled` : ""}
                       {svc.summary ? ` · ${svc.summary}` : ""}
                     </p>
                     {(() => {
@@ -203,6 +214,14 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
                   <input type="checkbox" name="is_active" defaultChecked={Boolean(svc.is_active)} />
                   Active
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="enable_enquiry" defaultChecked={Boolean((svc as { enable_enquiry?: boolean | null }).enable_enquiry)} />
+                  Enable enquiry
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="enable_payment" defaultChecked={Boolean((svc as { enable_payment?: boolean | null }).enable_payment)} />
+                  Enable payment
                 </label>
 
                 <label className="flex flex-col gap-1.5 sm:col-span-2">

@@ -101,14 +101,14 @@ export const getCachedServiceShareContext = cache(async (studioSlugRaw: string, 
   const supabase = createAdminClient();
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text")
+    .select("id, name, public_slug, contract_status, custom_domain, custom_domain_status, whatsapp_enabled, whatsapp_number_e164, whatsapp_prefill_text, hitpay_enabled")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") return null;
 
   const { data: service } = await supabase
     .from("studio_services")
-    .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, is_active")
+    .select("id, title, summary, description, price, cover_image_url, video_url, tags, share_slug, is_active, enable_enquiry, enable_payment")
     .eq("studio_id", studio.id)
     .eq("share_slug", serviceSlug)
     .eq("is_active", true)

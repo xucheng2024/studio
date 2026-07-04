@@ -21,6 +21,7 @@ export type InvoicePaymentRow = {
   member_zone_series_id?: string | null;
   member_zone_lesson_id?: string | null;
   shop_product_id?: string | null;
+  service_id?: string | null;
   amount: number | null;
   currency: string | null;
   status: string | null;
@@ -36,6 +37,7 @@ export type InvoicePaymentRow = {
   package_name_snapshot?: string | null;
   membership_name_snapshot?: string | null;
   shop_product_name_snapshot?: string | null;
+  service_title_snapshot?: string | null;
   studios?: { name?: string | null; public_contact_email?: string | null } | { name?: string | null; public_contact_email?: string | null }[] | null;
 };
 
@@ -70,6 +72,7 @@ export async function loadInvoicePayment(paymentId: string) {
       member_zone_series_id,
       member_zone_lesson_id,
       shop_product_id,
+      service_id,
       amount,
       currency,
       status,
@@ -85,6 +88,7 @@ export async function loadInvoicePayment(paymentId: string) {
       package_name_snapshot,
       membership_name_snapshot,
       shop_product_name_snapshot,
+      service_title_snapshot,
       studios ( name, public_contact_email )
     `,
     )
@@ -140,6 +144,8 @@ export async function resolveInvoicePayload(
           ? "Member zone purchase"
           : payment.source === "shop_purchase"
             ? "Shop purchase"
+            : payment.source === "service_purchase"
+              ? "Service purchase"
             : payment.type === "package" || payment.source === "package_buy"
               ? "Package purchase"
               : "Class booking";
@@ -174,6 +180,11 @@ export async function resolveInvoicePayload(
     lineItem = `Membership: ${payment.membership_name_snapshot.trim()}`;
   } else if (payment.shop_product_name_snapshot?.trim()) {
     lineItem = `Shop: ${payment.shop_product_name_snapshot.trim()}`;
+  } else if (payment.service_title_snapshot?.trim()) {
+    lineItem = `Service: ${payment.service_title_snapshot.trim()}`;
+  } else if (payment.service_id) {
+    const { data: service } = await admin.from("studio_services").select("title").eq("id", payment.service_id).maybeSingle();
+    if (service?.title?.trim()) lineItem = `Service: ${service.title.trim()}`;
   } else if (payment.member_zone_lesson_id) {
     const { data: lesson } = await admin
       .from("member_zone_lessons")

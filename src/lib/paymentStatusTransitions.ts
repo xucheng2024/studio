@@ -55,6 +55,29 @@ export async function syncShopOrderPaymentStatus(
     .eq("payment_id", paymentId);
 }
 
+export async function syncServiceOrderPaymentStatus(
+  admin: SupabaseClient,
+  paymentId: string,
+  status: PaymentLifecycleStatus,
+  options: StatusUpdateOptions = {},
+) {
+  const nowIso = options.nowIso ?? new Date().toISOString();
+  const servicePatch: Record<string, string> = {
+    status,
+    updated_at: nowIso,
+  };
+  if (status === "paid") servicePatch.paid_at = nowIso;
+  if (status === "refunded") servicePatch.refunded_at = nowIso;
+  if (status === "failed" || status === "expired" || status === "refunded") {
+    servicePatch.fulfillment_status = "cancelled";
+  }
+
+  await admin
+    .from("service_orders")
+    .update(servicePatch)
+    .eq("payment_id", paymentId);
+}
+
 type SettlePaidShopOrderParams = {
   paymentId: string;
   studioId: string;
@@ -206,5 +229,6 @@ export async function cancelPendingPaymentLifecycle(
 
   await syncMemberZonePurchasePaymentStatus(admin, payment.id, nextStatus);
   await syncShopOrderPaymentStatus(admin, payment.id, nextStatus);
+  await syncServiceOrderPaymentStatus(admin, payment.id, nextStatus);
   return { ok: true as const };
 }

@@ -42,19 +42,53 @@ function paymentSourceLabel(source: string | null | undefined) {
     case "walkin":
       return "Walk-in";
     case "package_buy":
-      return "Package purchase";
+      return "Package";
     case "online_booking":
-      return "Session booking";
+      return "Session";
     case "event_booking":
-      return "Event booking";
+      return "Event";
     case "membership_subscription":
-      return "Membership subscription";
+      return "Membership";
     case "member_zone_purchase":
-      return "Member zone purchase";
+      return "Member zone";
     case "shop_purchase":
-      return "Shop purchase";
+      return "Shop";
+    case "service_purchase":
+      return "Service";
     default:
       return "Unknown";
+  }
+}
+
+function primaryItemLabel(input: {
+  source: string | null;
+  sessionTitle: string | null;
+  eventTitle: string | null;
+  packageLabel: string;
+  membershipLabel: string;
+  shopLabel: string;
+  serviceLabel: string;
+  memberZoneSeriesLabel: string;
+  memberZoneLessonLabel: string;
+}) {
+  switch (input.source) {
+    case "online_booking":
+    case "walkin":
+      return input.sessionTitle || "-";
+    case "event_booking":
+      return input.eventTitle || "-";
+    case "package_buy":
+      return input.packageLabel;
+    case "membership_subscription":
+      return input.membershipLabel;
+    case "member_zone_purchase":
+      return input.memberZoneLessonLabel !== "-" ? input.memberZoneLessonLabel : input.memberZoneSeriesLabel;
+    case "shop_purchase":
+      return input.shopLabel;
+    case "service_purchase":
+      return input.serviceLabel;
+    default:
+      return "-";
   }
 }
 
@@ -146,7 +180,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = admin
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, service_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -183,8 +217,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const packageIds = [...new Set(payments.map((p) => (p as { package_id?: string | null }).package_id).filter(Boolean))];
   const memberZoneSeriesIds = [...new Set(payments.map((p) => (p as { member_zone_series_id?: string | null }).member_zone_series_id).filter(Boolean))];
   const memberZoneLessonIds = [...new Set(payments.map((p) => (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id).filter(Boolean))];
+  const serviceIds = [...new Set(payments.map((p) => (p as { service_id?: string | null }).service_id).filter(Boolean))];
 
-  const [{ data: bookings }, { data: eventBookings }, { data: packageRows }, { data: memberZoneSeriesRows }, { data: memberZoneLessonRows }, { data: clients }, { data: clientProfiles }] = await Promise.all([
+  const [{ data: bookings }, { data: eventBookings }, { data: packageRows }, { data: memberZoneSeriesRows }, { data: memberZoneLessonRows }, { data: serviceRows }, { data: clients }, { data: clientProfiles }] = await Promise.all([
     bookingIds.length > 0
       ? admin
           .from("bookings")
@@ -215,6 +250,12 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           .select("id, title")
           .in("id", memberZoneLessonIds)
       : Promise.resolve({ data: [] as const }),
+    serviceIds.length > 0
+      ? admin
+          .from("studio_services")
+          .select("id, title")
+          .in("id", serviceIds)
+      : Promise.resolve({ data: [] as const }),
     clientIds.length > 0
       ? admin.from("users").select("id, email").in("id", clientIds)
       : Promise.resolve({ data: [] as const }),
@@ -227,6 +268,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const packageMap = new Map((packageRows ?? []).map((pkg) => [pkg.id, pkg]));
   const memberZoneSeriesMap = new Map((memberZoneSeriesRows ?? []).map((row) => [row.id, row]));
   const memberZoneLessonMap = new Map((memberZoneLessonRows ?? []).map((row) => [row.id, row]));
+  const serviceMap = new Map((serviceRows ?? []).map((row) => [row.id, row]));
   const clientMap = new Map((clients ?? []).map((u) => [u.id, u.email]));
   const clientProfileMap = new Map(
     (clientProfiles ?? []).map((u) => [
@@ -257,6 +299,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       : null;
     const memberZoneLesson = (p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id
       ? memberZoneLessonMap.get((p as { member_zone_lesson_id?: string | null }).member_zone_lesson_id ?? "")
+      : null;
+    const service = (p as { service_id?: string | null }).service_id
+      ? serviceMap.get((p as { service_id?: string | null }).service_id ?? "")
       : null;
     const sessionObj = booking
       ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
@@ -295,6 +340,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? pkg?.name ?? null,
       (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
       (p as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot ?? null,
+      (p as { service_title_snapshot?: string | null }).service_title_snapshot ?? service?.title ?? null,
       (p as { gift_recipient_email?: string | null }).gift_recipient_email ?? null,
       (p as { gift_recipient_name?: string | null }).gift_recipient_name ?? null,
     ]
@@ -412,8 +458,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </label>
         </div>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Search member / session / event / membership / ref</span>
-          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="member name, session title, event title, membership name, email, ref…" />
+          <span className={ui.label}>Search customer / item / ref</span>
+          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="customer name, item title, email, ref…" />
         </label>
 
         {/* ── Apply / Reset ─────────────────────────────────── */}
@@ -479,6 +525,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const shopLabel =
             (p as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot?.trim() ||
             "-";
+          const service = (p as { service_id?: string | null }).service_id
+            ? serviceMap.get((p as { service_id?: string | null }).service_id ?? "")
+            : null;
+          const serviceLabel =
+            (p as { service_title_snapshot?: string | null }).service_title_snapshot?.trim() ||
+            service?.title?.trim() ||
+            "-";
           const memberZoneSeries = (p as { member_zone_series_id?: string | null }).member_zone_series_id
             ? memberZoneSeriesMap.get((p as { member_zone_series_id?: string | null }).member_zone_series_id ?? "")
             : null;
@@ -488,18 +541,18 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const memberZoneSeriesLabel = memberZoneSeries?.title?.trim() || "-";
           const memberZoneLessonLabel = memberZoneLesson?.title?.trim() || "-";
           const source = (p as { source?: string | null }).source ?? null;
-          const orderTypeLabel =
-            source === "event_booking"
-              ? "Event"
-              : source === "membership_subscription"
-                ? "Membership"
-              : source === "member_zone_purchase"
-                ? "Member zone"
-              : source === "package_buy"
-                ? "Package"
-              : source === "shop_purchase"
-                ? "Shop"
-                : "Session";
+          const orderTypeLabel = paymentSourceLabel(source);
+          const itemLabel = primaryItemLabel({
+            source,
+            sessionTitle,
+            eventTitle,
+            packageLabel,
+            membershipLabel,
+            shopLabel,
+            serviceLabel,
+            memberZoneSeriesLabel,
+            memberZoneLessonLabel,
+          });
           const opsHint = paymentOpsHint({
             status: p.status,
             paymentMethod: p.payment_method,
@@ -565,52 +618,28 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <dd className="min-w-0 break-all font-medium text-stone-700 dark:text-stone-300">{emailLabel}</dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Class</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">
-                    {sessionTitle ? <>{sessionTitle}{sessionStartIso ? <> · <LocalTime iso={sessionStartIso} /></> : null}</> : "-"}
-                  </dd>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Type</dt>
+                  <dd className="text-stone-700 dark:text-stone-300">{orderTypeLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Name</dt>
                   <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{nameLabel}</dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
-                  <dd className="text-stone-700 dark:text-stone-300">{paymentMethodLabel(p.payment_method)}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Source</dt>
-                  <dd className="text-stone-700 dark:text-stone-300">{paymentSourceLabel((p as { source?: string | null }).source ?? null)}</dd>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Item</dt>
+                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">
+                    {itemLabel}
+                    {source === "online_booking" && sessionStartIso ? <> · <LocalTime iso={sessionStartIso} /></> : null}
+                    {source === "event_booking" && eventStartIso ? <> · <LocalTime iso={eventStartIso} /></> : null}
+                  </dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Phone</dt>
                   <dd className="text-stone-700 dark:text-stone-300">{phoneLabel}</dd>
                 </div>
                 <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Event</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">
-                    {eventTitle ? <>{eventTitle}{eventStartIso ? <> · <LocalTime iso={eventStartIso} /></> : null}</> : "-"}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Package</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{packageLabel}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Membership</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{membershipLabel}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Shop</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{shopLabel}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">MZ series</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{memberZoneSeriesLabel}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">MZ lesson</dt>
-                  <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">{memberZoneLessonLabel}</dd>
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
+                  <dd className="text-stone-700 dark:text-stone-300">{paymentMethodLabel(p.payment_method)}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Ref</dt>

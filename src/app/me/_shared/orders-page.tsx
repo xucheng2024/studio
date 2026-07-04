@@ -22,7 +22,7 @@ export async function renderOrdersPage(scope?: MePageScope) {
 
   const paymentsQuery = supabase
     .from("payments")
-    .select("id, studio_id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot, member_zone_series_id, member_zone_lesson_id, shop_product_id, shop_product_name_snapshot")
+    .select("id, studio_id, amount, currency, status, created_at, reference_code, payment_method, source, booking_id, event_booking_id, package_id, package_name_snapshot, membership_name_snapshot, member_zone_series_id, member_zone_lesson_id, shop_product_id, shop_product_name_snapshot, service_id, service_title_snapshot")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
   const { data: payments } = scopedStudio?.studio.id
@@ -34,6 +34,7 @@ export async function renderOrdersPage(scope?: MePageScope) {
   const packageIds = Array.from(new Set((payments ?? []).map((payment) => payment.package_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
   const memberZoneSeriesIds = Array.from(new Set((payments ?? []).map((payment) => (payment as { member_zone_series_id?: string | null }).member_zone_series_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
   const memberZoneLessonIds = Array.from(new Set((payments ?? []).map((payment) => (payment as { member_zone_lesson_id?: string | null }).member_zone_lesson_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
+  const serviceIds = Array.from(new Set((payments ?? []).map((payment) => (payment as { service_id?: string | null }).service_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
   const shopPaymentIds = Array.from(new Set((payments ?? []).map((payment) => payment.id)));
 
   const { data: shopOrderRows } = shopPaymentIds.length
@@ -54,12 +55,16 @@ export async function renderOrdersPage(scope?: MePageScope) {
   const { data: memberZoneLessonRows } = memberZoneLessonIds.length
     ? await admin.from("member_zone_lessons").select("id, title").in("id", memberZoneLessonIds)
     : { data: [] };
+  const { data: serviceRows } = serviceIds.length
+    ? await admin.from("studio_services").select("id, title").in("id", serviceIds)
+    : { data: [] };
 
   const bookingMap = new Map((bookingRows ?? []).map((row) => [row.id, row]));
   const eventBookingMap = new Map((eventBookingRows ?? []).map((row) => [row.id, row]));
   const packageMap = new Map((packageRows ?? []).map((row) => [row.id, row]));
   const memberZoneSeriesMap = new Map((memberZoneSeriesRows ?? []).map((row) => [row.id, row]));
   const memberZoneLessonMap = new Map((memberZoneLessonRows ?? []).map((row) => [row.id, row]));
+  const serviceMap = new Map((serviceRows ?? []).map((row) => [row.id, row]));
   const shopOrderMap = new Map((shopOrderRows ?? []).map((row) => [row.payment_id, row]));
 
   return (
@@ -83,6 +88,9 @@ export async function renderOrdersPage(scope?: MePageScope) {
             const memberZoneLesson = (payment as { member_zone_lesson_id?: string | null }).member_zone_lesson_id
               ? memberZoneLessonMap.get((payment as { member_zone_lesson_id?: string | null }).member_zone_lesson_id ?? "")
               : null;
+            const service = (payment as { service_id?: string | null }).service_id
+              ? serviceMap.get((payment as { service_id?: string | null }).service_id ?? "")
+              : null;
             const session = booking && "class_sessions" in booking ? booking.class_sessions : null;
             const sessionRow = Array.isArray(session) ? session[0] : session;
             const cls = Array.isArray(sessionRow?.classes) ? sessionRow?.classes[0] : sessionRow?.classes;
@@ -102,6 +110,8 @@ export async function renderOrdersPage(scope?: MePageScope) {
                     ? { text: "Member zone", tone: "teal" as const }
                     : source === "shop_purchase"
                       ? { text: "Shop", tone: "stone" as const }
+                      : source === "service_purchase"
+                        ? { text: "Service", tone: "teal" as const }
                       : source === "package_buy"
                         ? { text: "Package", tone: "stone" as const }
                         : { text: "Class", tone: "blue" as const };
@@ -132,6 +142,9 @@ export async function renderOrdersPage(scope?: MePageScope) {
                 ) : null}
                 {memberZoneSeries?.title ? <p className={`mt-1 text-sm ${ui.muted}`}>Member zone series: {memberZoneSeries.title}</p> : null}
                 {memberZoneLesson?.title ? <p className={`mt-1 text-sm ${ui.muted}`}>Member zone lesson: {memberZoneLesson.title}</p> : null}
+                {(((payment as { service_title_snapshot?: string | null }).service_title_snapshot?.trim()) || service?.title) ? (
+                  <p className={`mt-1 text-sm ${ui.muted}`}>Service: {(payment as { service_title_snapshot?: string | null }).service_title_snapshot?.trim() || service?.title}</p>
+                ) : null}
                 {source === "shop_purchase" ? (
                   <p className={`mt-1 text-sm ${ui.muted}`}>
                     Shop: {(payment as { shop_product_name_snapshot?: string | null }).shop_product_name_snapshot?.trim() || shopOrderMap.get(payment.id)?.product_title_snapshot || "Product"}

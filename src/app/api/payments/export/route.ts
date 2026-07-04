@@ -47,6 +47,7 @@ type PaymentRow = {
   invoice_void_reason?: string | null;
   package_name_snapshot?: string | null;
   membership_name_snapshot?: string | null;
+  service_title_snapshot?: string | null;
 };
 
 function paymentEffectiveTimestamp(row: PaymentRow) {
@@ -123,7 +124,7 @@ export async function GET(req: Request) {
   let q = admin
     .from("payments")
     .select(
-      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot",
+      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, service_title_snapshot",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -204,6 +205,7 @@ export async function GET(req: Request) {
         eventObj?.title,
         (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name : null),
         (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? null,
+        (p as { service_title_snapshot?: string | null }).service_title_snapshot ?? null,
         clientEmail,
         p.gift_recipient_email ?? null,
         p.gift_recipient_name ?? null,
@@ -228,6 +230,7 @@ export async function GET(req: Request) {
     "event_name",
     "package_name",
     "membership_name",
+    "service_name",
     "is_gift",
     "gift_recipient_email",
     "gift_recipient_name",
@@ -267,6 +270,8 @@ export async function GET(req: Request) {
           ? "membership"
         : p.source === "member_zone_purchase"
           ? "member_zone"
+        : p.source === "service_purchase"
+          ? "service"
         : p.source === "package_buy"
           ? "package"
           : "session";
@@ -293,6 +298,7 @@ export async function GET(req: Request) {
       eventObj?.title ?? "",
       (p as { package_name_snapshot?: string | null }).package_name_snapshot ?? (p.package_id ? packageMap.get(p.package_id)?.name ?? "" : ""),
       (p as { membership_name_snapshot?: string | null }).membership_name_snapshot ?? "",
+      (p as { service_title_snapshot?: string | null }).service_title_snapshot ?? "",
       p.is_gift ? "true" : "false",
       p.gift_recipient_email ?? "",
       p.gift_recipient_name ?? "",

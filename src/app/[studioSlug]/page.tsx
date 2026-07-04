@@ -263,6 +263,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             {visibleServices.map((svc) => {
               const serviceWaLink = buildServiceWaLink(svc.title);
               const servicePath = studioServicePath(studio.public_slug, svc.share_slug);
+              const paymentEnabled = Boolean((svc as { enable_payment?: boolean | null }).enable_payment);
+              const enquiryEnabled = Boolean((svc as { enable_enquiry?: boolean | null }).enable_enquiry);
+              const paymentReady = Number(svc.price ?? 0) === 0 || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
               const svcVideoPreview = getVideoPreview((svc as { video_url?: string | null }).video_url ?? "");
               const svcCover = svc.cover_image_url ?? svcVideoPreview.thumbnailUrl ?? null;
               return (
@@ -323,14 +326,19 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         </p>
                       ) : null}
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {serviceWaLink ? (
+                        {paymentEnabled ? (
+                          <Link href={servicePath} className={ui.btnPrimarySm}>
+                            {paymentReady && svc.price != null && Number(svc.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(svc.price).toFixed(2)}` : "Pay now"}
+                          </Link>
+                        ) : null}
+                        {enquiryEnabled && serviceWaLink ? (
                           <a
                             href={serviceWaLink}
                             target="_blank"
                             rel="noreferrer"
-                            className={ui.btnSecondarySm}
+                            className={paymentEnabled ? ui.btnSecondarySm : ui.btnPrimarySm}
                           >
-                            Enquire Now
+                            Enquire now
                           </a>
                         ) : null}
                       </div>

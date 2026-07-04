@@ -6,6 +6,7 @@ import {
   cancelPendingPaymentLifecycle,
   settlePaidShopOrder,
   syncMemberZonePurchasePaymentStatus,
+  syncServiceOrderPaymentStatus,
   syncShopOrderPaymentStatus,
 } from "@/lib/paymentStatusTransitions";
 import { ensurePaymentClientId, resolveClientIdByEmail } from "@/lib/resolveClientId";
@@ -56,7 +57,7 @@ export async function applyHitpayPaymentRequestStatus(
     // Gift flow: re-assign client_id to the recipient before confirming.
     const { data: giftRow } = await admin
       .from("payments")
-      .select("is_gift, gift_recipient_email, gift_recipient_name, gift_message, guest_name, guest_email, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, source, client_id, amount, currency, reference_code")
+      .select("is_gift, gift_recipient_email, gift_recipient_name, gift_message, guest_name, guest_email, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot, source, client_id, amount, currency, reference_code")
       .eq("id", payment.id)
       .maybeSingle<{
         is_gift: boolean;
@@ -68,6 +69,7 @@ export async function applyHitpayPaymentRequestStatus(
         package_name_snapshot: string | null;
         membership_name_snapshot: string | null;
         shop_product_name_snapshot: string | null;
+        service_title_snapshot: string | null;
         source: string | null;
         client_id: string | null;
         amount: number | null;
@@ -94,6 +96,7 @@ export async function applyHitpayPaymentRequestStatus(
       }
       await admin.from("member_zone_purchases").update({ client_id: recipientClientId }).eq("payment_id", payment.id);
       await admin.from("shop_orders").update({ client_id: recipientClientId }).eq("payment_id", payment.id);
+      await admin.from("service_orders").update({ client_id: recipientClientId }).eq("payment_id", payment.id);
       effectiveClientId = recipientClientId;
     }
 
@@ -128,6 +131,7 @@ export async function applyHitpayPaymentRequestStatus(
       }
     }
     await syncMemberZonePurchasePaymentStatus(admin, payment.id, "paid");
+    await syncServiceOrderPaymentStatus(admin, payment.id, "paid");
     const shopResult = await settlePaidShopOrder(admin, {
       paymentId: payment.id,
       studioId: payment.studio_id,
@@ -179,6 +183,7 @@ export async function applyHitpayPaymentRequestStatus(
       giftRow?.package_name_snapshot ??
       giftRow?.membership_name_snapshot ??
       giftRow?.shop_product_name_snapshot ??
+      giftRow?.service_title_snapshot ??
       (giftRow?.source === "online_booking"
         ? "a class booking"
         : giftRow?.source === "event_booking"
@@ -187,6 +192,8 @@ export async function applyHitpayPaymentRequestStatus(
             ? "member zone access"
             : giftRow?.source === "shop_purchase"
               ? "a shop order"
+              : giftRow?.source === "service_purchase"
+                ? "a service order"
               : "a purchase");
 
     const shouldSendPaidEmails = previousStatus !== "paid";
@@ -251,12 +258,13 @@ export async function applyHitpayPaymentRequestStatus(
     }
     await syncMemberZonePurchasePaymentStatus(admin, payment.id, "refunded");
     await syncShopOrderPaymentStatus(admin, payment.id, "refunded");
+    await syncServiceOrderPaymentStatus(admin, payment.id, "refunded");
 
     // Send refund notification to buyer (non-blocking).
     if (previousStatus !== "refunded") {
       const { data: refundRow } = await admin
         .from("payments")
-        .select("guest_name, guest_email, client_id, buyer_client_id, amount, currency, reference_code, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, source, is_gift, gift_recipient_email")
+        .select("guest_name, guest_email, client_id, buyer_client_id, amount, currency, reference_code, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot, source, is_gift, gift_recipient_email")
         .eq("id", payment.id)
         .maybeSingle<{
           guest_name: string | null;
@@ -269,6 +277,7 @@ export async function applyHitpayPaymentRequestStatus(
           package_name_snapshot: string | null;
           membership_name_snapshot: string | null;
           shop_product_name_snapshot: string | null;
+          service_title_snapshot: string | null;
           source: string | null;
           is_gift: boolean | null;
           gift_recipient_email: string | null;
@@ -312,6 +321,7 @@ export async function applyHitpayPaymentRequestStatus(
           refundRow.package_name_snapshot ??
           refundRow.membership_name_snapshot ??
           refundRow.shop_product_name_snapshot ??
+          refundRow.service_title_snapshot ??
           (refundRow.source === "online_booking"
             ? "a class booking"
             : refundRow.source === "event_booking"
@@ -320,6 +330,8 @@ export async function applyHitpayPaymentRequestStatus(
                 ? "member zone access"
                 : refundRow.source === "shop_purchase"
                   ? "a shop order"
+                  : refundRow.source === "service_purchase"
+                    ? "a service order"
                   : "a purchase");
         if (refundBuyerEmail) {
           void sendRefundNotice({

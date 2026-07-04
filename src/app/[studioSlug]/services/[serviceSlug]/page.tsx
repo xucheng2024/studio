@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { MessageCircle } from "lucide-react";
+import { CreditCard, MessageCircle } from "lucide-react";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
+import { ServicePurchasePanel } from "@/components/ServicePurchasePanel";
 import { ShareCoverImage } from "@/components/ShareCoverImage";
 import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
@@ -49,6 +50,9 @@ export default async function PublicServicePage({ params }: Props) {
         }
       })()
     : null;
+  const paymentEnabled = Boolean((service as { enable_payment?: boolean | null }).enable_payment);
+  const enquiryEnabled = Boolean((service as { enable_enquiry?: boolean | null }).enable_enquiry);
+  const paymentReady = Number(service.price ?? 0) === 0 || Boolean((studio as { hitpay_enabled?: boolean | null }).hitpay_enabled);
 
   return (
     <main className={ui.page}>
@@ -104,13 +108,35 @@ export default async function PublicServicePage({ params }: Props) {
         ) : null}
 
         <div className="mt-8 flex flex-wrap gap-3">
-          {enquiryLink ? (
-            <a href={enquiryLink} target="_blank" rel="noreferrer" className={ui.btnPrimary}>
+          {paymentEnabled ? (
+            <a href="#service-payment" className={ui.btnPrimary}>
+              <CreditCard size={16} />
+              {service.price != null && Number(service.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(service.price).toFixed(2)}` : "Pay now"}
+            </a>
+          ) : null}
+          {enquiryEnabled && enquiryLink ? (
+            <a href={enquiryLink} target="_blank" rel="noreferrer" className={paymentEnabled ? ui.btnSecondary : ui.btnPrimary}>
               <MessageCircle size={16} />
               Enquire now
             </a>
           ) : null}
         </div>
+
+        {paymentEnabled ? (
+          <section id="service-payment" className="mt-8">
+            {paymentReady ? (
+              <ServicePurchasePanel
+                slug={studio.public_slug ?? rawStudio}
+                serviceId={service.id}
+                submitLabel={service.price != null && Number(service.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(service.price).toFixed(2)}` : "Confirm order"}
+              />
+            ) : (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/20 dark:text-amber-200">
+                Online payment is not configured for this studio yet. Use enquiry and the studio can help you manually.
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
     </main>
   );

@@ -111,7 +111,10 @@ export async function ensurePaymentClientId(admin: SupabaseClient, paymentId: st
     .eq("id", paymentId)
     .maybeSingle();
   if (!payment?.id) return null;
-  if (payment.client_id) return payment.client_id;
+  if (payment.client_id) {
+    await admin.from("service_orders").update({ client_id: payment.client_id }).eq("payment_id", payment.id).is("client_id", null);
+    return payment.client_id;
+  }
 
   let email = payment.guest_email?.trim().toLowerCase() ?? "";
   let name = payment.guest_name?.trim() ?? null;
@@ -157,5 +160,6 @@ export async function ensurePaymentClientId(admin: SupabaseClient, paymentId: st
   if ((payment as { event_booking_id?: string | null }).event_booking_id) {
     await admin.from("event_bookings").update({ client_id: clientId }).eq("id", (payment as { event_booking_id: string }).event_booking_id);
   }
+  await admin.from("service_orders").update({ client_id: clientId }).eq("payment_id", payment.id).is("client_id", null);
   return clientId;
 }

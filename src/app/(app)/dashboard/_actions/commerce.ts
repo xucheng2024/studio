@@ -36,12 +36,16 @@ export async function createStudioService(
   const description = String(formData.get("description") ?? "").trim() || null;
   const price = sanitizePriceNullable(formData.get("price"));
   const currency = STUDIO_CURRENCY;
+  const enable_enquiry = formData.get("enable_enquiry") === "on";
+  const enable_payment = formData.get("enable_payment") === "on";
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("video_url") ?? "");
   const video_url = sanitizeVideoUrl(rawVideo);
   const tags = parsePublicTagsInput(formData.get("tags_input"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   if (rawVideo.trim() && !video_url) return err("Please enter a valid promo video URL.");
+  if (!enable_enquiry && !enable_payment) return err("Enable enquiry or payment for this service.");
+  if (enable_payment && (price == null || Number(price) < 0)) return err("Enter a valid price to enable payment.");
   const share_slug = await generateUniqueShareSlug(supabase, "studio_services", activeStudio.id);
   if (!share_slug) return err("Could not create service.");
 
@@ -55,6 +59,8 @@ export async function createStudioService(
     cover_image_url,
     video_url,
     tags,
+    enable_enquiry,
+    enable_payment,
     share_slug,
     is_active: true,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
@@ -88,6 +94,8 @@ export async function updateStudioService(
   const description = String(formData.get("description") ?? "").trim() || null;
   const price = sanitizePriceNullable(formData.get("price"));
   const currency = STUDIO_CURRENCY;
+  const enable_enquiry = formData.get("enable_enquiry") === "on";
+  const enable_payment = formData.get("enable_payment") === "on";
   const cover_image_url = String(formData.get("cover_image_url") ?? "").trim() || null;
   const rawVideo = String(formData.get("video_url") ?? "");
   const video_url = sanitizeVideoUrl(rawVideo);
@@ -95,6 +103,8 @@ export async function updateStudioService(
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
   if (rawVideo.trim() && !video_url) return err("Please enter a valid promo video URL.");
+  if (!enable_enquiry && !enable_payment) return err("Enable enquiry or payment for this service.");
+  if (enable_payment && (price == null || Number(price) < 0)) return err("Enter a valid price to enable payment.");
   const { data: existingService } = await supabase
     .from("studio_services")
     .select("share_slug")
@@ -113,6 +123,8 @@ export async function updateStudioService(
       cover_image_url,
       video_url,
       tags,
+      enable_enquiry,
+      enable_payment,
       is_active,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
     })
