@@ -18,10 +18,9 @@ type Props = {
   }>;
 };
 
-function scopedHref(path: string, selectedStudioId: string | null, selectedLocationId: string | null) {
+function scopedHref(path: string, selectedStudioId: string | null) {
   const p = new URLSearchParams();
   if (selectedStudioId) p.set("studio_id", selectedStudioId);
-  if (selectedLocationId) p.set("location_id", selectedLocationId);
   const q = p.toString();
   return q ? `${path}?${q}` : path;
 }
@@ -34,11 +33,11 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { studioIds, selectedStudioId } = await getDashboardScopeForRoles({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   }, ["owner"]);
   if (studioIds.length === 0) return <p className={ui.muted}>Only owners can manage locations.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
@@ -67,7 +66,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
           <h1 className={ui.h1}>Locations</h1>
           <p className={ui.muted}>Manage branches/venues for {studio.name}.</p>
         </div>
-        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId, selectedLocationId)} className={`${ui.btnSecondarySm} w-full sm:w-auto`}>
+        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId)} className={`${ui.btnSecondarySm} w-full sm:w-auto`}>
           Back to settings
         </DashboardAppLink>
       </div>

@@ -13,10 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
 
-function scopedHref(path: string, studioId: string | null, locationId: string | null) {
+function scopedHref(path: string, studioId: string | null) {
   const p = new URLSearchParams();
   if (studioId) p.set("studio_id", studioId);
-  if (locationId) p.set("location_id", locationId);
   return p.toString() ? `${path}?${p.toString()}` : path;
 }
 
@@ -28,11 +27,11 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId } = await getDashboardScope({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   });
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
@@ -62,7 +61,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
           <h1 className={ui.h1}>Studio Public Profile</h1>
           <p className={ui.muted}>Edit the public landing page content shown at /{studio.public_slug}.</p>
         </div>
-        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId, selectedLocationId)} className={ui.btnSecondarySm}>
+        <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId)} className={ui.btnSecondarySm}>
           Back to settings
         </DashboardAppLink>
       </div>

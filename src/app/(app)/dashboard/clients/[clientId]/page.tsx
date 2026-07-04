@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { updateMemberProfile } from "@/app/(app)/dashboard/actions";
@@ -38,6 +39,12 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const admin = createAdminClient();
+  const { data: locationRows } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .eq("studio_id", activeStudioId)
+    .eq("is_active", true)
+    .order("name");
 
   const [{ data: clientUser }, { data: inScopeMember }] = await Promise.all([
     admin
@@ -143,6 +150,13 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
 
   return (
     <div className="flex flex-col gap-8">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locationRows ?? []}
+          selectedStudioId={activeStudioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       {/* ── Header ──────────────────────────────────────────────── */}
       <div>
         <DashboardAppLink href={`/dashboard/clients?${backParams.toString()}`} className={`${ui.btnSecondarySm} mb-3`}>

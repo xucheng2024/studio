@@ -46,14 +46,9 @@ function SettingCard({
 
 type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
 
-function scopedHref(
-  path: string,
-  selectedStudioId: string | null,
-  selectedLocationId: string | null,
-) {
+function scopedHref(path: string, selectedStudioId: string | null) {
   const p = new URLSearchParams();
   if (selectedStudioId) p.set("studio_id", selectedStudioId);
-  if (selectedLocationId) p.set("location_id", selectedLocationId);
   const q = p.toString();
   return q ? `${path}?${q}` : path;
 }
@@ -67,7 +62,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
   if (!user) return null;
   const isSuperAdmin = isSuperAdminEmail(user.email);
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId } = await getDashboardScope({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
@@ -118,28 +113,28 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
       <div className="grid gap-3 sm:grid-cols-2">
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, selectedLocationId)}
+          href={scopedHref("/dashboard/settings/public-profile", selectedStudioId)}
           icon={Building2}
           title="Studio profile"
           desc="Edit public intro, media, social links, and contact details"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/booking", selectedStudioId, selectedLocationId)}
+          href={scopedHref("/dashboard/settings/booking", selectedStudioId)}
           icon={CalendarDays}
           title="Booking settings"
           desc="Connect Cal.com, save the event URL, and control booking on your public page"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId, selectedLocationId)}
+          href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId)}
           icon={Globe}
           title="Custom domain"
           desc="Connect your own domain, review DNS instructions, and verify activation"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/payments", selectedStudioId, selectedLocationId)}
+          href={scopedHref("/dashboard/settings/payments", selectedStudioId)}
           icon={CreditCard}
           title="Payment settings"
           desc="HitPay platform status, sub-merchant credentials, and webhook configuration"
@@ -147,7 +142,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
-            href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId, selectedLocationId)}
+            href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId)}
             icon={Users}
             title="Staff & roles"
             desc="Invite staff, assign roles, and manage access"
@@ -156,7 +151,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
-            href={scopedHref("/dashboard/settings/locations", selectedStudioId, selectedLocationId)}
+            href={scopedHref("/dashboard/settings/locations", selectedStudioId)}
             icon={MapPin}
             title="Locations"
             desc="Add or edit studio locations and addresses"
@@ -165,7 +160,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
-            href={scopedHref("/dashboard/settings/faqs", selectedStudioId, selectedLocationId)}
+            href={scopedHref("/dashboard/settings/faqs", selectedStudioId)}
             icon={HelpCircle}
             title="Public FAQs"
             desc="Manage the FAQ accordion shown at the bottom of your public studio page"

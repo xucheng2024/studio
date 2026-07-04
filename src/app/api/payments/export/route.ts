@@ -65,7 +65,9 @@ function paymentEffectiveTimestamp(row: PaymentRow) {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const studioId = url.searchParams.get("studio_id");
-  const locationId = url.searchParams.get("location_id");
+  const rawLocationId = url.searchParams.get("location_id");
+  const requestedLocationId =
+    rawLocationId && rawLocationId !== "__unassigned" ? rawLocationId : null;
   const paymentMethod = url.searchParams.get("payment_method");
   const source = url.searchParams.get("source");
   const salesChannel = url.searchParams.get("sales_channel");
@@ -95,12 +97,15 @@ export async function GET(req: Request) {
     userId: user.id,
     email: user.email ?? null,
     studioId,
-    locationId,
+    locationId: requestedLocationId,
   }, ["owner", "manager", "frontdesk"]);
   if (studioId && dashboardScope.selectedStudioId !== studioId) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  if (locationId && dashboardScope.selectedLocationId !== locationId) {
+  if (rawLocationId && rawLocationId !== "__unassigned" && dashboardScope.selectedLocationId !== rawLocationId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  if (rawLocationId === "__unassigned" && !(dashboardScope.ctx.isSuperAdmin || dashboardScope.ctx.hasAnyGlobalLocationAccess)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const ctx = await buildAccessContext(user.id, user.email ?? null, null);
@@ -115,7 +120,8 @@ export async function GET(req: Request) {
   }
 
   const exportStudioIds = studioId ? [studioId] : studioIds;
-  const effectiveLocationId = dashboardScope.selectedLocationId;
+  const effectiveLocationFilter =
+    rawLocationId === "__unassigned" ? "__unassigned" : dashboardScope.selectedLocationId;
   const { data: contractRows } = await admin
     .from("studios")
     .select("id, contract_status")
@@ -132,7 +138,8 @@ export async function GET(req: Request) {
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
     .limit(5000); // Hard cap: export larger datasets via date-range pagination
-  if (effectiveLocationId) q = q.eq("location_id", effectiveLocationId);
+  if (effectiveLocationFilter === "__unassigned") q = q.is("location_id", null);
+  else if (effectiveLocationFilter) q = q.eq("location_id", effectiveLocationFilter);
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
   if (source) q = q.eq("source", source);
   if (salesChannel) q = q.eq("sales_channel", salesChannel);

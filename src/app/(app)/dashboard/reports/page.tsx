@@ -1,3 +1,4 @@
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import {
@@ -43,14 +44,21 @@ export default async function ReportsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const requestedLocationId =
+    sp.location_id && sp.location_id !== "__unassigned" ? sp.location_id : null;
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: requestedLocationId,
   }, ["owner", "manager"]);
   if (studioIds.length === 0) return <p className={ui.muted}>You do not have access to this page.</p>;
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const allowsStudioLevelLocationFilter = ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess;
+  const locationFilter =
+    sp.location_id === "__unassigned" && allowsStudioLevelLocationFilter
+      ? "__unassigned"
+      : selectedLocationId;
   const bounds = monthBounds();
   const dateFrom = sp.date_from ?? bounds.from;
   const dateTo = sp.date_to ?? bounds.to;
@@ -58,6 +66,18 @@ export default async function ReportsPage({ searchParams }: Props) {
   const salesChannel = sp.sales_channel ?? "";
   const fromIso = dayRangeStartIso(dateFrom);
   const toIso = dayRangeEndExclusiveIso(dateTo);
+  const { data: locations } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .eq("studio_id", activeStudioId)
+    .eq("is_active", true)
+    .order("name");
+  const locationLabel =
+    locationFilter === "__unassigned"
+      ? "Studio-level / unassigned"
+      : locationFilter
+        ? (locations ?? []).find((location) => location.id === locationFilter)?.name ?? "Selected location"
+        : "All locations";
 
   let revenueQuery = admin
     .from("payments")
@@ -66,7 +86,8 @@ export default async function ReportsPage({ searchParams }: Props) {
     .in("status", ["paid", "refunded"])
     .order("verified_at", { ascending: false, nullsFirst: false })
     .limit(5000);
-  if (selectedLocationId) revenueQuery = revenueQuery.eq("location_id", selectedLocationId);
+  if (locationFilter === "__unassigned") revenueQuery = revenueQuery.is("location_id", null);
+  else if (locationFilter) revenueQuery = revenueQuery.eq("location_id", locationFilter);
   if (source) revenueQuery = revenueQuery.eq("source", source);
   if (salesChannel) revenueQuery = revenueQuery.eq("sales_channel", salesChannel);
   if (fromIso && toIso) {
@@ -100,13 +121,21 @@ export default async function ReportsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Reports</h1>
         <p className={`mt-1 ${ui.muted}`}>
-          {selectedLocationId ? "Selected location" : "All locations"} · Revenue uses{" "}
+          {locationLabel} · Revenue uses{" "}
           <code className={ui.code}>verified_at</code> or <code className={ui.code}>paid_at</code> for paid records and{" "}
           <code className={ui.code}>refunded_at</code> for refunds, grouped by your local calendar day.
         </p>
       </div>
 
       <div className={`${ui.card} flex flex-col gap-3`}>
+        <div className="flex flex-wrap gap-3">
+          <DashboardLocationFilter
+            locations={locations ?? []}
+            selectedStudioId={activeStudioId}
+            selectedLocationId={locationFilter}
+            unassignedLabel={allowsStudioLevelLocationFilter ? "Studio-level / Unassigned" : undefined}
+          />
+        </div>
         <div className="flex flex-wrap gap-2">
           {[
             { label: "This month", from: bounds.from, to: bounds.to },
@@ -146,7 +175,7 @@ export default async function ReportsPage({ searchParams }: Props) {
             const isActive = dateFrom === from && dateTo === to;
             const params = new URLSearchParams();
             if (activeStudioId) params.set("studio_id", activeStudioId);
-            if (selectedLocationId) params.set("location_id", selectedLocationId);
+            if (locationFilter) params.set("location_id", locationFilter);
             if (source) params.set("source", source);
             if (salesChannel) params.set("sales_channel", salesChannel);
             params.set("date_from", from);
@@ -169,7 +198,7 @@ export default async function ReportsPage({ searchParams }: Props) {
 
         <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
-          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+          {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
           <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-4">
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>From</span>

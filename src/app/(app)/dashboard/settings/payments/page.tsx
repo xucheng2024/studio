@@ -22,7 +22,7 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   }, ["owner"]);
   if (studioIds.length === 0) return <p className={ui.muted}>Only owners can update payment settings.</p>;
   if (!selectedStudioId && studioIds.length > 1) {

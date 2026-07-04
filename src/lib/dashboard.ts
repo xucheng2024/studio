@@ -59,7 +59,7 @@ export async function getDashboardScope(params: {
 }) {
   const c = await cookies();
   const studioIdInput = params.studioId ?? c.get("last_studio_id")?.value ?? null;
-  const locationIdInput = params.locationId ?? c.get("last_location_id")?.value ?? null;
+  const locationIdInput = params.locationId ?? null;
   const ctx = await buildAccessContext(
     params.userId,
     params.email ?? null,

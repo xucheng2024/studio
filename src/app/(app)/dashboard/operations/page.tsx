@@ -1,4 +1,5 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { OpsBoard } from "@/components/ops/OpsBoard";
@@ -100,6 +101,12 @@ export default async function OperationsPage({ searchParams }: Props) {
     );
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const { data: locations } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .eq("studio_id", activeStudioId)
+    .eq("is_active", true)
+    .order("name");
   const { data: opContract } = await supabase
     .from("studios")
     .select("contract_status")
@@ -188,6 +195,13 @@ export default async function OperationsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Booking management</h1>
         <p className={ui.muted}>Daily front desk sales, booking, attendance, and exception handling for classes, events, and services.</p>
+      </div>
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locations ?? []}
+          selectedStudioId={activeStudioId}
+          selectedLocationId={selectedLocationId}
+        />
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:items-start">
         <FrontdeskWalkinForm sessions={walkinSessions} events={walkinEvents} services={walkinServices} disabled={studioSuspended} />

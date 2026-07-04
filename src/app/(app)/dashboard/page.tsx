@@ -41,7 +41,6 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   const params = new URLSearchParams();
   if (sp.studio_id) params.set("studio_id", sp.studio_id);
-  if (sp.location_id) params.set("location_id", sp.location_id);
   if (sp.date_from) params.set("date_from", sp.date_from);
   if (sp.date_to) params.set("date_to", sp.date_to);
   if (sp.status) params.set("status", sp.status);

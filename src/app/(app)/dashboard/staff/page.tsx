@@ -1,5 +1,6 @@
 import { toggleStaffMembership } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,14 +40,30 @@ export default async function StaffPage({ searchParams }: Props) {
 
   const studioId = selectedStudioId ?? studioIds[0];
   const admin = createAdminClient();
+  const { data: locationRows } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .eq("studio_id", studioId)
+    .eq("is_active", true)
+    .order("name");
   const { data: staff } = await admin
     .from("staff_memberships")
     .select("id, user_id, studio_id, location_id, role, is_active, created_at, users(email)")
     .eq("studio_id", studioId)
     .order("created_at", { ascending: false });
+  const filteredStaff = selectedLocationId
+    ? (staff ?? []).filter((membership) => membership.location_id == null || membership.location_id === selectedLocationId)
+    : (staff ?? []);
 
   return (
     <div className="flex flex-col gap-6">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locationRows ?? []}
+          selectedStudioId={studioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       <div>
         <h1 className={ui.h1}>Staff</h1>
         <p className={`mt-1 ${ui.muted}`}>Workspace access is managed by invitation.</p>
@@ -60,11 +77,11 @@ export default async function StaffPage({ searchParams }: Props) {
         </div>
       </div>
       <div className={ui.card}>
-        {!(staff ?? []).length ? (
+        {!filteredStaff.length ? (
           <p className={`text-sm ${ui.muted}`}>No staff members yet. Send an invite to get started.</p>
         ) : (
           <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-            {(staff ?? []).map((s) => {
+            {filteredStaff.map((s) => {
               const email =
                 ((Array.isArray(s.users) ? s.users[0] : s.users) as { email?: string | null } | null)?.email ??
                 s.user_id;

@@ -1,4 +1,5 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
@@ -135,16 +136,23 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const requestedLocationId =
+    sp.location_id && sp.location_id !== "__unassigned" ? sp.location_id : null;
   const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: requestedLocationId,
   }, ["owner", "manager", "frontdesk"]);
   if (studioIds.length === 0) return <p className={ui.muted}>You do not have access to this page.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const allowsStudioLevelLocationFilter = ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess;
+  const locationFilter =
+    sp.location_id === "__unassigned" && allowsStudioLevelLocationFilter
+      ? "__unassigned"
+      : selectedLocationId;
   const canRefundPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const canSyncHitpayPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
   const isPendingHitpayAttention = sp.attention === "pending_hitpay";
@@ -170,7 +178,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
     .limit(300);
-  if (selectedLocationId) q = q.eq("location_id", selectedLocationId);
+  if (locationFilter === "__unassigned") q = q.is("location_id", null);
+  else if (locationFilter) q = q.eq("location_id", locationFilter);
   if (isPendingHitpayAttention) q = q.eq("status", "pending").eq("payment_method", "hitpay");
   else if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
   if (sp.source) q = q.eq("source", sp.source);
@@ -363,7 +372,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
   const exportParams = new URLSearchParams();
   exportParams.set("studio_id", activeStudioId);
-  if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
+  if (locationFilter) exportParams.set("location_id", locationFilter);
   if (sp.payment_method) exportParams.set("payment_method", sp.payment_method);
   if (sp.source) exportParams.set("source", sp.source);
   if (sp.sales_channel) exportParams.set("sales_channel", sp.sales_channel);
@@ -374,7 +383,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
   const baseScopeParams = new URLSearchParams();
   baseScopeParams.set("studio_id", activeStudioId);
-  if (selectedLocationId) baseScopeParams.set("location_id", selectedLocationId);
+  if (locationFilter) baseScopeParams.set("location_id", locationFilter);
 
   const pendingHitpayParams = new URLSearchParams(baseScopeParams);
   pendingHitpayParams.set("attention", "pending_hitpay");
@@ -408,8 +417,17 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
       <form method="get" className={`${ui.card} flex flex-col gap-4`}>
         {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
-        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+        {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
         {isPendingHitpayAttention ? <input type="hidden" name="attention" value="pending_hitpay" /> : null}
+
+        <div className="flex flex-wrap gap-3">
+          <DashboardLocationFilter
+            locations={locations ?? []}
+            selectedStudioId={activeStudioId}
+            selectedLocationId={locationFilter}
+            unassignedLabel={allowsStudioLevelLocationFilter ? "Studio-level / Unassigned" : undefined}
+          />
+        </div>
 
         {/* ── Always-visible quick filters ─────────────────────── */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

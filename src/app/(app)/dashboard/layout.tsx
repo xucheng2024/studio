@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardNav, MobileBottomNav } from "@/components/DashboardNav";
-import { LocationSwitcher } from "@/components/LocationSwitcher";
 import { SignOutButton } from "@/components/SignOutButton";
 import { StudioSwitcher } from "@/components/StudioSwitcher";
 import { resolveAccessContext } from "@/lib/rbac";
@@ -163,16 +162,6 @@ export default async function DashboardLayout({
               ) : null}
             </div>
           )}
-
-          {/* Location switcher */}
-          {!superAdminNoStudioMode && !ownerNoStudioMode && (
-            <LocationSwitcher
-              locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
-              selectedLocationId={ctx.selectedLocationId}
-              allowAll={ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess}
-            />
-          )}
-
           {/* Nav links */}
           {!ownerNoStudioMode && (
             <DashboardNav
@@ -206,11 +195,6 @@ export default async function DashboardLayout({
                   </DashboardAppLink>
                 ) : null}
               </div>
-              <LocationSwitcher
-                locations={ctx.locations.map((l) => ({ id: l.id, name: l.name }))}
-                selectedLocationId={ctx.selectedLocationId}
-                allowAll={ctx.isSuperAdmin || ctx.hasAnyGlobalLocationAccess}
-              />
             </>
           )}
           {studioIds.length === 0 && (

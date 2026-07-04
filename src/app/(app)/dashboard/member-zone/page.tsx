@@ -26,10 +26,10 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { studioIds, selectedStudioId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   }, ["owner", "manager"]);
   if (studioIds.length === 0) return <p className={ui.muted}>You do not have access to this page.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
@@ -65,6 +65,13 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
         ) : null}
       </div>
 
+      <div className={`${ui.card} flex flex-col gap-2`}>
+        <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Studio-level catalog</p>
+        <p className={`text-sm ${ui.muted}`}>
+          Member zone content is managed at the studio level. It is intentionally not filtered by location.
+        </p>
+      </div>
+
       <details className={`chevron ${ui.card}`}>
         <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
           <span>+ Add series</span>
@@ -72,7 +79,6 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
         </summary>
         <ServerActionToastForm action={createMemberZoneSeries} className="mt-4 grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={studio.id} />
-          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Series title</span>
             <input name="title" required className={ui.input} />
@@ -151,7 +157,6 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end"
                 >
                   <input type="hidden" name="studio_id" value={studio.id} />
-                  <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                   <input type="hidden" name="series_id" value={series.id} />
                   <button type="submit" className={ui.btnDangerSm}>
                     Remove
@@ -160,7 +165,6 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
               </summary>
               <ServerActionToastForm action={updateMemberZoneSeries} className="mt-3">
               <input type="hidden" name="studio_id" value={studio.id} />
-              <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
               <input type="hidden" name="series_id" value={series.id} />
               <div className="grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
@@ -238,7 +242,6 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   <div key={lesson.id}>
                   <ServerActionToastForm action={updateMemberZoneLesson} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
                     <input type="hidden" name="studio_id" value={studio.id} />
-                    <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                     <input type="hidden" name="series_id" value={series.id} />
                     <input type="hidden" name="lesson_id" value={lesson.id} />
                     <details className="chevron">
@@ -288,7 +291,6 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                             className="inline-flex"
                           >
                             <input type="hidden" name="studio_id" value={studio.id} />
-                            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                             <input type="hidden" name="series_id" value={series.id} />
                             <input type="hidden" name="lesson_id" value={lesson.id} />
                             <button type="submit" className={ui.btnDangerSm}>
@@ -306,7 +308,6 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                 <summary className={`cursor-pointer text-sm font-medium ${ui.muted}`}>+ Add lesson</summary>
                 <ServerActionToastForm action={createMemberZoneLesson} className="mt-2 grid gap-2 rounded-xl border border-stone-200 p-3 dark:border-stone-700 sm:grid-cols-2">
                   <input type="hidden" name="studio_id" value={studio.id} />
-                  <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                   <input type="hidden" name="series_id" value={series.id} />
                   <label className="flex flex-col gap-1 sm:col-span-2"><span className={ui.label}>Title</span><input name="title" required className={ui.input} /></label>
                   <label className="flex flex-col gap-1 sm:col-span-2"><span className={ui.label}>Summary</span><input name="summary" className={ui.input} /></label>

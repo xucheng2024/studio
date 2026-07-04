@@ -36,12 +36,10 @@ export function StudioSwitcher({
             params.delete("studio_id");
             params.delete("location_id");
             document.cookie = "last_studio_id=; path=/; max-age=0";
-            document.cookie = "last_location_id=; path=/; max-age=0";
           } else {
             params.set("studio_id", e.target.value);
             params.delete("location_id");
             document.cookie = `last_studio_id=${encodeURIComponent(e.target.value)}; path=/; max-age=2592000`;
-            document.cookie = "last_location_id=; path=/; max-age=0";
           }
           const q = params.toString();
           router.push(q ? `${pathname}?${q}` : pathname);

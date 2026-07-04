@@ -1,6 +1,7 @@
 import { createEvent, deleteEvent, updateEvent } from "@/app/(app)/dashboard/actions";
 import Image from "next/image";
 import { CopyUrlButton } from "@/components/CopyUrlButton";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -76,6 +77,12 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const canEdit = hasStudioRole(ctx, studioId, ["owner", "manager"]);
   const studioPublicSlug =
     (studioMeta ?? []).find((s) => s.id === studioId)?.public_slug ?? null;
+  const { data: locations } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .eq("studio_id", studioId)
+    .eq("is_active", true)
+    .order("name");
   const scopeParams = new URLSearchParams();
   scopeParams.set("studio_id", studioId);
   if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
@@ -274,6 +281,13 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locations ?? []}
+          selectedStudioId={studioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       <div>
         <h1 className={ui.h1}>Event setup</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">

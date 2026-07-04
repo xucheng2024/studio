@@ -1,4 +1,5 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { CancelSessionButton } from "@/components/CancelSessionButton";
 import { SessionEditPanel } from "@/components/SessionEditPanel";
 import { SessionShareButton } from "@/components/SessionShareButton";
@@ -283,6 +284,13 @@ export default async function SchedulePage({ searchParams }: Props) {
   };
   return (
     <div className="flex flex-col gap-10">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locations ?? []}
+          selectedStudioId={activeStudioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       <div>
         <h1 className={ui.h1}>Sessions</h1>
         <p className={`mt-1 ${ui.muted}`}>Schedule sessions and manage upcoming runs.</p>

@@ -25,7 +25,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   }, ["owner"]);
   if (studioIds.length === 0) {
     return <p className={ui.muted}>Only studio owners can send invites.</p>;
@@ -52,7 +52,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/dashboard/settings" className={`${ui.btnSecondarySm} mb-3 inline-flex`}>
+        <Link href={activeStudioId ? `/dashboard/settings?studio_id=${activeStudioId}` : "/dashboard/settings"} className={`${ui.btnSecondarySm} mb-3 inline-flex`}>
           ← Settings
         </Link>
         <h1 className={ui.h1}>Staff invites</h1>

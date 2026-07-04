@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CreateStudioForm } from "@/components/dashboard/CreateStudioForm";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { getDashboardScope } from "@/lib/dashboard";
 import { computeRevenueSummary, revenueEffectiveTimestamp, type RevenuePaymentRow } from "@/lib/revenue-summary";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -44,6 +45,13 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
+  const activeStudioId = selectedStudioId ?? studioIds[0];
+  const { data: locationRows } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .eq("studio_id", activeStudioId)
+    .eq("is_active", true)
+    .order("name");
 
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -95,6 +103,13 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locationRows ?? []}
+          selectedStudioId={activeStudioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -106,7 +121,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
       {/* ── Stat cards ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Link
-          href={`/dashboard/schedule?studio_id=${selectedStudioId ?? studioIds[0]}`}
+          href={`/dashboard/schedule?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
           className={`${ui.statCard} flex items-center gap-4 transition-shadow hover:shadow-md`}
         >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
@@ -120,7 +135,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
           </div>
         </Link>
         <Link
-          href={`/dashboard/schedule?studio_id=${selectedStudioId ?? studioIds[0]}`}
+          href={`/dashboard/schedule?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
           className={`${ui.statCard} flex items-center gap-4 transition-shadow hover:shadow-md`}
         >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
@@ -134,7 +149,7 @@ export default async function DashboardOverviewPage({ searchParams }: Props) {
           </div>
         </Link>
         <Link
-          href={`/dashboard/payments?studio_id=${selectedStudioId ?? studioIds[0]}`}
+          href={`/dashboard/payments?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
           className={`${ui.statCard} flex items-center gap-4 transition-shadow hover:shadow-md`}
         >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400">

@@ -1,4 +1,5 @@
 import { createClassTemplate, createInstructor } from "@/app/(app)/dashboard/actions";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { ClassTemplateLifecycleRow } from "@/components/dashboard/ClassTemplateLifecycleRow";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
@@ -97,6 +98,13 @@ export default async function ClassesPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locationRows ?? []}
+          selectedStudioId={studioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       <div>
         <h1 className={ui.h1}>Class setup</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">

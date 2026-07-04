@@ -1,4 +1,5 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { LocalDate } from "@/components/ui/LocalDate";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
@@ -34,6 +35,13 @@ export default async function ClientsPage({ searchParams }: Props) {
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
   }
+  const activeStudioId = selectedStudioId ?? studioIds[0];
+  const { data: locationRows } = await supabase
+    .from("locations")
+    .select("id, name, studio_id")
+    .eq("studio_id", activeStudioId)
+    .eq("is_active", true)
+    .order("name");
 
   const keyword = (sp.q ?? "").trim().toLowerCase();
   const membershipStatusFilter = (sp.membership_status ?? "").trim().toLowerCase();
@@ -290,6 +298,13 @@ export default async function ClientsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locationRows ?? []}
+          selectedStudioId={activeStudioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       <div>
         <h1 className={ui.h1}>User records</h1>
         <p className={`mt-1 ${ui.muted}`}>Registered users with quick contact and class pass status.</p>

@@ -13,10 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
 
-function scopedHref(path: string, studioId: string | null, locationId: string | null) {
+function scopedHref(path: string, studioId: string | null) {
   const p = new URLSearchParams();
   if (studioId) p.set("studio_id", studioId);
-  if (locationId) p.set("location_id", locationId);
   return p.toString() ? `${path}?${p.toString()}` : path;
 }
 
@@ -28,11 +27,11 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { studioIds, selectedStudioId, selectedLocationId } = await getDashboardScopeForRoles({
+  const { studioIds, selectedStudioId } = await getDashboardScopeForRoles({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   }, ["owner", "manager"]);
   if (studioIds.length === 0) {
     return <p className={ui.muted}>You do not have access to this page.</p>;
@@ -61,9 +60,16 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
           <h1 className={ui.h1}>Service setup</h1>
           <p className={ui.muted}>Create and maintain the public services shown on /{studio.public_slug}.</p>
         </div>
-        <DashboardAppLink href={scopedHref("/dashboard/schedule", selectedStudioId, selectedLocationId)} className={ui.btnSecondarySm}>
+        <DashboardAppLink href={scopedHref("/dashboard/schedule", selectedStudioId)} className={ui.btnSecondarySm}>
           Back to sessions
         </DashboardAppLink>
+      </div>
+
+      <div className={`${ui.card} flex flex-col gap-2`}>
+        <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Studio-level catalog</p>
+        <p className={`text-sm ${ui.muted}`}>
+          Services are managed at the studio level. They are not filtered by location, so any location-specific view would be misleading here.
+        </p>
       </div>
 
       <details className={`chevron ${ui.card}`}>
@@ -73,7 +79,6 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
         </summary>
         <ServerActionToastForm action={createStudioService} className="mt-4 grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={studio.id} />
-          <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Title</span>
             <input name="title" required className={ui.input} />
@@ -142,7 +147,6 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
         {(services ?? []).map((svc) => (
           <ServerActionToastForm key={svc.id} action={updateStudioService} className={ui.card}>
             <input type="hidden" name="studio_id" value={studio.id} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
             <input type="hidden" name="service_id" value={svc.id} />
             <details className="chevron">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
@@ -201,7 +205,6 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                     pendingLabel="Removing..."
                   >
                     <input type="hidden" name="studio_id" value={studio.id} />
-                    <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
                     <input type="hidden" name="service_id" value={svc.id} />
                     <button type="submit" className={`${ui.btnDangerSm} px-2`}>
                       Remove

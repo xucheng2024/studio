@@ -1,4 +1,5 @@
 import { createPackage } from "@/app/(app)/dashboard/actions";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { PackageLifecycleRow } from "@/components/dashboard/PackageLifecycleRow";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
@@ -60,6 +61,13 @@ export default async function PackagesPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locationRows ?? []}
+          selectedStudioId={studioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       <div>
         <h1 className={ui.h1}>Packages</h1>
         <p className={`mt-2 ${ui.lead}`}>

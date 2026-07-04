@@ -1,6 +1,7 @@
 import { createMembershipProduct } from "@/app/(app)/dashboard/actions";
 import { CancelMembershipSubscriptionButton } from "@/components/CancelMembershipSubscriptionButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { MembershipLifecycleRow } from "@/components/dashboard/MembershipLifecycleRow";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -71,6 +72,13 @@ export default async function MembershipsPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locationRows ?? []}
+          selectedStudioId={activeStudioId}
+          selectedLocationId={selectedLocationId}
+        />
+      </div>
       <div>
         <h1 className={ui.h1}>Memberships</h1>
         <p className={`mt-2 ${ui.lead}`}>Create recurring monthly or yearly memberships and manage live subscribers.</p>

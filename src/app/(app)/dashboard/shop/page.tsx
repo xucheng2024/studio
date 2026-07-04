@@ -29,7 +29,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
   const { studioIds, selectedStudioId } = await getDashboardScopeForRoles({
     userId: user.id,
     studioId: sp.studio_id ?? null,
-    locationId: sp.location_id ?? null,
+    locationId: null,
   }, ["owner", "manager"]);
   if (studioIds.length === 0) return <p className={ui.muted}>You do not have access to this page.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
@@ -74,7 +74,6 @@ export default async function DashboardShopPage({ searchParams }: Props) {
   const scopedShopHref = (fulfillment: "all" | "unfulfilled" | "shipped" | "cancelled") => {
     const params = new URLSearchParams();
     params.set("studio_id", studio.id);
-    if (sp.location_id) params.set("location_id", sp.location_id);
     if (fulfillment !== "all") params.set("fulfillment", fulfillment);
     return `/dashboard/shop?${params.toString()}`;
   };
@@ -93,6 +92,13 @@ export default async function DashboardShopPage({ searchParams }: Props) {
         ) : null}
       </div>
 
+      <div className={`${ui.card} flex flex-col gap-2`}>
+        <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Studio-level catalog</p>
+        <p className={`text-sm ${ui.muted}`}>
+          Shop products and fulfillment are managed at the studio level. Location is not used as a filter on this page.
+        </p>
+      </div>
+
       <details className={`chevron ${ui.card}`}>
         <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
           <span>+ Add product</span>
@@ -100,7 +106,6 @@ export default async function DashboardShopPage({ searchParams }: Props) {
         </summary>
         <ServerActionToastForm action={createShopProduct} className="mt-4 grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={studio.id} />
-          <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
           <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Title</span>
@@ -156,7 +161,6 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           <div key={product.id} className={ui.card}>
             <ServerActionToastForm action={updateShopProduct}>
               <input type="hidden" name="studio_id" value={studio.id} />
-              <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
               <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
               <input type="hidden" name="product_id" value={product.id} />
               <details className="chevron">
@@ -247,7 +251,6 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                       pendingLabel="Hiding..."
                     >
                       <input type="hidden" name="studio_id" value={studio.id} />
-                      <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
                       <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
                       <input type="hidden" name="product_id" value={product.id} />
                       <button type="submit" className={ui.btnDangerSm}>
@@ -303,7 +306,6 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                   </div>
                   <ServerActionToastForm action={updateShopOrderFulfillment} className="flex items-center gap-2">
                     <input type="hidden" name="studio_id" value={studio.id} />
-                    <input type="hidden" name="location_id" value={sp.location_id ?? ""} />
                     <input type="hidden" name="fulfillment" value={fulfillmentFilter} />
                     <input type="hidden" name="order_id" value={order.id} />
                     <select name="fulfillment_status" defaultValue={order.fulfillment_status ?? "unfulfilled"} className={ui.select}>
