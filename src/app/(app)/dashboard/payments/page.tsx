@@ -11,8 +11,10 @@ import { badgeToneClass, getUnifiedStatusBadges } from "@/lib/order-status";
 import { hasStudioRole } from "@/lib/rbac";
 import {
   PAYMENT_METHOD_FILTER_OPTIONS,
+  PAYMENT_SALES_CHANNEL_FILTER_OPTIONS,
   PAYMENT_SOURCE_FILTER_OPTIONS,
 } from "@/lib/payment-filter-options";
+import { paymentOrderType, paymentOrderTypeLabel, paymentSalesChannelLabel } from "@/lib/payment-classification";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +26,7 @@ type Props = {
     studio_id?: string;
     payment_method?: string;
     source?: string;
+    sales_channel?: string;
     date_from?: string;
     date_to?: string;
     q?: string;
@@ -37,31 +40,10 @@ function isoDateDaysAgo(days: number) {
   return localISODate(d);
 }
 
-function paymentSourceLabel(source: string | null | undefined) {
-  switch (source) {
-    case "walkin":
-      return "Walk-in";
-    case "package_buy":
-      return "Package";
-    case "online_booking":
-      return "Session";
-    case "event_booking":
-      return "Event";
-    case "membership_subscription":
-      return "Membership";
-    case "member_zone_purchase":
-      return "Member zone";
-    case "shop_purchase":
-      return "Shop";
-    case "service_purchase":
-      return "Service";
-    default:
-      return "Unknown";
-  }
-}
-
 function primaryItemLabel(input: {
   source: string | null;
+  bookingId?: string | null;
+  eventBookingId?: string | null;
   sessionTitle: string | null;
   eventTitle: string | null;
   packageLabel: string;
@@ -71,21 +53,24 @@ function primaryItemLabel(input: {
   memberZoneSeriesLabel: string;
   memberZoneLessonLabel: string;
 }) {
-  switch (input.source) {
-    case "online_booking":
-    case "walkin":
+  switch (paymentOrderType({
+    source: input.source,
+    bookingId: input.bookingId,
+    eventBookingId: input.eventBookingId,
+  })) {
+    case "session":
       return input.sessionTitle || "-";
-    case "event_booking":
+    case "event":
       return input.eventTitle || "-";
-    case "package_buy":
+    case "package":
       return input.packageLabel;
-    case "membership_subscription":
+    case "membership":
       return input.membershipLabel;
-    case "member_zone_purchase":
+    case "member_zone":
       return input.memberZoneLessonLabel !== "-" ? input.memberZoneLessonLabel : input.memberZoneSeriesLabel;
-    case "shop_purchase":
+    case "shop":
       return input.shopLabel;
-    case "service_purchase":
+    case "service":
       return input.serviceLabel;
     default:
       return "-";
@@ -180,7 +165,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = admin
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, service_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot",
+      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, service_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -189,6 +174,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   if (isPendingHitpayAttention) q = q.eq("status", "pending").eq("payment_method", "hitpay");
   else if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
   if (sp.source) q = q.eq("source", sp.source);
+  if (sp.sales_channel) q = q.eq("sales_channel", sp.sales_channel);
   const defaultDate = localISODate();
   const attentionDateFrom = isoDateDaysAgo(6);
   const dateFrom = sp.date_from ?? (isPendingHitpayAttention ? attentionDateFrom : defaultDate);
@@ -380,6 +366,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   if (selectedLocationId) exportParams.set("location_id", selectedLocationId);
   if (sp.payment_method) exportParams.set("payment_method", sp.payment_method);
   if (sp.source) exportParams.set("source", sp.source);
+  if (sp.sales_channel) exportParams.set("sales_channel", sp.sales_channel);
   exportParams.set("date_from", dateFrom);
   exportParams.set("date_to", dateTo);
   if (sp.q) exportParams.set("q", sp.q);
@@ -452,6 +439,15 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             <select name="source" className={ui.select} defaultValue={sp.source ?? ""}>
               <option value="">All</option>
               {PAYMENT_SOURCE_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Channel</span>
+            <select name="sales_channel" className={ui.select} defaultValue={sp.sales_channel ?? ""}>
+              <option value="">All</option>
+              {PAYMENT_SALES_CHANNEL_FILTER_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
@@ -541,9 +537,19 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const memberZoneSeriesLabel = memberZoneSeries?.title?.trim() || "-";
           const memberZoneLessonLabel = memberZoneLesson?.title?.trim() || "-";
           const source = (p as { source?: string | null }).source ?? null;
-          const orderTypeLabel = paymentSourceLabel(source);
+          const orderTypeLabel = paymentOrderTypeLabel({
+            source,
+            bookingId: p.booking_id,
+            eventBookingId: (p as { event_booking_id?: string | null }).event_booking_id,
+          });
+          const salesChannelLabel = paymentSalesChannelLabel({
+            salesChannel: (p as { sales_channel?: string | null }).sales_channel ?? null,
+            source,
+          });
           const itemLabel = primaryItemLabel({
             source,
+            bookingId: p.booking_id,
+            eventBookingId: (p as { event_booking_id?: string | null }).event_booking_id,
             sessionTitle,
             eventTitle,
             packageLabel,
@@ -591,6 +597,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     <span className={ui.badgeNeutral}>{orderTypeLabel}</span>
+                    <span className={ui.badgeNeutral}>{salesChannelLabel}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(badges.payment.tone)}`}>
                       {badges.payment.text}
                     </span>
@@ -629,13 +636,25 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Item</dt>
                   <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">
                     {itemLabel}
-                    {source === "online_booking" && sessionStartIso ? <> · <LocalTime iso={sessionStartIso} /></> : null}
-                    {source === "event_booking" && eventStartIso ? <> · <LocalTime iso={eventStartIso} /></> : null}
+                    {paymentOrderType({
+                      source,
+                      bookingId: p.booking_id,
+                      eventBookingId: (p as { event_booking_id?: string | null }).event_booking_id,
+                    }) === "session" && sessionStartIso ? <> · <LocalTime iso={sessionStartIso} /></> : null}
+                    {paymentOrderType({
+                      source,
+                      bookingId: p.booking_id,
+                      eventBookingId: (p as { event_booking_id?: string | null }).event_booking_id,
+                    }) === "event" && eventStartIso ? <> · <LocalTime iso={eventStartIso} /></> : null}
                   </dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Phone</dt>
                   <dd className="text-stone-700 dark:text-stone-300">{phoneLabel}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Channel</dt>
+                  <dd className="text-stone-700 dark:text-stone-300">{salesChannelLabel}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>

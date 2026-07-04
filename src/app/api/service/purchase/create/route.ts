@@ -135,6 +135,7 @@ export async function POST(req: Request) {
       amount,
       currency: STUDIO_CURRENCY,
       payment_method: isZeroAmount ? "free" : "hitpay",
+      sales_channel: "online",
       source: "service_purchase",
       reference_code: reference,
       expires_at: expiresAt,

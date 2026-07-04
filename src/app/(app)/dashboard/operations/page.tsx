@@ -158,6 +158,19 @@ export default async function OperationsPage({ searchParams }: Props) {
       guestPrice: Number(event.price ?? 0),
     }));
 
+  const { data: walkinServicesRaw } = await supabase
+    .from("studio_services")
+    .select("id, title, price")
+    .eq("studio_id", activeStudioId)
+    .eq("is_active", true)
+    .not("price", "is", null)
+    .order("sort_order", { ascending: true });
+  const walkinServices = (walkinServicesRaw ?? []).map((service) => ({
+    id: service.id,
+    title: service.title ?? "Service",
+    guestPrice: Number(service.price ?? 0),
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       {studioSuspended ? (
@@ -174,10 +187,10 @@ export default async function OperationsPage({ searchParams }: Props) {
       ) : null}
       <div>
         <h1 className={ui.h1}>Booking management</h1>
-        <p className={ui.muted}>Daily booking, attendance, and exception handling for classes and events.</p>
+        <p className={ui.muted}>Daily front desk sales, booking, attendance, and exception handling for classes, events, and services.</p>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:items-start">
-        <FrontdeskWalkinForm sessions={walkinSessions} events={walkinEvents} disabled={studioSuspended} />
+        <FrontdeskWalkinForm sessions={walkinSessions} events={walkinEvents} services={walkinServices} disabled={studioSuspended} />
         <section className={`${ui.card} flex flex-col gap-3`}>
           <div className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
@@ -190,14 +203,14 @@ export default async function OperationsPage({ searchParams }: Props) {
           </div>
           <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
             <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
-            <p className={ui.muted}>Creates a booked guest, records the payment immediately, and optionally checks the guest in on the same step.</p>
+            <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
           </div>
           <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
             <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
             <p className={ui.muted}>
-              {walkinSessions.length > 0 || walkinEvents.length > 0
-                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"} and ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"} can accept walk-ins today.`
-                : "No scheduled sessions or events with open spots for today."}
+              {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
+                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
+                : "No scheduled sessions, events, or priced services are available right now."}
             </p>
           </div>
         </section>

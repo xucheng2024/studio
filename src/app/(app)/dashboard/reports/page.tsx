@@ -7,7 +7,7 @@ import {
   revenueByOrderType,
   type RevenuePaymentRow,
 } from "@/lib/revenue-summary";
-import { PAYMENT_SOURCE_FILTER_OPTIONS } from "@/lib/payment-filter-options";
+import { PAYMENT_SALES_CHANNEL_FILTER_OPTIONS, PAYMENT_SOURCE_FILTER_OPTIONS } from "@/lib/payment-filter-options";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -20,6 +20,7 @@ type Props = {
     date_from?: string;
     date_to?: string;
     source?: string;
+    sales_channel?: string;
   }>;
 };
 
@@ -54,18 +55,20 @@ export default async function ReportsPage({ searchParams }: Props) {
   const dateFrom = sp.date_from ?? bounds.from;
   const dateTo = sp.date_to ?? bounds.to;
   const source = sp.source ?? "";
+  const salesChannel = sp.sales_channel ?? "";
   const fromIso = dayRangeStartIso(dateFrom);
   const toIso = dayRangeEndExclusiveIso(dateTo);
 
   let revenueQuery = admin
     .from("payments")
-    .select("id, amount, type, payment_method, status, created_at, paid_at, verified_at, refunded_at, location_id, source")
+    .select("id, amount, type, payment_method, status, created_at, paid_at, verified_at, refunded_at, location_id, source, booking_id, event_booking_id, sales_channel")
     .in("studio_id", studioIds)
     .in("status", ["paid", "refunded"])
     .order("verified_at", { ascending: false, nullsFirst: false })
     .limit(5000);
   if (selectedLocationId) revenueQuery = revenueQuery.eq("location_id", selectedLocationId);
   if (source) revenueQuery = revenueQuery.eq("source", source);
+  if (salesChannel) revenueQuery = revenueQuery.eq("sales_channel", salesChannel);
   if (fromIso && toIso) {
     revenueQuery = revenueQuery.or(
       `and(status.eq.paid,verified_at.gte.${fromIso},verified_at.lt.${toIso}),and(status.eq.paid,verified_at.is.null,paid_at.gte.${fromIso},paid_at.lt.${toIso}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.gte.${fromIso},created_at.lt.${toIso}),and(status.eq.refunded,refunded_at.gte.${fromIso},refunded_at.lt.${toIso})`,
@@ -145,6 +148,7 @@ export default async function ReportsPage({ searchParams }: Props) {
             if (activeStudioId) params.set("studio_id", activeStudioId);
             if (selectedLocationId) params.set("location_id", selectedLocationId);
             if (source) params.set("source", source);
+            if (salesChannel) params.set("sales_channel", salesChannel);
             params.set("date_from", from);
             params.set("date_to", to);
             return (
@@ -166,7 +170,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
           {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
-          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-3">
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-4">
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>From</span>
               <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
@@ -180,6 +184,17 @@ export default async function ReportsPage({ searchParams }: Props) {
               <select name="source" defaultValue={source} className={ui.select}>
                 <option value="">All</option>
                 {PAYMENT_SOURCE_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={`${ui.label} whitespace-nowrap`}>Channel</span>
+              <select name="sales_channel" defaultValue={salesChannel} className={ui.select}>
+                <option value="">All</option>
+                {PAYMENT_SALES_CHANNEL_FILTER_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

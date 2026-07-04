@@ -274,6 +274,7 @@ export async function recordRecurringSubscriptionCharge(
       amount: input.amount,
       currency: input.currency,
       payment_method: "hitpay",
+      sales_channel: "online",
       source: "membership_subscription",
       type: "subscription",
       status: input.paymentStatus,

@@ -15,13 +15,19 @@ export const PAYMENT_METHOD_FILTER_OPTIONS: { value: string; label: string }[] =
 
 export const PAYMENT_SOURCE_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "online_booking", label: "Session" },
-  { value: "walkin", label: "Walk-in" },
   { value: "event_booking", label: "Event" },
   { value: "package_buy", label: "Package" },
   { value: "member_zone_purchase", label: "Member zone" },
   { value: "shop_purchase", label: "Shop" },
   { value: "service_purchase", label: "Service" },
   { value: "membership_subscription", label: "Membership" },
+];
+
+export const PAYMENT_SALES_CHANNEL_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "online", label: "Online" },
+  { value: "frontdesk", label: "Frontdesk" },
+  { value: "dashboard", label: "Dashboard" },
+  { value: "system", label: "System" },
 ];
 
 /** Matches `payments_invoice_status_check` (migration 024). */

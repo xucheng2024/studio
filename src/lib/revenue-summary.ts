@@ -1,4 +1,5 @@
 import { localDateKey } from "@/lib/date";
+import { paymentOrderType, type PaymentOrderType } from "@/lib/payment-classification";
 
 /** Rows used for Gross / Refunds / Net (bucketed by finance-effective timestamp). */
 export type RevenuePaymentRow = {
@@ -10,28 +11,10 @@ export type RevenuePaymentRow = {
   refunded_at?: string | null;
   location_id?: string | null;
   source?: string | null;
+  booking_id?: string | null;
+  event_booking_id?: string | null;
 };
-
-export type RevenueOrderType = "session" | "event" | "package" | "membership" | "member_zone" | "shop" | "service";
-
-export function revenueOrderTypeFromSource(source: string | null | undefined): RevenueOrderType {
-  switch (source) {
-    case "event_booking":
-      return "event";
-    case "package_buy":
-      return "package";
-    case "membership_subscription":
-      return "membership";
-    case "member_zone_purchase":
-      return "member_zone";
-    case "shop_purchase":
-      return "shop";
-    case "service_purchase":
-      return "service";
-    default:
-      return "session";
-  }
-}
+export type RevenueOrderType = PaymentOrderType;
 
 export function revenueEffectiveTimestamp(row: RevenuePaymentRow) {
   if (row.status === "refunded") {
@@ -88,7 +71,7 @@ export function revenueByOrderType(rows: RevenuePaymentRow[]) {
   ]);
 
   for (const p of rows) {
-    const key = revenueOrderTypeFromSource(p.source);
+    const key = paymentOrderType({ source: p.source, bookingId: p.booking_id, eventBookingId: p.event_booking_id });
     const entry = map.get(key)!;
     const amt = Number(p.amount ?? 0);
     if (p.status === "paid") entry.gross += amt;
@@ -142,7 +125,7 @@ export function revenueByDayAndOrderType(rows: RevenuePaymentRow[]) {
       });
     }
     const row = map.get(day)!;
-    const key = revenueOrderTypeFromSource(p.source);
+    const key = paymentOrderType({ source: p.source, bookingId: p.booking_id, eventBookingId: p.event_booking_id });
     const amt = Number(p.amount ?? 0);
     if (p.status === "paid") {
       row[key].gross += amt;

@@ -23,7 +23,6 @@ const optionalEmail = z
 const walkinBase = z.object({
   guest_name: z.string().min(1).max(120),
   guest_phone: z.string().max(40).optional(),
-  amount: z.number().nonnegative(),
   payment_method: z.enum(["hitpay", "cash"]),
 });
 
@@ -39,6 +38,11 @@ const bodySchema = z.discriminatedUnion("booking_type", [
     target_id: z.string().uuid(),
     guest_email: z.string().email().max(320).transform((v) => v.trim().toLowerCase()),
     mark_checkin: z.boolean().optional(),
+  }),
+  walkinBase.extend({
+    booking_type: z.literal("service"),
+    target_id: z.string().uuid(),
+    guest_email: z.string().email().max(320).transform((v) => v.trim().toLowerCase()),
   }),
 ]);
 
@@ -59,7 +63,10 @@ export async function POST(req: Request) {
   if (parsed.data.booking_type === "session") {
     return handleSessionWalkin(admin, user.id, parsed.data);
   }
-  return handleEventWalkin(admin, user.id, parsed.data);
+  if (parsed.data.booking_type === "event") {
+    return handleEventWalkin(admin, user.id, parsed.data);
+  }
+  return handleServiceWalkin(admin, user.id, parsed.data);
 }
 
 async function handleSessionWalkin(
@@ -246,5 +253,112 @@ async function handleEventWalkin(
     payment_id: sale.paymentId,
     checkin: checkinOk,
     ...(checkinError ? { checkin_error: checkinError } : {}),
+  });
+}
+
+async function handleServiceWalkin(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  data: z.infer<typeof bodySchema> & { booking_type: "service" },
+) {
+  const { data: service } = await admin
+    .from("studio_services")
+    .select("id, studio_id, title, price, is_active")
+    .eq("id", data.target_id)
+    .maybeSingle();
+  if (!service) return NextResponse.json({ error: "service_not_found" }, { status: 404 });
+  if (service.is_active === false) {
+    return NextResponse.json({ error: "service_not_available" }, { status: 409 });
+  }
+  if (service.price == null) {
+    return NextResponse.json({ error: "service_price_missing" }, { status: 409 });
+  }
+
+  const studioId = service.studio_id;
+  if (!studioId) return NextResponse.json({ error: "invalid_service" }, { status: 500 });
+
+  const blocked = await respondIfStudioContractSuspended(admin, studioId);
+  if (blocked) return blocked;
+
+  const scoped = await requireStaffScope({
+    userId,
+    studioId,
+    locationId: null,
+    roles: ["owner", "manager", "frontdesk"],
+  });
+  if (!scoped.ok) return staffScopeFailureResponse(scoped);
+
+  const nowIso = new Date().toISOString();
+  const amount = Number(service.price ?? 0);
+  const { data: payment, error: paymentErr } = await admin
+    .from("payments")
+    .insert({
+      service_id: service.id,
+      service_title_snapshot: service.title,
+      studio_id: studioId,
+      location_id: null,
+      client_id: null,
+      guest_name: data.guest_name.trim(),
+      guest_email: data.guest_email,
+      guest_phone: data.guest_phone?.trim() ?? null,
+      amount,
+      currency: STUDIO_CURRENCY,
+      type: "single",
+      sales_channel: "frontdesk",
+      source: "service_purchase",
+      status: "paid",
+      payment_method: data.payment_method,
+      paid_at: nowIso,
+      verified_at: nowIso,
+      verified_by: userId,
+      remaining_uses: 0,
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (paymentErr || !payment?.id) {
+    return NextResponse.json({ error: paymentErr?.message ?? "payment_create_failed" }, { status: 500 });
+  }
+
+  const { data: order, error: orderErr } = await admin
+    .from("service_orders")
+    .insert({
+      studio_id: studioId,
+      service_id: service.id,
+      payment_id: payment.id,
+      client_id: null,
+      guest_name: data.guest_name.trim(),
+      guest_email: data.guest_email,
+      guest_phone: data.guest_phone?.trim() ?? null,
+      service_title_snapshot: service.title,
+      amount,
+      currency: STUDIO_CURRENCY,
+      status: "paid",
+      paid_at: nowIso,
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (orderErr || !order?.id) {
+    await admin.from("payments").delete().eq("id", payment.id);
+    return NextResponse.json({ error: orderErr?.message ?? "service_order_create_failed" }, { status: 500 });
+  }
+
+  await writeOperationAudit({
+    actorId: userId,
+    actorRole: scoped.role,
+    action: "frontdesk_walkin",
+    targetType: "service_order",
+    targetId: order.id,
+    afterState: {
+      booking_type: "service",
+      payment_id: payment.id,
+      payment_method: data.payment_method,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    booking_type: "service",
+    service_order_id: order.id,
+    payment_id: payment.id,
   });
 }

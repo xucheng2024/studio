@@ -217,6 +217,7 @@ export async function POST(req: Request) {
       amount,
       currency,
       payment_method: isZeroAmount ? "free" : "hitpay",
+      sales_channel: "online",
       source: "shop_purchase",
       status: "pending",
       reference_code: reference,

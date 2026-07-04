@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { paymentOrderType, paymentSalesChannel } from "@/lib/payment-classification";
 import { buildAccessContext, filterStudioIdsByRoles } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -30,6 +31,7 @@ type PaymentRow = {
   status: string | null;
   payment_method: string | null;
   source: string | null;
+  sales_channel?: string | null;
   recon_status: string | null;
   amount: number | null;
   paid_amount: number | null;
@@ -66,6 +68,7 @@ export async function GET(req: Request) {
   const locationId = url.searchParams.get("location_id");
   const paymentMethod = url.searchParams.get("payment_method");
   const source = url.searchParams.get("source");
+  const salesChannel = url.searchParams.get("sales_channel");
   const dateFromParam = url.searchParams.get("date_from");
   const dateToParam = url.searchParams.get("date_to");
 
@@ -124,7 +127,7 @@ export async function GET(req: Request) {
   let q = admin
     .from("payments")
     .select(
-      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, service_title_snapshot",
+      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, service_title_snapshot",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -132,6 +135,7 @@ export async function GET(req: Request) {
   if (effectiveLocationId) q = q.eq("location_id", effectiveLocationId);
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
   if (source) q = q.eq("source", source);
+  if (salesChannel) q = q.eq("sales_channel", salesChannel);
   if (from && to) {
     q = q.or(
       `and(status.eq.paid,verified_at.gte.${from},verified_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.gte.${from},paid_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.gte.${from},created_at.lt.${to}),and(status.eq.refunded,refunded_at.gte.${from},refunded_at.lt.${to}),and(status.neq.paid,status.neq.refunded,created_at.gte.${from},created_at.lt.${to})`,
@@ -225,6 +229,7 @@ export async function GET(req: Request) {
     "payment_status",
     "payment_method",
     "payment_source",
+    "sales_channel",
     "order_type",
     "class_or_session_name",
     "event_name",
@@ -263,18 +268,11 @@ export async function GET(req: Request) {
           ? (eventBooking as { events?: unknown[] }).events?.[0]
           : (eventBooking as { events?: unknown }).events) as { title?: string | null } | null)
       : null;
-    const orderType =
-      p.source === "event_booking"
-        ? "event"
-        : p.source === "membership_subscription"
-          ? "membership"
-        : p.source === "member_zone_purchase"
-          ? "member_zone"
-        : p.source === "service_purchase"
-          ? "service"
-        : p.source === "package_buy"
-          ? "package"
-          : "session";
+    const orderType = paymentOrderType({
+      source: p.source,
+      bookingId: p.booking_id,
+      eventBookingId: p.event_booking_id,
+    });
     const sessionObj = booking
       ? ((Array.isArray((booking as { class_sessions?: unknown }).class_sessions)
           ? (booking as { class_sessions?: unknown[] }).class_sessions?.[0]
@@ -293,6 +291,7 @@ export async function GET(req: Request) {
       p.status ?? "",
       p.payment_method ?? "",
       p.source ?? "",
+      paymentSalesChannel({ salesChannel: p.sales_channel, source: p.source }),
       orderType,
       sessionClass?.title ?? "",
       eventObj?.title ?? "",

@@ -129,6 +129,8 @@ export function paymentErrorMessage(error: string, detail?: string) {
                                   ? "This service was not found."
                                   : error === "service_not_available"
                                     ? "This service is no longer available."
+                                    : error === "service_price_missing"
+                                      ? "This service does not have a price set yet."
                                     : error === "service_payment_disabled"
                                       ? "Online payment is not enabled for this service."
                                 : error === "payment_create_failed"
