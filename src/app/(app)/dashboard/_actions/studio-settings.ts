@@ -8,6 +8,7 @@ import {
   revalidatePublicStudioPath,
   revalidateRbacCache,
 } from "@/lib/revalidatePublic";
+import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { resolveAccessContext } from "@/lib/rbac";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { isReservedCustomDomain, normalizeCustomDomainInput, toCustomDomainUiStatus, type CustomDomainUiStatus } from "@/lib/customDomain";
@@ -78,6 +79,9 @@ export async function createStudio(
   const slugRaw = String(formData.get("public_slug") ?? "");
   const public_slug = normalizeStudioSlug(slugRaw);
   if (!name || !public_slug) return err("Please enter a studio name and valid public URL slug.");
+  if (isReservedPublicSlug(public_slug)) {
+    return err("This public URL slug is reserved. Please choose a different slug.");
+  }
 
   const { data: createdStudio, error } = await admin
     .from("studios")
@@ -110,16 +114,20 @@ export async function createStudio(
   return ok("Studio created.");
 }
 
-export async function updateStudioBasics(formData: FormData): Promise<void> {
+export async function updateStudioBasics(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "");
   const { studio, ctx } = await requireStudio(studioId || undefined);
-  if (!studio) return;
-  if (!hasStudioRole(ctx, studio.id, ["owner"])) return;
+  if (!studio) return err("Studio not found.");
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) return err("You do not have permission to update this studio.");
 
   const name = String(formData.get("name") ?? "").trim();
   const slugRaw = String(formData.get("public_slug") ?? "");
   const public_slug = normalizeStudioSlug(slugRaw);
-  if (!name || !public_slug) return;
+  if (!name || !public_slug) return err("Please enter a studio name and valid public URL slug.");
+  if (isReservedPublicSlug(public_slug)) return err("This public URL slug is reserved. Please choose a different slug.");
 
   const admin = createAdminClient();
   const { error } = await admin
@@ -128,13 +136,14 @@ export async function updateStudioBasics(formData: FormData): Promise<void> {
     .eq("id", studio.id);
   if (error) {
     console.error(error.message);
-    return;
+    return err("Could not update the studio basics.");
   }
 
   revalidateDashboardCoreViews();
   revalidateDashboardSettings("public-profile");
   revalidatePublicStudioPath(public_slug);
   revalidatePublicStudioPath(studio.public_slug);
+  return ok("Studio basics updated.");
 }
 
 export type CustomDomainFormResult = {

@@ -7,6 +7,7 @@ import {
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CoverUrlField, StudioProfileMediaFields } from "@/components/dashboard/PublicMediaFields";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { getDashboardScope } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -66,7 +67,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         </DashboardAppLink>
       </div>
 
-      <form action={updateStudioBasics} className={`${ui.card} grid gap-3`}>
+      <ServerActionToastForm action={updateStudioBasics} className={`${ui.card} grid gap-3`}>
         <input type="hidden" name="studio_id" value={studio.id} />
         <h2 className={ui.h2}>Basic profile</h2>
         <label className="flex flex-col gap-1.5">
@@ -96,7 +97,7 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
         <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
           Save basics
         </SubmitButton>
-      </form>
+      </ServerActionToastForm>
 
       <form action={updateStudioPublicBranding} className={`${ui.card} grid gap-4`}>
         <input type="hidden" name="studio_id" value={studio.id} />
