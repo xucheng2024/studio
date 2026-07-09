@@ -14,6 +14,8 @@ function shouldSkipCustomDomainRewrite(pathname: string): boolean {
   if (pathname.startsWith("/api/") || pathname === "/api") return true;
   if (pathname.startsWith("/pwa/") || pathname === "/pwa") return true;
   if (pathname.startsWith("/.well-known/") || pathname === "/.well-known") return true;
+  const lastSegment = pathname.split("/").pop() ?? "";
+  if (lastSegment.includes(".")) return true;
   if (
     pathname === "/auth" ||
     pathname.startsWith("/auth/") ||
