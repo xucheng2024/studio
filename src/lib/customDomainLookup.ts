@@ -30,7 +30,9 @@ export async function resolveActiveCustomDomainStudio(
     .from("studios")
     .select("public_slug, custom_domain")
     .eq("custom_domain", host)
-    .eq("custom_domain_status", "active")
+    // Allow domains that already reach this app to resolve before the async
+    // DNS/SSL verification flow has refreshed the saved status to active.
+    .in("custom_domain_status", ["active", "pending"])
     .neq("contract_status", "suspended")
     .limit(1)
     .maybeSingle<{ public_slug: string | null; custom_domain: string | null }>();
