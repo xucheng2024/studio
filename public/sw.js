@@ -45,6 +45,7 @@ function isCacheableResponse(response) {
 
 function isBypassedPath(pathname) {
   return (
+    pathname.startsWith("/_next/") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/auth/callback")

@@ -6,7 +6,6 @@ import { StudioMediaWarmup } from "@/components/StudioMediaWarmup";
 import { CoverLocationCornerBadge, sessionLocationLabel } from "@/components/SessionDateMiniCalendar";
 import { SessionShareLinkButton } from "@/components/SessionShareLinkButton";
 import { StudioIntroSection } from "@/components/StudioIntroSection";
-import { CalBookingButton } from "@/components/CalBookingButton";
 import { ShopProductCard } from "@/components/ShopProductCard";
 import { StudioStickyNav, type StickyNavTab } from "@/components/StudioStickyNav";
 import { STUDIO_CURRENCY } from "@/lib/currency";
@@ -126,8 +125,11 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const hiddenServices = services.slice(3);
   const visibleClasses = classes.slice(0, 3);
   const hiddenClasses = classes.slice(3);
-  const visibleEvents = (events ?? []).slice(0, 3);
-  const hiddenEvents = (events ?? []).slice(3);
+  const showPastEventsOnHome = (events ?? []).length === 0 && (pastEvents ?? []).length > 0;
+  const homeEvents = showPastEventsOnHome ? pastEvents ?? [] : events ?? [];
+  const visibleEvents = homeEvents.slice(0, 3);
+  const hiddenEvents = homeEvents.slice(3);
+  const eventsListPath = studioEventsPath(studio.public_slug, events.length > 0 ? undefined : "past");
   const visiblePackages = packages.slice(0, 3);
   const hiddenPackages = packages.slice(3);
   const visibleMemberZoneSeries = memberZoneSeries.slice(0, 3);
@@ -198,7 +200,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const jsonLdSafe = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-0 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-7xl px-4 pb-20 pt-0 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdSafe }} />
       <StudioMediaWarmup urls={warmupMediaUrls} />
 
@@ -211,7 +213,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         showMembershipsLink={memberships.length > 0}
         introSectionId="studio-intro"
         tabs={[
-          ...(calcomEmbedUrl ? [{ id: "booking", label: "Booking" }] : []),
           ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
           ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
           ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
@@ -222,6 +223,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       />
 
       <section id="studio-intro" className="mt-4 scroll-mt-20">
+        {calcomEmbedUrl ? <span id="booking" className="block scroll-mt-20" aria-hidden="true" /> : null}
         <StudioIntroSection
           studioName={publicBrandName}
           studioMediaCover={studioMediaCover}
@@ -235,31 +237,24 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           youtubeUrl={(studio as { public_youtube_url?: string | null }).public_youtube_url ?? null}
           xUrl={(studio as { public_x_url?: string | null }).public_x_url ?? null}
           contactEmail={(studio as { public_contact_email?: string | null }).public_contact_email ?? null}
+          bookingCalLink={calcomEmbedUrl}
+          bookingButtonClassName={ui.btnPrimary}
         />
       </section>
 
-      {calcomEmbedUrl ? (
-        <div id="booking" className="mx-auto mt-4 scroll-mt-20 w-full max-w-5xl">
-          <CalBookingButton
-            calLink={calcomEmbedUrl}
-            className={`${ui.btnPrimary}`}
-          />
-        </div>
-      ) : null}
-
       {services.length > 0 ? (
-        <section id="services" className="mx-auto mt-10 w-full max-w-5xl">
+        <section id="services" className="mx-auto mt-12 w-full max-w-6xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <h2 className={ui.h2}>{servicesTitle}</h2>
             </div>
             {hiddenServices.length > 0 ? (
               <Link href={studioServicesPath(studio.public_slug)} className={ui.link}>
-                See {hiddenServices.length}{" "}more &gt;
+                View all services
               </Link>
             ) : null}
           </div>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {visibleServices.map((svc) => {
               const serviceWaLink = buildServiceWaLink(svc.title);
               const servicePath = studioServicePath(studio.public_slug, svc.share_slug);
@@ -270,7 +265,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const svcCover = svc.cover_image_url ?? svcVideoPreview.thumbnailUrl ?? null;
               return (
                 <article key={svc.id} className={ui.card}>
-                  <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                  <div className="grid gap-4 sm:grid-cols-[minmax(220px,42%)_minmax(0,1fr)] sm:items-start lg:gap-4">
                     <div className="shrink-0">
                       <Link href={servicePath} className="block">
                         <div className="relative">
@@ -325,9 +320,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                           {svc.description}
                         </p>
                       ) : null}
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         {paymentEnabled ? (
-                          <Link href={servicePath} className={ui.btnPrimarySm}>
+                          <Link href={servicePath} className={`${ui.btnPrimarySm} w-full sm:w-auto`}>
                             {paymentReady && svc.price != null && Number(svc.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(svc.price).toFixed(2)}` : "Pay now"}
                           </Link>
                         ) : null}
@@ -336,7 +331,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             href={serviceWaLink}
                             target="_blank"
                             rel="noreferrer"
-                            className={paymentEnabled ? ui.btnSecondarySm : ui.btnPrimarySm}
+                            className={`${paymentEnabled ? ui.btnSecondarySm : ui.btnPrimarySm} w-full sm:w-auto`}
                           >
                             Enquire now
                           </a>
@@ -347,20 +342,21 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 </article>
               );
             })}
-          </div>        </section>
+          </div>
+        </section>
       ) : null}
 
       {classes.length > 0 ? (
-        <section id="upcoming-classes" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="upcoming-classes" className="mx-auto mt-12 w-full max-w-6xl pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className={ui.h2}>{classesTitle}</h2>
             {hiddenClasses.length > 0 ? (
               <Link href={studioClassesPath(studio.public_slug)} className={ui.link}>
-                See {hiddenClasses.length}{" "}more &gt;
+                View all classes
               </Link>
             ) : null}
           </div>
-          <div className="mt-4 grid w-full gap-4">
+          <div className="mt-4 grid w-full gap-4 lg:grid-cols-2">
             {visibleClasses.map((s) => {
               const dt = new Date(s.start_time);
               const dateLabel = dt.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
@@ -398,7 +394,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                   className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}
                 >
                   <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
-                    <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                    <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(220px,42%)_minmax(0,1fr)] sm:items-start lg:gap-4">
                       <div className="shrink-0">
                         <div className="relative">
                           {classImage ? (
@@ -459,9 +455,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             {classDescription}
                           </p>
                         ) : null}
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <span className={ui.btnPrimarySm}>Book now</span>
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                           <span className={`text-sm ${ui.muted}`}>{spotsText}</span>
+                          <span className={`${ui.btnPrimarySm} w-full sm:w-auto`}>Book now</span>
                         </div>
                       </div>
                     </div>
@@ -469,26 +465,28 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                 </article>
               );
             })}
-          </div>        </section>
+          </div>
+        </section>
       ) : null}
 
       {(events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? (
-        <section id="events" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="events" className="mx-auto mt-12 w-full max-w-6xl pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className={ui.h2}>{eventsTitle}</h2>
             {hiddenEvents.length > 0 || pastEvents.length > 0 ? (
-              <Link href={studioEventsPath(studio.public_slug)} className={ui.link}>
-                See {hiddenEvents.length + pastEvents.length}{" "}more &gt;
+              <Link href={eventsListPath} className={ui.link}>
+                View all events
               </Link>
             ) : null}
           </div>
-          <div className="mt-4 grid w-full gap-4">
+          <div className="mt-4 grid w-full gap-4 lg:grid-cols-2">
             {visibleEvents.map((e) => {
               const start = new Date(String(e.start_time));
               const end = new Date(String(e.end_time));
               const dateLabel = start.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Singapore" });
               const timeLabel = start.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
               const endLabel = end.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Singapore" });
+              const isPastEvent = showPastEventsOnHome;
               const href = e.share_slug ? studioEventPath(studio.public_slug, e.share_slug) : studioHomePath(studio.public_slug);
               const tags = Array.isArray((e as { tags?: string[] | null }).tags) ? (e as { tags: string[] }).tags : [];
               const eSpotsLeft = Number(e.spots_left ?? 0);
@@ -501,7 +499,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               return (
                 <article key={e.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
                   <Link href={href} className="block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 focus-visible:ring-offset-2">
-                    <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                    <div className="grid w-full min-w-0 gap-4 sm:grid-cols-[minmax(220px,42%)_minmax(0,1fr)] sm:items-start lg:gap-4">
                       <div className="shrink-0">
                         <div className="relative">
                           {eCover ? (
@@ -553,9 +551,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                             {String((e as { description?: string | null }).description)}
                           </p>
                         ) : null}
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <span className={ui.btnPrimarySm}>{Number(e.price ?? 0) === 0 ? "Book free" : "Book now"}</span>
-                          <span className={`text-sm ${ui.muted}`}>{eSpotsText}</span>
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                          {!isPastEvent ? <span className={`text-sm ${ui.muted}`}>{eSpotsText}</span> : null}
+                          <span className={`${isPastEvent ? ui.btnSecondarySm : ui.btnPrimarySm} w-full sm:w-auto`}>{isPastEvent ? "View event" : Number(e.price ?? 0) === 0 ? "Book free" : "Book now"}</span>
                         </div>
                       </div>
                     </div>
@@ -568,17 +566,17 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {memberZoneSeries.length > 0 ? (
-        <section id="member-zone" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="member-zone" className="mx-auto mt-12 w-full max-w-6xl pb-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className={ui.h2}>{memberZoneTitle}</h2>
             {hiddenMemberZoneSeries.length > 0 ? (
               <Link href={studioMemberZoneListPath(studio.public_slug)} className={`${ui.link} shrink-0`}>
-                See {hiddenMemberZoneSeries.length}{" "}more &gt;
+                View all series
               </Link>
             ) : null}
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {visibleMemberZoneSeries.map((series) => {
               const href = studioMemberZonePath(studio.public_slug, series.share_slug);
               const hasSeriesPrice = series.price != null && Number(series.price) > 0;
@@ -596,7 +594,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               const seriesCover = series.cover_image_url ?? seriesPromoPreview.thumbnailUrl ?? null;
               return (
                 <article key={series.id} className={`${ui.card} transition-shadow hover:shadow-md hover:border-teal-200 dark:hover:border-teal-800`}>
-                  <div className="grid gap-4 sm:grid-cols-[minmax(240px,46%)_minmax(0,1fr)] sm:items-start lg:gap-5">
+                  <div className="grid gap-4 sm:grid-cols-[minmax(220px,42%)_minmax(0,1fr)] sm:items-start lg:gap-4">
                     <div className="relative shrink-0">
                       <Link href={href} className="block">
                         {seriesCover ? (
@@ -634,26 +632,27 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         <p className={`mt-2 line-clamp-3 text-sm ${ui.muted}`}>{series.summary}</p>
                       ) : null}
                       <div className="mt-4">
-                        <Link href={href} className={ui.btnPrimarySm}>{ctaLabel}</Link>
+                        <Link href={href} className={`${ui.btnPrimarySm} w-full sm:w-auto`}>{ctaLabel}</Link>
                       </div>
                     </div>
                   </div>
                 </article>
               );
             })}
-          </div>        </section>
+          </div>
+        </section>
       ) : null}
 
       {shopProducts.length > 0 ? (
-        <section id="shop" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="shop" className="mx-auto mt-12 w-full max-w-6xl pb-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className={ui.h2}>{shopTitle}</h2>
             <Link href={studioShopPath(studio.public_slug)} className={`${ui.link} shrink-0`}>
-              See all &gt;
+              View shop
             </Link>
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>Merchandise available for purchase and delivery.</p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-2.5">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4">
             {visibleShopProducts.map((product, idx) => (
               <ShopProductCard
                 key={product.id}
@@ -671,19 +670,19 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       ) : null}
 
       {packages.length > 0 ? (
-        <section id="packages" className="mx-auto mt-10 w-full max-w-5xl pb-4">
+        <section id="packages" className="mx-auto mt-12 w-full max-w-6xl pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className={ui.h2}>{packagesTitle}</h2>
             {hiddenPackages.length > 0 ? (
               <Link href={studioPackagesPath(studio.public_slug)} className={ui.link}>
-                See {hiddenPackages.length}{" "}more &gt;
+                View all packages
               </Link>
             ) : null}
           </div>
           <p className={`mt-1 text-sm ${ui.muted}`}>
             Buy a class pass pack and book any upcoming session.
           </p>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visiblePackages.map((pkg) => {
               const buyHref = pkg.share_slug
                 ? studioPackagePath(studio.public_slug, pkg.share_slug)
@@ -701,23 +700,24 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                       <span className={`text-sm ${ui.muted}`}>{pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}</span>
                       <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
                     </div>
-                    <div className="mt-4 flex items-center gap-4">
-                      {buyHref ? <Link href={buyHref} className={ui.btnPrimarySm}>{Number(pkg.price ?? 0) === 0 ? "Get package" : "Buy now"}</Link> : null}
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       {pkg.price != null ? (
                         <span className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-50">
                           {Number(pkg.price) === 0 ? "Free" : `${packageCurrency} ${Number(pkg.price).toFixed(2)}`}
                         </span>
                       ) : null}
+                      {buyHref ? <Link href={buyHref} className={`${ui.btnPrimarySm} w-full sm:w-auto`}>{Number(pkg.price ?? 0) === 0 ? "Get package" : "Buy now"}</Link> : null}
                     </div>
                   </div>
                 </article>
               );
             })}
-          </div>        </section>
+          </div>
+        </section>
       ) : null}
 
       {faqs.length > 0 ? (
-        <section className="mx-auto mt-12 w-full max-w-5xl pb-4">
+        <section className="mx-auto mt-12 w-full max-w-6xl pb-4">
           <div className="flex flex-col gap-2">
             <h2 className={ui.h2}>FAQs</h2>
             <p className={ui.muted}>Common questions about this studio.</p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
+import { CalBookingButton } from "@/components/CalBookingButton";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 
 function InstagramIcon() {
@@ -91,6 +92,8 @@ type Props = {
   youtubeUrl: string | null;
   xUrl: string | null;
   contactEmail: string | null;
+  bookingCalLink?: string | null;
+  bookingButtonClassName?: string;
 };
 
 function EmailPopoverButton({ contactEmail, emailHref }: { contactEmail: string; emailHref: string }) {
@@ -162,6 +165,8 @@ export function StudioIntroSection({
   youtubeUrl,
   xUrl,
   contactEmail,
+  bookingCalLink,
+  bookingButtonClassName,
 }: Props) {
   const emailHref = useMemo(() => {
     if (!contactEmail) return null;
@@ -180,9 +185,9 @@ export function StudioIntroSection({
   ].filter(Boolean) as SocialLink[];
 
   return (
-    <div className="pb-4">
-      <div className="grid gap-5 sm:grid-cols-[minmax(260px,44%)_minmax(0,1fr)] sm:items-start">
-        <div className="w-full">
+    <div className="pb-4 lg:pb-8">
+      <div className="grid gap-5 sm:grid-cols-[minmax(260px,48%)_minmax(0,1fr)] sm:items-center lg:grid-cols-[minmax(420px,56%)_minmax(360px,1fr)] lg:gap-8">
+        <div className="order-2 w-full sm:order-1">
           <PublicVideoCover
             title={studioName}
             coverUrl={studioMediaCover}
@@ -191,11 +196,14 @@ export function StudioIntroSection({
             priority
           />
         </div>
-        <div className="sm:pt-1">
+        <div className="order-1 sm:order-2 sm:pt-1 lg:max-w-xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-stone-950 dark:text-stone-50 sm:text-3xl lg:text-4xl">
+            {studioName}
+          </h1>
           {intro?.trim() ? (
-            <details className="group">
-              <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300">
-                <span className="line-clamp-3 whitespace-pre-wrap group-open:hidden">{intro.trim()}</span>
+            <details className="group mt-3 lg:mt-4">
+              <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
+                <span className="line-clamp-3 whitespace-pre-wrap group-open:hidden lg:line-clamp-5">{intro.trim()}</span>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <span className="text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
                     Read more
@@ -225,13 +233,13 @@ export function StudioIntroSection({
                   )}
                 </div>
               </summary>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-snug text-stone-700 dark:text-stone-300">
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
                 {intro.trim()}
               </p>
             </details>
           ) : (
             <>
-              <p className="text-sm leading-snug text-stone-700 dark:text-stone-300">
+              <p className="mt-3 text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
                 Welcome to our studio. Explore services and get in touch.
               </p>
               {socialLinks.length > 0 || (contactEmail && emailHref) ? (
@@ -256,7 +264,17 @@ export function StudioIntroSection({
               ) : null}
             </>
           )}
+          {bookingCalLink ? (
+            <div className="mt-5 hidden w-full sm:flex sm:mt-6">
+              <CalBookingButton calLink={bookingCalLink} className={bookingButtonClassName} />
+            </div>
+          ) : null}
         </div>
+        {bookingCalLink ? (
+          <div className="order-3 flex w-full sm:hidden">
+            <CalBookingButton calLink={bookingCalLink} className={bookingButtonClassName} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

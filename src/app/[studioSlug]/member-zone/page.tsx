@@ -50,7 +50,7 @@ export default async function PublicMemberZonePage({ params }: Props) {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#member-zone`}>Back to studio</StudioPublicBackNav>
-      <div className="mt-4">
+      <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>Member zone</h1>
         <p className={`mt-1 ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
       </div>
@@ -87,8 +87,8 @@ export default async function PublicMemberZonePage({ params }: Props) {
                   <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${accessTag.color}`}>{accessTag.label}</span>
                 </div>
                 {series.summary ? <p className={`mt-1.5 line-clamp-2 text-sm ${ui.muted}`}>{series.summary}</p> : null}
-                <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-                  <Link href={href} className={ui.btnPrimarySm}>{ctaLabel}</Link>
+                <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <Link href={href} className={`${ui.btnPrimarySm} w-full sm:w-auto`}>{ctaLabel}</Link>
                   <SessionShareLinkButton sharePath={href} title={`${series.title} · ${studio.name}`} text={`Check out this member zone series: ${series.title}`} />
                 </div>
               </div>
@@ -96,6 +96,11 @@ export default async function PublicMemberZonePage({ params }: Props) {
           );
         })}
       </div>
+      {!seriesRows?.length ? (
+        <div className={`mt-6 ${ui.emptyState}`}>
+          <p className={`text-sm ${ui.muted}`}>No member zone series available right now.</p>
+        </div>
+      ) : null}
     </main>
   );
 }

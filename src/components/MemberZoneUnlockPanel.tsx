@@ -6,7 +6,7 @@ import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
-import { createBrowserSupabase, getBrowserSession } from "@/lib/supabase/client";
+import { getBrowserSession, refreshBrowserSession } from "@/lib/supabase/client";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { ui } from "@/lib/ui";
 
@@ -89,12 +89,10 @@ export function MemberZoneUnlockPanel(props: {
   }
 
   const startPurchase = async () => {
-    const supabase = createBrowserSupabase();
     let session = await getBrowserSession().catch(() => null);
     if (!session?.user && props.isAuthenticated) {
       try {
-        await supabase.auth.refreshSession();
-        session = await getBrowserSession();
+        session = await refreshBrowserSession();
       } catch {
         /* keep prior session */
       }

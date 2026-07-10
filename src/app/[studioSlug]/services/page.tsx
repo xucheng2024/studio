@@ -66,8 +66,11 @@ export default async function PublicServicesPage({ params }: Props) {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#services`}>Back to studio</StudioPublicBackNav>
-      <div className="mt-4">
+      <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>{studio.public_services_title?.trim() || "Services"}</h1>
+        <p className={`mt-1 text-sm ${ui.muted}`}>
+          Choose a service to view details, pay online when available, or send an enquiry.
+        </p>
       </div>
       <div className="mt-5 grid gap-4">
         {(services ?? []).map((svc) => {
@@ -104,13 +107,13 @@ export default async function PublicServicesPage({ params }: Props) {
                       {tags.slice(0, 5).map((tag) => <span key={`${svc.id}-${tag}`} className={ui.badgeNeutral}>{tag}</span>)}
                     </div>
                   ) : null}
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                     {paymentEnabled ? (
-                      <Link href={href} className={ui.btnPrimarySm}>
+                      <Link href={href} className={`${ui.btnPrimarySm} w-full sm:w-auto`}>
                         {paymentReady && svc.price != null && Number(svc.price) > 0 ? `Pay ${serviceCurrency} ${Number(svc.price).toFixed(2)}` : "Pay now"}
                       </Link>
                     ) : null}
-                    {enquiryEnabled && serviceWaLink ? <a href={serviceWaLink} target="_blank" rel="noreferrer" className={paymentEnabled ? ui.btnSecondarySm : ui.btnPrimarySm}>Enquire now</a> : null}
+                    {enquiryEnabled && serviceWaLink ? <a href={serviceWaLink} target="_blank" rel="noreferrer" className={`${paymentEnabled ? ui.btnSecondarySm : ui.btnPrimarySm} w-full sm:w-auto`}>Enquire now</a> : null}
                     <SessionShareLinkButton sharePath={href} title={`${svc.title} · ${studio.name}`} text={`Check out this service: ${svc.title}`} />
                   </div>
                 </div>
@@ -119,6 +122,11 @@ export default async function PublicServicesPage({ params }: Props) {
           );
         })}
       </div>
+      {!services?.length ? (
+        <div className={`mt-6 ${ui.emptyState}`}>
+          <p className={`text-sm ${ui.muted}`}>No services available right now.</p>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -23,12 +23,13 @@ export function PublicVideoCover({
   locationLabel,
 }: PublicVideoCoverProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const cleanEmbedUrl = getCleanEmbedUrl(embedUrl);
 
-  if (isPlaying && embedUrl) {
+  if (isPlaying && cleanEmbedUrl) {
     return (
       <div className="overflow-hidden rounded-2xl border border-stone-200 shadow-sm dark:border-stone-700">
         <iframe
-          src={embedUrl}
+          src={cleanEmbedUrl}
           title={`${title} promo video`}
           className="aspect-video w-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -103,4 +104,20 @@ export function PublicVideoCover({
       <CoverLocationCornerBadge name={locationLabel} />
     </div>
   );
+}
+
+function getCleanEmbedUrl(embedUrl: string | null) {
+  if (!embedUrl) return null;
+  try {
+    const url = new URL(embedUrl);
+    if (url.hostname.replace(/^www\./, "").toLowerCase() === "player.mux.com") {
+      url.searchParams.set("disable-remote-playback", "true");
+      if (typeof window !== "undefined") {
+        url.searchParams.set("storyboard-src", `${window.location.origin}/api/video/empty-storyboard.vtt`);
+      }
+    }
+    return url.toString();
+  } catch {
+    return embedUrl;
+  }
 }

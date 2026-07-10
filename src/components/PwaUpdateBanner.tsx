@@ -60,7 +60,7 @@ export function PwaUpdateBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="animate-in slide-in-from-bottom-4 fade-in fixed bottom-4 left-1/2 z-50 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 duration-300"
+      className="animate-in slide-in-from-bottom-4 fade-in fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-50 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 duration-300 sm:bottom-6"
     >
       <div className="flex items-start gap-3 rounded-2xl border border-teal-200/60 bg-white/95 px-4 py-3.5 shadow-xl shadow-stone-900/10 backdrop-blur-sm dark:border-teal-800/40 dark:bg-stone-900/95">
         {/* Icon */}

@@ -94,9 +94,9 @@ function EventCard({
                 {tags.slice(0, 5).map((tag: string) => <span key={`${event.id}-${tag}`} className={ui.badgeNeutral}>{tag}</span>)}
               </div>
             ) : null}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <span className={isEnded ? ui.btnSecondarySm : ui.btnPrimarySm}>{isEnded ? "View event" : Number(event.price ?? 0) === 0 ? "Book free" : "Book now"}</span>
-              {!isEnded ? <span className={`text-sm ${ui.muted}`}>{spotsText}</span> : <span className={`text-sm ${ui.muted}`}>Past</span>}
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              {!isEnded ? <span className={`text-sm ${ui.muted}`}>{spotsText}</span> : null}
+              <span className={`${isEnded ? ui.btnSecondarySm : ui.btnPrimarySm} w-full sm:w-auto`}>{isEnded ? "View event" : Number(event.price ?? 0) === 0 ? "Book free" : "Book now"}</span>
             </div>
           </div>
         </div>
@@ -111,7 +111,7 @@ function EventCard({
 export default async function PublicEventsPage({ params, searchParams }: Props) {
   const { studioSlug: rawSlug } = await params;
   const { tab } = (await searchParams) ?? {};
-  const activeTab = tab === "past" || tab === "ended" ? "past" : "upcoming";
+  const requestedTab = tab === "past" || tab === "ended" ? "past" : tab === "upcoming" ? "upcoming" : null;
   const studioSlug = normalizeStudioSlug(rawSlug);
   if (!studioSlug || isReservedPublicSlug(studioSlug)) notFound();
 
@@ -141,13 +141,19 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
       .lt("end_time", nowIso)
       .order("start_time", { ascending: false }),
   ]);
-  const items = activeTab === "past" ? ended ?? [] : upcoming ?? [];
+  const upcomingItems = upcoming ?? [];
+  const endedItems = ended ?? [];
+  const activeTab = requestedTab ?? (upcomingItems.length === 0 && endedItems.length > 0 ? "past" : "upcoming");
+  const items = activeTab === "past" ? endedItems : upcomingItems;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#events`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-        <h1 className={ui.h1}>Events</h1>
+        <div className="max-w-2xl">
+          <h1 className={ui.h1}>Events</h1>
+          <p className={`mt-1 text-sm ${ui.muted}`}>Browse upcoming events, or review past events from this studio.</p>
+        </div>
         <div className="flex gap-3 text-sm font-medium">
           <Link href={studioEventsPath(studio.public_slug)} className={activeTab === "upcoming" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Upcoming</Link>
           <Link href={studioEventsPath(studio.public_slug, "past")} className={activeTab === "past" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Past</Link>
@@ -155,7 +161,19 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
       </div>
       <div className="mt-5 grid gap-4">
         {items.length ? items.map((event) => <EventCard key={event.id} event={event} studio={studio} currentTimeMs={currentTimeMs} />) : (
-          <p className={ui.muted}>{activeTab === "past" ? "No past events yet." : "No upcoming events yet."}</p>
+          <div className={ui.emptyState}>
+            <p className={`text-sm ${ui.muted}`}>{activeTab === "past" ? "No past events yet." : "No upcoming events yet."}</p>
+            {activeTab === "upcoming" && endedItems.length > 0 ? (
+              <Link href={studioEventsPath(studio.public_slug, "past")} className={ui.link}>
+                View past events
+              </Link>
+            ) : null}
+            {activeTab === "past" && upcomingItems.length > 0 ? (
+              <Link href={studioEventsPath(studio.public_slug)} className={ui.link}>
+                View upcoming events
+              </Link>
+            ) : null}
+          </div>
         )}
       </div>
     </main>

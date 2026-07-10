@@ -47,7 +47,7 @@ export default async function PublicMembershipsPage({ params }: Props) {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={studioHomePath(studio.public_slug)}>Back to studio</StudioPublicBackNav>
-      <div className="mt-4">
+      <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>Memberships</h1>
         <p className={`mt-1 ${ui.muted}`}>Choose a plan for recurring access and member benefits.</p>
       </div>
@@ -80,7 +80,7 @@ export default async function PublicMembershipsPage({ params }: Props) {
                   )}
                   <span className={`text-sm ${ui.muted}`}>· Billed per {intervalLabel}</span>
                 </div>
-                <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+                <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   {m.price != null ? (
                     <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">
                       {currency} {Number(m.price).toFixed(2)}
@@ -88,7 +88,7 @@ export default async function PublicMembershipsPage({ params }: Props) {
                     </span>
                   ) : null}
                   {href ? (
-                    <Link href={href} className={ui.btnPrimary}>
+                    <Link href={href} className={`${ui.btnPrimary} w-full sm:w-auto`}>
                       View plan
                     </Link>
                   ) : null}
@@ -99,7 +99,9 @@ export default async function PublicMembershipsPage({ params }: Props) {
         })}
       </div>
       {(memberships ?? []).length === 0 ? (
-        <p className={`mt-6 text-sm ${ui.muted}`}>No membership plans are available yet.</p>
+        <div className={`mt-6 ${ui.emptyState}`}>
+          <p className={`text-sm ${ui.muted}`}>No membership plans are available right now.</p>
+        </div>
       ) : null}
     </main>
   );

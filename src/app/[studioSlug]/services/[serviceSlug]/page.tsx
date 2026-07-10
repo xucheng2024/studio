@@ -107,15 +107,15 @@ export default async function PublicServicePage({ params }: Props) {
           </p>
         ) : null}
 
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {paymentEnabled ? (
-            <a href="#service-payment" className={ui.btnPrimary}>
+            <a href="#service-payment" className={`${ui.btnPrimary} w-full sm:w-auto`}>
               <CreditCard size={16} />
               {service.price != null && Number(service.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(service.price).toFixed(2)}` : "Pay now"}
             </a>
           ) : null}
           {enquiryEnabled && enquiryLink ? (
-            <a href={enquiryLink} target="_blank" rel="noreferrer" className={paymentEnabled ? ui.btnSecondary : ui.btnPrimary}>
+            <a href={enquiryLink} target="_blank" rel="noreferrer" className={`${paymentEnabled ? ui.btnSecondary : ui.btnPrimary} w-full sm:w-auto`}>
               <MessageCircle size={16} />
               Enquire now
             </a>

@@ -47,7 +47,7 @@ export default async function PublicShopPage({ params }: Props) {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#shop`}>Back to studio</StudioPublicBackNav>
-      <div className="mt-4">
+      <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>{shopTitle}</h1>
         <p className={`mt-1 text-sm ${ui.muted}`}>Browse merchandise from {studio.name}.</p>
       </div>
@@ -65,7 +65,11 @@ export default async function PublicShopPage({ params }: Props) {
           />
         ))}
       </div>
-      {!products?.length ? <p className={`mt-6 text-sm ${ui.muted}`}>No products available.</p> : null}
+      {!products?.length ? (
+        <div className={`mt-6 ${ui.emptyState}`}>
+          <p className={`text-sm ${ui.muted}`}>No products available right now.</p>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -8,6 +8,20 @@ export function StudioPwaRegister({ studioSlug }: { studioSlug: string }) {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    if (process.env.NODE_ENV !== "production") {
+      void navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .then(async () => {
+          if (!("caches" in window)) return;
+          const keys = await caches.keys();
+          await Promise.all(keys.filter((key) => key.startsWith("studio-pwa-")).map((key) => caches.delete(key)));
+        })
+        .catch(() => {
+          // Ignore cleanup failures in development.
+        });
+      return;
+    }
 
     void navigator.serviceWorker
       .register("/sw.js", {

@@ -47,7 +47,7 @@ export default async function PublicPackagesPage({ params }: Props) {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#packages`}>Back to studio</StudioPublicBackNav>
-      <div className="mt-4">
+      <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>{studio.public_packages_title?.trim() || "Packages"}</h1>
         <p className={`mt-1 ${ui.muted}`}>Buy a class pass pack and book any upcoming session.</p>
       </div>
@@ -65,15 +65,20 @@ export default async function PublicPackagesPage({ params }: Props) {
                   <span className={`text-sm ${ui.muted}`}>{pkg.credits} class pass{Number(pkg.credits) !== 1 ? "es" : ""}</span>
                   <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
                 </div>
-                <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+                <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   {pkg.price != null ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">{Number(pkg.price) === 0 ? "Free" : `${currency} ${Number(pkg.price).toFixed(2)}`}</span> : null}
-                  {href ? <Link href={href} className={ui.btnPrimary}>{Number(pkg.price ?? 0) === 0 ? "Get package" : "Buy now"}</Link> : null}
+                  {href ? <Link href={href} className={`${ui.btnPrimary} w-full sm:w-auto`}>{Number(pkg.price ?? 0) === 0 ? "Get package" : "Buy now"}</Link> : null}
                 </div>
               </div>
             </article>
           );
         })}
       </div>
+      {!packages?.length ? (
+        <div className={`mt-6 ${ui.emptyState}`}>
+          <p className={`text-sm ${ui.muted}`}>No packages available right now.</p>
+        </div>
+      ) : null}
     </main>
   );
 }
