@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CircleUserRound, X } from "lucide-react";
 import { InlineSignInPanel } from "@/components/InlineSignInPanel";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -112,22 +113,27 @@ export function StudioAccountEntry({
         <CircleUserRound size={18} />
       </button>
 
-      {showSignIn ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowSignIn(false)}>
-          <div className="relative w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              aria-label="Close"
-              className={`${ui.btnGhost} absolute -top-10 right-0 border border-white/30 bg-black/30 text-white hover:bg-black/50`}
+      {showSignIn && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-6 sm:py-10"
               onClick={() => setShowSignIn(false)}
             >
-              <X size={14} />
-              Close
-            </button>
-            <InlineSignInPanel defaultOpen hideTrigger />
-          </div>
-        </div>
-      ) : null}
+              <div className="relative w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  className="absolute right-3 top-6 z-10 inline-flex size-8 items-center justify-center rounded-full bg-white/90 text-stone-500 shadow-sm transition hover:bg-white hover:text-stone-900 dark:bg-stone-900/90 dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-100"
+                  onClick={() => setShowSignIn(false)}
+                >
+                  <X size={16} />
+                </button>
+                <InlineSignInPanel defaultOpen hideTrigger embedded />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
