@@ -137,6 +137,8 @@ export default async function StudioPublicLandingPage({ params }: Props) {
   const visibleShopProducts = shopProducts.slice(0, 4);
   const mediaTagClass =
     "inline-flex items-center rounded-full border border-stone-200/80 bg-stone-50 px-3 py-1 text-[11px] font-semibold tracking-[0.02em] text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
+  const pastEventBadgeClass =
+    "inline-flex items-center rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200";
   const studioMediaCover = cover ?? studioVideoPreview.thumbnailUrl ?? null;
   const publicBrandName = studio.public_brand_name?.trim() || studio.name;
   const rawLogoUrl = studio.public_logo_url?.trim() || null;
@@ -479,6 +481,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
               </Link>
             ) : null}
           </div>
+          {showPastEventsOnHome ? (
+            <p className={`mt-1 text-sm ${ui.muted}`}>No upcoming events right now. Showing past events.</p>
+          ) : null}
           <div className="mt-4 grid w-full gap-4 lg:grid-cols-2">
             {visibleEvents.map((e) => {
               const start = new Date(String(e.start_time));
@@ -540,9 +545,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         ) : null}
                       </div>
                       <div className="flex min-w-0 flex-col">
-                        <p className={`text-sm ${ui.muted}`}>
-                          {dateLabel} · {timeLabel}–{endLabel}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isPastEvent ? <span className={pastEventBadgeClass}>Past event</span> : null}
+                          <p className={`text-sm ${ui.muted}`}>
+                            {dateLabel} · {timeLabel}–{endLabel}
+                          </p>
+                        </div>
                         <h3 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">
                           {String(e.title ?? "Event")}
                         </h3>

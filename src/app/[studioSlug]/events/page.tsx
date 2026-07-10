@@ -68,6 +68,8 @@ function EventCard({
     ? capacity > 0 ? `0/${capacity} spots left` : "Full"
     : capacity > 0 ? `${spotsLeft}/${capacity} spots left` : `${spotsLeft} spots left`;
   const tags = Array.isArray(event.tags) ? event.tags : [];
+  const pastEventBadgeClass =
+    "inline-flex items-center rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200";
 
   return (
     <article className={`${ui.card} transition-shadow hover:border-teal-200 hover:shadow-md dark:hover:border-teal-800`}>
@@ -86,7 +88,10 @@ function EventCard({
             ) : null}
           </div>
           <div className="min-w-0">
-            <p className={`text-sm ${ui.muted}`}>{dateLabel} · {timeLabel}-{endLabel}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {isEnded ? <span className={pastEventBadgeClass}>Past event</span> : null}
+              <p className={`text-sm ${ui.muted}`}>{dateLabel} · {timeLabel}-{endLabel}</p>
+            </div>
             <h2 className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{String(event.title ?? "Event")}</h2>
             {event.description ? <p className="mt-2 line-clamp-3 text-sm text-stone-700 dark:text-stone-300">{String(event.description)}</p> : null}
             {tags.length ? (
