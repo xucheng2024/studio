@@ -257,6 +257,9 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
         <form action={formAction} className="mt-5 flex flex-col gap-4">
           <input type="hidden" name="studio_id" value={activeStudioId} />
           <input type="hidden" name="session_type" value={sessionType} />
+          <p className={`text-sm ${ui.muted}`}>
+            Created sessions are bookable from the public class link. Use guest price for one-time checkout and passes required for package redemption.
+          </p>
 
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Location</span>
@@ -540,6 +543,7 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                 value={guestPrice}
                 onChange={(e) => setGuestPrice(e.target.value)}
               />
+              <p className={`text-xs ${ui.muted}`}>Use 0 for free guest booking.</p>
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Passes required <span className="font-normal text-stone-400">(optional)</span></span>
@@ -553,6 +557,7 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                 value={creditsRequired}
                 onChange={(e) => setCreditsRequired(e.target.value)}
               />
+              <p className={`text-xs ${ui.muted}`}>Blank means class passes cannot be used for this session.</p>
             </label>
           </div>
 

@@ -33,13 +33,15 @@ function collectTriggers(children: ReactNode): ReactNode[] {
 function ConfirmSubmitButton({
   label,
   pendingLabel,
+  disabled = false,
 }: {
   label: string;
   pendingLabel: string;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className={`${ui.btnDangerSm} !min-h-8 gap-1.5 px-2.5`} disabled={pending}>
+    <button type="submit" className={`${ui.btnDangerSm} !min-h-8 gap-1.5 px-2.5`} disabled={pending || disabled}>
       {pending ? (
         <>
           <Loader2 size={14} className="animate-spin" aria-hidden />
@@ -72,6 +74,7 @@ export function ToastConfirmForm({
   confirmMessage,
   confirmLabel = "Confirm",
   pendingLabel = "Removing…",
+  requireText,
   className,
   children,
 }: {
@@ -79,10 +82,12 @@ export function ToastConfirmForm({
   confirmMessage: string;
   confirmLabel?: string;
   pendingLabel?: string;
+  requireText?: string;
   className?: string;
   children: ReactNode;
 }) {
   const [armed, setArmed] = useState(false);
+  const [confirmationText, setConfirmationText] = useState("");
   const router = useRouter();
   const [state, formAction] = useActionState<DashboardFormResult | null, FormData>(action, null);
   const lastMessageRef = useRef<string | null>(null);
@@ -126,9 +131,23 @@ export function ToastConfirmForm({
       onClick={(e) => e.stopPropagation()}
     >
       <span className="min-w-0 leading-snug text-red-900 dark:text-red-100">{confirmMessage}</span>
+      {requireText ? (
+        <label className="flex min-w-40 flex-col gap-1 text-red-900 dark:text-red-100">
+          <span>Type {requireText} to confirm</span>
+          <input
+            className="min-h-8 rounded-md border border-red-200 bg-white px-2 py-1 text-xs text-stone-900 outline-none focus:border-red-400 dark:border-red-900/60 dark:bg-stone-950 dark:text-stone-100"
+            value={confirmationText}
+            onChange={(event) => setConfirmationText(event.target.value)}
+          />
+        </label>
+      ) : null}
       {fields}
-      <ConfirmSubmitButton label={confirmLabel} pendingLabel={pendingLabel} />
-      <CancelConfirmButton onCancel={() => setArmed(false)} />
+      <ConfirmSubmitButton
+        label={confirmLabel}
+        pendingLabel={pendingLabel}
+        disabled={requireText ? confirmationText !== requireText : false}
+      />
+      <CancelConfirmButton onCancel={() => { setArmed(false); setConfirmationText(""); }} />
     </form>
   );
 }

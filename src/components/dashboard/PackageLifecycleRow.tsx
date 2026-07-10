@@ -100,10 +100,10 @@ export function PackageLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      toast.error(body.error ?? "Remove failed");
+      toast.error(body.error ?? "Could not remove package from sales");
       return;
     }
-    toast.success("Package removed");
+    toast.success("Package removed from sales");
     throttledRefresh(router);
   };
 
@@ -151,7 +151,7 @@ export function PackageLifecycleRow({
                       className="font-semibold text-red-700 hover:underline dark:text-red-400"
                       onClick={() => void deletePackage()}
                     >
-                      Remove?
+                      Remove from sales?
                     </button>
                     <button
                       type="button"
@@ -184,6 +184,9 @@ export function PackageLifecycleRow({
             Edit package
           </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <p className={`text-xs ${ui.muted} sm:col-span-2`}>
+              Changes affect future purchases. Removing this package hides it from new sales; existing customer passes stay in their accounts.
+            </p>
             <label className="flex flex-col gap-1 sm:col-span-2">
               <span className={ui.label}>Name</span>
               <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />

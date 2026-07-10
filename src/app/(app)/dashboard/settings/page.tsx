@@ -108,7 +108,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
     <div className="flex max-w-3xl flex-col gap-6">
       <div>
         <h1 className={ui.h1}>Settings</h1>
-        <p className={ui.muted}>Studio-level configuration and admin tools.</p>
+        <p className={ui.muted}>Self-service studio setup for public page, booking, payments, staff, and locations.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <SettingCard
@@ -137,7 +137,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           href={scopedHref("/dashboard/settings/payments", selectedStudioId)}
           icon={CreditCard}
           title="Payment settings"
-          desc="HitPay platform status, sub-merchant credentials, and webhook configuration"
+          desc="Enter studio HitPay credentials, check platform readiness, and enable checkout"
         />
         {isStudioOwner ? (
           <SettingCard
@@ -145,7 +145,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
             href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId)}
             icon={Users}
             title="Staff & roles"
-            desc="Invite staff, assign roles, and manage access"
+            desc="Create invite links, assign roles, and manage access"
           />
         ) : null}
         {isStudioOwner ? (

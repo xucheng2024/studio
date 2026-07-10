@@ -473,5 +473,5 @@ export async function deleteOwnerInvite(
 
   revalidateDashboardSettings("owners");
   revalidateRbacCache();
-  return ok("Owner invite deleted.");
+  return ok("Owner invite record removed.");
 }

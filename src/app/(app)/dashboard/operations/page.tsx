@@ -68,7 +68,7 @@ export default async function OperationsPage({ searchParams }: Props) {
             <p className={ui.badge}>Setup required</p>
             <h1 className={ui.h1}>Create your first studio</h1>
             <p className={ui.muted}>
-              Booking management will be available after studio setup. Add your studio profile first, then return here
+              Bookings will be available after studio setup. Add your studio profile first, then return here
               to manage bookings, verification, check-ins, and exceptions.
             </p>
           </div>
@@ -76,7 +76,7 @@ export default async function OperationsPage({ searchParams }: Props) {
             <p className="font-medium text-stone-900 dark:text-stone-100">Next steps</p>
             <p className={ui.muted}>1. Open overview and create studio</p>
             <p className={ui.muted}>2. Add at least one location and class</p>
-            <p className={ui.muted}>3. Return to Booking management to process daily tasks</p>
+            <p className={ui.muted}>3. Return to Bookings to process daily tasks</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <DashboardAppLink href="/dashboard/overview" className={ui.btnPrimary}>
@@ -95,7 +95,7 @@ export default async function OperationsPage({ searchParams }: Props) {
       <div className={`${ui.card} max-w-2xl`}>
         <p className="font-medium text-stone-900 dark:text-stone-100">Choose a studio to continue</p>
         <p className={`mt-1 ${ui.muted}`}>
-          You have access to multiple studios. Use the studio switcher on the left, then Booking management will load the
+          You have access to multiple studios. Use the studio switcher on the left, then Bookings will load the
           matching queue.
         </p>
       </div>
@@ -189,13 +189,13 @@ export default async function OperationsPage({ searchParams }: Props) {
         >
           <p className="font-medium">Studio contract suspended</p>
           <p className={`mt-1 ${ui.muted}`}>
-            Booking management APIs and mutating actions are paused for this studio. Owners can resume under Settings → Studio
+            Booking APIs and mutating actions are paused for this studio. Owners can resume under Settings → Studio
             contract.
           </p>
         </div>
       ) : null}
       <div>
-        <h1 className={ui.h1}>Booking management</h1>
+        <h1 className={ui.h1}>Bookings</h1>
         <p className={ui.muted}>Daily front desk sales, booking, attendance, and exception handling for classes, events, and services.</p>
       </div>
       <div className={`${ui.card} flex flex-wrap gap-3`}>

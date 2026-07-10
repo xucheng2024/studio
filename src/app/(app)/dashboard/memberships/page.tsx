@@ -15,6 +15,11 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
 
+function membershipStatusLabel(status: string | null | undefined) {
+  if (status === "canceled") return "cancelled";
+  return status ?? "scheduled";
+}
+
 export default async function MembershipsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -85,6 +90,9 @@ export default async function MembershipsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Memberships</h1>
         <p className={`mt-2 ${ui.lead}`}>Create recurring monthly or yearly memberships and manage live subscribers.</p>
+        <p className={`mt-1 text-sm ${ui.muted}`}>
+          New membership products are live once saved. Removing a product from sales stops new sign-ups, but active subscribers are managed below.
+        </p>
         <div className="mt-3">
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
             Back to packages
@@ -190,7 +198,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
       <section>
         <h2 className={ui.h2}>Active subscribers</h2>
         <p className={`mt-1 text-sm ${ui.muted}`}>
-          This list is for membership operations. Use Users when you want the full customer profile.
+          This list is for membership operations. Cancel here when you need to stop a live subscription; use Customers when you want the full customer profile.
         </p>
         {(subscriptions ?? []).length ? (
           <div className={`${ui.card} mt-3 overflow-hidden p-0`}>
@@ -207,12 +215,13 @@ export default async function MembershipsPage({ searchParams }: Props) {
                 </thead>
                 <tbody>
           {(subscriptions ?? []).filter((subscription) => !isMembershipEnded(subscription)).map((subscription) => {
+                    const displayStatus = getMembershipDisplayStatus(subscription);
                     const tone =
-                      getMembershipDisplayStatus(subscription) === "active"
+                      displayStatus === "active"
                         ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                        : getMembershipDisplayStatus(subscription) === "retrying"
+                        : displayStatus === "retrying"
                           ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                          : getMembershipDisplayStatus(subscription) === "ending"
+                          : displayStatus === "ending"
                             ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
                           : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400";
                     return (
@@ -236,7 +245,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
                         </td>
                         <td className="px-4 py-3 align-top">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tone}`}>
-                            {getMembershipDisplayStatus(subscription)}
+                            {membershipStatusLabel(displayStatus)}
                           </span>
                           {subscription.cancel_at_period_end && subscription.current_period_end ? (
                             <p className={`mt-1 text-xs ${ui.muted}`}>

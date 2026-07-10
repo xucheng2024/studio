@@ -396,6 +396,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Payment records</h1>
         <p className={`mt-1 ${ui.muted}`}>Check incoming payments, export records, and view action history.</p>
+        <p className={`mt-1 text-sm ${ui.muted}`}>
+          Use Sync HitPay before manual changes when a customer says they paid. HitPay refunds are attempted automatically; other refund methods are recorded after you process them outside this app.
+        </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
           <DashboardAppLink
@@ -803,7 +806,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <PaymentMarkButton
                     paymentId={p.id}
                     status="refunded"
-                    label="Mark refunded"
+                    label={(p.payment_method ?? "").toLowerCase() === "hitpay" ? "Refund" : "Record refund"}
+                    paymentMethod={p.payment_method}
                   />
                 ) : null}
               </div>

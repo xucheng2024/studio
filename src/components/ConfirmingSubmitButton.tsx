@@ -8,6 +8,7 @@ type Props = {
   confirmMessage: string;
   pendingText?: string;
   disabled?: boolean;
+  formAction?: (formData: FormData) => void | Promise<void>;
 };
 
 export function ConfirmingSubmitButton({
@@ -16,12 +17,14 @@ export function ConfirmingSubmitButton({
   confirmMessage,
   pendingText = "Loading...",
   disabled = false,
+  formAction,
 }: Props) {
   const { pending } = useFormStatus();
 
   return (
     <button
       type="submit"
+      formAction={formAction}
       className={className}
       disabled={disabled || pending}
       onClick={(event) => {

@@ -76,11 +76,13 @@ export function HitpaySettingsForm({
       <div>
         <h2 className={ui.h2}>Sub-merchant setup</h2>
         <p className={`mt-2 text-sm ${ui.muted}`}>
-          This studio still needs its own HitPay merchant account, merchant API key, and webhook salt.
+          Complete this section with details from the studio HitPay merchant account. Leave existing secret fields
+          blank when you only want to update the business name or enable switch.
         </p>
         <ul className={`mt-3 list-disc space-y-1 pl-5 text-sm ${ui.muted}`}>
-          <li>Use the API key from your own HitPay merchant account.</li>
-          <li>Your platform onboarding with HitPay must already be activated.</li>
+          <li>Use the merchant API key from this studio HitPay account.</li>
+          <li>Use the webhook salt configured for the same HitPay merchant.</li>
+          <li>Enable HitPay only after the business name, API key, webhook salt, and platform key are ready.</li>
         </ul>
       </div>
       <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">

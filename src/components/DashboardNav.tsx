@@ -32,7 +32,7 @@ const links: NavLink[] = [
   { href: "/dashboard/shop",       label: "Shop",       icon: ShoppingBag },
   { href: "/dashboard/packages",   label: "Packages",   icon: Package },
   { href: "/dashboard/memberships",label: "Memberships",icon: Repeat },
-  { href: "/dashboard/clients",    label: "Users",      icon: Users },
+  { href: "/dashboard/clients",    label: "Customers",  icon: Users },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },
 ];

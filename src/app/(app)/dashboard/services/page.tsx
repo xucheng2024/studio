@@ -59,6 +59,9 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
         <div>
           <h1 className={ui.h1}>Service setup</h1>
           <p className={ui.muted}>Create and maintain the public services shown on /{studio.public_slug}.</p>
+          <p className={`mt-1 text-sm ${ui.muted}`}>
+            Visible services appear on the public page. Enable enquiry for contact requests, or enable payment for checkout when a price is set.
+          </p>
         </div>
         <DashboardAppLink href={scopedHref("/dashboard/schedule", selectedStudioId)} className={ui.btnSecondarySm}>
           Back to sessions
@@ -105,6 +108,9 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
             <input type="checkbox" name="enable_payment" />
             Enable payment
           </label>
+          <p className={`text-xs ${ui.muted} sm:col-span-2`}>
+            Payment requires a price and working HitPay settings. Leave payment off when you only want visitors to enquire.
+          </p>
 
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Description</span>
@@ -161,7 +167,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                       <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{svc.title}</h3>
                       {!svc.is_active ? (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-                          Inactive
+                          Hidden
                         </span>
                       ) : null}
                     </div>
@@ -200,9 +206,10 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   <ServiceDetailLinkButton serviceId={svc.id} />
                   <ToastConfirmForm
                     action={deleteStudioService}
-                    confirmMessage="Remove this service?"
+                    confirmMessage="Remove this service? Customers will no longer see it on the public page. This cannot be undone."
                     confirmLabel="Remove"
                     pendingLabel="Removing..."
+                    requireText="REMOVE"
                   >
                     <input type="hidden" name="studio_id" value={studio.id} />
                     <input type="hidden" name="service_id" value={svc.id} />
@@ -216,7 +223,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
               <div className="mt-3 grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
                   <input type="checkbox" name="is_active" defaultChecked={Boolean(svc.is_active)} />
-                  Active
+                  Visible on public page
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name="enable_enquiry" defaultChecked={Boolean((svc as { enable_enquiry?: boolean | null }).enable_enquiry)} />
@@ -226,6 +233,9 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   <input type="checkbox" name="enable_payment" defaultChecked={Boolean((svc as { enable_payment?: boolean | null }).enable_payment)} />
                   Enable payment
                 </label>
+                <p className={`text-xs ${ui.muted} sm:col-span-2`}>
+                  Visible controls public page display. Payment requires a price and working HitPay settings.
+                </p>
 
                 <label className="flex flex-col gap-1.5 sm:col-span-2">
                   <span className={ui.label}>Title</span>

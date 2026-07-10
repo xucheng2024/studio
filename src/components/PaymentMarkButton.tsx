@@ -23,11 +23,13 @@ export function PaymentMarkButton({
   paymentId,
   status,
   label,
+  paymentMethod,
   onDone,
 }: {
   paymentId: string;
   status: Status;
   label: string;
+  paymentMethod?: string | null;
   onDone?: () => void;
 }) {
   const router = useRouter();
@@ -37,6 +39,7 @@ export function PaymentMarkButton({
 
   const cfg = statusConfig[status];
   const Icon = cfg.icon;
+  const isHitpayRefund = status === "refunded" && String(paymentMethod ?? "").toLowerCase() === "hitpay";
 
   const execute = async () => {
     setBusy(true);
@@ -60,7 +63,7 @@ export function PaymentMarkButton({
       paid: "Payment confirmed",
       failed: "Marked as failed",
       expired: "Marked as expired",
-      refunded: "Refund recorded",
+      refunded: isHitpayRefund ? "Refund submitted to HitPay" : "Refund recorded",
     };
     toast.success(successMessages[status] ?? "Done");
     if (status === "refunded") {
@@ -100,7 +103,12 @@ export function PaymentMarkButton({
       <div className="flex min-w-48 max-w-xs flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-2.5 dark:border-amber-800/50 dark:bg-amber-950/20">
         <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
           <AlertTriangle size={12} />
-          Confirm refund?
+          {isHitpayRefund ? "Refund via HitPay?" : "Record refund?"}
+        </p>
+        <p className="text-xs text-amber-800 dark:text-amber-300">
+          {isHitpayRefund
+            ? "This will attempt an automatic HitPay refund, then mark the payment as refunded."
+            : "Record this only after the money has been refunded outside this action."}
         </p>
         <textarea
           className={`${ui.input} min-h-10 resize-y text-sm`}
@@ -117,7 +125,7 @@ export function PaymentMarkButton({
             onClick={() => void execute()}
           >
             <Check size={11} />
-            Refund
+            {isHitpayRefund ? "Refund" : "Record refund"}
           </button>
           <button
             type="button"

@@ -105,7 +105,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
   if (sp.session_status) backParams.set("session_status", sp.session_status);
   else if (sp.status) backParams.set("session_status", sp.status);
   const backTarget = sp.back_to === "schedule" ? "/dashboard/schedule" : "/dashboard/operations";
-  const backLabel = sp.back_to === "schedule" ? "Back to sessions" : "Back to booking management";
+  const backLabel = sp.back_to === "schedule" ? "Back to sessions" : "Back to Bookings";
   const backHref = `${backTarget}${backParams.toString() ? `?${backParams.toString()}` : ""}`;
 
   return (

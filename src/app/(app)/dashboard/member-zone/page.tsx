@@ -16,7 +16,14 @@ import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
+type MemberZoneVisibilityFilter = "visible" | "all" | "hidden";
+
+type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string; visibility?: MemberZoneVisibilityFilter }> };
+
+function resolveVisibilityFilter(raw: string | undefined): MemberZoneVisibilityFilter {
+  if (raw === "all" || raw === "hidden") return raw;
+  return "visible";
+}
 
 export default async function DashboardMemberZonePage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -37,19 +44,39 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
   }
 
   const studioId = selectedStudioId ?? studioIds[0];
+  const visibilityFilter = resolveVisibilityFilter(sp.visibility);
   const [{ data: studio }, { data: rows }] = await Promise.all([
     supabase.from("studios").select("id, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("member_zone_series")
       .select("id, title, summary, description, cover_image_url, promo_video_url, access_type, price, sort_order, is_active, share_slug, member_zone_lessons(id, title, summary, description, media_url, media_type, duration_min, access_override, override_price, sort_order, is_active)")
       .eq("studio_id", studioId)
-      .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
   ]);
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
 
   const publicHref = studio.public_slug ? `/${studio.public_slug}#member-zone` : null;
+  const scopedHref = (filter: MemberZoneVisibilityFilter) => {
+    const params = new URLSearchParams();
+    params.set("studio_id", studio.id);
+    if (filter !== "visible") params.set("visibility", filter);
+    return `/dashboard/member-zone?${params.toString()}`;
+  };
+  const allSeries = rows ?? [];
+  const visibleSeriesCount = allSeries.filter((series) => series.is_active !== false).length;
+  const hiddenSeriesCount = allSeries.filter((series) => series.is_active === false).length;
+  const hiddenLessonCount = allSeries.reduce((sum, series) => {
+    const lessonRows = Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons : [];
+    return sum + lessonRows.filter((lesson) => lesson.is_active === false).length;
+  }, 0);
+  const filteredRows = allSeries.filter((series) => {
+    const lessonRows = Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons : [];
+    const hasHiddenLessons = lessonRows.some((lesson) => lesson.is_active === false);
+    if (visibilityFilter === "all") return true;
+    if (visibilityFilter === "hidden") return series.is_active === false || hasHiddenLessons;
+    return series.is_active !== false;
+  });
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
@@ -70,6 +97,20 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
         <p className={`text-sm ${ui.muted}`}>
           Member zone content is managed at the studio level. It is intentionally not filtered by location.
         </p>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <DashboardAppLink href={scopedHref("visible")} className={visibilityFilter === "visible" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            Visible
+          </DashboardAppLink>
+          <DashboardAppLink href={scopedHref("all")} className={visibilityFilter === "all" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            All
+          </DashboardAppLink>
+          <DashboardAppLink href={scopedHref("hidden")} className={visibilityFilter === "hidden" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            Hidden
+          </DashboardAppLink>
+          <p className={`text-xs ${ui.muted}`}>
+            {visibleSeriesCount} visible series, {hiddenSeriesCount} hidden series, {hiddenLessonCount} hidden lessons.
+          </p>
+        </div>
       </div>
 
       <details className={`chevron ${ui.card}`}>
@@ -132,10 +173,17 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
       </details>
 
       <div className="grid gap-4">
-        {(rows ?? []).map((series) => {
-          const lessons = (Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons : []).filter(
-            (lesson) => lesson.is_active !== false,
-          );
+        {filteredRows.map((series) => {
+          const lessonRows = Array.isArray(series.member_zone_lessons) ? series.member_zone_lessons : [];
+          const visibleLessons = lessonRows.filter((lesson) => lesson.is_active !== false);
+          const hiddenLessons = lessonRows.filter((lesson) => lesson.is_active === false);
+          const lessons =
+            visibilityFilter === "all"
+              ? lessonRows
+              : visibilityFilter === "hidden"
+                ? (series.is_active === false ? lessonRows : hiddenLessons)
+                : visibleLessons;
+          const hiddenBySeries = series.is_active === false;
           return (
           <div key={series.id} className={ui.card}>
             <details className="chevron">
@@ -144,22 +192,23 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{series.title}</h3>
                     <span className={ui.badgeNeutral}>{series.access_type}</span>
+                    {hiddenBySeries ? <span className={ui.badgeAmber}>Hidden</span> : null}
                   </div>
                   <p className={`mt-1 text-xs ${ui.muted}`}>
                     {series.price != null && Number(series.price) > 0 ? `SGD ${Number(series.price).toFixed(2)} · ` : ""}
-                    {lessons.length} lessons
+                    {visibleLessons.length} visible · {hiddenLessons.length} hidden lessons
                   </p>
                 </div>
                 <ToastConfirmForm
                   action={deleteMemberZoneSeries}
-                  confirmMessage="Remove this series? It will be hidden from members."
-                  confirmLabel="Remove"
+                  confirmMessage="Hide this series from members?"
+                  confirmLabel="Hide"
                   className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end"
                 >
                   <input type="hidden" name="studio_id" value={studio.id} />
                   <input type="hidden" name="series_id" value={series.id} />
                   <button type="submit" className={ui.btnDangerSm}>
-                    Remove
+                    Hide series
                   </button>
                 </ToastConfirmForm>
               </summary>
@@ -169,7 +218,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
               <div className="grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
                   <input type="checkbox" name="is_active" defaultChecked={Boolean(series.is_active)} />
-                  Active
+                  Visible to members
                 </label>
                 <label className="flex flex-col gap-1.5 sm:col-span-2">
                   <span className={ui.label}>Series title</span>
@@ -232,7 +281,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
               <div className="flex items-center justify-between gap-2">
                 <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Lessons</h4>
                 <span className={`text-xs ${ui.muted}`}>
-                  {lessons.length} total
+                  {lessons.length} shown
                 </span>
               </div>
               <div className="mt-3 grid gap-2">
@@ -249,7 +298,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <p className="font-semibold text-stone-900 dark:text-stone-100">{lesson.title}</p>
-                            {!lesson.is_active ? <span className={ui.badgeNeutral}>Inactive</span> : null}
+                            {!lesson.is_active ? <span className={ui.badgeNeutral}>Hidden</span> : null}
                           </div>
                           <p className={`mt-0.5 text-xs ${ui.muted}`}>
                             {lesson.media_type === "audio" ? "Audio" : "Video"} · {Number(lesson.duration_min ?? 0)} min · {lesson.access_override ?? "inherit"}
@@ -269,7 +318,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                         <label className="flex flex-col gap-1"><span className={ui.label}>Access override</span><select name="access_override" defaultValue={lesson.access_override ?? "inherit"} className={ui.select}><option value="inherit">Inherit series</option><option value="member_only">Members only</option><option value="paid_only">Paid only</option><option value="member_or_paid">Member or paid</option><option value="free">Free</option></select></label>
                         <label className="flex flex-col gap-1"><span className={ui.label}>Override price (SGD)</span><input name="override_price" type="number" min={0} step={0.01} defaultValue={lesson.override_price != null && Number(lesson.override_price) > 0 ? Number(lesson.override_price) : ""} className={ui.input} /></label>
                         <label className="flex flex-col gap-1"><span className={ui.label}>Sort order</span><input name="sort_order" type="number" defaultValue={lesson.sort_order ?? 100} className={ui.input} /></label>
-                        <label className="inline-flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="is_active" defaultChecked={Boolean(lesson.is_active)} />Active</label>
+                        <label className="inline-flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="is_active" defaultChecked={Boolean(lesson.is_active)} />Visible to members</label>
                         <div className="sm:col-span-2">
                           <LessonAccessPreview
                             initialSeriesAccessType={
@@ -286,15 +335,15 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                           <SubmitButton className={ui.btnPrimarySm} pendingText="Saving...">Save lesson</SubmitButton>
                           <ToastConfirmForm
                             action={deleteMemberZoneLesson}
-                            confirmMessage="Remove this lesson? It will be hidden from members."
-                            confirmLabel="Remove"
+                            confirmMessage="Hide this lesson from members?"
+                            confirmLabel="Hide"
                             className="inline-flex"
                           >
                             <input type="hidden" name="studio_id" value={studio.id} />
                             <input type="hidden" name="series_id" value={series.id} />
                             <input type="hidden" name="lesson_id" value={lesson.id} />
                             <button type="submit" className={ui.btnDangerSm}>
-                              Remove
+                              Hide lesson
                             </button>
                           </ToastConfirmForm>
                         </div>
@@ -303,6 +352,13 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
                   </ServerActionToastForm>
                   </div>
                 ))}
+                {!lessons.length ? (
+                  <div className="rounded-xl border border-dashed border-stone-200 px-3 py-4 text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
+                    {visibilityFilter === "hidden"
+                      ? "No hidden lessons in this series."
+                      : "No lessons yet."}
+                  </div>
+                ) : null}
               </div>
               <details className="mt-3">
                 <summary className={`cursor-pointer text-sm font-medium ${ui.muted}`}>+ Add lesson</summary>
@@ -336,6 +392,22 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
           </div>
           );
         })}
+        {!filteredRows.length ? (
+          <div className={ui.emptyState}>
+            <p className={`text-sm ${ui.muted}`}>
+              {visibilityFilter === "hidden"
+                ? "No hidden member zone content."
+                : visibilityFilter === "all"
+                  ? "No member zone content yet."
+                  : "No visible member zone content yet."}
+            </p>
+            <p className={`text-xs ${ui.muted}`}>
+              {visibilityFilter === "hidden"
+                ? "Switch to All or Visible to review published content."
+                : "Create a series to start publishing lessons."}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

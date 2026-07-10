@@ -92,7 +92,9 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
             defaultValue={studio.public_slug ?? ""}
             className={`${ui.input} font-mono text-sm`}
           />
-          <p className={`text-xs ${ui.muted}`}>Public page: /{studio.public_slug ?? "your-slug"}</p>
+          <p className={`text-xs ${ui.muted}`}>
+            Public page: /{studio.public_slug ?? "your-slug"}. Changing this updates the public URL customers use.
+          </p>
         </label>
         <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-auto`} pendingText="Saving...">
           Save basics
@@ -273,6 +275,9 @@ export default async function StudioPublicProfilePage({ searchParams }: Props) {
 
         <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
           <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">WhatsApp contact</h2>
+          <p className={`mt-1 text-xs ${ui.muted}`}>
+            Show a floating WhatsApp button on the public page. Enter the number in international format.
+          </p>
           <label className="mt-2 flex items-center gap-2 text-sm">
             <input type="checkbox" name="whatsapp_enabled" defaultChecked={Boolean(studio.whatsapp_enabled)} />
             Enable WhatsApp button

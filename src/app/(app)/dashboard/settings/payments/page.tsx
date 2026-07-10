@@ -80,7 +80,8 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
       <section className={ui.card}>
         <h2 className={ui.h2}>Setup progress</h2>
         <p className={`mt-2 text-sm ${ui.muted}`}>
-          The platform layer and the studio layer both have to be ready before HitPay should be enabled.
+          Owners can complete the studio layer here. The shared platform key is a server setting and must already be
+          configured by the platform admin.
         </p>
         <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-950/50">
           <div className="flex items-start gap-3">
@@ -99,7 +100,9 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
                 </span>
               </div>
               <p className={`mt-1 text-sm ${ui.muted}`}>
-                Your SaaS server must have the shared HitPay platform key configured before any studio can go live.
+                {platformReady
+                  ? "The shared server key is configured. Continue with this studio's merchant credentials below."
+                  : "Ask the platform admin to configure HITPAY_PLATFORM_API_KEY before enabling payments for this studio."}
               </p>
             </div>
           </div>
@@ -117,11 +120,12 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
       <section className={ui.card}>
         <h2 className={ui.h2}>Configuration status</h2>
         <p className={`mt-2 text-sm ${ui.muted}`}>
-          Platform mode needs two layers: one shared platform key on the server, and one merchant key plus webhook salt
-          for each studio acting as a sub-merchant.
+          Platform mode has two layers. The platform admin owns the shared server key. The studio owner owns the
+          merchant business name, merchant API key, webhook salt, and enable switch on this page.
         </p>
         <p className={`mt-2 text-sm ${ui.muted}`}>
-          Your platform onboarding with HitPay must already be activated before this studio setup can work.
+          If all four status lines below are configured and enabled, customers can use HitPay checkout without support
+          intervention.
         </p>
         <ul className="mt-3 space-y-2 text-sm text-stone-700 dark:text-stone-300">
           <li>`hitpay_enabled`: {studio.hitpay_enabled ? "enabled" : "disabled"}</li>

@@ -94,7 +94,7 @@ export function CancelSessionButton({
               All active bookings will be cancelled. Refunds and class passes apply automatically.
             </p>
             <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-              This does not delete the session or its historical records.
+              The session and historical records stay available.
             </p>
           </div>
         </div>

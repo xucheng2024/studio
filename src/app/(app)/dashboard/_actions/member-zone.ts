@@ -157,12 +157,12 @@ export async function deleteMemberZoneSeries(
     .eq("studio_id", activeStudio.id);
   if (error) {
     console.error(error.message);
-    return err("Could not remove content.");
+    return err("Could not hide content.");
   }
   revalidateDashboardContent("member-zone");
   if (activeStudio.public_slug) revalidatePublicSectionPaths(activeStudio.public_slug, "member-zone", existingSeries?.share_slug ?? null);
   await recordStudioContentUpdate(activeStudio.id, "member-zone");
-  return ok("Series removed.");
+  return ok("Series hidden.");
 }
 
 export async function createMemberZoneLesson(
@@ -326,10 +326,10 @@ export async function deleteMemberZoneLesson(
     .eq("series_id", activeSeries.id);
   if (error) {
     console.error(error.message);
-    return err("Could not remove content.");
+    return err("Could not hide content.");
   }
   revalidateDashboardContent("member-zone");
   if (activeStudio.public_slug) revalidatePublicSectionPaths(activeStudio.public_slug, "member-zone", activeSeries.share_slug ?? null);
   await recordStudioContentUpdate(activeStudio.id, "member-zone");
-  return ok("Lesson removed.");
+  return ok("Lesson hidden.");
 }

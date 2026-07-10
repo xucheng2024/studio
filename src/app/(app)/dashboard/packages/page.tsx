@@ -76,6 +76,9 @@ export default async function PackagesPage({ searchParams }: Props) {
         <p className={`mt-2 ${ui.lead}`}>
           Create and share class pass packs. Single-visit pricing is set per session in Sessions.
         </p>
+        <p className={`mt-1 text-sm ${ui.muted}`}>
+          New packages are live once saved. Copy a package link to sell it directly, or remove it from sales later to stop new purchases.
+        </p>
         <div className="mt-3">
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
             Back to sessions

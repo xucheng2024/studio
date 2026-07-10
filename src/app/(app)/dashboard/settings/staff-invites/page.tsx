@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createStaffInvite, revokeStaffInvite } from "@/app/(app)/dashboard/actions";
+import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -56,7 +57,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
           ← Settings
         </Link>
         <h1 className={ui.h1}>Staff invites</h1>
-        <p className={ui.muted}>Workspace access is managed by invitation.</p>
+        <p className={ui.muted}>Create invite links for staff, then copy and share the link with the right person.</p>
       </div>
 
       <ServerActionToastForm action={createStaffInvite} className={`${ui.card} grid gap-3 md:grid-cols-2`}>
@@ -97,8 +98,8 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
           </select>
         </label>
         <div className="md:col-span-2">
-          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Sending...">
-            Send invite
+          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-auto`} pendingText="Creating...">
+            Create invite link
           </SubmitButton>
         </div>
       </ServerActionToastForm>
@@ -128,9 +129,24 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
                           {invite.status}
                         </span>
                       </div>
-                      <Link href={`/auth?invite_token=${invite.token}`} className={`text-xs ${ui.link}`}>
-                        Open invite link →
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Link href={`/auth?invite_token=${invite.token}`} className={`text-xs ${ui.link}`}>
+                          Open invite link →
+                        </Link>
+                        {invite.status === "pending" ? (
+                          <CopyUrlButton
+                            url={`/auth?invite_token=${invite.token}`}
+                            label="Copy invite link"
+                            className="text-xs"
+                          />
+                        ) : null}
+                      </div>
+                      {invite.status === "pending" ? (
+                        <p className={`text-xs ${ui.muted}`}>
+                          Share this link directly with {invite.email}. It expires on{" "}
+                          {new Date(invite.expires_at).toLocaleDateString()}.
+                        </p>
+                      ) : null}
                     </div>
                     <div className="mt-2 shrink-0">
                       {invite.status === "pending" ? (

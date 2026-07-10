@@ -98,10 +98,10 @@ export function MembershipLifecycleRow({
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      toast.error(body.error ?? "Remove failed");
+      toast.error(body.error ?? "Could not remove membership from sales");
       return;
     }
-    toast.success("Membership removed");
+    toast.success("Membership removed from sales");
     throttledRefresh(router);
   };
 
@@ -144,7 +144,7 @@ export function MembershipLifecycleRow({
                   className="font-semibold text-red-700 hover:underline dark:text-red-400"
                   onClick={() => void removeMembership()}
                 >
-                  Remove?
+                  Remove from sales?
                 </button>
                 <button type="button" className="text-stone-400 hover:text-stone-600" onClick={() => setDeleteConfirm(false)}>
                   <X size={11} />
@@ -173,6 +173,9 @@ export function MembershipLifecycleRow({
             Edit membership
           </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <p className={`text-xs ${ui.muted} sm:col-span-2`}>
+              Changes affect future sign-ups. Removing this product hides it from new sales; it does not cancel existing subscribers.
+            </p>
             <label className="flex flex-col gap-1 sm:col-span-2">
               <span className={ui.label}>Name</span>
               <input className={ui.input} value={name} onChange={(e) => setName(e.target.value)} />
@@ -229,6 +232,9 @@ export function MembershipLifecycleRow({
                   />
                 </label>
               </div>
+              <p className={`text-xs ${ui.muted}`}>
+                This controls the public trial / guarantee message. Subscriber cancellation and refund behavior is handled from the active subscriber list.
+              </p>
             </div>
             <button type="button" disabled={busy} className={`${ui.btnPrimarySm} w-fit sm:col-span-2`} onClick={() => void save()}>
               <Check size={12} />

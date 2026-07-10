@@ -4,6 +4,7 @@ import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ConfirmingSubmitButton } from "@/components/ConfirmingSubmitButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { dayRangeEndInclusiveIso, dayRangeStartIso, localISODate, toLocalDateTimeInputValue } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
@@ -13,12 +14,12 @@ import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarRange, Clock3, Ticket } from "lucide-react";
 
-type EventStatusFilter = "all" | "scheduled" | "completed" | "cancelled";
+type EventStatusFilter = "all" | "scheduled" | "completed" | "hidden";
 
 function resolveEventStatusFilter(raw: string | undefined): EventStatusFilter {
-  if (raw === "all" || raw === "scheduled" || raw === "completed" || raw === "cancelled") return raw;
+  if (raw === "all" || raw === "scheduled" || raw === "completed" || raw === "hidden") return raw;
   if (raw === "active") return "scheduled";
-  if (raw === "inactive") return "cancelled";
+  if (raw === "inactive") return "hidden";
   return "scheduled";
 }
 
@@ -95,7 +96,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
     if (eventStatusFilter === "all") return true;
     if (eventStatusFilter === "scheduled") return isCatalogActive && endMs >= nowMs;
     if (eventStatusFilter === "completed") return isCatalogActive && endMs < nowMs;
-    if (eventStatusFilter === "cancelled") return !isCatalogActive;
+    if (eventStatusFilter === "hidden") return !isCatalogActive;
     return true;
   });
   const activeCount = filteredEvents.filter((event) => event.is_active !== false).length;
@@ -108,9 +109,9 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
     const endMs = new Date(String(e.end_time)).getTime();
     const isCatalogActive = e.is_active !== false;
     const isCompleted = isCatalogActive && endMs < nowMs;
-    const isCancelled = !isCatalogActive;
+    const isHidden = !isCatalogActive;
     return (
-      <form key={e.id} action={updateEvent} className={`${ui.card} ${isCancelled ? "opacity-60" : ""}`}>
+      <form key={e.id} action={updateEvent} className={`${ui.card} ${isHidden ? "opacity-60" : ""}`}>
         <input type="hidden" name="studio_id" value={studioId} />
         <input type="hidden" name="event_id" value={e.id} />
 
@@ -127,9 +128,9 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="font-semibold text-stone-900 dark:text-stone-100">{e.title}</p>
-                {isCancelled ? (
+                {isHidden ? (
                   <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
-                    Cancelled
+                    Hidden
                   </span>
                 ) : null}
                 {isCompleted ? (
@@ -169,9 +170,14 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
           <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
             {href ? <CopyUrlButton url={href} label="Copy event link" /> : null}
             {canEdit ? (
-              <button type="submit" formAction={deleteEvent} className={ui.btnDangerSm}>
-                Remove
-              </button>
+              <ConfirmingSubmitButton
+                className={ui.btnDangerSm}
+                formAction={deleteEvent}
+                confirmMessage="Hide this event? Customers will no longer see it or book it on the public page. Attendee records and payments stay in Bookings."
+                pendingText="Hiding..."
+              >
+                Hide event
+              </ConfirmingSubmitButton>
             ) : null}
           </div>
         </div>
@@ -185,7 +191,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <div className="mt-3 grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input type="checkbox" name="is_active" defaultChecked={Boolean(e.is_active)} />
-                Active
+                Visible on public page
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">
                 <span className={ui.label}>Title</span>
@@ -273,7 +279,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         {/* ── Footer hint ──────────────────────────────────────── */}
         <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
           <p className={`text-xs ${ui.muted}`}>
-            Attendee actions and payment operations are managed in Bookings.
+            Hiding an event only removes it from the public page. Attendee actions and payment operations stay in Bookings.
           </p>
         </div>
       </form>
@@ -295,7 +301,10 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Event setup</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <p className={ui.muted}>
-            Create and maintain standalone paid or free events here. Booking handling stays in Booking management.
+            Create and maintain standalone paid or free events here. Attendee handling stays in Bookings.
+          </p>
+          <p className={`text-sm ${ui.muted}`}>
+            New events are visible after saving. Add an external booking URL only when customers should book outside this app.
           </p>
           <DashboardAppLink href="/dashboard/schedule" className={ui.btnSecondarySm}>
             Back to sessions
@@ -313,7 +322,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
               {filteredEvents.length}
             </p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>{activeCount} live · {inactiveCount} cancelled</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>{activeCount} live · {inactiveCount} hidden</p>
           </div>
         </section>
         <section className={`${ui.statCard} flex items-center gap-4`}>
@@ -333,11 +342,11 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <Clock3 size={18} />
           </span>
           <div>
-            <p className={`text-xs font-medium ${ui.muted}`}>Cancelled</p>
+            <p className={`text-xs font-medium ${ui.muted}`}>Hidden</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
               {inactiveCount}
             </p>
-            <p className={`mt-1 text-xs ${ui.muted}`}>Deactivated (hidden from booking)</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Hidden from public page</p>
           </div>
         </section>
       </div>
@@ -394,6 +403,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Price (SGD)</span>
               <input name="price" type="number" min={0} step={0.01} defaultValue={120} className={ui.input} />
+              <p className={`text-xs ${ui.muted}`}>Use 0 for a free event. Paid checkout requires working HitPay settings.</p>
             </label>
             <div className="md:col-span-2">
               <CoverVideoFields
@@ -422,12 +432,12 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
           {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
           {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
           <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Event status</span>
+            <span className={ui.label}>Visibility</span>
             <select name="event_status" className={ui.select} defaultValue={eventStatusFilter}>
               <option value="all">All</option>
               <option value="scheduled">Scheduled</option>
               <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="hidden">Hidden</option>
             </select>
           </label>
           <label className="flex flex-col gap-1.5">

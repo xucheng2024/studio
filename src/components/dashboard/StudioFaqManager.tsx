@@ -25,17 +25,17 @@ function sortFaqs(rows: FaqRow[]) {
 function FaqItemEditor({
   faq,
   onSave,
-  onDelete,
+  onRemove,
 }: {
   faq: FaqRow;
   onSave: (id: string, patch: Pick<FaqRow, "question" | "answer" | "sort_order">) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onRemove: (id: string) => Promise<void>;
 }) {
   const [question, setQuestion] = useState(faq.question);
   const [answer, setAnswer] = useState(faq.answer);
   const [sortOrder, setSortOrder] = useState(String(faq.sort_order ?? 100));
   const [busy, setBusy] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [removeConfirm, setRemoveConfirm] = useState(false);
 
   const save = async () => {
     setBusy(true);
@@ -53,7 +53,7 @@ function FaqItemEditor({
   const remove = async () => {
     setBusy(true);
     try {
-      await onDelete(faq.id);
+      await onRemove(faq.id);
     } finally {
       setBusy(false);
     }
@@ -66,13 +66,13 @@ function FaqItemEditor({
           <p className="font-medium text-stone-900 dark:text-stone-100">{faq.question}</p>
           <p className={`mt-0.5 text-xs ${ui.muted}`}>Priority {faq.sort_order ?? 100}</p>
         </div>
-        {deleteConfirm ? (
+        {removeConfirm ? (
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs dark:border-red-800/50 dark:bg-red-950/20">
             <AlertTriangle size={11} className="shrink-0 text-red-600 dark:text-red-400" />
             <button type="button" className="font-semibold text-red-700 hover:underline dark:text-red-400" onClick={() => void remove()}>
-              Delete?
+              Remove?
             </button>
-            <button type="button" className="text-stone-400 hover:text-stone-600" onClick={() => setDeleteConfirm(false)}>
+            <button type="button" className="text-stone-400 hover:text-stone-600" onClick={() => setRemoveConfirm(false)}>
               <X size={11} />
             </button>
           </span>
@@ -81,7 +81,7 @@ function FaqItemEditor({
             type="button"
             disabled={busy}
             className={`${ui.btnSecondarySm} border-red-200 text-red-600 dark:border-red-800 dark:text-red-400 disabled:opacity-50`}
-            onClick={() => setDeleteConfirm(true)}
+            onClick={() => setRemoveConfirm(true)}
           >
             <Trash2 size={12} />
           </button>
@@ -171,15 +171,15 @@ export function StudioFaqManager({ studioId, initialFaqs }: { studioId: string; 
     toast.success("FAQ saved");
   };
 
-  const deleteFaq = async (id: string) => {
+  const removeFaq = async (id: string) => {
     const res = await fetch(`/api/dashboard/faqs/${id}`, { method: "DELETE" });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      toast.error(body.error ?? "Could not delete FAQ");
+      toast.error(body.error ?? "Could not remove FAQ");
       return;
     }
     setFaqs((current) => current.filter((item) => item.id !== id));
-    toast.success("FAQ deleted");
+    toast.success("FAQ removed");
   };
 
   return (
@@ -215,7 +215,7 @@ export function StudioFaqManager({ studioId, initialFaqs }: { studioId: string; 
         {faqs.length > 0 ? (
           <ul className="mt-4 flex flex-col gap-3">
             {faqs.map((faq) => (
-              <FaqItemEditor key={faq.id} faq={faq} onSave={saveFaq} onDelete={deleteFaq} />
+              <FaqItemEditor key={faq.id} faq={faq} onSave={saveFaq} onRemove={removeFaq} />
             ))}
           </ul>
         ) : (

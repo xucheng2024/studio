@@ -17,6 +17,11 @@ import { Users } from "lucide-react";
 
 type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string; q?: string; membership_status?: string }> };
 
+function membershipStatusLabel(status: string | null | undefined) {
+  if (status === "canceled") return "cancelled";
+  return status ?? "scheduled";
+}
+
 export default async function ClientsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -310,19 +315,19 @@ export default async function ClientsPage({ searchParams }: Props) {
         />
       </div>
       <div>
-        <h1 className={ui.h1}>User records</h1>
-        <p className={`mt-1 ${ui.muted}`}>Registered users with quick contact and class pass status.</p>
+        <h1 className={ui.h1}>Customers</h1>
+        <p className={`mt-1 ${ui.muted}`}>Registered customers with quick contact, membership, and class pass status.</p>
       </div>
 
       <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-4`}>
         {selectedStudioId ? <input type="hidden" name="studio_id" value={selectedStudioId} /> : null}
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
         <label className="sm:col-span-2">
-          <span className={ui.label}>Search user (name / phone / email)</span>
+          <span className={ui.label}>Search customer (name / phone / email)</span>
           <input
             name="q"
             className={`${ui.input} mt-1`}
-            placeholder="e.g. Chloe / +65 / user@email.com"
+            placeholder="e.g. Chloe / +65 / customer@email.com"
             defaultValue={sp.q ?? ""}
           />
         </label>
@@ -336,7 +341,7 @@ export default async function ClientsPage({ searchParams }: Props) {
             <option value="paused">Paused</option>
             <option value="inactive">Inactive</option>
             <option value="ending">Ending this period</option>
-            <option value="canceled">Canceled</option>
+            <option value="canceled">Cancelled</option>
             <option value="none">No membership</option>
           </select>
         </label>
@@ -359,7 +364,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-stone-900 dark:text-stone-100">
-                      {name ?? "Unnamed member"}
+                      {name ?? "Unnamed customer"}
                     </p>
                     <p className={`truncate text-xs ${ui.muted}`}>{email || clientId}</p>
                     <p className={`truncate text-xs ${ui.muted}`}>{phone?.trim() ? phone : "No phone"}</p>
@@ -368,26 +373,32 @@ export default async function ClientsPage({ searchParams }: Props) {
                     href={`/dashboard/clients/${clientId}?studio_id=${selectedStudioId ?? studioIds[0]}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
                     className={ui.btnSecondarySm}
                   >
-                    Open user
+                    Open customer
                   </DashboardAppLink>
                 </div>
                 {subscription ? (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {(() => {
+                      const displayStatus = getMembershipDisplayStatus(subscription);
+                      const label = membershipStatusLabel(displayStatus);
+                      return (
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeToneClass(
-                      getMembershipDisplayStatus(subscription) === "active"
+                      displayStatus === "active"
                         ? "teal"
-                        : getMembershipDisplayStatus(subscription) === "retrying"
+                        : displayStatus === "retrying"
                           ? "amber"
-                          : getMembershipDisplayStatus(subscription) === "ending"
+                        : displayStatus === "ending"
                             ? "blue"
                           : "stone",
                     )}`}>
-                      {getMembershipDisplayStatus(subscription) === "active"
+                      {displayStatus === "active"
                         ? `${subscription.interval === "yearly" ? "Yearly" : "Monthly"} member`
-                        : getMembershipDisplayStatus(subscription) === "ending"
+                        : displayStatus === "ending"
                           ? `${subscription.interval === "yearly" ? "Yearly" : "Monthly"} · ending`
-                          : `${subscription.interval === "yearly" ? "Yearly" : "Monthly"} · ${getMembershipDisplayStatus(subscription)}`}
+                          : `${subscription.interval === "yearly" ? "Yearly" : "Monthly"} · ${label}`}
                     </span>
+                      );
+                    })()}
                     <span className={`text-xs ${ui.muted}`}>
                       {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription)
                         ? <>Active until <LocalDate iso={subscription.current_period_end} /></>
@@ -425,7 +436,7 @@ export default async function ClientsPage({ searchParams }: Props) {
         {!memberRows.length ? (
           <div className={`mt-4 ${ui.emptyState}`}>
             <div className={ui.emptyStateIcon}><Users size={18} /></div>
-            <p className={`text-sm ${ui.muted}`}>No users found in this scope.</p>
+            <p className={`text-sm ${ui.muted}`}>No customers found in this scope.</p>
           </div>
         ) : null}
       </div>

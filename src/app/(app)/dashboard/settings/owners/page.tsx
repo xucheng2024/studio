@@ -185,7 +185,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           <select name="grant" className={ui.select} defaultValue={grantFilter}>
             <option value="all">All</option>
             <option value="active">Grant active</option>
-            <option value="inactive">Grant inactive</option>
+            <option value="inactive">Grant disabled</option>
           </select>
         </label>
         <label className="flex w-full min-w-0 flex-col gap-1.5 sm:min-w-[180px]">
@@ -245,7 +245,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                     ? "Pending first sign-in"
                     : row.accepted_user_id
                       ? "Activated"
-                      : "Inactive";
+                      : "Cancelled";
                   const statusClass = row.is_active
                     ? "rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
                     : row.accepted_user_id
@@ -321,12 +321,12 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                           )}
                           <ToastConfirmForm
                             action={deleteOwnerInvite}
-                            confirmMessage={`Delete invite record for ${row.email}? This removes the queue row.`}
+                            confirmMessage={`Remove invite record for ${row.email}? This removes the queue row.`}
                             className="inline"
                           >
                             <input type="hidden" name="invite_id" value={row.id} />
-                            <SubmitButton className={ui.btnSecondarySm} pendingText="Deleting…">
-                              Delete
+                            <SubmitButton className={ui.btnSecondarySm} pendingText="Removing…">
+                              Remove record
                             </SubmitButton>
                           </ToastConfirmForm>
                         </div>
@@ -367,7 +367,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
                               : "rounded-md bg-stone-200 px-2 py-0.5 font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-300"
                           }
                         >
-                          Grant: {o.grantActive ? "active" : "inactive"}
+                          Grant: {o.grantActive ? "active" : "disabled"}
                         </span>
                         <span className="rounded-md border border-stone-200 px-2 py-0.5 text-stone-600 dark:border-stone-700 dark:text-stone-400">
                           Studios {o.studioCount} (active {o.activeStudioCount} · suspended {o.suspendedStudioCount})

@@ -200,7 +200,7 @@ export function ClassTemplateLifecycleRow({
                         className="font-semibold text-red-700 hover:underline dark:text-red-400"
                         onClick={() => void deleteTemplate()}
                       >
-                        Remove?
+                        Remove template?
                       </button>
                       <button type="button" className="text-stone-400 hover:text-stone-600" onClick={() => setDeleteConfirm(false)}>
                         <X size={11} />

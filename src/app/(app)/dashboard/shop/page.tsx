@@ -84,6 +84,9 @@ export default async function DashboardShopPage({ searchParams }: Props) {
         <div>
           <h1 className={ui.h1}>Shop setup</h1>
           <p className={ui.muted}>Sell merchandise on your public studio page. Paid orders use HitPay, while free orders skip payment and still collect a shipping address.</p>
+          <p className={`mt-1 text-sm ${ui.muted}`}>
+            Products are visible after creation unless hidden later. Stock is reduced at checkout when a quantity is set.
+          </p>
         </div>
         {publicHref ? (
           <DashboardAppLink href={publicHref} className={ui.btnSecondarySm}>
@@ -126,6 +129,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Stock (blank = unlimited)</span>
             <input name="stock_qty" type="number" min={0} step={1} className={ui.input} />
+            <p className={`text-xs ${ui.muted}`}>Use 0 to show sold out. Leave blank when you do not track stock.</p>
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Sort order</span>
@@ -212,6 +216,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                       defaultValue={product.stock_qty ?? ""}
                       className={ui.input}
                     />
+                    <p className={`text-xs ${ui.muted}`}>Use 0 to stop sales. Blank means unlimited stock.</p>
                   </label>
                   <label className="flex flex-col gap-1.5">
                     <span className={ui.label}>Sort order</span>
@@ -272,6 +277,9 @@ export default async function DashboardShopPage({ searchParams }: Props) {
             <div>
               <h2 className={ui.h2}>Completed orders</h2>
               <p className={`mt-1 text-sm ${ui.muted}`}>Use the unfulfilled filter to work the shipping queue first.</p>
+              <p className={`mt-1 text-xs ${ui.muted}`}>
+                Updating fulfillment only changes the internal order status; it does not send shipping emails or refunds.
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <DashboardAppLink href={scopedShopHref("unfulfilled")} className={fulfillmentFilter === "unfulfilled" ? ui.btnPrimarySm : ui.btnSecondarySm}>

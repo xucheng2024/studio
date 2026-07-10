@@ -18,6 +18,11 @@ type Props = {
   searchParams: Promise<{ location_id?: string; studio_id?: string }>;
 };
 
+function membershipStatusLabel(status: string | null | undefined) {
+  if (status === "canceled") return "cancelled";
+  return status ?? "scheduled";
+}
+
 export default async function ClientLedgerPage({ params, searchParams }: Props) {
   const { clientId } = await params;
   const sp = await searchParams;
@@ -36,7 +41,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio in the left sidebar to view this user&apos;s ledger.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to view this customer&apos;s ledger.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
@@ -63,8 +68,8 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       .limit(1)
       .maybeSingle(),
   ]);
-  if (!clientUser) return <p className={ui.muted}>User not found.</p>;
-  if (!inScopeMember) return <p className={ui.muted}>User not found in this studio.</p>;
+  if (!clientUser) return <p className={ui.muted}>Customer not found.</p>;
+  if (!inScopeMember) return <p className={ui.muted}>Customer not found in this studio.</p>;
   const { data: profile } = await admin
     .from("user_profiles")
     .select("full_name, phone, notes")
@@ -164,7 +169,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div>
         <DashboardAppLink href={`/dashboard/clients?${backParams.toString()}`} className={`${ui.btnSecondarySm} mb-3`}>
-          ← User records
+          ← Customers
         </DashboardAppLink>
         <h1 className={ui.h1}>Package ledger</h1>
         <p className={`mt-1 ${ui.muted}`}>{clientUser.email ?? clientUser.id}</p>
@@ -176,7 +181,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
 
       <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className={ui.h2}>User profile</h2>
+          <h2 className={ui.h2}>Customer profile</h2>
         </div>
         <ServerActionToastForm action={updateMemberProfile} className="mt-3 grid gap-3 sm:grid-cols-2">
           <input type="hidden" name="studio_id" value={activeStudioId} />
@@ -189,7 +194,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
               type="text"
               defaultValue={(profile as { full_name?: string | null } | null)?.full_name ?? ""}
               className={ui.input}
-              placeholder="User name"
+              placeholder="Customer name"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -217,12 +222,13 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         <h2 className={ui.h2}>Membership subscription</h2>
         <ul className="mt-3 flex flex-col gap-2">
           {subscriptions.map((subscription) => {
+            const displayStatus = getMembershipDisplayStatus(subscription);
             const tone =
-              getMembershipDisplayStatus(subscription) === "active"
+              displayStatus === "active"
                 ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"
-                : getMembershipDisplayStatus(subscription) === "retrying"
+                : displayStatus === "retrying"
                   ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                  : getMembershipDisplayStatus(subscription) === "ending"
+                  : displayStatus === "ending"
                     ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
                   : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400";
             const intervalLabel = subscription.billing_interval_snapshot === "yearly" ? "Yearly" : "Monthly";
@@ -238,7 +244,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                     </p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tone}`}>
-                    {getMembershipDisplayStatus(subscription)}
+                    {membershipStatusLabel(displayStatus)}
                   </span>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
@@ -248,7 +254,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                   {subscription.cancel_at_period_end && subscription.current_period_end && !isMembershipEnded(subscription) ? (
                     <span>Active until <LocalDate iso={subscription.current_period_end} /></span>
                   ) : null}
-                  {getMembershipDisplayStatus(subscription) === "canceled" && subscription.canceled_at ? (
+                  {displayStatus === "canceled" && subscription.canceled_at ? (
                     <span>Ended <LocalDate iso={subscription.canceled_at} /></span>
                   ) : (
                     <span>{subscription.cancel_at_period_end ? "No further renewals scheduled" : "Auto-renews until cancelled"}</span>
