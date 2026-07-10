@@ -224,7 +224,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         ] satisfies StickyNavTab[]}
       />
 
-      <section id="studio-intro" className="mt-4 scroll-mt-20">
+      <section id="studio-intro" className="scroll-mt-20">
         {calcomEmbedUrl ? <span id="booking" className="block scroll-mt-20" aria-hidden="true" /> : null}
         <StudioIntroSection
           studioName={publicBrandName}

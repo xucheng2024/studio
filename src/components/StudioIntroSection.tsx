@@ -185,58 +185,60 @@ export function StudioIntroSection({
   ].filter(Boolean) as SocialLink[];
 
   return (
-    <div className="pb-4 lg:pb-8">
-      <div className="grid gap-5 sm:grid-cols-[minmax(260px,48%)_minmax(0,1fr)] sm:items-center lg:grid-cols-[minmax(420px,56%)_minmax(360px,1fr)] lg:gap-8">
-        <div className="order-2 w-full sm:order-1">
-          <PublicVideoCover
-            title={studioName}
-            coverUrl={studioMediaCover}
-            embedUrl={embedUrl}
-            fallbackUrl={videoUrl}
-            priority
-          />
+    <div className="-mx-4 overflow-hidden border-b border-stone-200/70 bg-[linear-gradient(135deg,#f6fbf8_0%,#ffffff_58%,#f8faf9_100%)] px-4 py-6 sm:-mx-6 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8 lg:py-10 dark:border-stone-800 dark:bg-[linear-gradient(135deg,#0f1714_0%,#0c0a09_60%,#111827_100%)]">
+      <div className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-[minmax(260px,48%)_minmax(0,1fr)] sm:items-center lg:grid-cols-[minmax(440px,55%)_minmax(360px,1fr)] lg:gap-9">
+        <div className="relative order-2 w-full sm:order-1">
+          <div className="rounded-[1.35rem] bg-white/60 p-1 shadow-[0_18px_55px_rgba(15,23,42,0.12)] ring-1 ring-white/80 dark:bg-stone-950/40 dark:shadow-black/30 dark:ring-white/10">
+            <PublicVideoCover
+              title={studioName}
+              coverUrl={studioMediaCover}
+              embedUrl={embedUrl}
+              fallbackUrl={videoUrl}
+              priority
+            />
+          </div>
         </div>
-        <div className="order-1 sm:order-2 sm:pt-1 lg:max-w-xl">
+        <div className="order-1 sm:order-2 sm:pt-1 lg:max-w-lg">
           <h1 className="text-2xl font-semibold tracking-tight text-stone-950 dark:text-stone-50 sm:text-3xl lg:text-4xl">
             {studioName}
           </h1>
           {intro?.trim() ? (
-            <details className="group mt-3 lg:mt-4">
-              <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
-                <span className="line-clamp-3 whitespace-pre-wrap group-open:hidden lg:line-clamp-5">{intro.trim()}</span>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-semibold text-teal-700 group-open:hidden dark:text-teal-400">
-                    Read more
+            <>
+              <details className="group mt-3 lg:mt-4">
+                <summary className="cursor-pointer list-none text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
+                  <span className="line-clamp-3 whitespace-pre-wrap group-open:hidden lg:line-clamp-5">
+                    {intro.trim()}{" "}
+                    <span className="font-semibold text-teal-700 dark:text-teal-400">Read more</span>
                   </span>
                   <span className="hidden text-sm font-semibold text-teal-700 group-open:inline dark:text-teal-400">
                     Show less
                   </span>
-                  {(socialLinks.length > 0 || (contactEmail && emailHref)) && (
-                    <span className="flex items-center gap-3" onClick={(e) => e.preventDefault()}>
-                      {socialLinks.map(({ href, label, icon: Icon, iconClassName }) => (
-                        <a
-                          key={label}
-                          href={href}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={label}
-                          title={label}
-                          className={`inline-flex size-5 shrink-0 items-center justify-center transition hover:opacity-70 ${iconClassName}`}
-                        >
-                          <Icon />
-                        </a>
-                      ))}
-                      {contactEmail && emailHref ? (
-                        <EmailPopoverButton contactEmail={contactEmail} emailHref={emailHref} />
-                      ) : null}
-                    </span>
-                  )}
+                </summary>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
+                  {intro.trim()}
+                </p>
+              </details>
+              {(socialLinks.length > 0 || (contactEmail && emailHref)) && (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {socialLinks.map(({ href, label, icon: Icon, iconClassName }) => (
+                    <a
+                      key={label}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={label}
+                      title={label}
+                      className={`inline-flex size-5 shrink-0 items-center justify-center transition hover:opacity-70 ${iconClassName}`}
+                    >
+                      <Icon />
+                    </a>
+                  ))}
+                  {contactEmail && emailHref ? (
+                    <EmailPopoverButton contactEmail={contactEmail} emailHref={emailHref} />
+                  ) : null}
                 </div>
-              </summary>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
-                {intro.trim()}
-              </p>
-            </details>
+              )}
+            </>
           ) : (
             <>
               <p className="mt-3 text-sm leading-snug text-stone-700 dark:text-stone-300 lg:text-base lg:leading-relaxed">
