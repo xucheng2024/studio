@@ -67,7 +67,8 @@ export function EmailFirstCheckout({ submitLabel, busyLabel = "Processing...", d
     const missingUser =
       errorCode === "user_not_found" ||
       errorMessage.includes("user not found") ||
-      errorMessage.includes("user does not exist");
+      errorMessage.includes("user does not exist") ||
+      errorMessage.includes("signups not allowed");
     if (missingUser) {
       setStep("details");
       return;
