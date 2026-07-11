@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { getBrowserSession } from "@/lib/supabase/client";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { ui } from "@/lib/ui";
@@ -28,6 +28,9 @@ export function ServicePurchasePanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
 
   useEffect(() => {
     getBrowserSession()
@@ -35,7 +38,7 @@ export function ServicePurchasePanel({
       .catch(() => setIsLoggedIn(false));
   }, []);
 
-  const handleSubmit = async (payload: EmailFirstCheckoutPayload = {}) => {
+  const handleSubmit = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -45,9 +48,9 @@ export function ServicePurchasePanel({
         body: JSON.stringify({
           slug,
           service_id: serviceId,
-          guest_name: isLoggedIn ? undefined : payload.guest_name,
-          guest_email: isLoggedIn ? undefined : payload.guest_email,
-          guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+          guest_name: isLoggedIn ? undefined : guestName.trim(),
+          guest_email: isLoggedIn ? undefined : guestEmail.trim().toLowerCase(),
+          guest_phone: isLoggedIn ? undefined : guestPhone.trim(),
           note: note.trim() || undefined,
         }),
       });
@@ -91,12 +94,44 @@ export function ServicePurchasePanel({
       </div>
 
       {isLoggedIn === false ? (
-        <EmailFirstCheckout
-          submitLabel={submitLabel}
-          busyLabel="Processing..."
-          onSubmit={(payload) => handleSubmit(payload)}
-          extraFields={noteField}
-        />
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Name</span>
+            <input
+              className={ui.input}
+              value={guestName}
+              onChange={(event) => setGuestName(event.target.value)}
+              placeholder="Your full name"
+              autoComplete="name"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Email</span>
+            <input
+              type="email"
+              className={ui.input}
+              value={guestEmail}
+              onChange={(event) => setGuestEmail(event.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Phone</span>
+            <PhoneNumberInput value={guestPhone} onChange={setGuestPhone} placeholder="9123 4567" required />
+          </label>
+          {noteField}
+          <button
+            type="button"
+            disabled={loading || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim()}
+            className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+            onClick={() => void handleSubmit()}
+          >
+            {loading ? <><Loader2 size={15} className="animate-spin" /> Processing...</> : submitLabel}
+          </button>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {noteField}

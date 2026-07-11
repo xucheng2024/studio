@@ -18,14 +18,26 @@ export type ShippingAddressDefaults = Partial<ShippingAddressPayload>;
 type Props = {
   defaults?: ShippingAddressDefaults | null;
   namePrefix?: string;
+  cityMode?: "input" | "hidden_singapore";
+  countryMode?: "input" | "hidden_sg";
 };
 
 function fieldName(prefix: string | undefined, key: string) {
   return prefix ? `${prefix}_${key}` : key;
 }
 
-export function ShippingAddressFields({ defaults, namePrefix }: Props) {
+export function ShippingAddressFields({
+  defaults,
+  namePrefix,
+  cityMode = "input",
+  countryMode = "input",
+}: Props) {
   const d = defaults ?? {};
+  const cityFieldName = fieldName(namePrefix, "shipping_city");
+  const countryFieldName = fieldName(namePrefix, "shipping_country");
+  const cityValue = d.shipping_city ?? "Singapore";
+  const countryValue = d.shipping_country ?? "SG";
+
   return (
     <fieldset className="grid gap-3 rounded-xl border border-stone-200 p-4 dark:border-stone-700">
       <legend className="px-1 text-sm font-semibold text-stone-900 dark:text-stone-100">Shipping address</legend>
@@ -54,7 +66,7 @@ export function ShippingAddressFields({ defaults, namePrefix }: Props) {
         />
       </label>
       <label className="grid gap-1.5">
-        <span className={ui.label}>Address line 2 (optional)</span>
+        <span className={ui.label}>Unit / floor (optional)</span>
         <input
           name={fieldName(namePrefix, "shipping_address_line2")}
           className={ui.input}
@@ -63,16 +75,20 @@ export function ShippingAddressFields({ defaults, namePrefix }: Props) {
         />
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1.5">
-          <span className={ui.label}>City</span>
-          <input
-            name={fieldName(namePrefix, "shipping_city")}
-            required
-            className={ui.input}
-            defaultValue={d.shipping_city ?? ""}
-            autoComplete="address-level2"
-          />
-        </label>
+        {cityMode === "input" ? (
+          <label className="grid gap-1.5">
+            <span className={ui.label}>City</span>
+            <input
+              name={cityFieldName}
+              required
+              className={ui.input}
+              defaultValue={d.shipping_city ?? ""}
+              autoComplete="address-level2"
+            />
+          </label>
+        ) : (
+          <input type="hidden" name={cityFieldName} value={cityValue} />
+        )}
         <label className="grid gap-1.5">
           <span className={ui.label}>Postal code</span>
           <input
@@ -84,16 +100,23 @@ export function ShippingAddressFields({ defaults, namePrefix }: Props) {
           />
         </label>
       </div>
-      <label className="grid gap-1.5">
-        <span className={ui.label}>Country</span>
-        <input
-          name={fieldName(namePrefix, "shipping_country")}
-          required
-          className={ui.input}
-          defaultValue={d.shipping_country ?? "SG"}
-          autoComplete="country"
-        />
-      </label>
+      {countryMode === "input" ? (
+        <label className="grid gap-1.5">
+          <span className={ui.label}>Country</span>
+          <input
+            name={countryFieldName}
+            required
+            className={ui.input}
+            defaultValue={countryValue}
+            autoComplete="country"
+          />
+        </label>
+      ) : (
+        <input type="hidden" name={countryFieldName} value="SG" />
+      )}
+      {(cityMode !== "input" || countryMode !== "input") ? (
+        <p className={`text-xs ${ui.muted}`}>Delivery area: Singapore</p>
+      ) : null}
     </fieldset>
   );
 }

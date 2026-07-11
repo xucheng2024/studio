@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
 import {
   ShippingAddressFields,
@@ -20,6 +19,10 @@ type Props = {
   outOfStock?: boolean;
   shippingDefaults?: ShippingAddressDefaults | null;
   actionLabel?: string;
+};
+
+type GuestCheckoutPayload = {
+  guest_email?: string;
 };
 
 function readShippingFromRoot(root: HTMLElement | null): ShippingAddressPayload | null {
@@ -57,6 +60,7 @@ export function BuyShopProductPanel({
 }: Props) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [guestEmail, setGuestEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [saveToProfile, setSaveToProfile] = useState(true);
@@ -75,8 +79,7 @@ export function BuyShopProductPanel({
       });
   }, []);
 
-  const submit = async (payload: EmailFirstCheckoutPayload = {}) => {
-    // Re-check auth so OTP sign-ins that happened inside EmailFirstCheckout are reflected.
+  const submit = async (payload: GuestCheckoutPayload = {}) => {
     const session = await getBrowserSession().catch(() => null);
     const currentlyLoggedIn = !!session?.user;
     const currentUserEmail = session?.user?.email ?? null;
@@ -102,6 +105,11 @@ export function BuyShopProductPanel({
       setMsg(message);
       return { ok: false as const, message };
     }
+    if (!currentlyLoggedIn && !buyerEmail) {
+      const message = "Please enter your email.";
+      setMsg(message);
+      return { ok: false as const, message };
+    }
 
     try {
       setBusy(true);
@@ -112,9 +120,9 @@ export function BuyShopProductPanel({
         body: JSON.stringify({
           product_id: productId,
           slug: studioSlug,
-          guest_name: currentlyLoggedIn ? undefined : payload.guest_name,
-          guest_email: currentlyLoggedIn ? undefined : payload.guest_email,
-          guest_phone: currentlyLoggedIn ? undefined : payload.guest_phone,
+          guest_name: currentlyLoggedIn ? undefined : shipping.shipping_name,
+          guest_email: currentlyLoggedIn ? undefined : buyerEmail,
+          guest_phone: currentlyLoggedIn ? undefined : shipping.shipping_phone,
           ...(gift ?? {}),
           save_shipping_to_profile: currentlyLoggedIn ? saveToProfile : false,
           ...shipping,
@@ -141,23 +149,55 @@ export function BuyShopProductPanel({
     }
   };
 
-  const shippingBlock = <ShippingAddressFields defaults={shippingDefaults} />;
+  const shippingBlock = (
+    <ShippingAddressFields
+      defaults={{
+        shipping_city: "Singapore",
+        shipping_country: "SG",
+        ...(shippingDefaults ?? {}),
+      }}
+      cityMode="hidden_singapore"
+      countryMode="hidden_sg"
+    />
+  );
 
   if (isLoggedIn === false) {
     return (
       <div ref={rootRef} className="flex w-full max-w-md flex-col gap-3">
-        <EmailFirstCheckout
-          submitLabel={outOfStock ? "Out of stock" : actionLabel}
-          busyLabel="Creating..."
-          disabled={disabled}
-          onSubmit={submit}
-          extraFields={({ normalizedEmail }) => (
+        <label className="grid gap-1.5">
+          <span className={ui.label}>Email</span>
+          <input
+            type="email"
+            name="guest_email"
+            className={ui.input}
+            value={guestEmail}
+            onChange={(event) => setGuestEmail(event.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
+          <span className={`text-xs ${ui.muted}`}>Order updates and receipt will be sent here.</span>
+        </label>
+        <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={guestEmail} />
+        {shippingBlock}
+        <button
+          type="button"
+          disabled={disabled || busy || !guestEmail.trim() || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
+          onClick={() => void submit({ guest_email: guestEmail })}
+          className={`${ui.btnPrimary} w-full justify-center`}
+        >
+          {busy ? (
             <>
-              <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={normalizedEmail} />
-              {shippingBlock}
+              <Loader2 size={15} className="animate-spin" />
+              Creating...
             </>
+          ) : outOfStock ? (
+            "Out of stock"
+          ) : (
+            actionLabel
           )}
-        />
+        </button>
+        {msg ? <p className={`text-sm ${ui.error}`}>{msg}</p> : null}
       </div>
     );
   }
