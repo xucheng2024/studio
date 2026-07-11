@@ -65,7 +65,7 @@ export function BuyShopProductPanel({
   const [msg, setMsg] = useState<string | null>(null);
   const [saveToProfile, setSaveToProfile] = useState(true);
   const [gift, setGift] = useState<GiftPayload | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     getBrowserSession()
@@ -163,7 +163,14 @@ export function BuyShopProductPanel({
 
   if (isLoggedIn === false) {
     return (
-      <div ref={rootRef} className="flex w-full max-w-md flex-col gap-3">
+      <form
+        ref={rootRef}
+        className="flex w-full max-w-md flex-col gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit({ guest_email: guestEmail });
+        }}
+      >
         <label className="grid gap-1.5">
           <span className={ui.label}>Email</span>
           <input
@@ -181,9 +188,8 @@ export function BuyShopProductPanel({
         <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={guestEmail} />
         {shippingBlock}
         <button
-          type="button"
+          type="submit"
           disabled={disabled || busy || !guestEmail.trim() || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
-          onClick={() => void submit({ guest_email: guestEmail })}
           className={`${ui.btnPrimary} w-full justify-center`}
         >
           {busy ? (
@@ -198,7 +204,7 @@ export function BuyShopProductPanel({
           )}
         </button>
         {msg ? <p className={`text-sm ${ui.error}`}>{msg}</p> : null}
-      </div>
+      </form>
     );
   }
 
@@ -212,7 +218,14 @@ export function BuyShopProductPanel({
   }
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-3">
+    <form
+      ref={rootRef}
+      className="flex flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit({ guest_email: userEmail ?? undefined });
+      }}
+    >
       <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={userEmail} />
       {shippingBlock}
       <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-600 transition hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-400 dark:hover:bg-stone-800/50">
@@ -225,9 +238,8 @@ export function BuyShopProductPanel({
         Save shipping address to my profile
       </label>
       <button
-        type="button"
+        type="submit"
         disabled={disabled || busy || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
-        onClick={() => void submit({ guest_email: userEmail ?? undefined })}
         className={`${ui.btnPrimary} w-full justify-center`}
       >
         {busy ? (
@@ -242,6 +254,6 @@ export function BuyShopProductPanel({
         )}
       </button>
       {msg ? <p className={`text-sm ${ui.error}`}>{msg}</p> : null}
-    </div>
+    </form>
   );
 }

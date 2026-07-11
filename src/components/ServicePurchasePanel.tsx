@@ -94,7 +94,13 @@ export function ServicePurchasePanel({
       </div>
 
       {isLoggedIn === false ? (
-        <div className="flex flex-col gap-3">
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit();
+          }}
+        >
           <label className="flex flex-col gap-1">
             <span className={ui.label}>Name</span>
             <input
@@ -124,14 +130,13 @@ export function ServicePurchasePanel({
           </label>
           {noteField}
           <button
-            type="button"
+            type="submit"
             disabled={loading || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim()}
             className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
-            onClick={() => void handleSubmit()}
           >
             {loading ? <><Loader2 size={15} className="animate-spin" /> Processing...</> : submitLabel}
           </button>
-        </div>
+        </form>
       ) : (
         <div className="flex flex-col gap-3">
           {noteField}

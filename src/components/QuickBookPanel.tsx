@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2, X, AlertCircle } from "lucide-react";
-import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
 import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { getBrowserSession } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
@@ -38,6 +38,9 @@ export function QuickBookPanel({
   const [open, setOpen] = useState(defaultOpen);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gift, setGift] = useState<GiftPayload | null>(null);
@@ -54,8 +57,8 @@ export function QuickBookPanel({
       });
   }, []);
 
-  const handleSubmit = async (payload: EmailFirstCheckoutPayload = {}) => {
-    const buyerEmail = payload.guest_email ?? userEmail ?? "";
+  const handleSubmit = async () => {
+    const buyerEmail = isLoggedIn ? (userEmail ?? "") : guestEmail;
     if (gift?.is_gift && gift.gift_recipient_email === buyerEmail.trim().toLowerCase()) {
       const msg = "Recipient email cannot be the same as your email.";
       setError(msg);
@@ -70,9 +73,9 @@ export function QuickBookPanel({
         body: JSON.stringify({
           slug,
           session_id: sessionId,
-          guest_name: isLoggedIn ? undefined : payload.guest_name,
-          guest_email: isLoggedIn ? undefined : payload.guest_email,
-          guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+          guest_name: isLoggedIn ? undefined : guestName.trim(),
+          guest_email: isLoggedIn ? undefined : guestEmail.trim().toLowerCase(),
+          guest_phone: isLoggedIn ? undefined : guestPhone.trim(),
           ...(gift ?? {}),
         }),
       });
@@ -153,13 +156,61 @@ export function QuickBookPanel({
   );
 
   const guestForm = (
-    <EmailFirstCheckout
-      submitLabel={payLabel}
-      onSubmit={(payload) => handleSubmit(payload)}
-      extraFields={({ normalizedEmail }) => (
-        <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={normalizedEmail} />
-      )}
-    />
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void handleSubmit();
+      }}
+    >
+      {error ? (
+        <p className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+          <AlertCircle size={14} className="shrink-0" />
+          {error}
+        </p>
+      ) : null}
+      <label className="flex flex-col gap-1">
+        <span className={ui.label}>Name</span>
+        <input
+          className={ui.input}
+          value={guestName}
+          onChange={(event) => setGuestName(event.target.value)}
+          placeholder="Your full name"
+          autoComplete="name"
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={ui.label}>Email</span>
+        <input
+          type="email"
+          className={ui.input}
+          value={guestEmail}
+          onChange={(event) => setGuestEmail(event.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={ui.label}>Phone</span>
+        <PhoneNumberInput value={guestPhone} onChange={setGuestPhone} placeholder="9123 4567" required />
+      </label>
+      <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={guestEmail} />
+      <div className={embedded ? "" : ui.mobileActionBar}>
+        <button
+          type="submit"
+          disabled={loading || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim() || (gift?.is_gift === true && !gift.gift_recipient_email)}
+          className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+        >
+          {loading ? (
+            <><Loader2 size={15} className="animate-spin" /> Processing...</>
+          ) : (
+            <>{payLabel}</>
+          )}
+        </button>
+      </div>
+    </form>
   );
 
   const formFields = isLoggedIn ? loggedInForm : guestForm;

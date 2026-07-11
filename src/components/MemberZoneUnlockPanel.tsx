@@ -105,7 +105,7 @@ export function MemberZoneUnlockPanel(props: {
 
     if (!hasBrowserSession && !showGuestForm) {
       setShowGuestForm(true);
-      setMsg("Enter your details below, then tap Buy again.");
+      setMsg(null);
       return;
     }
     if (!hasBrowserSession && showGuestForm) {
@@ -220,7 +220,14 @@ export function MemberZoneUnlockPanel(props: {
 
       {/* Guest form — do not gate on SSR isAuthenticated; it can disagree with getSession() (PWA / ITP / partitions). */}
       {showGuestForm && showPurchaseButton ? (
-        <div className="mt-4 grid gap-2">
+        <form
+          id="member-zone-guest-checkout"
+          className="mt-4 grid gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void startPurchase();
+          }}
+        >
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
               <span className={ui.label}>Name</span>
@@ -230,6 +237,7 @@ export function MemberZoneUnlockPanel(props: {
                 placeholder="Full name"
                 autoComplete="name"
                 className={ui.input}
+                required
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -241,6 +249,7 @@ export function MemberZoneUnlockPanel(props: {
                 placeholder="you@example.com"
                 autoComplete="email"
                 className={ui.input}
+                required
               />
             </label>
           </div>
@@ -251,10 +260,11 @@ export function MemberZoneUnlockPanel(props: {
           <p className="text-xs text-stone-400 dark:text-stone-500">
             Your access account will be created automatically after payment.
           </p>
-        </div>
+          <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={email.trim() || null} />
+        </form>
       ) : null}
 
-      {showPurchaseButton ? (
+      {showPurchaseButton && !showGuestForm ? (
         <div className="mt-3">
           <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={userEmail ?? (email.trim() || null)} />
         </div>
@@ -264,14 +274,17 @@ export function MemberZoneUnlockPanel(props: {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {showPurchaseButton ? (
           <button
-            type="button"
+            type={showGuestForm ? "submit" : "button"}
+            form={showGuestForm ? "member-zone-guest-checkout" : undefined}
             disabled={busy || (gift?.is_gift === true && !gift.gift_recipient_email)}
             className={ui.btnPrimarySm}
-            onClick={() => void startPurchase()}
+            onClick={showGuestForm ? undefined : () => void startPurchase()}
           >
             {busy
               ? "Processing…"
-              : showGuestForm || isLoggedInUi
+              : showGuestForm
+                ? "Continue to payment"
+                : isLoggedInUi
                 ? props.amountLabel ? `Buy · ${props.amountLabel}` : "Get access"
                 : isFreeUnlock ? "Get access" : "Buy now"}
           </button>

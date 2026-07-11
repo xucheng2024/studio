@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { EmailFirstCheckout, type EmailFirstCheckoutPayload } from "@/components/EmailFirstCheckout";
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { getBrowserSession } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
@@ -29,6 +29,9 @@ export function SubscribeMembershipPanel({
   const [busy, setBusy] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [inline, setInline] = useState<InlineState>({ type: "idle" });
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
 
   useEffect(() => {
     getBrowserSession()
@@ -38,7 +41,7 @@ export function SubscribeMembershipPanel({
 
   const myMembershipsHref = `/${studioSlug}/me/memberships`;
 
-  const start = async (payload: EmailFirstCheckoutPayload = {}) => {
+  const start = async () => {
     try {
       setBusy(true);
       setInline({ type: "idle" });
@@ -48,9 +51,9 @@ export function SubscribeMembershipPanel({
         body: JSON.stringify({
           membership_id: membershipId,
           slug: studioSlug,
-          guest_name: isLoggedIn ? undefined : payload.guest_name,
-          guest_email: isLoggedIn ? undefined : payload.guest_email,
-          guest_phone: isLoggedIn ? undefined : payload.guest_phone,
+          guest_name: isLoggedIn ? undefined : guestName.trim(),
+          guest_email: isLoggedIn ? undefined : guestEmail.trim().toLowerCase(),
+          guest_phone: isLoggedIn ? undefined : guestPhone.trim(),
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -95,12 +98,48 @@ export function SubscribeMembershipPanel({
           "You'll open HitPay to add a card for automatic renewals. One-time studio payments may still use PayNow elsewhere."}
       </p>
       {isLoggedIn === false ? (
-        <EmailFirstCheckout
-          submitLabel="Start membership"
-          busyLabel="Continuing..."
-          disabled={disabled}
-          onSubmit={(payload) => start(payload)}
-        />
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void start();
+          }}
+        >
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Name</span>
+            <input
+              className={ui.input}
+              value={guestName}
+              onChange={(event) => setGuestName(event.target.value)}
+              placeholder="Your full name"
+              autoComplete="name"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Email</span>
+            <input
+              type="email"
+              className={ui.input}
+              value={guestEmail}
+              onChange={(event) => setGuestEmail(event.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={ui.label}>Phone</span>
+            <PhoneNumberInput value={guestPhone} onChange={setGuestPhone} placeholder="9123 4567" required />
+          </label>
+          <button
+            type="submit"
+            disabled={busy || disabled || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim()}
+            className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
+          >
+            {busy ? <><Loader2 size={15} className="animate-spin" /> Continuing...</> : "Start membership"}
+          </button>
+        </form>
       ) : null}
       {isLoggedIn !== false ? (
         <div className="flex flex-wrap gap-2">
