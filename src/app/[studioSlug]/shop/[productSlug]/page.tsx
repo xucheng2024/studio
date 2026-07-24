@@ -136,8 +136,7 @@ export default async function PublicShopProductPage({ params }: Props) {
           />
 
           <div className="mt-6">
-            <p className={ui.badge}>Shop</p>
-            <h1 className={`${ui.h1} mt-2`}>{product.title}</h1>
+            <h1 className={ui.h1}>{product.title}</h1>
             <p className={`mt-1 text-sm ${ui.muted}`}>{studio.name}</p>
             {summaryText ? (
               <p className={`mt-3 text-base ${ui.muted}`}>{summaryText}</p>

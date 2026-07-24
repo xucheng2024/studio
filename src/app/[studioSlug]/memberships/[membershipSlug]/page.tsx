@@ -59,8 +59,7 @@ export default async function PublicMembershipPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">
-          <p className={ui.badge}>Membership</p>
-          <h1 className={`${ui.h1} mt-3`}>{membership.name}</h1>
+          <h1 className={ui.h1}>{membership.name}</h1>
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {trialDays > 0 ? (
             <p className="mt-3 inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-300">

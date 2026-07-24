@@ -39,8 +39,7 @@ export default async function PublicPackageBuyPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">
-          <p className={ui.badge}>Package</p>
-          <h1 className={`${ui.h1} mt-3`}>{pkg.name}</h1>
+          <h1 className={ui.h1}>{pkg.name}</h1>
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {pkg.price != null ? (
             <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">

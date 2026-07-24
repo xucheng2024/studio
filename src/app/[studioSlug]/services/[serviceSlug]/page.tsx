@@ -81,8 +81,7 @@ export default async function PublicServicePage({ params }: Props) {
       )}
 
       <div className="max-w-2xl">
-        <p className={ui.badge}>Service</p>
-        <h1 className={`${ui.h1} mt-3`}>{service.title}</h1>
+		<h1 className={ui.h1}>{service.title}</h1>
         <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
         {service.price != null && Number(service.price) > 0 ? (
           <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">

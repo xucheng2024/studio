@@ -212,8 +212,7 @@ export default async function MemberZoneSeriesPage({ params }: Props) {
         );
       })()}
       <div>
-        <p className={ui.badge}>Member zone · {studio.name}</p>
-        <h1 className={`${ui.h1} mt-2`}>{seriesData.title}</h1>
+        <h1 className={ui.h1}>{seriesData.title}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className={ui.badgeNeutral}>{seriesBadge}</span>
           {lessons.length > 0 ? (

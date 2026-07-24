@@ -91,8 +91,7 @@ export default async function PublicEventPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="min-w-0">
-          <p className={ui.badge}>Event</p>
-          <h1 className={`${ui.h1} mt-3`}>{event.title}</h1>
+          <h1 className={ui.h1}>{event.title}</h1>
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
 
           <div className="mt-4 flex flex-col gap-4 text-sm text-stone-600 dark:text-stone-300">
