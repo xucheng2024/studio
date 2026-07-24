@@ -49,7 +49,6 @@ export default async function PublicPackagesPage({ params }: Props) {
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#packages`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>{studio.public_packages_title?.trim() || "Packages"}</h1>
-        <p className={`mt-1 ${ui.muted}`}>Buy a class pass pack and book any upcoming session.</p>
       </div>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {(packages ?? []).map((pkg) => {

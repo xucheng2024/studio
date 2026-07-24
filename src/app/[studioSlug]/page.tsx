@@ -215,12 +215,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
         showMembershipsLink={memberships.length > 0}
         introSectionId="studio-intro"
         tabs={[
-          ...(services.length > 0 ? [{ id: "services", label: "Services" }] : []),
-          ...(classes.length > 0 ? [{ id: "upcoming-classes", label: "Classes" }] : []),
-          ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: "Events" }] : []),
-          ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: "Member zone" }] : []),
-          ...(shopProducts.length > 0 ? [{ id: "shop", label: "Shop" }] : []),
-          ...(packages.length > 0 ? [{ id: "packages", label: "Packages" }] : []),
+          ...(services.length > 0 ? [{ id: "services", label: servicesTitle }] : []),
+          ...(classes.length > 0 ? [{ id: "upcoming-classes", label: classesTitle }] : []),
+          ...((events ?? []).length > 0 || (pastEvents ?? []).length > 0 ? [{ id: "events", label: eventsTitle }] : []),
+          ...(memberZoneSeries.length > 0 ? [{ id: "member-zone", label: memberZoneTitle }] : []),
+          ...(shopProducts.length > 0 ? [{ id: "shop", label: shopTitle }] : []),
+          ...(packages.length > 0 ? [{ id: "packages", label: packagesTitle }] : []),
         ] satisfies StickyNavTab[]}
       />
 
@@ -252,7 +252,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             </div>
             {hiddenServices.length > 0 ? (
               <Link href={studioServicesPath(studio.public_slug)} className={ui.link}>
-                View all services
+                See all
               </Link>
             ) : null}
           </div>
@@ -354,7 +354,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{classesTitle}</h2>
             {hiddenClasses.length > 0 ? (
               <Link href={studioClassesPath(studio.public_slug)} className={ui.link}>
-                View all classes
+                See all
               </Link>
             ) : null}
           </div>
@@ -477,7 +477,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{eventsTitle}</h2>
             {hiddenEvents.length > 0 || pastEvents.length > 0 ? (
               <Link href={eventsListPath} className={ui.link}>
-                View all events
+                See all
               </Link>
             ) : null}
           </div>
@@ -579,11 +579,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{memberZoneTitle}</h2>
             {hiddenMemberZoneSeries.length > 0 ? (
               <Link href={studioMemberZoneListPath(studio.public_slug)} className={`${ui.link} shrink-0`}>
-                View all series
+                See all
               </Link>
             ) : null}
           </div>
-          <p className={`mt-1 text-sm ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {visibleMemberZoneSeries.map((series) => {
               const href = studioMemberZonePath(studio.public_slug, series.share_slug);
@@ -656,10 +655,9 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           <div className="flex items-center justify-between gap-3">
             <h2 className={ui.h2}>{shopTitle}</h2>
             <Link href={studioShopPath(studio.public_slug)} className={`${ui.link} shrink-0`}>
-              View shop
+              See all
             </Link>
           </div>
-          <p className={`mt-1 text-sm ${ui.muted}`}>Merchandise available for purchase and delivery.</p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4">
             {visibleShopProducts.map((product, idx) => (
               <ShopProductCard
@@ -683,13 +681,10 @@ export default async function StudioPublicLandingPage({ params }: Props) {
             <h2 className={ui.h2}>{packagesTitle}</h2>
             {hiddenPackages.length > 0 ? (
               <Link href={studioPackagesPath(studio.public_slug)} className={ui.link}>
-                View all packages
+                See all
               </Link>
             ) : null}
           </div>
-          <p className={`mt-1 text-sm ${ui.muted}`}>
-            Buy a class pass pack and book any upcoming session.
-          </p>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visiblePackages.map((pkg) => {
               const buyHref = pkg.share_slug

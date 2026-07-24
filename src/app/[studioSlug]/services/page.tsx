@@ -68,9 +68,6 @@ export default async function PublicServicesPage({ params }: Props) {
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#services`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>{studio.public_services_title?.trim() || "Services"}</h1>
-        <p className={`mt-1 text-sm ${ui.muted}`}>
-          Choose a service to view details, pay online when available, or send an enquiry.
-        </p>
       </div>
       <div className="mt-5 grid gap-4">
         {(services ?? []).map((svc) => {

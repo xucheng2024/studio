@@ -32,7 +32,7 @@ export default async function StudioBookingPage({ params }: Props) {
   const supabase = createAdminClient();
   const studioRes = await supabase
     .from("studios")
-    .select("id, name, public_slug, contract_status")
+    .select("id, name, public_slug, public_classes_title, contract_status")
     .eq("public_slug", slug)
     .maybeSingle();
   const { data: studio, error: stErr } = studioRes;
@@ -70,10 +70,9 @@ export default async function StudioBookingPage({ params }: Props) {
       {/* ── Studio header ── */}
       <header className="mb-8 mt-4 max-w-2xl">
         <p className={ui.badge}>{studio.name}</p>
-        <h1 className={`${ui.h1} mt-3`}>Book a class</h1>
-        <p className={`mt-2 ${ui.lead}`}>
-          Pick a session to open its page and complete booking or checkout.
-        </p>
+        <h1 className={`${ui.h1} mt-3`}>
+          {studio.public_classes_title?.trim() || "Classes"}
+        </h1>
 
         {/* Policy summary */}
         {rules ? (

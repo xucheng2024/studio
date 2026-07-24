@@ -34,7 +34,7 @@ export default async function PublicMemberZonePage({ params }: Props) {
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, contract_status")
+    .select("id, name, public_slug, public_member_zone_title, contract_status")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") notFound();
@@ -51,8 +51,9 @@ export default async function PublicMemberZonePage({ params }: Props) {
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#member-zone`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4 max-w-2xl">
-        <h1 className={ui.h1}>Member zone</h1>
-        <p className={`mt-1 ${ui.muted}`}>Exclusive audio &amp; video lesson series for members.</p>
+        <h1 className={ui.h1}>
+          {studio.public_member_zone_title?.trim() || "Member zone"}
+        </h1>
       </div>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {(seriesRows ?? []).map((series) => {

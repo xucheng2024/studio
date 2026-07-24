@@ -123,7 +123,7 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
   const admin = createAdminClient();
   const { data: studio } = await admin
     .from("studios")
-    .select("id, name, public_slug, contract_status")
+    .select("id, name, public_slug, public_events_title, contract_status")
     .eq("public_slug", studioSlug)
     .maybeSingle();
   if (!studio || studio.contract_status === "suspended") notFound();
@@ -156,8 +156,7 @@ export default async function PublicEventsPage({ params, searchParams }: Props) 
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#events`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-2xl">
-          <h1 className={ui.h1}>Events</h1>
-          <p className={`mt-1 text-sm ${ui.muted}`}>Browse upcoming events, or review past events from this studio.</p>
+          <h1 className={ui.h1}>{studio.public_events_title?.trim() || "Events"}</h1>
         </div>
         <div className="flex gap-3 text-sm font-medium">
           <Link href={studioEventsPath(studio.public_slug)} className={activeTab === "upcoming" ? "text-teal-700 dark:text-teal-400" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"}>Upcoming</Link>

@@ -49,7 +49,6 @@ export default async function PublicShopPage({ params }: Props) {
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#shop`}>Back to studio</StudioPublicBackNav>
       <div className="mt-4 max-w-2xl">
         <h1 className={ui.h1}>{shopTitle}</h1>
-        <p className={`mt-1 text-sm ${ui.muted}`}>Browse merchandise from {studio.name}.</p>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-2.5">
         {(products ?? []).map((product, idx) => (
