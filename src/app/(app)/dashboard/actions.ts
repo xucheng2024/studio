@@ -2,6 +2,7 @@ export {
   createLocation,
   createStudio,
   savePublicLogoUrl,
+  setLocationOperatingHoursWeekAction,
   toggleLocationActive,
   updateLocation,
   updateStudioBasics,
@@ -13,6 +14,20 @@ export {
   updateStudioPublicProfile,
 } from "./_actions/studio-settings";
 export type { BookingSettingsResult, CustomDomainFormResult, HitpaySettingsResult } from "./_actions/studio-settings";
+
+export {
+  updateServiceAvailabilityDefaultsAction,
+  setServiceEligibleEmployeesAction,
+  setServiceResourceRequirementsAction,
+} from "./_actions/service-availability";
+
+export {
+  createAvailabilityExceptionAction,
+  deleteAvailabilityExceptionAction,
+  setEmployeeWorkingHoursWeekAction,
+} from "./_actions/staff-availability";
+
+export { setSalonResourceActiveAction, upsertSalonResourceAction } from "./_actions/salon-resources";
 
 export {
   createClassTemplate,

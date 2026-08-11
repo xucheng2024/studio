@@ -1,4 +1,11 @@
-import { createStudioService, deleteStudioService, updateStudioService } from "@/app/(app)/dashboard/actions";
+import {
+  createStudioService,
+  deleteStudioService,
+  setServiceEligibleEmployeesAction,
+  setServiceResourceRequirementsAction,
+  updateServiceAvailabilityDefaultsAction,
+  updateStudioService,
+} from "@/app/(app)/dashboard/actions";
 import Image from "next/image";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
@@ -8,6 +15,7 @@ import { ServiceDetailLinkButton } from "@/components/dashboard/ServiceDetailLin
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { formatPublicTagsInput } from "@/lib/publicTags";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -42,16 +50,48 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
   const studioId = selectedStudioId ?? studioIds[0] ?? null;
   if (!studioId) return <p className={ui.muted}>Create a studio first.</p>;
 
-  const [{ data: studio }, { data: services }] = await Promise.all([
+  const admin = createAdminClient();
+  const [{ data: studio }, { data: services }, { data: employees }, { data: serviceEmployees }, { data: resourceRequirements }] = await Promise.all([
     supabase.from("studios").select("id, name, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("studio_services")
-      .select("id, title, summary, description, price, cover_image_url, video_url, tags, is_active, sort_order, enable_enquiry, enable_payment")
+      .select("id, title, summary, description, price, cover_image_url, video_url, tags, is_active, sort_order, enable_enquiry, enable_payment, default_duration_minutes, default_prep_minutes, default_buffer_minutes")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
+    admin
+      .from("employees")
+      .select("id, display_name, employment_status")
+      .eq("studio_id", studioId)
+      .eq("is_active", true)
+      .in("employment_status", ["active", "probation"])
+      .order("display_name"),
+    admin
+      .from("service_employees")
+      .select("service_id, employee_id, is_active")
+      .eq("studio_id", studioId),
+    admin
+      .from("service_resource_requirements")
+      .select("service_id, resource_type, required_quantity")
+      .eq("studio_id", studioId),
   ]);
   if (!studio) return <p className={ui.muted}>Studio not found.</p>;
+
+  const eligibleEmployeeMap = new Map<string, Set<string>>();
+  for (const row of serviceEmployees ?? []) {
+    if (!row.is_active) continue;
+    const existing = eligibleEmployeeMap.get(row.service_id) ?? new Set<string>();
+    existing.add(row.employee_id);
+    eligibleEmployeeMap.set(row.service_id, existing);
+  }
+  const requirementMap = new Map<string, Partial<Record<"room" | "bed" | "equipment" | "other", number>>>();
+  for (const row of resourceRequirements ?? []) {
+    const existing = requirementMap.get(row.service_id) ?? {};
+    existing[row.resource_type as "room" | "bed" | "equipment" | "other"] = row.required_quantity;
+    requirementMap.set(row.service_id, existing);
+  }
+
+  const candidateEmployeeIds = (employees ?? []).map((employee) => employee.id).join(",");
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
@@ -151,9 +191,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
 
       <div className="grid gap-4">
         {(services ?? []).map((svc) => (
-          <ServerActionToastForm key={svc.id} action={updateStudioService} className={ui.card}>
-            <input type="hidden" name="studio_id" value={studio.id} />
-            <input type="hidden" name="service_id" value={svc.id} />
+          <div key={svc.id} className={ui.card}>
             <details className="chevron">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
@@ -220,7 +258,9 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                 </div>
               </summary>
 
-              <div className="mt-3 grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
+              <ServerActionToastForm action={updateStudioService} className="mt-3 grid gap-3 border-t border-stone-100 pt-3 dark:border-stone-800 sm:grid-cols-2">
+                <input type="hidden" name="studio_id" value={studio.id} />
+                <input type="hidden" name="service_id" value={svc.id} />
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
                   <input type="checkbox" name="is_active" defaultChecked={Boolean(svc.is_active)} />
                   Visible on public page
@@ -269,6 +309,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   />
                   <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
                 </label>
+
                 <div className="sm:col-span-2">
                   <CoverVideoFields
                     studioId={studio.id}
@@ -289,9 +330,136 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                     Save changes
                   </SubmitButton>
                 </div>
+              </ServerActionToastForm>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <ServerActionToastForm action={updateServiceAvailabilityDefaultsAction} className="grid gap-3 rounded-xl border border-stone-200/80 p-3 dark:border-stone-800/80 sm:grid-cols-3">
+                    <input type="hidden" name="studio_id" value={studio.id} />
+                    <input type="hidden" name="service_id" value={svc.id} />
+                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100 sm:col-span-3">Appointment defaults</p>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Duration (mins)</span>
+                      <input
+                        name="default_duration_minutes"
+                        type="number"
+                        min="1"
+                        defaultValue={Number((svc as { default_duration_minutes?: number }).default_duration_minutes ?? 60)}
+                        className={ui.input}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Prep (mins)</span>
+                      <input
+                        name="default_prep_minutes"
+                        type="number"
+                        min="0"
+                        defaultValue={Number((svc as { default_prep_minutes?: number }).default_prep_minutes ?? 0)}
+                        className={ui.input}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Cleanup buffer (mins)</span>
+                      <input
+                        name="default_buffer_minutes"
+                        type="number"
+                        min="0"
+                        defaultValue={Number((svc as { default_buffer_minutes?: number }).default_buffer_minutes ?? 0)}
+                        className={ui.input}
+                      />
+                    </label>
+                    <div className="sm:col-span-3">
+                      <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-fit`} pendingText="Saving...">
+                        Save appointment defaults
+                      </SubmitButton>
+                    </div>
+                  </ServerActionToastForm>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <ServerActionToastForm action={setServiceEligibleEmployeesAction} className="rounded-xl border border-stone-200/80 p-3 dark:border-stone-800/80">
+                    <input type="hidden" name="studio_id" value={studio.id} />
+                    <input type="hidden" name="service_id" value={svc.id} />
+                    <input type="hidden" name="candidate_employee_ids" value={candidateEmployeeIds} />
+                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Eligible staff</p>
+                    {(employees ?? []).length === 0 ? (
+                      <p className={`mt-2 text-xs ${ui.muted}`}>No active employees available yet.</p>
+                    ) : (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        {(employees ?? []).map((employee) => {
+                          const checked = eligibleEmployeeMap.get(svc.id)?.has(employee.id) ?? false;
+                          return (
+                            <label key={`${svc.id}-${employee.id}`} className="flex items-center gap-2 text-sm">
+                              <input type="checkbox" name="employee_ids" value={employee.id} defaultChecked={checked} />
+                              <span>{employee.display_name ?? "Unnamed staff"}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="mt-3">
+                      <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-fit`} pendingText="Saving...">
+                        Save eligible staff
+                      </SubmitButton>
+                    </div>
+                  </ServerActionToastForm>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <ServerActionToastForm action={setServiceResourceRequirementsAction} className="grid gap-3 rounded-xl border border-stone-200/80 p-3 dark:border-stone-800/80 sm:grid-cols-4">
+                    <input type="hidden" name="studio_id" value={studio.id} />
+                    <input type="hidden" name="service_id" value={svc.id} />
+                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100 sm:col-span-4">Required resource types</p>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Rooms</span>
+                      <input
+                        name="room_qty"
+                        type="number"
+                        min="0"
+                        defaultValue={requirementMap.get(svc.id)?.room ?? 0}
+                        className={ui.input}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Beds</span>
+                      <input
+                        name="bed_qty"
+                        type="number"
+                        min="0"
+                        defaultValue={requirementMap.get(svc.id)?.bed ?? 0}
+                        className={ui.input}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Equipment</span>
+                      <input
+                        name="equipment_qty"
+                        type="number"
+                        min="0"
+                        defaultValue={requirementMap.get(svc.id)?.equipment ?? 0}
+                        className={ui.input}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className={ui.label}>Other</span>
+                      <input
+                        name="other_qty"
+                        type="number"
+                        min="0"
+                        defaultValue={requirementMap.get(svc.id)?.other ?? 0}
+                        className={ui.input}
+                      />
+                    </label>
+                    <div className="sm:col-span-4">
+                      <SubmitButton className={`${ui.btnSecondarySm} w-full sm:w-fit`} pendingText="Saving...">
+                        Save requirements
+                      </SubmitButton>
+                    </div>
+                  </ServerActionToastForm>
+                </div>
               </div>
             </details>
-          </ServerActionToastForm>
+          </div>
         ))}
       </div>
     </div>

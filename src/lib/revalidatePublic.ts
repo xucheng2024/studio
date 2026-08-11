@@ -25,7 +25,9 @@ export type DashboardSettingsSection =
   | "booking"
   | "payments"
   | "locations"
-  | "staff-invites";
+  | "staff-invites"
+  | "staff-availability"
+  | "resources";
 
 export function studioPublicCacheTag(publicSlug: string) {
   const slug = normalizeStudioSlug(publicSlug);
@@ -134,6 +136,10 @@ function dashboardSettingsPaths(section: DashboardSettingsSection) {
       return ["/dashboard/settings", "/dashboard/settings/locations", "/dashboard/schedule", "/dashboard/frontdesk", "/dashboard/operations"];
     case "staff-invites":
       return ["/dashboard/settings/staff-invites"];
+    case "staff-availability":
+      return ["/dashboard/settings/staff-availability"];
+    case "resources":
+      return ["/dashboard/settings/resources"];
   }
 }
 

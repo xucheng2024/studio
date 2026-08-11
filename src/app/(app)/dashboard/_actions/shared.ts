@@ -182,6 +182,27 @@ export function sanitizeTrustedLogoUrl(raw: string | null): string | null {
   return isTrustedCoverImageUrl(value) ? value : null;
 }
 
+/**
+ * Parse a comma-separated "HH:MM-HH:MM, HH:MM-HH:MM" input into an ordered
+ * list of {start, end} pairs. Returns null on any malformed entry (missing
+ * colon, non-numeric, wrong segment count) so the caller can reject the
+ * whole submission rather than silently dropping a bad interval. An empty/
+ * blank input returns an empty array (no intervals), not null.
+ */
+export function parseTimeRangeList(raw: FormDataEntryValue | null): Array<{ start: string; end: string }> | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return [];
+  const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+  const ranges: Array<{ start: string; end: string }> = [];
+  const timeRangePattern = /^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/;
+  for (const part of parts) {
+    const match = timeRangePattern.exec(part);
+    if (!match) return null;
+    ranges.push({ start: `${match[1]}:${match[2]}`, end: `${match[3]}:${match[4]}` });
+  }
+  return ranges;
+}
+
 export function sanitizePriceNullable(raw: FormDataEntryValue | null): number | null {
   if (raw === null || String(raw).trim() === "") return null;
   const value = Number(raw);

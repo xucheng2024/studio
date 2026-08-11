@@ -34,7 +34,7 @@
 | Phase 0 | FND-02 Customer | 已上线 | 无 | 作为后续客户数据契约，不重做 |
 | Phase 0 | FND-03 Service/Location | 已上线 | FND-01 | 作为后续门店服务契约，不重做 |
 | Phase 0 | FND-04 Audit/Idempotency | 已实现/待验证 | 无 | 修复 051 既有 Migration 问题后对完整历史重跑一次回归；之后可供 APT-02/PKG-01/POS-01/MKT-02/PAY-02 复用 |
-| Phase 1 | APT-01 Availability/Resources | 未开始 | FND-01、FND-03 | 先确认 FND-03 验收及默认时长/缓冲契约 |
+| Phase 1 | APT-01 Availability/Resources | 已实现/待验证 | FND-01、FND-03 | 已补批量原子 RPC、资源跨门店 strict guard、DB 侧 exception 归属校验、联合可用性接口、资源编辑 UI；新增静态门禁脚本、resolver 回归脚本、数据库回滚脚本（`postgres:15`）通过，`next build` 通过；待补真实环境角色矩阵/动态越权/移动端回归后可升为已验证 |
 | Phase 1 | APT-02 Appointment Transaction | 未开始 | APT-01、FND-02、FND-04 | 等待依赖 |
 | Phase 1 | APT-03 Backoffice Calendar | 未开始 | APT-02 | 等待依赖 |
 | Phase 1 | CRM-01 Sensitive Customer Data | 未开始 | FND-02 | 可与 APT-01 并行 |
@@ -64,5 +64,5 @@
 ## 当前建议领取顺序
 
 1. FND-04 已实现/待验证；建议先单独修复 `051_member_profile_notes.sql` 的既有 Migration 问题（详见 [FND-04](./tasks/FND-04.md) 当前确认边界），以便对完整历史做一次真实回归后再标记为已验证。
-2. APT-01 与 CRM-01 在基础依赖完成后并行。
-3. 按 [完整实施主计划](./16-complete-implementation-plan.md) 的 Gate 顺序继续。
+2. APT-01 已实现/待验证；静态门禁与联合可用性脚本已通过，下一步补真实环境的角色端到端权限矩阵、动态越权与 FND-01~FND-04 回归证据，完成后可解锁 APT-02。
+3. CRM-01 可并行推进；APT-02 在 APT-01/FND-04 验证收口后启动。

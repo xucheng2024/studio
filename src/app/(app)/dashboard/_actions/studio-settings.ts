@@ -23,6 +23,7 @@ import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { parseDatetimeLocalAsSgt } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { setLocationOperatingHoursForWeek } from "@/lib/staff-availability";
 import {
   hasStudioGlobalRole,
   hasStudioRole,
@@ -30,6 +31,7 @@ import {
   DashboardFormResult,
   err,
   ok,
+  parseTimeRangeList,
   requireOwnedStudioAccess,
   requireStudio,
   requireUser,
@@ -38,6 +40,17 @@ import {
   sanitizeTrustedLogoUrl,
   sanitizeVideoUrl,
 } from "./shared";
+
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+const WEEKDAY_LABELS: Record<number, string> = {
+  0: "Sunday",
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+};
 
 function parseStudioLimit(value: unknown) {
   const parsed = Number.parseInt(String(value ?? "").trim(), 10);
@@ -713,4 +726,56 @@ export async function toggleLocationActive(
 
   revalidateDashboardSettings("locations");
   return ok(nextActive ? "Location enabled." : "Location disabled.");
+}
+
+/**
+ * Save a location's operating hours for the week in one submission. Each
+ * weekday is independent: a checked "closed" box marks that day fully
+ * closed; a non-empty interval text updates that day's open hours; a
+ * blank, non-closed day is left untouched (no RPC call), so partially
+ * filling in the form does not wipe out days the user did not intend to
+ * change. Scope (Owner / all-location Manager / the location's own
+ * Location Manager) is re-verified inside setLocationOperatingHoursForWeekday.
+ */
+export async function setLocationOperatingHoursWeekAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  if (!studioId || !locationId) return err("Please fill the required fields.");
+
+  const payload: Array<{
+    weekday: number;
+    isClosed: boolean;
+    intervals: Array<{ opens_at: string; closes_at: string }>;
+  }> = [];
+
+  for (const weekday of WEEKDAYS) {
+    const isClosed = formData.get(`closed_${weekday}`) === "on";
+    const ranges = parseTimeRangeList(formData.get(`weekday_${weekday}`));
+    if (ranges === null) {
+      return err(`Invalid time range for ${WEEKDAY_LABELS[weekday]}. Use HH:MM-HH:MM, comma separated.`);
+    }
+    if (!isClosed && ranges.length === 0) continue;
+    payload.push({
+      weekday,
+      isClosed,
+      intervals: isClosed ? [] : ranges.map((range) => ({ opens_at: range.start, closes_at: range.end })),
+    });
+  }
+
+  if (payload.length === 0) return ok("No operating-hours changes submitted.");
+
+  const { user } = await requireUser();
+  const result = await setLocationOperatingHoursForWeek({
+    userId: user.id,
+    studioId,
+    locationId,
+    days: payload,
+  });
+  if (!result.ok) return err(result.message ?? "Could not save operating hours.");
+
+  revalidateDashboardSettings("locations");
+  return ok("Operating hours saved.");
 }

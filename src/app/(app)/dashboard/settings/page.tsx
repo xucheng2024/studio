@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle, Globe, CalendarDays,
+  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle, Globe, CalendarDays, BriefcaseBusiness,
   type LucideIcon,
 } from "lucide-react";
 
@@ -148,13 +148,27 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
             desc="Create invite links, assign roles, and manage access"
           />
         ) : null}
-        {isStudioOwner ? (
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/staff-availability", selectedStudioId)}
+          icon={CalendarDays}
+          title="Staff availability"
+          desc="Set employee working hours and one-off availability exceptions"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/resources", selectedStudioId)}
+          icon={BriefcaseBusiness}
+          title="Resources"
+          desc="Manage rooms, beds, and equipment for each location"
+        />
+        {canManageStudio ? (
           <SettingCard
             as={DashboardAppLink}
             href={scopedHref("/dashboard/settings/locations", selectedStudioId)}
             icon={MapPin}
             title="Locations"
-            desc="Add or edit studio locations and addresses"
+            desc="Edit locations (owner) and weekly operating hours (owner/manager)"
           />
         ) : null}
         {isStudioOwner ? (
