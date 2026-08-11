@@ -1,0 +1,335 @@
+Salon Management System
+Streamline beauty and spa operations by integrating appointment scheduling, booking management, sales tracking, marketing campaigns, customer relationship management, and HR functions in one platform
+
+Instructions
+
+This page helps you prepare "Solution Requirements" section in Vendor Management Portal and you will see the exact questions and flow.
+
+🔴 Mandatory questions: Must answer "Yes" to continue
+
+🟡 Preferred questions: Can answer either way and continue
+
+Follow the question flow as indicated
+
+Q1 🔴 Mandatory - Cloud and Multi-Device Accessibility
+Main Question: Does your solution allow for cloud-based, mobile-based, and/or web-based usage?
+
+🔴 Answer: ○ Yes [Next: Q2] ○ No [⚠️ Cannot Proceed]
+
+Q2 🔴 Mandatory - Multi-outlet Management and Centralised Administration Capabilities
+Main Question: Can your solution allow management of multiple outlets:
+
+Multi-outlet Requirements: a. single login to any outlet to perform the functions b. Generate of consolidated reports for all outlets c. Push updates to all outlets or selected outlet (e.g. A new 90min message treatment service that cost $90 will be launched and this service is available for all outlets.)
+
+🔴 Answer: ○ Yes [Next: Q3] ○ No [⚠️ Cannot Proceed]
+
+Q3 🔴 Mandatory - Dashboards and Reports (Salon)
+Main Question: Does your solution generate analytics reports and/or dashboards to provide insights to the areas of:
+
+Analytics Areas: a. appointment scheduling such as appointment fulfillment rate, missed appointments b. sales analysis such as top outlet sales performance, top employee performance, YoY Sales growth, Sales revenue by outlet, sales report by service / retail products c. CRM reports such as New Clients Per Month, New Client Retention, Repeat Client Retention, Frequency of Visit (FOV), Client loyalty points d. employee management such as employee productivity, commission report e. inventory management such as below minimum stock , stock movement , stock balance f. packages management such as balance packages value (deferred income)
+
+Dashboard Requirements: Your digital solution should have one or more dashboards that provide an at-a-glance overview of key metrics/indicators with at least 4 charts/graphs to help users analyse data through data visualisation.
+
+Interactive Features (Must include at least one): Option 1: Interactive charts/graphs that allow users to interact with one chart and apply that interaction as a filter to other charts on the dashboard, and vice versa Option 2: At least three common filters/slicers applicable to ALL charts/graphs on the same dashboard
+
+Please state how many reports per area based on your available modules.
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Next: Q4] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details]
+
+Q4 🔴 Mandatory - Appointment Scheduling
+Main Question: Does your solution offer these appointment scheduling features:
+
+Scheduling Features: a. Provide calendar view for employees to manage all appointments b. Ability to configure slots by available employees capacity c. Provide integrated calendar and scheduling features for room, and equipment management d. Ability to configure and send automated reminders and custom messages to customers about appointments and notify them of any change
+
+🔴 Answer: ○ Yes [Next: Q5] ○ No [⚠️ Cannot Proceed]
+
+Q5 🟡 Preferred - Booking Management
+Main Question: Does your solution include a Booking Management Module?
+
+🟡 Answer: ○ Yes [Next: Q6] ○ No [Next: Q7]
+
+--
+
+Q6 🔴 Mandatory Follow-up - Booking Management Features
+This question appears only if you answered "Yes" to Q5
+
+Main Question: Does your solution offer these booking features:
+
+Booking Features: a. Customer self-service online booking through secured login and viewing real-time availability via website, Facebook, or online booking apps b. Customer self-service cancellation or re-scheduling of appointments c. Facilities appointment booking based on package credits, balances, free trials, first time customer, or through making online payment via accepting full payment or deposit (optional) d. Display of Terms and Conditions during each purchase
+
+🔴 Answer: ○ Yes [Next: Q7] ○ No [⚠️ Cannot Proceed]
+
+Q7 🔴 Mandatory - Customer Management
+Main Question: Does your solution support customer management through collection and easy access to data including customer profile, preference, medical conditions, allergy, purchase history, treatment history etc.?
+
+🔴 Answer: ○ Yes [Next: Q8] ○ No [⚠️ Cannot Proceed]
+
+Q8 🔴 Mandatory - Real-time Data Synchronisation
+Main Question: Is your solution able to synchronise the customer data collected from the Salon Management System in real time?
+
+🔴 Answer: ○ Yes [Next: Q9] ○ No [⚠️ Cannot Proceed]
+
+Q9 🟡 Preferred - Customer Rewards or Loyalty Programme
+Main Question: Does your solution include a Customer Rewards or Loyalty Programme Module?
+
+🟡 Answer: ○ Yes [Next: Q10] ○ No [Next: Q11]
+
+--
+
+Q10 🔴 Mandatory Follow-up - Customer Rewards or Loyalty Programme Features
+This question appears only if you answered "Yes" to Q9
+
+Main Question: Does your solution offer at least 2 features for Customer Rewards or Loyalty Programme, such as:
+
+Loyalty Programme Features: a. Automatic recording of rewards points for purchases, visits, referrals, reviews, and etc b. Customer self-service viewing of rewards, balance, and history c. Redemption of rewards points for gifts, products, services, vouchers, and etc d. Pre-set functions to generate reminders for reward points expiry e. Configuration of approval workflow to manage manual reward points adjustment f. Ability to set tiered rewards programme (e.g. basic, silver, gold, platinum)
+
+🔴 Answer: ○ Yes [Next: Q11] ○ No [⚠️ Cannot Proceed]
+
+Q11 🟡 Preferred - Package Management
+Main Question: Does your solution include a Package Management Module?
+
+🟡 Answer: ○ Yes [Next: Q12] ○ No [Next: Q13]
+
+--
+
+Q12 🔴 Mandatory Follow-up - Package Management Features
+This question appears only if you answered "Yes" to Q11
+
+Main Question: Does your solution offer these features for Package Management, such as:
+
+Package Management Features: a. Package setup (package quantity, package price, promotion and discount, expiry time) b. Audit log for customer package adjustments c. Workflow approval for customer package adjustments
+
+🔴 Answer: ○ Yes [Next: Q13] ○ No [⚠️ Cannot Proceed]
+
+Q13 🔴 Mandatory - Sales Management
+Main Question: Does your solution allow for recording of receipts and payments?
+
+🔴 Answer: ○ Yes [Next: Q14] ○ No [⚠️ Cannot Proceed]
+
+Q14 🔴 Mandatory - Digital Payment Integration
+Main Question: Does your solution offer and/or acknowledge receipt of cashless payment by consumers e.g. via wireless/mobile payment terminals or integrated digital payment gateway? Please name the various payment modes and integration payment partners.
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Next: Q15] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details]
+
+Q15 🔴 Mandatory - Third-Party POS Integration Capabilities
+Main Question: Does your solution offer POS functions or allow integration with 3rd party POS solution?
+
+Please indicate the POS Software and if this is developed in-house or if it's an integration to a 3rd party POS solution.
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Next: Q16] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details]
+
+Q16 🔴 Mandatory - SMS or E-Marketing Management
+Main Question: Does your solution come with these features which allow company to perform the following functions:
+
+Marketing Features: a. Create marketing campaigns with email and SMS with ability to add text, headings, images and even call-to-action buttons that will link to booking, packages b. Select customer list (VIP, inactive customers, frequent customer) c. Generate reports to view campaign success (e.g. click through rate)
+
+🔴 Answer: ○ Yes [Next: Q17] ○ No [⚠️ Cannot Proceed]
+
+Q17 🔴 Mandatory - Human Resource Management
+Main Question: Can your solution manage a company's employee records in all key HR administrative areas below:
+
+HR Administrative Areas: a. Personnel Management (i.e. Create employees records and details, Allow for employee self-service to maintain updates) b. Payroll and Commission Management (i.e. E-payroll, Commission reports, Payroll reports, MOM itemised payslip, Policy and statutory compliance)
+
+🔴 Answer: ○ Yes [Next: Q18] ○ No [⚠️ Cannot Proceed]
+
+Q18 🟡 Preferred - IRAS Auto Inclusion Scheme (AIS) Compliance
+Main Question: Is your solution listed on IRAS's List of Supporting Payroll Software Vendors for the Auto Inclusion Scheme (AIS) for employment income?
+
+🟡 Answer: ○ Yes [Next: Q19] ○ No [Next: Q19]
+
+Q19 🟡 Preferred - Other Optional HR Modules
+Main Question: Can your solution manage a company's employee records in other HR administrative areas below:
+
+Optional HR Areas: a. Leave Management (i.e. Comprehensive Leave Management and settings, Leave policy configurations, leaves reports) b. Attendance Tracking (i.e. daily recording of employee attendance, attendance reports) c. Rostering (i.e. employee scheduling)
+
+🟡 Answer: ○ Yes [Next: Q20] ○ No [Next: Q20]
+
+Q20 🟡 Preferred - Inventory Management
+Main Question: Does your solution include an Inventory Management Module?
+
+🟡 Answer: ○ Yes [Next: Q21] ○ No [Next: Q24]
+
+--
+
+Q21 🔴 Mandatory Follow-up - Inventory Management Features
+This question appears only if you answered "Yes" to Q20
+
+Main Question: Does your solution enable the following functions:
+
+Inventory Functions: a. Set up and edit inventory product details for different item groups (e.g. dimensions, models) b. Create inventory journal logs to track movement of inventory items (e.g. date, quantity, cost, reserves, movements, location, staff log) c. Create item prices and discount groups d. Set up and edit warehouse details (e.g. branches) e. Grant access to all employees for mobile-based, web-based, and cloud-based usage
+
+🔴 Answer: ○ Yes [Next: Q22] ○ No [⚠️ Cannot Proceed]
+
+--
+
+Q22 🔴 Mandatory Follow-up - Inventory Integration
+This question appears only if you answered "Yes" to Q20
+
+Main Question: Does your solution allow for real-time update of inventory via integration with existing Salon Management System solution?
+
+i.e. inventory updated when orders are fulfilled, or inventory is stocked up
+
+Please briefly describe how the integration is done in the comment section.
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Next: Q23] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details]
+
+--
+
+Q23 🔴 Mandatory Follow-up - Inventory Alert
+This question appears only if you answered "Yes" to Q20
+
+Main Question: Does your solution automatically trigger reminder alert when inventory level reached a pre-set low level?
+
+🔴 Answer: ○ Yes [Next: Q24] ○ No [⚠️ Cannot Proceed]
+
+Q24 🟡 Preferred - Mobile App
+Main Question: Does your solution include a mobile app solution that can be configured and linked to the Salon Management System?
+
+Note: [1] Mobile Development is not supportable. Any cost incurred for customisation has to be borne by SMEs.
+
+🟡 Answer: ○ Yes [Next: Q25] ○ No [Next: Q26]
+
+--
+
+Q25 🔴 Mandatory Follow-up - Mobile App - Elaboration
+This question appears only if you answered "Yes" to Q24
+
+Main Question: Please state the module(s) that are available in the mobile app. e.g. Booking module
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Next: Q26] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details]
+
+Q26 🟡 Preferred - AI Features
+Main Question: Does your solution incorporate AI in your core features and functions?
+
+🟡 Answer: ○ Yes [Next: Q27] ○ No [Next: Q28]
+
+--
+
+Q27 🔴 Mandatory Follow-up - AI Features - Elaboration
+This question appears only if you answered "Yes" to Q26
+
+Main Question: Describe your AI feature and its benefits. Examples are:
+
+AI Feature Examples: a. Generate output, identify items, or provide recommendations based on training models to improve decision-making b. Recognise text, images to shorten time taken for manual inputs of forms c. Others, please specify
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Next: Q28] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details]
+
+Q28 🔴 Mandatory - Business Data Extraction
+Main Question: Can your solution enable SMEs to efficiently extract business data in various discrete formats such as CSV, XLSX, XML, and TSV?
+
+🔴 Answer: ○ Yes [Next: Q29] ○ No [⚠️ Cannot Proceed]
+
+Q29 🔴 Mandatory - Personal Data Protection
+Main Question: Can your solution demonstrate compliance with the following Personal Data Protection requirements?
+
+Compliance Requirements: Digital solutions that collect, use, disclose, process or dispose personal data should incorporate features that support the obligations under the Personal Data Protection Act (2020).
+
+To comply with this requirement, you MUST complete the Personal Data Protection Requirements form at https://go.gov.sg/pdp.
+
+🔴 Answer: ○ Yes [Next: Q30] ○ No [⚠️ Cannot Proceed]
+
+Q30 🔴 Mandatory - Vulnerability Assessment/Penetration Testing (VA/PT)
+Main Question: Has your solution undergone a comprehensive security vulnerability assessment/penetration testing (VA/PT) conducted by a qualified third-party within the last 12 months? The scope of the VA/PT must cover network security; application security; data protection measures and access control (if applicable); API security testing (if applicable); Cloud security configuration review (if applicable). Specifically, for web application security, the scope must cover minimally all OWASP Top 10 vulnerabilities.
+
+Submission Requirements: Please submit the VA/PT report (dated maximum 1 year from the checklist submission date). The VA/PT Report must include Executive summary; Detailed findings and risk ratings; Remediation recommendations; Evidence of vulnerability fixes or mitigation plans; Testing methodology used; Scope of assessment; Assessor's qualifications and certifications.
+
+Reseller Requirements: If you are the reseller of the solution, please obtain the VA/PT report from your product principal. SOC 2 Type II report can be accepted if the detailed technical vulnerability assessment results are part of the SOC2 Type II scope.
+
+Qualified Third-Party Definition: [1] Qualified third-party refers to: CREST-certified companies [ https://www.crest-approved.org/members/] or companies with security professional with relevant CREST certifications; Security professionals with recognised certifications such as: Offensive Security Certified Professional (OSCP); EC-Council Certified Penetration Testing Professional (CPENT); GIAC Penetration Tester (GPEN); or other equivalent industry-recognised certifications.
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Next: Q31] ○ No [⚠️ Cannot Proceed]
+
+Date of Issue Required: [Date Field] 
+
+Upload Supporting Document Required: [File Upload]
+
+Q31 🟡 Preferred - Cybersecurity Compliance - Cyber Essentials Mark (CEM)
+Main Question: Are you the Product Principal of the solution that you are submitting for pre-approval?
+
+🟡 Answer: ○ Yes [Next: Q32] ○ No [Next: Q34]
+
+Q32 🟡 Preferred - CEM for Product Principal
+Main Question: Has your organisation achieved CSA Cyber Essentials for ICT Vendor Mark certification or equivalent recognised cybersecurity certifications (including but not limited to Cyber Trust Mark or ISO27001) that validate the implementation of appropriate security controls against common cyber threats in your organisation and the solution you are submitting for pre-approval?
+
+Compliance Timeline: Vendors are encouraged to comply at application and are required to meet this requirement by the Annual Review, where it will be assessed as mandatory.
+
+Additional Information: For more information on Cyber Essentials mark, please refer to https://www.csa.gov.sg/cyber-essentials/
+
+🟡 Answer: ○ Yes [Next: Q33] ○ No [Assessment Finished]
+
+--
+
+Q33 🔴 Mandatory Follow-up - CEM for Product Principal - Elaboration
+This question appears only if you answered "Yes" to Q32
+
+Main Question: Please specify the following information:
+
+Required Information: i. The certificate demonstrating your organisation has attained Cyber Essentials for ICT Vendors ii. The cybersecurity certification the organisation has met iii. The scope of the certification
+
+Please also upload a copy of the Certification and indicate the Certification Issuance Date in the date field.
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Assessment Finished] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details] 
+
+Date of Issue Required: [Date Field] 
+
+Upload Supporting Document Required: [File Upload]
+
+Q34 🟡 Preferred - CEM for Resellers
+Main Question: Has your organisation achieved CSA Cyber Essentials Mark certification or equivalent recognised cybersecurity certifications (including but not limited to Cyber Trust Mark or ISO27001) that validate the implementation of appropriate security controls against common cyber threats in your organisation and the solution you are submitting for pre-approval?
+
+Compliance Timeline: Vendors are encouraged to comply at application and are required to meet this requirement by the Annual Review, where it will be assessed as mandatory.
+
+Additional Information: For more information on Cyber Essentials mark, please refer to https://www.csa.gov.sg/cyber-essentials/
+
+🟡 Answer: ○ Yes [Next: Q35] ○ No [Assessment Finished]
+
+--
+
+Q35 🔴 Mandatory Follow-up - CEM for Resellers - Elaboration
+This question appears only if you answered "Yes" to Q34
+
+Main Question: Please specify the following information:
+
+Required Information: i. The cybersecurity certification the organisation has met ii. The scope of the certification
+
+Please also upload a copy of the Certification and indicate the Certification Issuance Date in the date field.
+
+Click "Yes" to confirm you have completed the instructions.
+
+🔴 Answer: ○ Yes [Assessment Finished] ○ No [⚠️ Cannot Proceed]
+
+Text Elaboration Required: [Text Box for Description/Details] 
+
+Date of Issue Required: [Date Field] 
+
+Upload Supporting Document Required: [File Upload]
