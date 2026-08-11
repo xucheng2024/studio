@@ -187,4 +187,3 @@ begin
   return updated_count;
 end;
 $$;
-
