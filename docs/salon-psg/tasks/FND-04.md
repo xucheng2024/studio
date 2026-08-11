@@ -1,96 +1,64 @@
 # FND-04：强审计与幂等基础
 
-状态：未开始
+状态：已实现/待验证
 
-## 1. 目标
+## 已确认实施内容
 
-为后续 Appointment、Package、POS、HitPay、Commission、敏感资料和 Payroll 提供一套可复用的强审计、业务请求幂等和 Provider Event 去重基础。它只建立基础设施，不实现任何后续业务模块。
+- `strong_audit_logs`：关键业务的 Append-only 强审计表，`studio_id` 必填，`location_id` 以及已解析 Studio 的 `idempotency_key_id`/`provider_event_id` 由 Trigger 校验必须属于同一 Studio；`actor_type`/`actor_id`/`actor_role`、`action`、`target_type`/`target_id`、`before_state`/`after_state`、`correlation_id` 和 `created_at`。UPDATE/DELETE 由 Trigger 无条件拒绝，关联 FK 使用 `RESTRICT`，不会以 `CASCADE`/`SET NULL` 绕过不可变语义；`service_role` 在表级只有 `select` 权限——写入只能通过 `record_strong_audit()`（SECURITY DEFINER）完成。后续关键业务 RPC 应在自身事务内 `perform public.record_strong_audit(...)`，使审计写入与业务变更同事务提交/回滚。
+- `business_idempotency_keys`：Studio + `operation_scope` + `idempotency_key` 唯一，保存 `request_hash`、`status`（`processing`/`completed`/`failed`）、`retryable`、`attempt_count`、`claim_token`、`result_snapshot`、`error_summary`。`claim_business_idempotency_key()` 用 `INSERT ... ON CONFLICT` + `SELECT ... FOR UPDATE` 保证并发 Claim 只有一个调用取得执行权；每次首次领取/失败重试/超时重领都会返回当前 `claimToken`。Complete/Fail 必须同时提交记录 ID 和当前 Token，旧执行者在超时重领后不能覆盖新执行者的状态。相同 Key+相同 Hash 返回既有状态/结果，不同 Hash 返回 `hash_conflict` 且不覆盖；`retryable=false` 的失败记录返回 `permanently_failed`，不可再次 Claim。
+- `provider_events`：`(provider, provider_event_id)` 唯一，保存 `payload_hash`、`status`（`processing`/`processed`/`failed`）、`attempt_count`、`claim_token`、`received_at`/`processed_at`、`error_summary`；Webhook 到达时 `studio_id`/`location_id` 可暂时为空，解析后可由相同 Payload 的重放 Claim、Complete 或 Fail 只填充一次，既有 Scope 不可覆盖，Location 不能脱离 Studio 存在。`claim_provider_event()` 与业务幂等 Claim 使用相同的 Token fencing；重放相同 Payload Hash 且已 `processed` 返回 `already_processed`（`duplicate:true`，调用方不得重复执行业务动作）；相同 Event ID 不同 Payload Hash 返回 `payload_conflict`，不同既有 Scope 返回 `scope_conflict`。
+- 三张新表均启用 RLS，撤销 `public`/`anon`/`authenticated` 权限，`service_role` 仅有 `select`；所有写入/状态流转经 SECURITY DEFINER RPC（固定 `search_path`），RPC 执行权限同样只授予 `service_role`。
+- `src/lib/strong-audit.ts`、`src/lib/idempotency.ts`、`src/lib/provider-events.ts` 提供最小可复用封装；`getStrongAuditTrail` 是本任务唯一的 Actor-scoped 入口，使用 `requireGlobalStaffScope`（Owner/全店 Manager）校验后才使用 Admin Client，其余函数为系统级原语，不重新做 Scope 检查（由调用方 Server Action/RPC 负责）。
 
-## 2. 开始前必须阅读
+## Legacy `operation_audits` 兼容策略
 
-- `AGENTS.md`
-- `docs/salon-psg/00-development-guide.md`
-- `docs/salon-psg/10-development-backlog.md` 的 FND-04
-- `docs/salon-psg/16-complete-implementation-plan.md` 的 FND-04
-- `docs/salon-psg/tasks/FND-01.md` 至 `FND-03.md`
-- 现有 `operation_audits`、`guest_merge_audits`、Salon Customer Merge Audit、FND-03 Audit 写入
-- `src/lib/audit.ts`、`src/lib/scope.ts`、`src/lib/employees.ts`、`src/lib/salon-customers.ts`
-- 现有付款、HitPay Webhook、Booking Cancel 和 Capacity RPC 的幂等模式
-- 实际改动涉及的 Next.js 16 本地文档
+`operation_audits.target_type` 覆盖数十种互不相关的实体（预约、Session、付款、员工、service_location 等），没有统一可到 Studio 的 Join 路径。按需求"能安全证明的才回填，否则保持 Legacy 或产出报告"，本任务选择**不修改 `operation_audits` Schema、不做任何回填**，`writeOperationAudit()` 保持原样。以下报告查询可在实际数据库上运行以取得未解决 Legacy 记录数（本地空库沙盒中为 0，不代表生产实际数量，需要在真实环境执行）：
 
-## 3. 本任务必须完成
+```sql
+select target_type, count(*) from public.operation_audits group by target_type order by count(*) desc;
+select count(*) from public.operation_audits;
+```
 
-### 强审计
+后续关键业务写入应改用 `strong_audit_logs`（`studio_id` 必填），`operation_audits` 继续作为既有 best-effort 日志保留。
 
-- 保留现有 `operation_audits` 和普通 best-effort `writeOperationAudit` 行为，不能破坏现有接口。
-- 为关键业务提供同事务写入的强审计入口，至少明确 `studio_id`、可选 `location_id`、actor/system 身份、action、target、before/after、correlation/idempotency reference 和时间。
-- 新增记录必须验证 Location 属于同一 Studio。
-- 强审计记录 Append-only；普通应用路径不能 UPDATE 或 DELETE。
-- 历史 `operation_audits` 不删除、不猜测租户或门店。能从明确外键/合法快照安全确认的才可回填，否则保持 Legacy 状态或进入明确报告。
+## 明确未包含
 
-### 业务请求幂等
+- Appointment、Package Ledger、POS/Payment 流程
+- HitPay/Resend Webhook Handler（`provider_events` 只是去重基础设施，未接入任何真实 Webhook）
+- Commission、Marketing、Payroll、UI
+- 修改 FND-01/02/03 的数据模型或业务行为
+- 对 `operation_audits` 的 Schema 变更或历史回填
 
-- 建立 Studio-scoped Idempotency Key 存储和原子 Claim/Complete/Fail 流程。
-- 唯一性至少包含 Studio、Operation Scope 和 Idempotency Key。
-- 保存 Request Hash，重复 Key + 相同请求返回已有状态/结果；重复 Key + 不同 Request Hash 必须拒绝。
-- 并发 Claim 同一 Key 时最多一个调用取得执行权。
-- 明确处理中、完成、失败和可重试语义；不能让永久失败无限重试。
-- Response Snapshot 不得保存 Secret、完整敏感健康资料或 Payroll 明细。
+## 交付文件
 
-### Provider Event 去重
+- `supabase/migrations/20260811140130_fnd04_audit_idempotency_foundation.sql`
+- `src/lib/strong-audit.ts`
+- `src/lib/idempotency.ts`
+- `src/lib/provider-events.ts`
 
-- 建立 Provider/Event ID 唯一约束、Payload Hash、状态、尝试次数、收到/处理时间和安全错误摘要。
-- 重复事件不能生成第二个业务动作；相同 Event ID 但不同 Payload Hash 必须记录冲突并拒绝静默覆盖。
-- 不保存 Provider Secret；原始 Payload 如含个人资料应只保存必要、受控字段或 Hash。
+## 验证结果（本轮实际执行）
 
-### 服务端库
+因仓库现有 Migration `051_member_profile_notes.sql` 存在两个与 FND-04 无关的既有问题（pg_dump 17 生成的 `\restrict`/`\unrestrict` 伪指令导致 `supabase start` 语法错误；随后在同一文件内对 `auth` Schema 的 `CREATE TYPE` 触发权限拒绝），当前 `supabase start` / `db reset` 无法从空库重放完整历史（与本任务无关，未在本任务中修改该文件）。改为使用独立的 `postgres:15` 容器，仅补齐 FND-04 迁移引用到的最小前置对象（`studios`、`locations`、`auth.users`、`set_updated_at_timestamp()`、`anon`/`authenticated`/`service_role` 角色——均照抄既有 Migration 中的真实定义），再原样执行本任务的 Migration 文件进行验证：
 
-- 新增最小 server-only TypeScript 库，沿用 `src/lib/employees.ts`、`salon-customers.ts` 和 `scope.ts` 模式。
-- 所有 actor-scoped 入口在使用 Admin Client 前再次验证 Studio/Location Membership；具体业务动作允许哪些角色，由后续业务模块决定，FND-04 不发明统一角色规则。
-- 提供后续模块可复用的强审计、Claim/Complete/Fail 和 Provider Event 接口，不连接具体 Appointment/POS/Payroll 业务。
+- [x] `npx tsc --noEmit`：通过，无错误。
+- [x] 相关 ESLint（`src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts`）：通过，无警告。
+- [x] Migration 首次执行：成功创建三张表、全部 Trigger、RPC、RLS、Grant。
+- [x] Migration 二次执行：全部语句安全跳过（`already exists, skipping`）或幂等替换，无报错。
+- [x] `record_strong_audit` Studio/Location 一致 → 成功；跨 Studio Location → 被拒绝（`23514`）。
+- [x] 强审计关联的 Idempotency Key 或已解析 Studio 的 Provider Event 属于另一 Studio → 被拒绝（`23514`）；不可变审计 FK 使用 `ON DELETE RESTRICT`。
+- [x] `strong_audit_logs` 直接 `UPDATE`/`DELETE`（以 `postgres` 属主身份）→ 均被 Trigger 拒绝。
+- [x] `record_strong_audit` 包在显式事务中随 `ROLLBACK` 一起回滚（提交后表中无对应记录）。
+- [x] 幂等 Claim：同 Key 同 Hash → 处理中返回 `in_progress`，完成后返回 `already_completed` 并带回 `result_snapshot`；同 Key 不同 Hash → `hash_conflict`；`retryable=false` 失败后再次 Claim → `permanently_failed`；`retryable=true` 失败后再次 Claim → `claimed` 且 `attempt_count` 递增。
+- [x] 两个并发会话对同一 Key 竞争 Claim（会话一持有事务未提交，会话二阻塞在行锁上）→ 会话一得到 `claimed`，会话二在会话一提交后才返回 `in_progress`，验证"最多一个执行者"。
+- [x] Review 修复回归：超时重领会轮换 `claimToken`；旧业务请求/Provider Event 执行者用旧 Token 调用 Complete 均返回 `not_current_claim`，当前 Token 可成功完成。RPC JSON 实际返回字段与 TypeScript 契约统一为 `claimToken`、`attemptCount`、`errorSummary`；`staleAfterSeconds <= 0` 被拒绝（`22023`）。
+- [x] Provider Scope 回归：未解析事件不能被强审计引用；相同 Payload 可在重放 Claim、Complete 或 Fail 时绑定 Studio/Location；不同既有 Studio/Location 返回 `scope_conflict`，Location 未同时指定 Studio 返回 `23514`/`invalid_scope`。
+- [x] Hash Helper 回归边界：业务请求 Hash 会递归排序 JSON Object Key，避免同一逻辑请求因字段插入顺序不同产生假冲突；Provider Hash 只接受原始字符串/字节，不对解析后的 Object 重新序列化。
+- [x] Provider Event 重放：相同 Payload Hash 且已 `processed` → `already_processed`（`duplicate:true`），未产生第二次业务动作；相同 Event ID 不同 Payload Hash → `payload_conflict`，原记录 `payload_hash` 未被覆盖。
+- [x] 权限矩阵：`anon`/`authenticated` 对三张新表的 `select` 及全部新 RPC 的 `execute` 均被拒绝；`service_role` 可 `select` 三张表，但对 `strong_audit_logs` 的直接 `INSERT` 被拒绝（必须经 `record_strong_audit`），可正常 `execute` 全部 RPC。
+- [x] `getStrongAuditTrail` 使用 `requireGlobalStaffScope`，越权 Studio/Location 的 Actor 在服务端被拒绝（复用 `scope.ts` 既有测试路径，逻辑与 `salon-customers.ts` 的 `hasGlobalCustomerReadAccess` 一致，未重新发明角色策略）。
+- [ ] FND-01/02/03 最小回归：本轮未连回真实完整历史库重跑（受上述 051 既有问题阻塞），改为静态确认——`git diff` 显示本任务未修改 `124_employee_foundation.sql`、`salon_customer_foundation`、`fnd03_service_location_publish` 及对应 `src/lib/*.ts`；`npx tsc --noEmit` 对整个项目通过，未出现类型冲突。**建议独立修复 051 的既有问题后，对完整历史重跑一次真实回归。**
+- [x] 现有 `operation_audits`/`writeOperationAudit`：本任务未修改该表或函数，`git diff` 确认零改动。
 
-## 4. 明确不做
+## 当前确认边界
 
-- 不实现 Appointment、Package Ledger、POS、Payment、Commission、Marketing 或 Payroll。
-- 不改 FND-01、FND-02、FND-03 的数据模型和业务行为。
-- 不把所有旧 best-effort 操作日志一次性迁成强审计。
-- 不建立具体 HitPay/Resend Webhook Handler。
-- 不新增 UI 或无关依赖。
-- 不修改无关功能，不 Commit、不 Push、不执行生产 SQL。
-
-## 5. 数据库和安全要求
-
-- 使用 Supabase CLI 生成新的 Migration 文件名。
-- 所有新 Public 表启用 RLS；默认拒绝 anon/authenticated/PUBLIC，按现有服务器架构只授予必要的 `service_role` 权限。
-- SECURITY DEFINER 函数固定 `search_path`，函数内部验证输入一致性，并撤销 PUBLIC/anon/authenticated 执行权限。
-- 对唯一键、查询状态、Studio、Provider/Event 建立必要索引。
-- Migration 保留现有数据，可在空库、现有数据及二次执行场景安全执行。
-- 不暴露 Service Role 或 Secret 到客户端。
-
-## 6. 最低验证
-
-- [ ] `npx tsc --noEmit`
-- [ ] 相关 ESLint
-- [ ] Migration 在真实本地 Postgres/Supabase 首次和二次执行
-- [ ] 现有普通 `operation_audits` 写入仍可工作
-- [ ] 强审计与业务写入同事务成功/回滚
-- [ ] 强审计 UPDATE/DELETE 被拒绝
-- [ ] Location/Studio 不一致及跨 Studio 被数据库拒绝
-- [ ] 相同幂等 Key + 相同 Hash 返回已有结果
-- [ ] 相同幂等 Key + 不同 Hash 被拒绝
-- [ ] 两个并发 Claim 最多一个获得执行权
-- [ ] Provider Event 重放只处理一次
-- [ ] 相同 Provider Event ID + 不同 Payload Hash 产生冲突
-- [ ] 不属于目标 Studio/Location 的 Actor 被服务端拒绝；客户端角色不能直接执行内部表/RPC
-- [ ] anon/authenticated/service_role 的表与 RPC 权限矩阵符合设计
-- [ ] FND-01、FND-02、FND-03 最小回归通过
-
-## 7. 完成交付报告
-
-- 修改文件列表
-- 数据模型和现有 Audit 兼容策略
-- RLS/RPC/权限设计
-- 每个验证场景的实际结果
-- Migration 风险和遗留 Legacy Audit 数量
-- 后续 APT-02、PKG-01、POS-01、MKT-02、PAY-02 应如何复用
-- 明确列出未做范围，然后停止
+`051_member_profile_notes.sql` 的 `\restrict`/`\unrestrict` 语法错误与 `auth` Schema 权限拒绝是本任务发现但不属于本任务范围的既有问题，阻塞了"从空库完整重放历史 Migration"这一验证方式；本任务改用等价最小沙盒完成同等验证，未修改任何已上线 Migration。后续任务（尤其下一个需要 `supabase start`/`db reset` 的任务）在真正需要完整历史重放前，应先单独处理该问题。

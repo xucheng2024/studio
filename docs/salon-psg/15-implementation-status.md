@@ -22,8 +22,9 @@
 | FND-01 | 已上线 | 已存在 `employees`、`employee_locations`、迁移冲突表、Studio 一致性约束、唯一用户/Instructor 关联、单一主要门店、RLS/RPC 和 `src/lib/employees.ts` | `522ef18` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。 |
 | FND-02 | 已上线 | 已存在 `salon_customers`、迁移冲突、Merge Audit、Studio 引用校验、Guest Link/Merge RPC、RLS 和 `src/lib/salon-customers.ts` | `6ba056e` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。健康资料仍属于 CRM-01。 |
 | FND-03 | 已上线 | 已存在 `service_locations` Migration 和 `src/lib/service-locations.ts`，包含发布范围、停用、覆盖值、审计及权限入口 | `6c40e3d`，`main` / `origin/main` | Migration 已返回 `service_location_rows_created: 47`。总部默认时长/缓冲由 APT-01 在建立 Salon Availability 契约时补充，不回退 FND-03。 |
+| FND-04 | 已实现/待验证 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | 未提交 | 未 Commit/Push。验证使用独立最小 Postgres 沙盒完成（详见 [FND-04](./tasks/FND-04.md)），因既有 `051_member_profile_notes.sql` 的 `\restrict` 语法及 `auth` Schema 权限问题（与本任务无关）暂无法从空库完整重放历史；`operation_audits` 未做 Schema 变更或回填，仅在任务文件中给出未解决 Legacy 记录的报告查询。 |
 
-详细记录见 [FND-01](./tasks/FND-01.md)、[FND-02](./tasks/FND-02.md)、[FND-03](./tasks/FND-03.md)；下一任务见 [FND-04](./tasks/FND-04.md)。
+详细记录见 [FND-01](./tasks/FND-01.md)、[FND-02](./tasks/FND-02.md)、[FND-03](./tasks/FND-03.md)、[FND-04](./tasks/FND-04.md)。
 
 ## 全部任务状态
 
@@ -32,7 +33,7 @@
 | Phase 0 | FND-01 Employee | 已上线 | 无 | 作为后续员工数据契约，不重做 |
 | Phase 0 | FND-02 Customer | 已上线 | 无 | 作为后续客户数据契约，不重做 |
 | Phase 0 | FND-03 Service/Location | 已上线 | FND-01 | 作为后续门店服务契约，不重做 |
-| Phase 0 | FND-04 Audit/Idempotency | 未开始 | 无 | 建立任务文件并实施 |
+| Phase 0 | FND-04 Audit/Idempotency | 已实现/待验证 | 无 | 修复 051 既有 Migration 问题后对完整历史重跑一次回归；之后可供 APT-02/PKG-01/POS-01/MKT-02/PAY-02 复用 |
 | Phase 1 | APT-01 Availability/Resources | 未开始 | FND-01、FND-03 | 先确认 FND-03 验收及默认时长/缓冲契约 |
 | Phase 1 | APT-02 Appointment Transaction | 未开始 | APT-01、FND-02、FND-04 | 等待依赖 |
 | Phase 1 | APT-03 Backoffice Calendar | 未开始 | APT-02 | 等待依赖 |
@@ -62,6 +63,6 @@
 
 ## 当前建议领取顺序
 
-1. 下一项实施 FND-04。
+1. FND-04 已实现/待验证；建议先单独修复 `051_member_profile_notes.sql` 的既有 Migration 问题（详见 [FND-04](./tasks/FND-04.md) 当前确认边界），以便对完整历史做一次真实回归后再标记为已验证。
 2. APT-01 与 CRM-01 在基础依赖完成后并行。
 3. 按 [完整实施主计划](./16-complete-implementation-plan.md) 的 Gate 顺序继续。
