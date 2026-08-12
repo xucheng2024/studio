@@ -1,6 +1,6 @@
 # CRM-02：Treatment / Follow-up
 
-状态：已实现/待验证
+状态：已上线
 
 负责人：Codex
 
@@ -65,13 +65,15 @@
 - `npx eslint src/lib/salon-treatments.ts src/lib/salon-treatment-rules.ts src/app/(app)/dashboard/_actions/staff-clients.ts src/app/(app)/dashboard/clients/[clientId]/page.tsx src/app/(app)/dashboard/clients/follow-ups/page.tsx scripts/tests/crm02-treatment-access-contract.test.ts`
 - `git diff --check`
 
-## 6. 真实环境验证矩阵（待执行）
+## 6. 真实环境验证矩阵（已完成）
 
 | 场景 | 角色 | 期望 | 状态 |
 | --- | --- | --- | --- |
-| 同 Studio 跨 location 越权创建 Treatment | Frontdesk(L1) -> Appointment(L2) | 拒绝 | 待验证 |
-| Instructor 非本人服务记录访问/修订 | Instructor(A) -> Treatment(B) | 拒绝 | 待验证 |
-| 已完成预约前置条件 | Frontdesk | 仅 completed 可创建 | 待验证 |
-| 幂等重放（同 key） | Manager | 不重复创建 Treatment/Follow-up/审计 | 待验证 |
-| 审计敏感正文泄露检查 | Owner/Manager | 强审计不含 sensitive_note_body | 待验证 |
-| Follow-up queue 到期工作流 | Frontdesk/Manager | 到期排序与状态流转一致 | 待验证 |
+| 同 Studio 跨 location 越权创建 Treatment | Frontdesk(L1) -> Appointment(L2) | 拒绝 | 通过 |
+| Instructor 非本人服务记录访问/修订 | Instructor(A) -> Treatment(B) | 拒绝 | 通过 |
+| 已完成预约前置条件 | Frontdesk | 仅 completed 可创建 | 通过 |
+| 幂等重放（同 key） | Manager | 不重复创建 Treatment/Follow-up/审计 | 通过 |
+| 审计敏感正文泄露检查 | Owner/Manager | 强审计不含 sensitive_note_body | 通过 |
+| Follow-up queue 到期工作流 | Frontdesk/Manager | 到期排序与状态流转一致 | 通过 |
+
+生产环境 `www.sgmystudio.com` 已完成 Owner、Global Manager、Location Manager、Frontdesk、Instructor 与混合角色浏览器验收，以及 390px 移动端和人工业务流验收。
