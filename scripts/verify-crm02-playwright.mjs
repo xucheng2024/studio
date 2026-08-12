@@ -296,7 +296,9 @@ async function getMagicLink(email) {
     type: 'magiclink',
     email,
     options: {
-      redirectTo: `${BASE_URL}/post-auth?staff_portal=1`,
+      // The production allow-list permits /auth; AuthPageInner consumes the
+      // Supabase hash session and forwards staff users through post-auth.
+      redirectTo: `${BASE_URL}/auth?next=${encodeURIComponent(`/dashboard/clients?studio_id=${fixture.studioId}`)}`,
     },
   });
   if (error) throw error;
@@ -308,9 +310,9 @@ async function loginAs(browser, email, label) {
   const page = await context.newPage();
   const link = await getMagicLink(email);
   await page.goto(link, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(6000);
   await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-after-magic.png`), fullPage: true });
-  return { context, page };
+  return { context, page, authUrl: page.url(), authCookies: (await context.cookies()).map((cookie) => cookie.name) };
 }
 
 async function assertVisible(page, text, label) {
@@ -338,7 +340,7 @@ async function runBrowserValidation(seed) {
   const mustSeeCustomer = new Set(['owner', 'manager-global', 'manager-l1', 'frontdesk-l1', 'instructor-l1', 'mixed']);
 
   for (const [label, email] of roleChecks) {
-    const { context, page } = await loginAs(browser, email, label);
+    const { context, page, authUrl, authCookies } = await loginAs(browser, email, label);
     try {
       await page.goto(`${BASE_URL}/dashboard/clients?studio_id=${seed.studioId}`, { waitUntil: 'networkidle', timeout: 120000 });
       await page.waitForTimeout(800);
@@ -346,7 +348,7 @@ async function runBrowserValidation(seed) {
 
       const hasCustomer = await page.getByText(`PW Customer ${seed.runId}`).first().isVisible().catch(() => false);
       const expected = mustSeeCustomer.has(label);
-      if (expected && !hasCustomer) throw new Error(`Customer row should be visible for ${label}`);
+      if (expected && !hasCustomer) throw new Error(`Customer row should be visible for ${label} (authUrl=${authUrl}; cookies=${authCookies.join(',') || 'none'})`);
       if (!expected && hasCustomer) throw new Error(`Customer row should NOT be visible for ${label}`);
       if (!expected) {
         results.push({ role: label, ok: true, note: 'no customer visibility as expected' });
