@@ -45,16 +45,19 @@
 ### APT-05 预约通知
 
 依赖：APT-03。实现 Email 确认、提醒、变更、取消任务和幂等 Cron；SMS 不属于本次范围。
+依赖契约冻结：2026-08-12 已完成 APT-03 状态机、资源释放与幂等重放收口；APT-05 仅可复用，不得改写 Appointment 事务边界。
 
 ## Phase 2：POS、套餐、自助预约与佣金
 
 ### POS-01 销售主单和购物车
 
 依赖：FND-01、FND-02、FND-03、FND-04。实现 `pos_sales`、多项目 `pos_sale_items`、客户/门店/员工归属、价格快照、折扣分摊和权限校验；Service、Product、Package 共用一套销售事实。现有 `/api/package/buy` 保留为单 Package 在线销售入口，但内部逐步接入 POS Sale/Payment。
+依赖契约冻结：2026-08-12 已确认 FND-04 `strong_audit_logs`/`business_idempotency_keys`/`provider_events` 契约可复用；POS-01 必须沿用 Claim/Complete/Fail fencing 与 append-only 审计。
 
 ### PKG-01 套餐 Ledger
 
 依赖：FND-02、FND-03、FND-04、POS-01。渐进升级现有 `packages` / `client_packages`：保留 Class Pass、公开购买和历史余额，为购买、使用、返还、退款和过期建立不可修改 Ledger，接入 Salon Customer、Service/Location 适用范围，并将当前余额迁移为可核对的 opening balance。
+依赖契约冻结：2026-08-12 已冻结 FND-04 与 POS-01 依赖边界；PKG-01 不得引入第二套幂等键或审计表，Ledger 事件必须接入统一强审计契约。
 
 ### POS-02 Cash 收款和收据
 

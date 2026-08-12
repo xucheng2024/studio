@@ -101,6 +101,7 @@
 - 必做：确认、提醒、变更、取消 Email，模板、时区、幂等队列/Cron、失败重试和发送证据。
 - 非目标：SMS、WhatsApp Campaign、Marketing Email。
 - Gate：重复 Cron 不重复发送；取消/改期后的旧提醒不会发送。
+- 依赖契约冻结（2026-08-12）：APT-03 状态机、资源释放和幂等重放结果已完成收口；APT-05 仅消费既有事务结果，不重定义状态转换。
 
 ### Phase 1 Gate
 
@@ -118,6 +119,7 @@
 - 现有复用：`payments`、HitPay、Invoice、Service Order、Shop Order 及 `/api/package/buy` 保留；Package 公开购买逐步适配为单 Item POS Sale，不另建第二套销售事实。
 - 非目标：实际 Cash/HitPay 扣款、退款、佣金和 Package Ledger。
 - Gate：每单和每项都归属有效 Studio/Location；门店不可售项目被拒绝；客户端金额不受信任；历史订单不被伪造或覆盖。
+- 依赖契约冻结（2026-08-12）：FND-04 的强审计、Claim/Complete/Fail 幂等 fencing、provider event dedup 为 POS-01 唯一可用基础契约。
 
 ### PKG-01 Package Ledger
 
@@ -125,6 +127,7 @@
 - 必做：渐进升级现有 `packages` / `client_packages`；保留 Class Pass、公开购买和历史余额，增加 Salon Customer、适用服务/门店、价格/次数/有效期/促销、购买/使用/返还/退款/过期 Ledger、余额同事务更新及 opening-balance 迁移。
 - 非目标：人工调整审批、POS 支付实现。
 - Gate：旧 Class Booking 不回退；余额等于 Ledger 汇总；重复来源不重复扣减；Paid Package Sale 才发放权益；迁移差异和无法映射 Customer 有报告；可计算未消费套餐价值。
+- 依赖契约冻结（2026-08-12）：PKG-01 必须复用 POS-01 销售事实与 FND-04 强审计/幂等契约，不新增平行账本幂等模型。
 
 ### PKG-02 Package 调整审批
 

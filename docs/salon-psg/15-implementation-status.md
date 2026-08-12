@@ -61,9 +61,33 @@
 | Phase 4 | ORG-01 Certification | 未开始 | 申请主体确认 | 公司负责人推进 |
 | Phase 4 | PSG-01 Evidence/Demo | 未开始 | 全部 Yes、EXP、CMP、SEC | 最终收口 |
 
+## 2026-08-12 验收收口（APT-05 / POS-01 / PKG-01 依赖契约冻结）
+
+本轮在 `codex/salon-foundation-acceptance` 执行基础模块收口验证，目标是冻结下游任务依赖契约（不在本轮开发 APT-05、POS 或 Package）：
+
+- FND-04：
+  - 远端/本地 Migration 一致性：`supabase migration list` 返回本地与远端全量对齐（含 `20260811140130`、`20260812102000`、`20260812132000`）。
+  - Legacy 051 阻断复核：`supabase start` 仍在 `051_member_profile_notes.sql` 的 `\restrict` 语法处报 `42601`，阻断仍真实存在（非过期结论）。
+  - 合同验证：最小 Postgres 沙盒复测 `strong_audit_logs` append-only、`business_idempotency_keys` claim/replay/stale fencing、`provider_events` dedup/payload_conflict，结果 `fnd04_acceptance_ok`。
+  - 复用性验证：`test:apt02-idempotency-faults`、`test:crm01-db`、`test:crm02-db` 均通过，说明 Appointment/CRM 已稳定复用同一幂等与强审计原语。
+- APT-01：`test:apt01-static-gates`、`test:availability`、`test:apt01-db-rollback` 通过，确认跨 Studio/Location 资源与可用性核心契约可回归；动态浏览器矩阵与 390px 手工回归仍需上线窗口补证。
+- APT-03：`test:apt03-app` + `test:apt03-db` 通过，覆盖日/周视图查询契约、状态转换、资源释放、幂等重放与越权拒绝；390px 浏览器手工回归仍需上线窗口补证。
+- CRM-01：`test:crm01-app`、`test:crm01-static`、`test:crm01-db` 通过；`verify:crm01-preflight` 受缺失 `CRM01_E2E_STUDIO_ID` 限制未完成专属隔离门店预检。生产侧补充执行 `test:crm02-browser`（固定账号 + 390px）通过，角色矩阵、越权拒绝、审计脱敏与幂等重放均通过。
+
+冻结结论（供下游直接依赖）：
+
+- APT-05 允许直接依赖：APT-03 状态迁移与幂等重放契约（通知侧不得改写 Appointment 原子状态机）。
+- POS-01 允许直接依赖：FND-04 的强审计 + idempotency + provider event 去重契约（Sale/Payment 必须沿用 Claim/Complete/Fail fencing）。
+- PKG-01 允许直接依赖：FND-04 与 POS-01 销售事实的不可变审计与幂等契约（Ledger 不得引入第二套幂等/审计机制）。
+
+未完成项（不阻断契约冻结，但阻断“全部真实环境验收完成”）：
+
+- `CRM01_E2E_STUDIO_ID` 对应隔离门店预检尚未补齐。
+- APT-01 与 APT-03 的 390px 端到端浏览器手工证据需在上线窗口补档。
+
 ## 当前建议领取顺序
 
-1. 先收口 FND-04、APT-01、APT-03 与 CRM-01 的真实环境验证和状态证据，避免后续 POS/Package 建在未冻结契约上。
-2. 下一项产品任务为 APT-05；它直接补齐预约确认、提醒、变更和取消通知，可独立交付。
+1. 先补 `CRM01_E2E_STUDIO_ID` 预检与 APT-01/APT-03 的 390px 浏览器证据，完成真实环境收口留档。
+2. 下一项产品任务为 APT-05；本轮依赖契约已冻结，可按既有状态机与幂等边界直接实现通知链路。
 3. 随后按 POS-01 → PKG-01 的顺序建立统一销售与套餐账本；POS-02、POS-03 可在 POS-01 后并行，PKG-02 接在 PKG-01 后。
 4. APT-04 的登录、实时档期、本人预约/改期/取消可提前开发，最终上线需联合通过 PKG-01 Package Credits 与 POS-03 订金/全款验收。
