@@ -10,6 +10,17 @@ const clientDetailPage = read("src/app/(app)/dashboard/clients/[clientId]/page.t
 const sensitiveLib = read("src/lib/salon-customer-sensitive.ts");
 
 assert.equal(
+  sensitiveLib.includes('.eq("employment_status", "active")'),
+  true,
+  "CRM-01 instructor lookup must use employees.employment_status",
+);
+assert.equal(
+  sensitiveLib.includes('.eq("is_active", true)'),
+  false,
+  "CRM-01 must not query the absent employees.is_active column",
+);
+
+assert.equal(
   clientsListPage.includes("listSalonCustomersForDashboard({"),
   true,
   "clients list must source rows from listSalonCustomersForDashboard",

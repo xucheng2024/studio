@@ -20,6 +20,7 @@
     "test:crm01-app": "node --experimental-strip-types --test scripts/tests/crm01-sensitive-access-contract.test.ts",
     "test:crm01-static": "node scripts/verify-crm01-static-gates.mjs",
     "test:crm01-db": "bash scripts/verify-crm01-db.sh",
+    "verify:crm01-preflight": "node scripts/verify-crm01-production-preflight.mjs",
     "test:revenue": "node scripts/verify-revenue-smoke.mjs",
     "seed:angle": "node scripts/reset-angle-therapy-seed.mjs",
     "seed:angle-online": "node scripts/seed-angle-online.mjs",

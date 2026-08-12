@@ -160,6 +160,21 @@ type ResolvedSensitiveAccess = {
   customer: SalonCustomerCore;
 };
 
+async function listActiveEmployeeIdsForUser(params: {
+  studioId: string;
+  userId: string;
+}) {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("employees")
+    .select("id")
+    .eq("studio_id", params.studioId)
+    .eq("user_id", params.userId)
+    .eq("employment_status", "active");
+  if (error) throw error;
+  return (data ?? []).map((row) => row.id as string);
+}
+
 function resolveStudioActorRole(
   memberships: Array<{ role: StaffRole; location_id: string | null }>,
 ): SensitiveActorRole {
@@ -493,16 +508,9 @@ async function resolveSensitiveCustomerAccess(params: {
     .filter((location) => location.studio_id === params.studioId)
     .map((location) => location.id);
 
-  let actorEmployeeIds: string[] = [];
-  if (scopedMemberships.some((membership) => membership.role === "instructor")) {
-    const { data: actorEmployees } = await admin
-      .from("employees")
-      .select("id")
-      .eq("studio_id", params.studioId)
-      .eq("user_id", params.userId)
-      .eq("is_active", true);
-    actorEmployeeIds = (actorEmployees ?? []).map((row) => row.id);
-  }
+  const actorEmployeeIds = scopedMemberships.some((membership) => membership.role === "instructor")
+    ? await listActiveEmployeeIdsForUser({ studioId: params.studioId, userId: params.userId })
+    : [];
 
   if (!hasGlobalStudioScope) {
     if (!allowedLocationIds.length) {
@@ -627,16 +635,9 @@ export async function listSalonCustomersForDashboard(params: {
       return { ok: true, customers: [] };
     }
 
-    let actorEmployeeIds: string[] = [];
-    if (studioMemberships.some((membership) => membership.role === "instructor")) {
-      const { data: actorEmployees } = await admin
-        .from("employees")
-        .select("id")
-        .eq("studio_id", params.studioId)
-        .eq("user_id", params.userId)
-        .eq("is_active", true);
-      actorEmployeeIds = (actorEmployees ?? []).map((row) => row.id);
-    }
+    const actorEmployeeIds = studioMemberships.some((membership) => membership.role === "instructor")
+      ? await listActiveEmployeeIdsForUser({ studioId: params.studioId, userId: params.userId })
+      : [];
 
     allowedCustomerIds = await resolveAllowedCustomerIdsByRelationship({
       studioId: params.studioId,
