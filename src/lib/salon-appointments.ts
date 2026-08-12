@@ -7,6 +7,11 @@ import {
   type IdempotencyClaimResult,
 } from "@/lib/idempotency";
 import {
+  enqueueAppointmentEmailNotificationSafe,
+  mapTransitionStatusToAppointmentNotificationEvent,
+  type AppointmentNotificationEventType,
+} from "@/lib/appointment-notifications";
+import {
   requireStaffMutationScope,
   requireStaffScope,
   type StaffScopeFailureReason,
@@ -530,6 +535,29 @@ async function withAppointmentIdempotency<TPayload>(params: {
   return result;
 }
 
+async function enqueueAppointmentEmailEventAfterSuccess(params: {
+  mutationResult: AppointmentMutationResult<unknown>;
+  shouldEnqueue: boolean;
+  studioId: string;
+  appointmentId: string;
+  eventType: AppointmentNotificationEventType;
+  idempotencyKey: string;
+  actorId: string;
+  actorRole: string;
+  payload?: Record<string, unknown>;
+}) {
+  if (!params.shouldEnqueue || !params.mutationResult.ok) return;
+  await enqueueAppointmentEmailNotificationSafe({
+    studioId: params.studioId,
+    appointmentId: params.appointmentId,
+    eventType: params.eventType,
+    idempotencyKey: params.idempotencyKey,
+    actorId: params.actorId,
+    actorRole: params.actorRole,
+    payload: params.payload,
+  });
+}
+
 export async function createAppointment(
   params: CreateAppointmentParams,
 ): Promise<AppointmentMutationResult<{ appointmentId: string; status: string; startsAt: string; endsAt: string }>> {
@@ -560,7 +588,7 @@ export async function createAppointment(
     };
   }
 
-  return withAppointmentIdempotency({
+  const mutationResult = await withAppointmentIdempotency({
     studioId: params.studioId,
     operationScope: "salon_appointment:create",
     idempotencyKey: params.idempotencyKey,
@@ -612,6 +640,26 @@ export async function createAppointment(
       };
     },
   });
+
+  if (mutationResult.ok) {
+    await enqueueAppointmentEmailEventAfterSuccess({
+      mutationResult,
+      shouldEnqueue: true,
+      studioId: params.studioId,
+      appointmentId: mutationResult.payload.appointmentId,
+      eventType: "appointment_created",
+      idempotencyKey: params.idempotencyKey,
+      actorId: params.userId,
+      actorRole: scope.role,
+      payload: {
+        status: mutationResult.payload.status,
+        starts_at: mutationResult.payload.startsAt,
+        ends_at: mutationResult.payload.endsAt,
+      },
+    });
+  }
+
+  return mutationResult;
 }
 
 export async function rescheduleAppointment(
@@ -660,7 +708,7 @@ export async function rescheduleAppointment(
     };
   }
 
-  return withAppointmentIdempotency({
+  const mutationResult = await withAppointmentIdempotency({
     studioId: params.studioId,
     operationScope: "salon_appointment:reschedule",
     idempotencyKey: params.idempotencyKey,
@@ -706,6 +754,27 @@ export async function rescheduleAppointment(
       };
     },
   });
+
+  if (mutationResult.ok) {
+    await enqueueAppointmentEmailEventAfterSuccess({
+      mutationResult,
+      shouldEnqueue: true,
+      studioId: params.studioId,
+      appointmentId: params.appointmentId,
+      eventType: "appointment_rescheduled",
+      idempotencyKey: params.idempotencyKey,
+      actorId: params.userId,
+      actorRole: scope.role,
+      payload: {
+        status: mutationResult.payload.status,
+        starts_at: mutationResult.payload.startsAt,
+        ends_at: mutationResult.payload.endsAt,
+        reason: params.reason ?? null,
+      },
+    });
+  }
+
+  return mutationResult;
 }
 
 export async function cancelAppointment(
@@ -757,7 +826,7 @@ export async function cancelAppointment(
     };
   }
 
-  return withAppointmentIdempotency({
+  const mutationResult = await withAppointmentIdempotency({
     studioId: params.studioId,
     operationScope: "salon_appointment:cancel",
     idempotencyKey: params.idempotencyKey,
@@ -795,6 +864,26 @@ export async function cancelAppointment(
       };
     },
   });
+
+  if (mutationResult.ok) {
+    await enqueueAppointmentEmailEventAfterSuccess({
+      mutationResult,
+      shouldEnqueue: !mutationResult.payload.alreadyCancelled,
+      studioId: params.studioId,
+      appointmentId: params.appointmentId,
+      eventType: "appointment_cancelled",
+      idempotencyKey: params.idempotencyKey,
+      actorId: params.userId,
+      actorRole: scope.role,
+      payload: {
+        status: mutationResult.payload.status,
+        already_cancelled: mutationResult.payload.alreadyCancelled,
+        reason: params.reason,
+      },
+    });
+  }
+
+  return mutationResult;
 }
 
 export async function expirePendingAppointments(params?: {
@@ -1144,7 +1233,7 @@ export async function transitionAppointmentStatus(
     actorEmployeeId = employeeId;
   }
 
-  return withAppointmentIdempotency({
+  const mutationResult = await withAppointmentIdempotency({
     studioId: params.studioId,
     operationScope: "salon_appointment:status_transition",
     idempotencyKey: params.idempotencyKey,
@@ -1179,4 +1268,25 @@ export async function transitionAppointmentStatus(
       return { ok: true, payload };
     },
   });
+
+  const eventType = mapTransitionStatusToAppointmentNotificationEvent(params.toStatus);
+  if (mutationResult.ok && eventType) {
+    await enqueueAppointmentEmailEventAfterSuccess({
+      mutationResult,
+      shouldEnqueue: !mutationResult.payload.alreadyInTarget,
+      studioId: params.studioId,
+      appointmentId: params.appointmentId,
+      eventType,
+      idempotencyKey: params.idempotencyKey,
+      actorId: params.userId,
+      actorRole,
+      payload: {
+        from_status: mutationResult.payload.fromStatus,
+        to_status: mutationResult.payload.toStatus,
+        reason: params.reason ?? null,
+      },
+    });
+  }
+
+  return mutationResult;
 }
