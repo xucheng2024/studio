@@ -4,7 +4,10 @@ import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import {
+  createOrLinkTreatmentFromAppointmentAction,
   recordSalonCustomerEmailConsentAction,
+  reviseTreatmentAction,
+  upsertTreatmentFollowUpAction,
   updateMemberProfile,
   updateSalonCustomerHealthProfileAction,
   updateSalonCustomerPreferencesAction,
@@ -15,6 +18,7 @@ import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { getSalonCustomerSensitiveDetail, listSalonCustomersForDashboard } from "@/lib/salon-customer-sensitive";
+import { listCustomerTreatments } from "@/lib/salon-treatments";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -136,6 +140,83 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     customerId: salonCustomer.id,
     locationId: selectedLocationId ?? null,
   });
+
+  const treatmentResult = await listCustomerTreatments({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId: activeStudioId,
+    customerId: salonCustomer.id,
+    locationId: selectedLocationId ?? null,
+  });
+
+  const studioMembershipsForCrm02 = ctx.memberships.filter(
+    (membership) =>
+      membership.studio_id === activeStudioId
+      && ["owner", "manager", "frontdesk", "instructor"].includes(membership.role),
+  );
+
+  const actorEmployeeIds = studioMembershipsForCrm02.some((membership) => membership.role === "instructor")
+    ? ((await admin
+        .from("employees")
+        .select("id")
+        .eq("studio_id", activeStudioId)
+        .eq("user_id", user.id)
+        .eq("employment_status", "active")).data ?? []).map((row) => row.id)
+    : [];
+
+  const hasNonInstructorScopeForLocation = (locationId: string) =>
+    studioMembershipsForCrm02.some(
+      (membership) =>
+        (membership.role === "owner" || membership.role === "manager" || membership.role === "frontdesk")
+        && (membership.location_id == null || membership.location_id === locationId),
+    );
+
+  const hasInstructorScopeForLocation = (locationId: string) =>
+    studioMembershipsForCrm02.some(
+      (membership) =>
+        membership.role === "instructor"
+        && (membership.location_id == null || membership.location_id === locationId),
+    );
+
+  const { data: completedAppointmentsRaw } = await admin
+    .from("salon_appointments")
+    .select("id, location_id, service_title_snapshot, starts_at, employee_name_snapshot, employee_id")
+    .eq("studio_id", activeStudioId)
+    .eq("salon_customer_id", salonCustomer.id)
+    .eq("status", "completed")
+    .order("starts_at", { ascending: false })
+    .limit(30);
+
+  const completedAppointments = (selectedLocationId
+    ? (completedAppointmentsRaw ?? []).filter((row) => row.location_id === selectedLocationId)
+    : (completedAppointmentsRaw ?? []))
+    .filter((row) => {
+      if (hasNonInstructorScopeForLocation(row.location_id)) return true;
+      if (hasInstructorScopeForLocation(row.location_id)) {
+        return actorEmployeeIds.includes(row.employee_id);
+      }
+      return false;
+    }) as Array<{
+      id: string;
+      location_id: string;
+      service_title_snapshot: string;
+      starts_at: string;
+      employee_name_snapshot: string;
+      employee_id: string;
+    }>;
+
+  const { data: locationEmployeesRaw } = await admin
+    .from("employees")
+    .select("id, display_name, employee_locations!inner(location_id, studio_id, is_active)")
+    .eq("studio_id", activeStudioId)
+    .eq("employment_status", "active")
+    .order("display_name");
+
+  const locationEmployees = (locationEmployeesRaw ?? []).filter((row) => {
+    if (!selectedLocationId) return true;
+    const locations = Array.isArray(row.employee_locations) ? row.employee_locations : [row.employee_locations];
+    return locations.some((item) => item?.location_id === selectedLocationId && item?.is_active);
+  }) as Array<{ id: string; display_name: string }>;
 
   const { data: subscriptionsRaw } = ledgerUserId
     ? await admin
@@ -482,6 +563,175 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
             <p className={`text-sm ${ui.muted}`}>No package-based bookings yet.</p>
           </div>
         ) : null}
+      </section>
+
+      <section className={ui.card}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className={ui.h2}>Treatments / Follow-up</h2>
+            <p className={`mt-1 text-xs ${ui.muted}`}>CRM-02 keeps treatment revisions and due-date follow-up queue in studio scope.</p>
+          </div>
+          <DashboardAppLink
+            href={`/dashboard/clients/follow-ups?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            className={ui.btnSecondarySm}
+          >
+            Open follow-up queue
+          </DashboardAppLink>
+        </div>
+
+        <ServerActionToastForm action={createOrLinkTreatmentFromAppointmentAction} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="studio_id" value={activeStudioId} />
+          <input type="hidden" name="customer_id" value={salonCustomer.id} />
+          <input type="hidden" name="idempotency_key" value={crypto.randomUUID()} />
+
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Completed appointment</span>
+            <select name="appointment_id" className={ui.select} required defaultValue="">
+              <option value="" disabled>Select completed appointment</option>
+              {completedAppointments.map((appointment) => (
+                <option key={appointment.id} value={appointment.id}>
+                  {appointment.service_title_snapshot} · {appointment.employee_name_snapshot} · {appointment.starts_at.slice(0, 10)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Lifecycle status</span>
+            <select name="lifecycle_status" className={ui.select} defaultValue="open">
+              <option value="open">Open</option>
+              <option value="completed">Completed</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Actual service employee (optional override)</span>
+            <select name="actual_employee_id" className={ui.select} defaultValue="">
+              <option value="">Use appointment employee</option>
+              {locationEmployees.map((employee) => (
+                <option key={employee.id} value={employee.id}>{employee.display_name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Revision reason</span>
+            <input name="revision_reason" className={ui.input} placeholder="e.g. initial_record" />
+          </label>
+
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Note summary (non-sensitive)</span>
+            <textarea name="note_summary" rows={2} className={ui.input} />
+          </label>
+
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Sensitive treatment note</span>
+            <textarea name="sensitive_note_body" rows={3} className={ui.input} />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Follow-up due date (optional)</span>
+            <input name="follow_up_due_on" type="date" className={ui.input} />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Follow-up owner (optional)</span>
+            <select name="follow_up_owner_employee_id" className={ui.select} defaultValue="">
+              <option value="">Unassigned</option>
+              {locationEmployees.map((employee) => (
+                <option key={employee.id} value={employee.id}>{employee.display_name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Follow-up note (non-sensitive)</span>
+            <textarea name="follow_up_note_summary" rows={2} className={ui.input} />
+          </label>
+
+          <div className="sm:col-span-2">
+            <button type="submit" className={ui.btnPrimarySm}>Create / link treatment</button>
+          </div>
+        </ServerActionToastForm>
+
+        {!treatmentResult.ok ? (
+          <p className={`mt-3 text-sm ${ui.muted}`}>Treatment data is outside your authorized CRM-02 scope.</p>
+        ) : treatmentResult.rows.length === 0 ? (
+          <p className={`mt-3 text-sm ${ui.muted}`}>No treatments yet for this customer in current scope.</p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3">
+            {treatmentResult.rows.map((row) => (
+              <article key={row.treatment.id} className="rounded-xl border border-stone-100 bg-white/70 px-3 py-3 dark:border-stone-800 dark:bg-stone-900/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{row.treatment.service_title_snapshot}</p>
+                    <p className={`text-xs ${ui.muted}`}>
+                      employee: {row.treatment.actual_employee_name_snapshot} · appointment: {row.treatment.appointment_id.slice(0, 8)} · status: {row.treatment.lifecycle_status}
+                    </p>
+                  </div>
+                  <p className={`text-xs ${ui.muted}`}><LocalTime iso={row.treatment.created_at} /></p>
+                </div>
+
+                <div className="mt-2 rounded-lg border border-stone-200/80 bg-stone-50/70 px-2.5 py-2 dark:border-stone-700 dark:bg-stone-900/40">
+                  <p className="text-xs font-medium text-stone-800 dark:text-stone-200">Latest revision</p>
+                  <p className={`mt-1 text-xs ${ui.muted}`}>
+                    {row.latestRevision
+                      ? `#${row.latestRevision.revision_no} · ${row.latestRevision.lifecycle_status} · ${row.latestRevision.revision_reason ?? "no_reason"}`
+                      : "No revision details."}
+                  </p>
+                  <p className={`mt-1 text-xs ${ui.muted}`}>{row.latestRevision?.note_summary ?? "No non-sensitive summary."}</p>
+                </div>
+
+                <ServerActionToastForm action={reviseTreatmentAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <input type="hidden" name="studio_id" value={activeStudioId} />
+                  <input type="hidden" name="customer_id" value={salonCustomer.id} />
+                  <input type="hidden" name="treatment_id" value={row.treatment.id} />
+                  <input type="hidden" name="idempotency_key" value={crypto.randomUUID()} />
+
+                  <label className="flex flex-col gap-1.5"><span className={ui.label}>Lifecycle</span><select name="lifecycle_status" className={ui.select} defaultValue={row.treatment.lifecycle_status}><option value="open">Open</option><option value="completed">Completed</option><option value="archived">Archived</option></select></label>
+                  <label className="flex flex-col gap-1.5"><span className={ui.label}>Revision reason</span><input name="revision_reason" className={ui.input} /></label>
+                  <label className="flex flex-col gap-1.5 sm:col-span-2"><span className={ui.label}>Note summary (non-sensitive)</span><textarea name="note_summary" rows={2} className={ui.input} /></label>
+                  <label className="flex flex-col gap-1.5 sm:col-span-2"><span className={ui.label}>Sensitive treatment note</span><textarea name="sensitive_note_body" rows={2} className={ui.input} /></label>
+                  <div className="sm:col-span-2"><button type="submit" className={ui.btnSecondarySm}>Add revision</button></div>
+                </ServerActionToastForm>
+
+                <div className="mt-3 flex flex-col gap-2">
+                  {row.followUps.map((followUp) => (
+                    <ServerActionToastForm key={followUp.id} action={upsertTreatmentFollowUpAction} className="rounded-lg border border-stone-200/80 bg-stone-50/60 px-2.5 py-2 dark:border-stone-700 dark:bg-stone-900/40">
+                      <input type="hidden" name="studio_id" value={activeStudioId} />
+                      <input type="hidden" name="customer_id" value={salonCustomer.id} />
+                      <input type="hidden" name="treatment_id" value={row.treatment.id} />
+                      <input type="hidden" name="follow_up_id" value={followUp.id} />
+                      <input type="hidden" name="idempotency_key" value={crypto.randomUUID()} />
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="flex flex-col gap-1.5"><span className={ui.label}>Due date</span><input name="due_on" type="date" defaultValue={followUp.due_on} className={ui.input} /></label>
+                        <label className="flex flex-col gap-1.5"><span className={ui.label}>Status</span><select name="status" defaultValue={followUp.status} className={ui.select}><option value="pending">Pending</option><option value="in_progress">In progress</option><option value="done">Done</option><option value="cancelled">Cancelled</option></select></label>
+                        <label className="flex flex-col gap-1.5"><span className={ui.label}>Owner</span><select name="owner_employee_id" defaultValue={followUp.owner_employee_id ?? ""} className={ui.select}><option value="">Unassigned</option>{locationEmployees.map((employee) => (<option key={employee.id} value={employee.id}>{employee.display_name}</option>))}</select></label>
+                        <label className="flex flex-col gap-1.5"><span className={ui.label}>Note (non-sensitive)</span><input name="note_summary" defaultValue={followUp.note_summary ?? ""} className={ui.input} /></label>
+                      </div>
+                      <button type="submit" className={`${ui.btnGhost} mt-2`}>Save follow-up</button>
+                    </ServerActionToastForm>
+                  ))}
+
+                  <ServerActionToastForm action={upsertTreatmentFollowUpAction} className="rounded-lg border border-dashed border-stone-300 px-2.5 py-2 dark:border-stone-700">
+                    <input type="hidden" name="studio_id" value={activeStudioId} />
+                    <input type="hidden" name="customer_id" value={salonCustomer.id} />
+                    <input type="hidden" name="treatment_id" value={row.treatment.id} />
+                    <input type="hidden" name="idempotency_key" value={crypto.randomUUID()} />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1.5"><span className={ui.label}>New due date</span><input name="due_on" type="date" className={ui.input} /></label>
+                      <label className="flex flex-col gap-1.5"><span className={ui.label}>Owner</span><select name="owner_employee_id" className={ui.select} defaultValue=""><option value="">Unassigned</option>{locationEmployees.map((employee) => (<option key={employee.id} value={employee.id}>{employee.display_name}</option>))}</select></label>
+                      <label className="flex flex-col gap-1.5"><span className={ui.label}>Status</span><select name="status" className={ui.select} defaultValue="pending"><option value="pending">Pending</option><option value="in_progress">In progress</option><option value="done">Done</option><option value="cancelled">Cancelled</option></select></label>
+                      <label className="flex flex-col gap-1.5"><span className={ui.label}>Note (non-sensitive)</span><input name="note_summary" className={ui.input} /></label>
+                    </div>
+                    <button type="submit" className={`${ui.btnSecondarySm} mt-2`}>Add follow-up</button>
+                  </ServerActionToastForm>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       {sensitiveDetail.ok ? (

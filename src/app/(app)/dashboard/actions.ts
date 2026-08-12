@@ -56,9 +56,12 @@ export {
 } from "./_actions/member-zone";
 
 export {
+  createOrLinkTreatmentFromAppointmentAction,
   createStaffInvite,
   recordSalonCustomerEmailConsentAction,
   revokeStaffInvite,
+  reviseTreatmentAction,
+  upsertTreatmentFollowUpAction,
   updateSalonCustomerHealthProfileAction,
   updateSalonCustomerPreferencesAction,
   toggleStaffMembership,

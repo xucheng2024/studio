@@ -1,0 +1,61 @@
+{
+  "description": "Reusable CRM-02 browser-test identities. No passwords or API keys belong in this file.",
+  "projectRef": "yjupnmbrpqeuyxgrpsrb",
+  "runId": "crm02pw_1786517551113",
+  "studioId": "5bd73107-0a8f-4bbd-84c6-d1a7ac83f6d4",
+  "locations": {
+    "l1": "bcd95bf0-8309-401d-94e3-c63243369755",
+    "l2": "72928ee7-551b-473c-a9e3-27b67d393693"
+  },
+  "serviceId": "c36318cb-fba6-40c7-8f73-3bbab52513ed",
+  "users": {
+    "owner": {
+      "id": "fff4d783-9592-4d7d-a5fe-a02d54472c16",
+      "email": "crm02pw_1786517551113.owner@example.com"
+    },
+    "managerGlobal": {
+      "id": "b833cc00-85a0-4be9-af1f-33524311a188",
+      "email": "crm02pw_1786517551113.manager.global@example.com"
+    },
+    "managerL1": {
+      "id": "05ae3380-bfe1-447b-818d-372d339905cc",
+      "email": "crm02pw_1786517551113.manager.l1@example.com"
+    },
+    "frontdeskL1": {
+      "id": "0d9b629d-db10-4861-a3d6-bc5b4ac1c220",
+      "email": "crm02pw_1786517551113.frontdesk.l1@example.com"
+    },
+    "instructorL1": {
+      "id": "0539a125-3854-47bc-af8d-4218fb6ff31b",
+      "email": "crm02pw_1786517551113.instructor.l1@example.com"
+    },
+    "instructorL2": {
+      "id": "e653e082-fbc3-4f48-9342-8afc89edb9bf",
+      "email": "crm02pw_1786517551113.instructor.l2@example.com"
+    },
+    "mixed": {
+      "id": "5757fe60-5c3d-4ba8-ab91-a718d22dc1b0",
+      "email": "crm02pw_1786517551113.mixed@example.com"
+    }
+  },
+  "employees": {
+    "eL1": "7009208d-42cd-4a90-8e7c-505c9022b2e8",
+    "eL2": "0d391a4b-ea1e-40aa-bd11-5ef0521caa84",
+    "eMixed": "5cc7c234-0a78-44e3-9ce1-7fca24c92082"
+  },
+  "memberships": {
+    "managerGlobal": "6ff617d6-b660-47aa-b0bd-809dd8e03f8c",
+    "managerL1": "7589e6b8-14d4-410e-a917-e4104aec0b92",
+    "frontdeskL1": "96be96c0-926c-4079-b34e-bf4a94a5a169",
+    "instructorL1": "d2df2d3e-a83a-4f28-b48e-0b103714cc9e",
+    "instructorL2": "67ad035d-aa2b-4ba6-a3cd-a79fe60d37c5",
+    "mixedManagerL1": "e755a0cb-4f05-4f69-969a-92685d2d379f",
+    "mixedInstructorL2": "a2119a38-9acc-4d7f-8c14-adaff2946e32"
+  },
+  "customerId": "b5e1329d-cca0-4f9a-8893-2e464e0e4393",
+  "appointments": {
+    "l1Completed": "495c6dd8-2200-41cc-9ea8-98ea34b3984a",
+    "l2Completed": "b55755a7-b538-49fc-864d-478c03a654ce",
+    "l1Confirmed": "e11a447d-afef-400e-8de5-9d49c557a5a6"
+  }
+}

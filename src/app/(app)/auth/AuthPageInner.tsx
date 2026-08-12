@@ -80,17 +80,47 @@ export function AuthPageInner({
 
   useEffect(() => {
     const supabase = createBrowserSupabase();
+    let cancelled = false;
+
+    const consumeHashSession = async () => {
+      const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : window.location.hash;
+      if (!hash) return;
+
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      if (!accessToken || !refreshToken) return;
+
+      const response = await fetch("/api/auth/hash-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+      });
+      if (cancelled || !response.ok) return;
+
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+      await goPostAuth();
+    };
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") {
+      if (!cancelled && event === "SIGNED_IN") {
         void goPostAuth();
       }
     });
+    void consumeHashSession();
     getBrowserUser().then((user) => {
-      if (user) void goPostAuth();
+      if (!cancelled && user) void goPostAuth();
     }).catch(() => null);
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, [goPostAuth]);
