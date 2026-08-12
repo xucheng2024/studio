@@ -37,6 +37,7 @@
   - SQL：`scripts/sql/verify_crm02_treatment_follow_up.sql`
   - DB 启动器：`scripts/verify-crm02-db.sh`
   - 规则契约测试：`scripts/tests/crm02-treatment-access-contract.test.ts`
+  - 浏览器测试账号与复跑说明：`scripts/fixtures/CRM02_PLAYWRIGHT.md`
 
 ## 3. 明确不做
 
