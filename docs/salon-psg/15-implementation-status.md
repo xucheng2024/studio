@@ -39,7 +39,7 @@
 | Phase 1 | APT-03 Backoffice Calendar | 已实现/待验证 | APT-02 | 已完成 APT-03 migration（日/周日历查询 + 状态转换 RPC + 资源释放 + 幂等 fencing + history/audit）、`src/lib/salon-appointments.ts` 新增 calendar/transition 封装、`/dashboard/appointments` 日/周视图与 create/confirm/check-in/start/complete/reschedule/cancel/no-show 操作；`npm run test:apt03-db`（含 cancelled payload 重放一致性）、`npm run test:apt03-app`（TS 契约+多门店聚合+周窗口单测）、`npx tsc --noEmit`、任务相关 ESLint 已通过，待补真实环境角色矩阵/移动端/浏览器端手工回归后升为已验证 |
 | Phase 1 | CRM-01 Sensitive Customer Data | 已验证/待上线 | FND-02 | 已部署 Production；隔离 Studio 的预检、Manager/Frontdesk booking-only 允许、Instructor 直访拒绝、390px 移动端及“拒绝不写成功访问审计”均已通过。上线窗口前由业务方抽样复核真实门店 Owner/Global Manager 与动态门店关系。 |
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
-| Phase 1 | APT-05 Email Notifications | 未开始 | APT-03 | 等待依赖 |
+| Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
 | Phase 2 | POS-01 Sale/Cart | 未开始 | FND-01、FND-02、FND-03、FND-04 | 下一项核心营业闭环；统一 Service/Product/Package 销售事实，并为现有 Package 购买提供适配入口 |
 | Phase 2 | PKG-01 Package Ledger | 未开始 | FND-02、FND-03、FND-04、POS-01 | 保留现有 Class Pass、公开购买和余额；迁移 opening balance，补 Salon Service/Location、Ledger、强审计和 deferred value |
 | Phase 2 | POS-02 Cash/Receipt | 未开始 | POS-01 | 等待依赖 |
@@ -88,6 +88,6 @@
 ## 当前建议领取顺序
 
 1. 先补 `CRM01_E2E_STUDIO_ID` 预检与 APT-01/APT-03 的 390px 浏览器证据，完成真实环境收口留档。
-2. 下一项产品任务为 APT-05；本轮依赖契约已冻结，可按既有状态机与幂等边界直接实现通知链路。
-3. 随后按 POS-01 → PKG-01 的顺序建立统一销售与套餐账本；POS-02、POS-03 可在 POS-01 后并行，PKG-02 接在 PKG-01 后。
-4. APT-04 的登录、实时档期、本人预约/改期/取消可提前开发，最终上线需联合通过 PKG-01 Package Credits 与 POS-03 订金/全款验收。
+2. 下一项产品任务为 POS-01；沿用 FND-04 强审计与 Claim/Complete/Fail 幂等 fencing，先建立统一销售主单与购物车事实。
+3. POS-01 完成后按计划并行 PKG-01、POS-02、POS-03；Package 购买结算按联合 Gate 验收。
+4. APT-04 的登录、实时档期、本人预约/改期/取消可提前开发，最终上线仍需联合通过 PKG-01 Package Credits 与 POS-03 订金/全款验收。
