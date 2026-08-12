@@ -165,7 +165,7 @@ async function seedData() {
       { employee_id: employees.eL1, location_id: l1, studio_id: studioId, is_primary: true, is_active: true },
       { employee_id: employees.eL2, location_id: l2, studio_id: studioId, is_primary: true, is_active: true },
       { employee_id: employees.eMixed, location_id: l2, studio_id: studioId, is_primary: true, is_active: true },
-    ]),
+    ], { onConflict: 'employee_id,location_id' }),
     'employee_locations upsert',
   );
 
