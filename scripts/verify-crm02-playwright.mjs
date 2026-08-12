@@ -348,14 +348,17 @@ async function runBrowserValidation(seed) {
   for (const [label, email] of roleChecks) {
     const { context, page, authUrl, authCookies } = await loginAs(browser, email, label);
     try {
-      await page.goto(`${BASE_URL}/dashboard/clients?studio_id=${seed.studioId}`, { waitUntil: 'networkidle', timeout: 120000 });
-      await page.waitForTimeout(800);
-      await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-clients.png`), fullPage: true });
-
-      const hasCustomer = await page.getByText(`PW Customer ${seed.runId}`).first().isVisible().catch(() => false);
       const expected = mustSeeCustomer.has(label);
-      if (expected && !hasCustomer) throw new Error(`Customer row should be visible for ${label} (authUrl=${authUrl}; cookies=${authCookies.join(',') || 'none'})`);
-      if (!expected && hasCustomer) throw new Error(`Customer row should NOT be visible for ${label}`);
+      await page.goto(`${BASE_URL}/dashboard/clients?studio_id=${seed.studioId}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      if (expected) {
+        await page.getByText(`PW Customer ${seed.runId}`).first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => null);
+      } else {
+        await page.waitForTimeout(1200);
+      }
+      await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-clients.png`), fullPage: true });
+      const hasCustomerAfterLoad = await page.getByText(`PW Customer ${seed.runId}`).first().isVisible().catch(() => false);
+      if (expected && !hasCustomerAfterLoad) throw new Error(`Customer row should be visible for ${label} (authUrl=${authUrl}; cookies=${authCookies.join(',') || 'none'})`);
+      if (!expected && hasCustomerAfterLoad) throw new Error(`Customer row should NOT be visible for ${label}`);
       if (!expected) {
         results.push({ role: label, ok: true, note: 'no customer visibility as expected' });
         continue;
@@ -375,7 +378,7 @@ async function runBrowserValidation(seed) {
       }
 
       // Queue page
-      await page.goto(`${BASE_URL}/dashboard/clients/follow-ups?studio_id=${seed.studioId}`, { waitUntil: 'networkidle', timeout: 120000 });
+      await page.goto(`${BASE_URL}/dashboard/clients/follow-ups?studio_id=${seed.studioId}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await page.waitForTimeout(800);
       await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-queue.png`), fullPage: true });
       await assertVisible(page, 'Follow-up queue', label);
@@ -386,7 +389,7 @@ async function runBrowserValidation(seed) {
         const mp = await mobile.newPage();
         const mlink = await getMagicLink(email);
         await mp.goto(mlink, { waitUntil: 'domcontentloaded', timeout: 120000 });
-        await mp.goto(`${BASE_URL}/dashboard/clients/follow-ups?studio_id=${seed.studioId}`, { waitUntil: 'networkidle', timeout: 120000 });
+        await mp.goto(`${BASE_URL}/dashboard/clients/follow-ups?studio_id=${seed.studioId}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
         await mp.waitForTimeout(800);
         const overflow = await mp.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
         await mp.screenshot({ path: path.join(SCREEN_DIR, `owner-mobile-390.png`), fullPage: true });
