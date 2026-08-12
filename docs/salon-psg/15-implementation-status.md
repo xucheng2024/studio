@@ -39,15 +39,15 @@
 | Phase 1 | APT-03 Backoffice Calendar | 已实现/待验证 | APT-02 | 已完成 APT-03 migration（日/周日历查询 + 状态转换 RPC + 资源释放 + 幂等 fencing + history/audit）、`src/lib/salon-appointments.ts` 新增 calendar/transition 封装、`/dashboard/appointments` 日/周视图与 create/confirm/check-in/start/complete/reschedule/cancel/no-show 操作；`npm run test:apt03-db`（含 cancelled payload 重放一致性）、`npm run test:apt03-app`（TS 契约+多门店聚合+周窗口单测）、`npx tsc --noEmit`、任务相关 ESLint 已通过，待补真实环境角色矩阵/移动端/浏览器端手工回归后升为已验证 |
 | Phase 1 | CRM-01 Sensitive Customer Data | 已验证/待上线 | FND-02 | 已部署 Production；隔离 Studio 的预检、Manager/Frontdesk booking-only 允许、Instructor 直访拒绝、390px 移动端及“拒绝不写成功访问审计”均已通过。上线窗口前由业务方抽样复核真实门店 Owner/Global Manager 与动态门店关系。 |
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
-| Phase 1 | APT-04 Self Booking | 未开始 | APT-03、CRM-01、PKG-01 | 等待依赖 |
 | Phase 1 | APT-05 Email Notifications | 未开始 | APT-03 | 等待依赖 |
-| Phase 2 | PKG-01 Package Ledger | 未开始 | FND-02、FND-03、FND-04 | 等待依赖 |
-| Phase 2 | PKG-02 Package Approval | 未开始 | PKG-01 | 等待依赖 |
-| Phase 2 | POS-01 Sale/Cart | 未开始 | FND-01、FND-02、FND-03、FND-04 | 等待依赖 |
+| Phase 2 | POS-01 Sale/Cart | 未开始 | FND-01、FND-02、FND-03、FND-04 | 下一项核心营业闭环；统一 Service/Product/Package 销售事实，并为现有 Package 购买提供适配入口 |
+| Phase 2 | PKG-01 Package Ledger | 未开始 | FND-02、FND-03、FND-04、POS-01 | 保留现有 Class Pass、公开购买和余额；迁移 opening balance，补 Salon Service/Location、Ledger、强审计和 deferred value |
 | Phase 2 | POS-02 Cash/Receipt | 未开始 | POS-01 | 等待依赖 |
-| Phase 2 | POS-03 HitPay | 未开始 | POS-01 | 可与 POS-02 并行 |
+| Phase 2 | POS-03 HitPay | 未开始 | POS-01 | 可与 POS-02、PKG-01 并行；Package Paid 发放需联合验收 |
+| Phase 2 | PKG-02 Package Approval | 未开始 | PKG-01 | 等待依赖 |
+| Phase 2 | APT-04 Self Booking | 未开始 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 可先开发登录/实时档期/本人改期取消，最终接入 Package、订金和全款 |
 | Phase 2 | COM-01 Commission | 未开始 | POS-02、POS-03、CRM-02 | 等待依赖 |
-| Phase 2 | POS-04 Refund/Void/Close | 未开始 | COM-01 | 等待依赖 |
+| Phase 2 | POS-04 Refund/Void/Close | 未开始 | COM-01、PKG-01 | 等待依赖；退款必须同步 Package 与 Commission 反向事实 |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
 | Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 等待依赖 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
@@ -63,6 +63,7 @@
 
 ## 当前建议领取顺序
 
-1. CRM-01 已完成 Production 角色矩阵与浏览器/移动端回归，当前为“已验证/待上线”；可与 APT-02 一起进入上线窗口和灰度发布准备。
-2. CRM-02 已上线；APT-05 可继续并行，PKG-01 仍是 APT-04 的前置依赖。
-3. FND-04、APT-01、APT-03 仍需各自的真实环境角色矩阵与浏览器/移动端回归，不能随 CRM-01 自动升级状态。
+1. 先收口 FND-04、APT-01、APT-03 与 CRM-01 的真实环境验证和状态证据，避免后续 POS/Package 建在未冻结契约上。
+2. 下一项产品任务为 APT-05；它直接补齐预约确认、提醒、变更和取消通知，可独立交付。
+3. 随后按 POS-01 → PKG-01 的顺序建立统一销售与套餐账本；POS-02、POS-03 可在 POS-01 后并行，PKG-02 接在 PKG-01 后。
+4. APT-04 的登录、实时档期、本人预约/改期/取消可提前开发，最终上线需联合通过 PKG-01 Package Credits 与 POS-03 订金/全款验收。

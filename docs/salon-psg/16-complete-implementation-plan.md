@@ -95,13 +95,6 @@
 - 非目标：生成付款或佣金、改写历史 Treatment。
 - Gate：只有授权员工可读写；历史修订可追踪；未完成 Appointment 不能伪造 Completed Treatment 来源。
 
-### APT-04 客户自助预约
-
-- 依赖：APT-03、CRM-01、PKG-01。
-- 必做：登录客户查看实时档期、预约、查看、取消、改期、Package 资格/Credit 或订金/全额付款入口、T&C 展示和接受版本。
-- 非目标：匿名 Guest 自助、SMS、复杂候补名单。
-- Gate：客户只能操作本人预约；改期重新执行冲突检查；过期 Pending 自动释放。
-
 ### APT-05 Appointment Email
 
 - 依赖：APT-03。
@@ -111,19 +104,27 @@
 
 ### Phase 1 Gate
 
-- 后台可以完成完整 Salon Appointment 流程，客户可以安全自助预约/改期/取消。
+- 后台可以完成完整 Salon Appointment 流程，并自动发送确认、提醒、变更和取消 Email。
 - Treatment 和敏感资料权限通过。
 - 现有课程 Session 保留但不参与 Salon 演示。
-- 预计工作：约 8–12 工程师周。
+- 自助预约的基础页面可并行启动，但 Package/Payment 联合上线 Gate 归入 Phase 2。
 
-## 5. Phase 2：Package、POS 与 Commission
+## 5. Phase 2：POS、Package、自助预约与 Commission
+
+### POS-01 Sale 与购物车
+
+- 依赖：FND-01、FND-02、FND-03、FND-04。
+- 必做：`pos_sales`、`pos_sale_items`、客户/门店/员工、Service/Product/Package、价格快照、折扣及税额服务器重算、Walk-in 完成证据。
+- 现有复用：`payments`、HitPay、Invoice、Service Order、Shop Order 及 `/api/package/buy` 保留；Package 公开购买逐步适配为单 Item POS Sale，不另建第二套销售事实。
+- 非目标：实际 Cash/HitPay 扣款、退款、佣金和 Package Ledger。
+- Gate：每单和每项都归属有效 Studio/Location；门店不可售项目被拒绝；客户端金额不受信任；历史订单不被伪造或覆盖。
 
 ### PKG-01 Package Ledger
 
-- 依赖：FND-02、FND-03、FND-04。
-- 必做：套餐适用服务/门店、价格/次数/有效期/促销、购买/使用/返还/退款/过期 Ledger、余额同事务更新及现有余额迁移。
+- 依赖：FND-02、FND-03、FND-04、POS-01。
+- 必做：渐进升级现有 `packages` / `client_packages`；保留 Class Pass、公开购买和历史余额，增加 Salon Customer、适用服务/门店、价格/次数/有效期/促销、购买/使用/返还/退款/过期 Ledger、余额同事务更新及 opening-balance 迁移。
 - 非目标：人工调整审批、POS 支付实现。
-- Gate：余额等于 Ledger 汇总；重复来源不重复扣减；迁移差异有报告。
+- Gate：旧 Class Booking 不回退；余额等于 Ledger 汇总；重复来源不重复扣减；Paid Package Sale 才发放权益；迁移差异和无法映射 Customer 有报告；可计算未消费套餐价值。
 
 ### PKG-02 Package 调整审批
 
@@ -132,26 +133,27 @@
 - 非目标：一般客户 Merge 或 Loyalty Points。
 - Gate：申请人不能批准本人申请；直接修改余额被数据库阻止。
 
-### POS-01 Sale 与购物车
-
-- 依赖：FND-01、FND-02、FND-03、FND-04。
-- 必做：`pos_sales`、`pos_sale_items`、客户/门店/员工、服务或商品、价格快照、折扣及税额服务器重算、Walk-in 完成证据。
-- 非目标：实际 Cash/HitPay 扣款、退款、佣金。
-- Gate：每单和每项都归属有效 Studio/Location；门店不可售服务被拒绝；客户端金额不受信任。
-
 ### POS-02 Cash、Receipt
 
 - 依赖：POS-01。
 - 必做：现金原子收款、找零、Payment、商品数量、Receipt Number、PDF Receipt 和重复提交保护。
 - 非目标：HitPay、退款、日结。
-- Gate：Payment、Sale、库存及 Receipt 要么一起成功，要么一起失败。
+- Gate：Payment、Sale、库存、Package 权益及 Receipt 要么一起成功，要么一起失败。
 
 ### POS-03 HitPay
 
 - 依赖：POS-01。
 - 必做：Pending Request、签名 Webhook、主动同步、Provider Event 幂等、成功/失败/过期状态及正式 Receipt 触发。
 - 非目标：Cash、部分退款、其他支付服务商。
-- Gate：只相信服务端验证的 Paid；Webhook 重放不重复完成销售。
+- Gate：只相信服务端验证的 Paid；Webhook 重放不重复完成销售或发放 Package。
+
+### APT-04 客户自助预约
+
+- 启动依赖：APT-03、CRM-01；最终上线依赖：PKG-01、POS-03。
+- 第一段：登录客户查看实时档期、预约、查看、取消、改期、T&C 展示和接受版本。
+- 第二段：接入仅适用于所选 Salon Service/Location 的 Package Credit，或通过 POS/HitPay 支付订金/全额；现有 Class Pass 不自动获得 Salon 使用资格。
+- 非目标：匿名 Guest 自助、SMS、复杂候补名单。
+- Gate：客户只能操作本人预约；改期重新执行冲突检查；Package 扣减与预约建立同源幂等；付款失败或过期 Pending 自动释放。
 
 ### COM-01 Commission
 
@@ -162,16 +164,17 @@
 
 ### POS-04 Refund、Void、Cash Close
 
-- 依赖：COM-01。
+- 依赖：COM-01、PKG-01。
 - 必做：整单/明细/部分退款、Credit Note、作废规则、库存回补、套餐/佣金反向 Entry、Cash Session 和日结。
 - 非目标：Accounting Ledger、IRAS AIS。
 - Gate：退款不会覆盖原记录；所有反向业务有唯一来源和审计。
 
 ### Phase 2 Gate
 
-- 前台能以 Cash/HitPay 完成多项目销售、Receipt、退款/作废和日结。
+- 前台能以 Cash/HitPay 完成 Service/Product/Package 多项目销售、Receipt、退款/作废和日结。
+- 现有 Class Pass 和公开购买保持兼容，Salon Package 使用 Ledger、调整审批和 deferred value 唯一口径。
+- 客户可以安全自助预约/改期/取消，并以合资格 Package、订金或全款完成资格检查。
 - Package 与 Commission 在付款、服务完成和退款时保持一致。
-- 预计工作：约 8–11 工程师周。
 
 ## 6. Phase 3：Marketing 与 Payroll
 
@@ -276,7 +279,8 @@
 
 - FND-04 完成后：APT-01 与 CRM-01 可并行。
 - APT-03 完成后：APT-05 可与 CRM-02 并行。
-- POS-01 完成后：POS-02 与 POS-03 可并行。
+- POS-01 完成后：PKG-01、POS-02 与 POS-03 可并行；Package 购买结算必须联合验收。
+- APT-04 的登录/实时档期部分可在 APT-03、CRM-01 后提前开发，Package/Payment 部分等待 PKG-01、POS-03。
 - MKT 编辑器可先做结构，但真实分组验收必须等待 POS-04。
 - ORG-01 和 VA/PT 询价可提前推进；正式 VA/PT 必须等待主要功能稳定。
 - RPT-01 必须等待业务事实稳定，避免早做后反复重写。
