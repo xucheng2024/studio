@@ -93,11 +93,12 @@ export function AuthPageInner({
       const refreshToken = params.get("refresh_token");
       if (!accessToken || !refreshToken) return;
 
-      const { error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
+      const response = await fetch("/api/auth/hash-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
       });
-      if (cancelled || error) return;
+      if (cancelled || !response.ok) return;
 
       window.history.replaceState(
         null,
