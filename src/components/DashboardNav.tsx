@@ -13,6 +13,7 @@ import {
   Package,
   Repeat,
   Users,
+  ReceiptText,
   CreditCard,
   BarChart2,
   Settings,
@@ -26,6 +27,7 @@ const links: NavLink[] = [
   { href: "/dashboard/operations", label: "Bookings", icon: LayoutDashboard },
   { href: "/dashboard/appointments", label: "Appointments", icon: Calendar },
   { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
+  { href: "/dashboard/pos",        label: "POS",        icon: ReceiptText },
   { href: "/dashboard/services",   label: "Services",   icon: BriefcaseBusiness },
   { href: "/dashboard/schedule",   label: "Sessions",   icon: Calendar },
   { href: "/dashboard/events",     label: "Events",     icon: CalendarRange },
@@ -41,7 +43,7 @@ const links: NavLink[] = [
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor", string[]> = {
   owner:     links.map((l) => l.href),
   manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients"],
+  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients"],
   instructor: ["/dashboard/appointments"],
 };
 

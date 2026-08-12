@@ -124,6 +124,8 @@ const requestHash = hashIdempotencyRequest({
 });
 ```
 
+> 交互约定：前台默认通过“去收款”动作自动触发 `lock_pos_sale`，不单独提供“手工锁单”按钮；但幂等键与 `request_hash` 规范保持不变。
+
 ## 5. API 层接入清单
 
 - 每个写入口必须同时提供：

@@ -79,3 +79,9 @@ export {
   updateShopProduct,
   updateStudioService,
 } from "./_actions/commerce";
+
+export {
+  createPosSaleDraftAction,
+  lockPosSaleAction,
+  upsertPosSaleItemAction,
+} from "./_actions/pos-sales";
