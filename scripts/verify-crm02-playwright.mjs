@@ -312,7 +312,13 @@ async function loginAs(browser, email, label) {
   await page.goto(link, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForTimeout(6000);
   await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-after-magic.png`), fullPage: true });
-  return { context, page, authUrl: page.url(), authCookies: (await context.cookies()).map((cookie) => cookie.name) };
+  return {
+    context,
+    page,
+    // Never persist access/refresh tokens from the URL fragment in reports.
+    authUrl: page.url().split('#', 1)[0],
+    authCookies: (await context.cookies()).map((cookie) => cookie.name),
+  };
 }
 
 async function assertVisible(page, text, label) {
