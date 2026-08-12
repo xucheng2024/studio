@@ -85,6 +85,86 @@ export async function sendClassReminder(params: {
   });
 }
 
+export type AppointmentEmailEventType =
+  | "appointment_created"
+  | "appointment_confirmed"
+  | "appointment_rescheduled"
+  | "appointment_cancelled"
+  | "appointment_reminder_24h"
+  | "appointment_reminder_2h";
+
+export function buildAppointmentNotificationEmailContent(params: {
+  eventType: AppointmentEmailEventType;
+  studioName: string;
+  customerName?: string | null;
+  serviceName: string;
+  locationName?: string | null;
+  startsAtIso: string;
+}) {
+  const subjectPrefix: Record<AppointmentEmailEventType, string> = {
+    appointment_created: "Appointment Request Received",
+    appointment_confirmed: "Appointment Confirmed",
+    appointment_rescheduled: "Appointment Rescheduled",
+    appointment_cancelled: "Appointment Cancelled",
+    appointment_reminder_24h: "Appointment Reminder (24h)",
+    appointment_reminder_2h: "Appointment Reminder (2h)",
+  };
+
+  const leadLine: Record<AppointmentEmailEventType, string> = {
+    appointment_created: "We have received your appointment request.",
+    appointment_confirmed: "Your appointment has been confirmed.",
+    appointment_rescheduled: "Your appointment has been rescheduled.",
+    appointment_cancelled: "Your appointment has been cancelled.",
+    appointment_reminder_24h: "Friendly reminder: your appointment starts in about 24 hours.",
+    appointment_reminder_2h: "Friendly reminder: your appointment starts in about 2 hours.",
+  };
+
+  const closingLine: Record<AppointmentEmailEventType, string> = {
+    appointment_created: "We will update you again if there are any changes.",
+    appointment_confirmed: "Please arrive a few minutes early for check-in.",
+    appointment_rescheduled: "Please check the updated time and location details above.",
+    appointment_cancelled: "If this was unexpected, please contact the studio to rebook.",
+    appointment_reminder_24h: "If you need to reschedule, please contact the studio as soon as possible.",
+    appointment_reminder_2h: "If you are running late, please contact the studio.",
+  };
+
+  const lines = [
+    params.customerName?.trim() ? `Hi ${params.customerName.trim()},` : "Hi,",
+    "",
+    leadLine[params.eventType],
+    "",
+    `Service: ${params.serviceName}`,
+    `Start Time (ISO): ${params.startsAtIso}`,
+    params.locationName?.trim() ? `Location: ${params.locationName.trim()}` : null,
+    `Studio: ${params.studioName}`,
+    "",
+    closingLine[params.eventType],
+  ].filter(Boolean);
+
+  return {
+    subject: `${subjectPrefix[params.eventType]} · ${params.serviceName}`,
+    text: lines.join("\n"),
+  };
+}
+
+export async function sendAppointmentNotificationEmail(params: {
+  to: string;
+  eventType: AppointmentEmailEventType;
+  studioName: string;
+  customerName?: string | null;
+  serviceName: string;
+  locationName?: string | null;
+  startsAtIso: string;
+}) {
+  const content = buildAppointmentNotificationEmailContent(params);
+
+  return sendEmail({
+    to: params.to,
+    subject: content.subject,
+    text: content.text,
+  });
+}
+
 export async function sendSessionCancelledNotice(params: {
   to: string;
   sessionTitle: string;

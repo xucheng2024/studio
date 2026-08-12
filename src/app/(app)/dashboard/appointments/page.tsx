@@ -1,5 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { AppointmentNotificationOpsPanel } from "@/components/dashboard/AppointmentNotificationOpsPanel";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import {
   cancelSalonAppointmentAction,
@@ -326,6 +327,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const canManage = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
+  const canRetryNotifications = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const isInstructorOnly = !canManage && hasStudioRole(ctx, activeStudioId, ["instructor"]);
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
 
@@ -344,6 +346,9 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
     selectedLocationId && locations.some((location) => location.id === selectedLocationId)
       ? selectedLocationId
       : null;
+  const defaultOpsLocationId =
+    effectiveLocationId ?? (!canViewAllLocations && accessibleLocationIds.length === 1 ? accessibleLocationIds[0] : null);
+  const requiresLocationSelection = !canViewAllLocations && !defaultOpsLocationId;
 
   const admin = createAdminClient();
   const [servicesResult, customersResult, allEmployeesResult, ownEmployeeResult] = await Promise.all([
@@ -629,6 +634,15 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
           Calendar range uses inclusive start and exclusive end boundaries on appointment start time.
         </div>
       </section>
+
+      {canManage ? (
+        <AppointmentNotificationOpsPanel
+          studioId={activeStudioId}
+          locationId={defaultOpsLocationId}
+          canRetry={canRetryNotifications}
+          requiresLocationSelection={requiresLocationSelection}
+        />
+      ) : null}
     </div>
   );
 }
