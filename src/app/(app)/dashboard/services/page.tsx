@@ -202,7 +202,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{svc.title}</h3>
+                      <h3 className="break-all text-base font-semibold text-stone-900 dark:text-stone-100">{svc.title}</h3>
                       {!svc.is_active ? (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
                           Hidden
@@ -240,7 +240,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <ServiceDetailLinkButton serviceId={svc.id} />
                   <ToastConfirmForm
                     action={deleteStudioService}
