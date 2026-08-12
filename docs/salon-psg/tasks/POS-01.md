@@ -18,10 +18,11 @@ Commit / Release：未提交
 
 - `AGENTS.md`
 - `docs/salon-psg/00-development-guide.md`
-- `docs/salon-psg/03-pos.md`
-- `docs/salon-psg/04-package.md`
+- `docs/salon-psg/05-pos.md`
+- `docs/salon-psg/08-packages.md`
 - `docs/salon-psg/10-development-backlog.md`（POS-01）
 - `docs/salon-psg/16-complete-implementation-plan.md`（POS-01）
+- `docs/salon-psg/17-pos-idempotency-request-hash.md`
 - `docs/salon-psg/tasks/FND-04.md`
 - `docs/salon-psg/tasks/APT-05.md`
 - `src/lib/idempotency.ts`

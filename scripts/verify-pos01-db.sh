@@ -29,7 +29,8 @@ done
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/apt02_minimal_pre_schema.sql >/tmp/pos01_pre_schema.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/pos01_verify_patch_schema.sql >/tmp/pos01_patch_schema.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813001000_pos01_sale_fact_skeleton.sql >/tmp/pos01_migration.log
-psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pos01_sale_fact_skeleton.sql | tee /tmp/pos01_verify.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813013000_pos01_write_rpcs_idempotency_audit_rls.sql >/tmp/pos01_migration_batch2.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pos01_sale_fact_skeleton.sql | tee /tmp/pos01_verify_batch1.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pos01_write_rpcs_v2.sql | tee /tmp/pos01_verify_batch2.log
 
 echo "verify-pos01-db: ok"
-
