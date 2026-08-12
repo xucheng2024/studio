@@ -207,6 +207,14 @@ export default async function ClientsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Customers</h1>
         <p className={`mt-1 ${ui.muted}`}>Studio-scoped customer roster (`salon_customers`) with safe health alert flags.</p>
+        <div className="mt-3">
+          <DashboardAppLink
+            href={`/dashboard/clients/follow-ups?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            className={ui.btnSecondarySm}
+          >
+            Follow-up queue
+          </DashboardAppLink>
+        </div>
       </div>
 
       <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-4`}>

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import {
   revalidateDashboardClientViews,
   revalidateDashboardSettings,
@@ -7,6 +8,13 @@ import {
   revalidateRbacCache,
 } from "@/lib/revalidatePublic";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
+import {
+  createOrLinkTreatmentFromCompletedAppointment,
+  reviseTreatment,
+  upsertTreatmentFollowUp,
+  type TreatmentLifecycleStatus,
+  type TreatmentFollowUpStatus,
+} from "@/lib/salon-treatments";
 import {
   mutateSalonCustomerEmailConsent,
   updateSalonCustomerHealthProfile,
@@ -326,4 +334,136 @@ export async function recordSalonCustomerEmailConsentAction(
 
   revalidateDashboardClientViews(customerId);
   return ok(`Consent recorded: ${result.effectiveStatus}.`);
+}
+
+function getIdempotencyKey(formData: FormData, fieldName = "idempotency_key") {
+  const raw = String(formData.get(fieldName) ?? "").trim();
+  return raw || crypto.randomUUID();
+}
+
+function mapTreatmentError(code: string, fallback: string) {
+  switch (code) {
+    case "forbidden":
+    case "scope_violation":
+      return "You do not have permission for this treatment scope.";
+    case "not_found":
+      return "Treatment or appointment not found in current studio scope.";
+    case "idempotency_in_progress":
+      return "Same request is already being processed. Please retry shortly.";
+    case "idempotency_conflict":
+      return "Repeated request payload mismatch. Refresh and submit again.";
+    case "idempotency_stale_claim":
+      return "Request token expired. Please retry the action.";
+    default:
+      return fallback;
+  }
+}
+
+export async function createOrLinkTreatmentFromAppointmentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const appointmentId = String(formData.get("appointment_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+
+  if (!studioId || !appointmentId || !customerId) {
+    return err("Missing required studio, customer or appointment.");
+  }
+
+  const { user } = await requireUser();
+  const result = await createOrLinkTreatmentFromCompletedAppointment({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    appointmentId,
+    actualEmployeeId: String(formData.get("actual_employee_id") ?? "").trim() || null,
+    lifecycleStatus: (String(formData.get("lifecycle_status") ?? "").trim() || "open") as TreatmentLifecycleStatus,
+    revisionReason: String(formData.get("revision_reason") ?? "").trim() || null,
+    noteSummary: String(formData.get("note_summary") ?? "").trim() || null,
+    sensitiveNoteBody: String(formData.get("sensitive_note_body") ?? "").trim() || null,
+    followUpDueOn: String(formData.get("follow_up_due_on") ?? "").trim() || null,
+    followUpOwnerEmployeeId: String(formData.get("follow_up_owner_employee_id") ?? "").trim() || null,
+    followUpNoteSummary: String(formData.get("follow_up_note_summary") ?? "").trim() || null,
+    idempotencyKey: getIdempotencyKey(formData),
+  });
+
+  if (!result.ok) {
+    return err(mapTreatmentError(result.code, result.message || "Could not create treatment."));
+  }
+
+  revalidateDashboardClientViews(customerId);
+  revalidatePath("/dashboard/clients/follow-ups");
+  return ok(result.payload.alreadyLinked ? "Treatment already linked to appointment." : "Treatment created.");
+}
+
+export async function reviseTreatmentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const treatmentId = String(formData.get("treatment_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const lifecycleStatusRaw = String(formData.get("lifecycle_status") ?? "").trim();
+
+  if (!studioId || !treatmentId || !customerId || !lifecycleStatusRaw) {
+    return err("Missing required treatment revision fields.");
+  }
+
+  const { user } = await requireUser();
+  const result = await reviseTreatment({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    treatmentId,
+    lifecycleStatus: lifecycleStatusRaw as TreatmentLifecycleStatus,
+    revisionReason: String(formData.get("revision_reason") ?? "").trim() || null,
+    noteSummary: String(formData.get("note_summary") ?? "").trim() || null,
+    sensitiveNoteBody: String(formData.get("sensitive_note_body") ?? "").trim() || null,
+    idempotencyKey: getIdempotencyKey(formData),
+  });
+
+  if (!result.ok) {
+    return err(mapTreatmentError(result.code, result.message || "Could not revise treatment."));
+  }
+
+  revalidateDashboardClientViews(customerId);
+  return ok(`Treatment revised (#${result.payload.revisionNo}).`);
+}
+
+export async function upsertTreatmentFollowUpAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const treatmentId = String(formData.get("treatment_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+
+  if (!studioId || !treatmentId || !customerId) {
+    return err("Missing required follow-up fields.");
+  }
+
+  const statusRaw = String(formData.get("status") ?? "").trim();
+
+  const { user } = await requireUser();
+  const result = await upsertTreatmentFollowUp({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    treatmentId,
+    followUpId: String(formData.get("follow_up_id") ?? "").trim() || null,
+    dueOn: String(formData.get("due_on") ?? "").trim() || null,
+    ownerEmployeeId: String(formData.get("owner_employee_id") ?? "").trim() || null,
+    status: (statusRaw || null) as TreatmentFollowUpStatus | null,
+    noteSummary: String(formData.get("note_summary") ?? "").trim() || null,
+    idempotencyKey: getIdempotencyKey(formData),
+  });
+
+  if (!result.ok) {
+    return err(mapTreatmentError(result.code, result.message || "Could not save follow-up."));
+  }
+
+  revalidateDashboardClientViews(customerId);
+  revalidatePath("/dashboard/clients/follow-ups");
+  return ok(`Follow-up saved (${result.payload.status}).`);
 }
