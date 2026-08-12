@@ -57,7 +57,10 @@ export {
 
 export {
   createStaffInvite,
+  recordSalonCustomerEmailConsentAction,
   revokeStaffInvite,
+  updateSalonCustomerHealthProfileAction,
+  updateSalonCustomerPreferencesAction,
   toggleStaffMembership,
   updateMemberProfile,
 } from "./_actions/staff-clients";

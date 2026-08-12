@@ -11,6 +11,7 @@ import {
   requireStaffScope,
   type StaffScopeFailureReason,
 } from "@/lib/scope";
+import { getSalonCustomerSafetyAlertSummary } from "@/lib/salon-customer-sensitive";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { aggregateCalendarRowsByLocationScope } from "@/lib/appointment-calendar";
@@ -204,6 +205,46 @@ export type TransitionAppointmentStatusParams = {
   reason?: string | null;
   idempotencyKey: string;
 };
+
+export type AppointmentCustomerSafetyAlertSummary = {
+  hasHealthAlert: boolean;
+  hasAllergyAlert: boolean;
+  hasContraindicationAlert: boolean;
+  patchTestRequired: boolean;
+  lastConfirmedAt: string | null;
+};
+
+export async function getAppointmentCustomerSafetyAlertSummary(params: {
+  userId: string;
+  email?: string | null;
+  studioId: string;
+  salonCustomerId: string;
+  locationId?: string | null;
+}): Promise<
+  | { ok: true; summary: AppointmentCustomerSafetyAlertSummary }
+  | { ok: false; code: "forbidden" | "not_found" | "invalid_request"; message: string }
+> {
+  const result = await getSalonCustomerSafetyAlertSummary({
+    userId: params.userId,
+    email: params.email ?? null,
+    studioId: params.studioId,
+    customerId: params.salonCustomerId,
+    locationId: params.locationId ?? null,
+  });
+  if (!result.ok) {
+    return { ok: false, code: result.reason, message: result.reason };
+  }
+  return {
+    ok: true,
+    summary: {
+      hasHealthAlert: result.summary.hasHealthAlert,
+      hasAllergyAlert: result.summary.hasAllergyAlert,
+      hasContraindicationAlert: result.summary.hasContraindicationAlert,
+      patchTestRequired: result.summary.patchTestRequired,
+      lastConfirmedAt: result.summary.lastConfirmedAt,
+    },
+  };
+}
 
 function mapScopeFailure(reason: StaffScopeFailureReason): AppointmentConflictCode {
   if (reason === "studio_not_found") return "studio_not_found";

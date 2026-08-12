@@ -7,6 +7,11 @@ import {
   revalidateRbacCache,
 } from "@/lib/revalidatePublic";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
+import {
+  mutateSalonCustomerEmailConsent,
+  updateSalonCustomerHealthProfile,
+  updateSalonCustomerPreferences,
+} from "@/lib/salon-customer-sensitive";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -197,4 +202,128 @@ export async function revokeStaffInvite(
   revalidateDashboardSettings("staff-invites");
   revalidateRbacCache();
   return ok("Invite revoked.");
+}
+
+export async function updateSalonCustomerPreferencesAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+
+  if (!studioId || !customerId) return err("Missing required customer or studio.");
+
+  const { user } = await requireUser();
+  const result = await updateSalonCustomerPreferences({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    locationId,
+    reason,
+    input: {
+      preferredServices: String(formData.get("preferred_services") ?? ""),
+      preferredEmployeeIds: String(formData.get("preferred_employee_ids") ?? ""),
+      preferredLocationIds: String(formData.get("preferred_location_ids") ?? ""),
+      preferredTimeSlots: String(formData.get("preferred_time_slots") ?? ""),
+      communicationLanguage: String(formData.get("communication_language") ?? ""),
+      productPreferences: String(formData.get("product_preferences") ?? ""),
+      environmentPreferences: String(formData.get("environment_preferences") ?? ""),
+      contactPreference: String(formData.get("contact_preference") ?? ""),
+      notes: String(formData.get("preference_notes") ?? ""),
+    },
+  });
+
+  if (!result.ok) return err(result.message ?? result.reason);
+
+  revalidateDashboardClientViews(customerId);
+  return ok("Preferences saved.");
+}
+
+export async function updateSalonCustomerHealthProfileAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+
+  if (!studioId || !customerId) return err("Missing required customer or studio.");
+
+  const { user } = await requireUser();
+  const result = await updateSalonCustomerHealthProfile({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    locationId,
+    reason,
+    input: {
+      allergies: String(formData.get("allergies") ?? ""),
+      reactionIngredients: String(formData.get("reaction_ingredients") ?? ""),
+      reactionProducts: String(formData.get("reaction_products") ?? ""),
+      declaredHealthConditions: String(formData.get("declared_health_conditions") ?? ""),
+      serviceAffectingConditions: String(formData.get("service_affecting_conditions") ?? ""),
+      contraindications: String(formData.get("contraindications") ?? ""),
+      patchTestRequired: String(formData.get("patch_test_required") ?? "") === "true",
+      patchTestDate: String(formData.get("patch_test_date") ?? ""),
+      patchTestResult: String(formData.get("patch_test_result") ?? ""),
+      lastConfirmedAt: String(formData.get("last_confirmed_at") ?? ""),
+    },
+  });
+
+  if (!result.ok) return err(result.message ?? result.reason);
+
+  revalidateDashboardClientViews(customerId);
+  return ok("Health & safety profile saved.");
+}
+
+export async function recordSalonCustomerEmailConsentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const statusRaw = String(formData.get("consent_status") ?? "").trim();
+  const sourceRaw = String(formData.get("consent_source") ?? "").trim();
+  const textVersion = String(formData.get("consent_text_version") ?? "").trim();
+  const occurredAt = String(formData.get("consent_occurred_at") ?? "").trim() || null;
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || crypto.randomUUID();
+
+  if (!studioId || !customerId) return err("Missing required customer or studio.");
+  if (statusRaw !== "granted" && statusRaw !== "withdrawn") return err("Invalid consent status.");
+  if (!textVersion) return err("Consent text version is required.");
+
+  const source = sourceRaw || "frontdesk";
+  if (!["frontdesk", "client_portal", "imported", "system", "api"].includes(source)) {
+    return err("Invalid consent source.");
+  }
+
+  const { user } = await requireUser();
+  const result = await mutateSalonCustomerEmailConsent({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    locationId,
+    idempotencyKey,
+    input: {
+      status: statusRaw,
+      source: source as "frontdesk" | "client_portal" | "imported" | "system" | "api",
+      textVersion,
+      occurredAt,
+      evidence: {
+        note: String(formData.get("consent_evidence_note") ?? "").trim() || null,
+      },
+    },
+  });
+
+  if (!result.ok) return err(result.message);
+
+  revalidateDashboardClientViews(customerId);
+  return ok(`Consent recorded: ${result.effectiveStatus}.`);
 }
