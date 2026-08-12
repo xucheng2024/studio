@@ -343,7 +343,7 @@ async function runBrowserValidation(seed) {
     ['mixed', seed.users.mixed.email],
   ];
 
-  const mustSeeCustomer = new Set(['owner', 'manager-global', 'manager-l1', 'frontdesk-l1', 'instructor-l1', 'mixed']);
+  const mustSeeCustomer = new Set(['owner', 'manager-global', 'manager-l1', 'frontdesk-l1', 'instructor-l1', 'instructor-l2', 'mixed']);
 
   for (const [label, email] of roleChecks) {
     const { context, page, authUrl, authCookies } = await loginAs(browser, email, label);
@@ -364,13 +364,13 @@ async function runBrowserValidation(seed) {
         continue;
       }
 
-      await page.getByRole('link', { name: /PW Customer/i }).first().click();
+      await page.getByRole('button', { name: 'Open customer' }).first().click();
       await page.waitForTimeout(1000);
       await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-client-detail.png`), fullPage: true });
 
       await assertVisible(page, 'Treatments / Follow-up', label);
 
-      if (label === 'instructor-l1' || label === 'mixed') {
+      if (label === 'instructor-l1' || label === 'instructor-l2' || label === 'mixed') {
         const leakedL2Name = await page.getByText(`Inst L2 ${seed.runId}`).first().isVisible().catch(() => false);
         if (leakedL2Name) {
           throw new Error(`${label} leaked L2 instructor snapshot`);
