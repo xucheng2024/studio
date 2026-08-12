@@ -322,7 +322,8 @@ async function loginAs(browser, email, label) {
 }
 
 async function assertVisible(page, text, label) {
-  const ok = await page.getByText(text, { exact: false }).first().isVisible().catch(() => false);
+  const locator = page.getByText(text, { exact: false }).first();
+  const ok = await locator.waitFor({ state: 'visible', timeout: 15000 }).then(() => true).catch(() => false);
   if (!ok) {
     await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-assert-fail.png`), fullPage: true });
     throw new Error(`Expected text not visible: ${text}`);
