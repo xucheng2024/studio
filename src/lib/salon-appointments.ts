@@ -11,10 +11,36 @@ import {
   requireStaffScope,
   type StaffScopeFailureReason,
 } from "@/lib/scope";
+import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
+import { aggregateCalendarRowsByLocationScope } from "@/lib/appointment-calendar";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const APPOINTMENT_MUTATION_ROLES = ["owner", "manager", "frontdesk"] as const;
 const APPOINTMENT_READ_ROLES = ["owner", "manager", "frontdesk"] as const;
+const APPOINTMENT_INSTRUCTOR_ROLE = ["instructor"] as const;
+
+const APPOINTMENT_STATUSES = [
+  "pending",
+  "confirmed",
+  "checked_in",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "no_show",
+] as const;
+
+const APPOINTMENT_TRANSITION_TARGET_STATUSES = [
+  "confirmed",
+  "checked_in",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "no_show",
+] as const;
+
+type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
+type AppointmentTransitionTargetStatus = (typeof APPOINTMENT_TRANSITION_TARGET_STATUSES)[number];
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -148,6 +174,34 @@ export type CancelAppointmentParams = {
   studioId: string;
   appointmentId: string;
   reason: string;
+  idempotencyKey: string;
+};
+
+export type AppointmentCalendarRow = AppointmentRecord & {
+  customer_name: string | null;
+};
+
+type AppointmentCalendarRpcRow = Omit<AppointmentCalendarRow, "id"> & {
+  appointment_id: string;
+};
+
+export type ListAppointmentCalendarParams = {
+  userId: string;
+  studioId: string;
+  rangeStartIso: string;
+  rangeEndIso: string;
+  locationId?: string | null;
+  employeeId?: string | null;
+  serviceId?: string | null;
+  statuses?: AppointmentStatus[] | null;
+};
+
+export type TransitionAppointmentStatusParams = {
+  userId: string;
+  studioId: string;
+  appointmentId: string;
+  toStatus: AppointmentTransitionTargetStatus;
+  reason?: string | null;
   idempotencyKey: string;
 };
 
@@ -287,6 +341,96 @@ function normalizeCancelPayload(snapshot: unknown):
       ? alreadyCancelledRaw
       : alreadyCancelledRaw === "true";
   return { appointmentId, status, alreadyCancelled };
+}
+
+function normalizeTransitionPayload(snapshot: unknown):
+  | {
+      appointmentId: string;
+      fromStatus: string;
+      toStatus: string;
+      status: string;
+      alreadyInTarget: boolean;
+      releasedResources: number;
+    }
+  | null {
+  if (!snapshot || typeof snapshot !== "object") return null;
+  const record = snapshot as Record<string, unknown>;
+  const appointmentId = (record.appointmentId ?? record.appointment_id) as string | undefined;
+  const fromStatus = (record.fromStatus ?? record.from_status) as string | undefined;
+  const toStatus = (record.toStatus ?? record.to_status) as string | undefined;
+  const status = record.status as string | undefined;
+  const alreadyInTargetRaw =
+    (record.alreadyInTarget ?? record.already_in_target) as boolean | string | undefined;
+  const releasedResourcesRaw =
+    (record.releasedResources ?? record.released_resources) as number | string | undefined;
+  if (!appointmentId || !fromStatus || !toStatus || !status || alreadyInTargetRaw == null) return null;
+  const alreadyInTarget =
+    typeof alreadyInTargetRaw === "boolean" ? alreadyInTargetRaw : alreadyInTargetRaw === "true";
+  const releasedResources = typeof releasedResourcesRaw === "number"
+    ? releasedResourcesRaw
+    : Number(releasedResourcesRaw ?? 0);
+  return {
+    appointmentId,
+    fromStatus,
+    toStatus,
+    status,
+    alreadyInTarget,
+    releasedResources: Number.isFinite(releasedResources) ? releasedResources : 0,
+  };
+}
+
+async function resolveInstructorEmployeeId(params: { userId: string; studioId: string }) {
+  const admin = createAdminClient();
+  const { data: employee, error } = await admin
+    .from("employees")
+    .select("id")
+    .eq("studio_id", params.studioId)
+    .eq("user_id", params.userId)
+    .maybeSingle<{ id: string }>();
+  if (error) throw error;
+  return employee?.id ?? null;
+}
+
+async function resolveReadActor(params: {
+  userId: string;
+  studioId: string;
+  locationId: string;
+  appointmentEmployeeId: string;
+}): Promise<
+  | { ok: true; role: "owner" | "manager" | "frontdesk"; actorEmployeeId: null }
+  | { ok: true; role: "instructor"; actorEmployeeId: string }
+  | { ok: false; reason: StaffScopeFailureReason }
+> {
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: params.locationId,
+    roles: [...APPOINTMENT_READ_ROLES],
+  });
+  if (scope.ok) {
+    return { ok: true, role: scope.role, actorEmployeeId: null };
+  }
+  if (scope.reason !== "forbidden") {
+    return { ok: false, reason: scope.reason };
+  }
+
+  const instructorScope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: params.locationId,
+    roles: [...APPOINTMENT_INSTRUCTOR_ROLE],
+  });
+  if (!instructorScope.ok) {
+    return { ok: false, reason: instructorScope.reason };
+  }
+  const actorEmployeeId = await resolveInstructorEmployeeId({
+    userId: params.userId,
+    studioId: params.studioId,
+  });
+  if (!actorEmployeeId || actorEmployeeId !== params.appointmentEmployeeId) {
+    return { ok: false, reason: "forbidden" };
+  }
+  return { ok: true, role: "instructor", actorEmployeeId };
 }
 
 async function withAppointmentIdempotency<TPayload>(params: {
@@ -660,17 +804,17 @@ export async function getAppointmentById(params: {
     };
   }
 
-  const scope = await requireStaffScope({
+  const actor = await resolveReadActor({
     userId: params.userId,
     studioId: params.studioId,
     locationId: row.location_id,
-    roles: [...APPOINTMENT_READ_ROLES],
+    appointmentEmployeeId: row.employee_id,
   });
-  if (!scope.ok) {
+  if (!actor.ok) {
     return {
       ok: false,
-      code: mapScopeFailure(scope.reason),
-      message: scope.reason,
+      code: mapScopeFailure(actor.reason),
+      message: actor.reason,
     };
   }
 
@@ -678,4 +822,320 @@ export async function getAppointmentById(params: {
     ok: true,
     payload: { appointment: row },
   };
+}
+
+export async function listAppointmentsForCalendar(
+  params: ListAppointmentCalendarParams,
+): Promise<AppointmentMutationResult<{ appointments: AppointmentCalendarRow[] }>> {
+  const idValidation = assertMutationInputIds({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: params.locationId ?? null,
+    employeeId: params.employeeId ?? null,
+    serviceId: params.serviceId ?? null,
+  });
+  if (!idValidation.ok) return idValidation;
+
+  const rangeStart = new Date(params.rangeStartIso);
+  const rangeEnd = new Date(params.rangeEndIso);
+  if (Number.isNaN(rangeStart.getTime()) || Number.isNaN(rangeEnd.getTime()) || rangeEnd <= rangeStart) {
+    return {
+      ok: false,
+      code: "invalid_request",
+      message: "Invalid calendar time range.",
+    };
+  }
+
+  const staffDashboardScope = await getDashboardScopeForRoles(
+    {
+      userId: params.userId,
+      studioId: params.studioId,
+      locationId: params.locationId ?? null,
+    },
+    [...APPOINTMENT_READ_ROLES],
+  );
+
+  const canReadAsStaff = staffDashboardScope.studioIds.includes(params.studioId);
+  const hasGlobalStaffAccess =
+    canReadAsStaff && hasStudioGlobalLocationAccess(staffDashboardScope.ctx, params.studioId);
+
+  const adminScope = canReadAsStaff
+    ? await requireStaffScope({
+        userId: params.userId,
+        studioId: params.studioId,
+        locationId: params.locationId ?? null,
+        roles: [...APPOINTMENT_READ_ROLES],
+      })
+    : { ok: false as const, reason: "forbidden" as StaffScopeFailureReason };
+
+  let actorRole: "owner" | "manager" | "frontdesk" | "instructor";
+  let actorEmployeeId: string | null = null;
+  let instructorAllowedLocationIds: string[] | null = null;
+
+  if (adminScope.ok) {
+    actorRole = adminScope.role;
+  } else {
+    if (adminScope.reason !== "forbidden") {
+      return {
+        ok: false,
+        code: mapScopeFailure(adminScope.reason),
+        message: adminScope.reason,
+      };
+    }
+    const instructorScope = await requireStaffScope({
+      userId: params.userId,
+      studioId: params.studioId,
+      locationId: params.locationId ?? null,
+      roles: [...APPOINTMENT_INSTRUCTOR_ROLE],
+    });
+    if (!instructorScope.ok) {
+      return {
+        ok: false,
+        code: mapScopeFailure(instructorScope.reason),
+        message: instructorScope.reason,
+      };
+    }
+    const employeeId = await resolveInstructorEmployeeId({
+      userId: params.userId,
+      studioId: params.studioId,
+    });
+    if (!employeeId) {
+      return {
+        ok: false,
+        code: "forbidden",
+        message: "Instructor employee identity not found.",
+      };
+    }
+    const instructorDashboardScope = await getDashboardScopeForRoles(
+      {
+        userId: params.userId,
+        studioId: params.studioId,
+        locationId: params.locationId ?? null,
+      },
+      ["instructor"],
+    );
+    if (!instructorDashboardScope.studioIds.includes(params.studioId)) {
+      return {
+        ok: false,
+        code: "forbidden",
+        message: "forbidden",
+      };
+    }
+    actorRole = "instructor";
+    actorEmployeeId = employeeId;
+    instructorAllowedLocationIds = instructorDashboardScope.accessibleLocationIds;
+  }
+
+  if (params.statuses?.length) {
+    for (const status of params.statuses) {
+      if (!APPOINTMENT_STATUSES.includes(status)) {
+        return {
+          ok: false,
+          code: "invalid_request",
+          message: `Invalid appointment status filter: ${status}.`,
+        };
+      }
+    }
+  }
+
+  const admin = createAdminClient();
+  let aggregated:
+    | { ok: true; rows: AppointmentCalendarRow[] }
+    | { ok: false; reason: "forbidden" };
+  try {
+    aggregated = await aggregateCalendarRowsByLocationScope<AppointmentCalendarRpcRow>({
+      requestedLocationId: params.locationId ?? null,
+      accessibleLocationIds:
+        actorRole === "instructor"
+          ? (instructorAllowedLocationIds ?? [])
+          : staffDashboardScope.accessibleLocationIds,
+      hasGlobalAccess: actorRole === "instructor" ? false : hasGlobalStaffAccess,
+      fetchRows: async (locationId) => {
+        const { data, error } = await admin.rpc("list_salon_appointments_for_calendar", {
+          p_actor_role: actorRole,
+          p_actor_employee_id: actorEmployeeId,
+          p_studio_id: params.studioId,
+          p_range_start: params.rangeStartIso,
+          p_range_end: params.rangeEndIso,
+          p_location_id: locationId,
+          p_employee_id: params.employeeId ?? null,
+          p_service_id: params.serviceId ?? null,
+          p_statuses: params.statuses && params.statuses.length > 0 ? params.statuses : null,
+        });
+        if (error) throw error;
+        return (data ?? []) as AppointmentCalendarRpcRow[];
+      },
+    });
+  } catch (error) {
+    const mapped = mapRpcError(error as { code?: string; message?: string });
+    return { ok: false, ...mapped };
+  }
+
+  if (!aggregated.ok) {
+    return {
+      ok: false,
+      code: "forbidden",
+      message: "forbidden",
+    };
+  }
+
+  const rows = aggregated.rows as AppointmentCalendarRow[];
+  if (actorRole === "instructor") {
+    const allowedLocations = new Set(instructorAllowedLocationIds ?? []);
+    const postScopeViolation = rows.some(
+      (row) =>
+        row.employee_id !== actorEmployeeId ||
+        !allowedLocations.has(row.location_id),
+    );
+    if (postScopeViolation) {
+      return {
+        ok: false,
+        code: "forbidden",
+        message: "Calendar result scope violation detected.",
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    payload: { appointments: rows },
+  };
+}
+
+export async function transitionAppointmentStatus(
+  params: TransitionAppointmentStatusParams,
+): Promise<AppointmentMutationResult<{
+  appointmentId: string;
+  fromStatus: string;
+  toStatus: string;
+  status: string;
+  alreadyInTarget: boolean;
+  releasedResources: number;
+}>> {
+  const idValidation = assertMutationInputIds({
+    userId: params.userId,
+    studioId: params.studioId,
+    appointmentId: params.appointmentId,
+  });
+  if (!idValidation.ok) return idValidation;
+
+  if (!APPOINTMENT_TRANSITION_TARGET_STATUSES.includes(params.toStatus)) {
+    return {
+      ok: false,
+      code: "invalid_request",
+      message: `Invalid transition target status: ${params.toStatus}.`,
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data: existing, error: existingError } = await admin
+    .from("salon_appointments")
+    .select("id, location_id, employee_id")
+    .eq("id", params.appointmentId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ id: string; location_id: string; employee_id: string }>();
+
+  if (existingError) throw existingError;
+  if (!existing) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "Appointment not found.",
+    };
+  }
+
+  const adminScope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: existing.location_id,
+    roles: [...APPOINTMENT_MUTATION_ROLES],
+  });
+
+  let actorRole: "owner" | "manager" | "frontdesk" | "instructor";
+  let actorEmployeeId: string | null = null;
+
+  if (adminScope.ok) {
+    actorRole = adminScope.role;
+  } else {
+    if (adminScope.reason !== "forbidden") {
+      return {
+        ok: false,
+        code: mapScopeFailure(adminScope.reason),
+        message: adminScope.reason,
+      };
+    }
+
+    const instructorScope = await requireStaffScope({
+      userId: params.userId,
+      studioId: params.studioId,
+      locationId: existing.location_id,
+      roles: [...APPOINTMENT_INSTRUCTOR_ROLE],
+    });
+    if (!instructorScope.ok) {
+      return {
+        ok: false,
+        code: mapScopeFailure(instructorScope.reason),
+        message: instructorScope.reason,
+      };
+    }
+
+    const employeeId = await resolveInstructorEmployeeId({
+      userId: params.userId,
+      studioId: params.studioId,
+    });
+    if (!employeeId || employeeId !== existing.employee_id) {
+      return {
+        ok: false,
+        code: "forbidden",
+        message: "Instructor can only transition their own appointments.",
+      };
+    }
+
+    if (!["checked_in", "in_progress", "completed"].includes(params.toStatus)) {
+      return {
+        ok: false,
+        code: "forbidden",
+        message: "Instructor cannot perform this status transition.",
+      };
+    }
+
+    actorRole = "instructor";
+    actorEmployeeId = employeeId;
+  }
+
+  return withAppointmentIdempotency({
+    studioId: params.studioId,
+    operationScope: "salon_appointment:status_transition",
+    idempotencyKey: params.idempotencyKey,
+    requestPayload: params,
+    normalizeReplayPayload: normalizeTransitionPayload,
+    run: async ({ idempotencyRecordId, claimToken }) => {
+      const { data, error } = await admin.rpc("transition_salon_appointment_status", {
+        p_actor_id: params.userId,
+        p_actor_role: actorRole,
+        p_actor_employee_id: actorEmployeeId,
+        p_studio_id: params.studioId,
+        p_appointment_id: params.appointmentId,
+        p_to_status: params.toStatus,
+        p_reason: params.reason ?? null,
+        p_idempotency_key_id: idempotencyRecordId,
+        p_idempotency_claim_token: claimToken,
+      });
+
+      if (error) {
+        const mapped = mapRpcError(error);
+        return { ok: false, ...mapped };
+      }
+
+      const payload = normalizeTransitionPayload(data);
+      if (!payload) {
+        return {
+          ok: false,
+          code: "unknown",
+          message: "Malformed transition payload.",
+        };
+      }
+      return { ok: true, payload };
+    },
+  });
 }

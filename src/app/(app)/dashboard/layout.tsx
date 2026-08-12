@@ -23,14 +23,16 @@ export default async function DashboardLayout({
   const access = await resolveAccessContext({ userId: user.id, email: user.email });
   const ctx = access.ctx;
   const role = access.bestRole;
-  const resolvedRole: "owner" | "manager" | "frontdesk" =
+  const resolvedRole: "owner" | "manager" | "frontdesk" | "instructor" =
     role === "owner" || ctx.isSuperAdmin
       ? "owner"
       : role === "manager"
         ? "manager"
+        : role === "instructor"
+          ? "instructor"
         : "frontdesk";
 
-  if (!access.hasBackofficeAccess || role === "instructor") {
+  if (!access.hasBackofficeAccess) {
     if (!access.hasBackofficeAccess && access.hasSuspendedBackofficeAccess) {
       redirect("/account/suspended");
     }
@@ -71,18 +73,24 @@ export default async function DashboardLayout({
 
   const homeHref = superAdminNoStudioMode
     ? "/dashboard/settings/owners"
+    : resolvedRole === "instructor"
+      ? "/dashboard/appointments"
     : ownerNoStudioMode
       ? "/dashboard/overview"
       : "/dashboard/operations";
 
   const homeLabel = superAdminNoStudioMode
     ? "Platform admin"
+    : resolvedRole === "instructor"
+      ? "Appointments"
     : ownerNoStudioMode
       ? "Get started"
       : "Front desk";
 
   const homeSub = superAdminNoStudioMode
     ? "Manage owner access"
+    : resolvedRole === "instructor"
+      ? "View and update your schedule"
     : ownerNoStudioMode
       ? "Create your first studio"
       : "Manage your studio";

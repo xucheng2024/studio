@@ -24,6 +24,7 @@ type NavLink = { href: string; label: string; icon: LucideIcon };
 
 const links: NavLink[] = [
   { href: "/dashboard/operations", label: "Bookings", icon: LayoutDashboard },
+  { href: "/dashboard/appointments", label: "Appointments", icon: Calendar },
   { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
   { href: "/dashboard/services",   label: "Services",   icon: BriefcaseBusiness },
   { href: "/dashboard/schedule",   label: "Sessions",   icon: Calendar },
@@ -37,14 +38,15 @@ const links: NavLink[] = [
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },
 ];
 
-const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk", string[]> = {
+const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor", string[]> = {
   owner:     links.map((l) => l.href),
   manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/payments", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients"],
+  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients"],
+  instructor: ["/dashboard/appointments"],
 };
 
 function useVisibleLinks(
-  role: "owner" | "manager" | "frontdesk",
+  role: "owner" | "manager" | "frontdesk" | "instructor",
   superAdminNoStudioMode: boolean,
 ) {
   const allowed = new Set(roleLinkAllowList[role]);
@@ -56,6 +58,7 @@ function useVisibleLinks(
 function prioritizeMobileLinks(visibleLinks: NavLink[]) {
   const priority = new Map([
     ["/dashboard/operations", 0],
+    ["/dashboard/appointments", 1],
     ["/dashboard/payments", 1],
     ["/dashboard/settings", 2],
     ["/dashboard/schedule", 3],
@@ -96,7 +99,7 @@ export function DashboardNav({
   role,
   superAdminNoStudioMode = false,
 }: {
-  role: "owner" | "manager" | "frontdesk";
+  role: "owner" | "manager" | "frontdesk" | "instructor";
   superAdminNoStudioMode?: boolean;
 }) {
   const visibleLinks = useVisibleLinks(role, superAdminNoStudioMode);
@@ -138,7 +141,7 @@ export function MobileBottomNav({
   role,
   superAdminNoStudioMode = false,
 }: {
-  role: "owner" | "manager" | "frontdesk";
+  role: "owner" | "manager" | "frontdesk" | "instructor";
   superAdminNoStudioMode?: boolean;
 }) {
   const visibleLinks = prioritizeMobileLinks(useVisibleLinks(role, superAdminNoStudioMode));

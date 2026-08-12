@@ -37,6 +37,13 @@ export {
 export type { SessionPanelResult } from "./_actions/sessions";
 export type { DashboardFormResult } from "./_actions/shared";
 
+export {
+  cancelSalonAppointmentAction,
+  createSalonAppointmentAction,
+  rescheduleSalonAppointmentAction,
+  transitionSalonAppointmentStatusAction,
+} from "./_actions/appointments";
+
 export { createEvent, deleteEvent, updateEvent } from "./_actions/events";
 
 export {
