@@ -1,6 +1,6 @@
 # Salon PSG 实施状态表
 
-更新时间：2026-08-11
+更新时间：2026-08-12
 
 本文件是开发进度的唯一来源。模块需求说明“最终产品要做什么”，Backlog 说明依赖顺序，本文件只记录每个任务当前真实状态和交付证据。
 
@@ -24,7 +24,7 @@
 | FND-03 | 已上线 | 已存在 `service_locations` Migration 和 `src/lib/service-locations.ts`，包含发布范围、停用、覆盖值、审计及权限入口 | `6c40e3d`，`main` / `origin/main` | Migration 已返回 `service_location_rows_created: 47`。总部默认时长/缓冲由 APT-01 在建立 Salon Availability 契约时补充，不回退 FND-03。 |
 | FND-04 | 已实现/待验证 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | 未提交 | 未 Commit/Push。验证使用独立最小 Postgres 沙盒完成（详见 [FND-04](./tasks/FND-04.md)），因既有 `051_member_profile_notes.sql` 的 `\restrict` 语法及 `auth` Schema 权限问题（与本任务无关）暂无法从空库完整重放历史；`operation_audits` 未做 Schema 变更或回填，仅在任务文件中给出未解决 Legacy 记录的报告查询。 |
 
-详细记录见 [FND-01](./tasks/FND-01.md)、[FND-02](./tasks/FND-02.md)、[FND-03](./tasks/FND-03.md)、[FND-04](./tasks/FND-04.md)。
+详细记录见 [FND-01](./tasks/FND-01.md)、[FND-02](./tasks/FND-02.md)、[FND-03](./tasks/FND-03.md)、[FND-04](./tasks/FND-04.md)、[APT-02](./tasks/APT-02.md)。
 
 ## 全部任务状态
 
@@ -35,7 +35,7 @@
 | Phase 0 | FND-03 Service/Location | 已上线 | FND-01 | 作为后续门店服务契约，不重做 |
 | Phase 0 | FND-04 Audit/Idempotency | 已实现/待验证 | 无 | 修复 051 既有 Migration 问题后对完整历史重跑一次回归；之后可供 APT-02/PKG-01/POS-01/MKT-02/PAY-02 复用 |
 | Phase 1 | APT-01 Availability/Resources | 已实现/待验证 | FND-01、FND-03 | 已补批量原子 RPC、资源跨门店 strict guard、DB 侧 exception 归属校验、联合可用性接口、资源编辑 UI；新增静态门禁脚本、resolver 回归脚本、数据库回滚脚本（`postgres:15`）通过，`next build` 通过；待补真实环境角色矩阵/动态越权/移动端回归后可升为已验证 |
-| Phase 1 | APT-02 Appointment Transaction | 未开始 | APT-01、FND-02、FND-04 | 等待依赖 |
+| Phase 1 | APT-02 Appointment Transaction | 已验证/待上线 | APT-01、FND-02、FND-04 | 已完成 APT-02 数据模型、原子 create/reschedule/cancel/expire、员工/资源冲突约束、状态历史、Terms 接受证据基础与 TS 库封装；并完成复审问题闭环（跨门店改期双门店权限、Instructor 读取收敛、幂等 claim token fencing+重放结构一致、失败状态持久化路径、改期原因落库、23P01 资源冲突映射）；`test:apt02-db-foundation`、`test:apt02-concurrency`、`test:apt02-idempotency-faults`、`npx tsc --noEmit` 通过 |
 | Phase 1 | APT-03 Backoffice Calendar | 未开始 | APT-02 | 等待依赖 |
 | Phase 1 | CRM-01 Sensitive Customer Data | 未开始 | FND-02 | 可与 APT-01 并行 |
 | Phase 1 | CRM-02 Treatment/Follow-up | 未开始 | APT-03、CRM-01 | 等待依赖 |
@@ -64,5 +64,5 @@
 ## 当前建议领取顺序
 
 1. FND-04 已实现/待验证；建议先单独修复 `051_member_profile_notes.sql` 的既有 Migration 问题（详见 [FND-04](./tasks/FND-04.md) 当前确认边界），以便对完整历史做一次真实回归后再标记为已验证。
-2. APT-01 已实现/待验证；静态门禁与联合可用性脚本已通过，下一步补真实环境的角色端到端权限矩阵、动态越权与 FND-01~FND-04 回归证据，完成后可解锁 APT-02。
-3. CRM-01 可并行推进；APT-02 在 APT-01/FND-04 验证收口后启动。
+2. APT-02 当前为“已验证/待上线”；可进入上线窗口与灰度发布准备。
+3. CRM-01 可并行推进；APT-03 依赖 APT-02 的数据库与事务契约可继续启动实现。
