@@ -50,6 +50,7 @@ export function AuthPageInner({
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<OtpStep>("request");
   const [otpCode, setOtpCode] = useState("");
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [inApp] = useState(() => detectInAppBrowser());
   const [copied, setCopied] = useState(false);
 
@@ -70,6 +71,12 @@ export function AuthPageInner({
     router.replace(postAuthPath);
     throttledRefresh(router);
   }, [postAuthPath, rememberMemberStudio, router]);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = window.setTimeout(() => setResendSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendSeconds]);
 
   useEffect(() => {
     const supabase = createBrowserSupabase();
@@ -257,6 +264,7 @@ export function AuthPageInner({
                       return;
                     }
                     setStep("verify");
+                    setResendSeconds(60);
                     setMsg("Code sent — check your inbox (and spam folder).");
                     return;
                   }
@@ -339,7 +347,8 @@ export function AuthPageInner({
                   <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
-                      className={`text-sm ${ui.link}`}
+                      disabled={loading || resendSeconds > 0}
+                      className={`text-sm ${ui.link} disabled:cursor-not-allowed disabled:opacity-50`}
                       onClick={async () => {
                         setMsg(null);
                         setLoading(true);
@@ -353,15 +362,16 @@ export function AuthPageInner({
                           setMsg(error.message);
                           return;
                         }
+                        setResendSeconds(60);
                         setMsg("New code sent — check your inbox.");
                       }}
                     >
-                      Resend code
+                      {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : "Resend code"}
                     </button>
                     <button
                       type="button"
                       className={`text-sm ${ui.muted} hover:text-stone-700 dark:hover:text-stone-300`}
-                      onClick={() => { setStep("request"); setOtpCode(""); setMsg(null); }}
+                      onClick={() => { setStep("request"); setOtpCode(""); setResendSeconds(0); setMsg(null); }}
                     >
                       ← Change email
                     </button>
