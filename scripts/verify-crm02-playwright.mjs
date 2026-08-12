@@ -364,7 +364,7 @@ async function runBrowserValidation(seed) {
         continue;
       }
 
-      await page.getByRole('button', { name: 'Open customer' }).first().click();
+      await page.getByRole('link', { name: 'Open customer' }).first().click();
       await page.waitForTimeout(1000);
       await page.screenshot({ path: path.join(SCREEN_DIR, `${label}-client-detail.png`), fullPage: true });
 
