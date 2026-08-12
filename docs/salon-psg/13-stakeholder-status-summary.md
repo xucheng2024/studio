@@ -9,15 +9,15 @@
 | Q1 云端/多设备 | ✅ 基本满足 | 继续使用云端响应式 Web/PWA，准备桌面、平板和手机浏览器截图，并演示同一账号的数据同步。 | Yes |
 | Q2 多门店集中管理 | 🟡 部分满足 | 保留现有 Location；增加服务发布到全部/指定门店、员工多门店归属、所有业务强制记录门店，以及单店/全部门店合并报表。 | 完成后 Yes |
 | Q3 Dashboard/Reports | ❌ 不满足 | 建立至少4张互动图表，统一使用日期、门店、员工、服务筛选；增加预约结果、门店/服务/商品销售、YoY、新客/留存/FOV、员工业绩/佣金及套餐余额价值报表。 | 完成后 Yes |
-| Q4 Appointment Scheduling | ❌ 不满足 | 新建真正的一对一美容预约日历；设置员工时间、房间、床位和设备；阻止重复预约；支持确认、到店、完成、取消、爽约和自动通知。现有团课 Session 只保留，不作为证据。 | 完成后 Yes |
-| Q5–Q6 Booking | 🟡 模块存在但不完整 | 客户安全登录后查看实时档期、自助预约、取消和改期；支持套餐余额/资格、订金或全额付款；每次购买展示并记录客户接受的 T&C 版本。 | 完成后 Yes |
-| Q7 Customer Management | 🟡 部分满足 | 在现有客户页增加偏好、过敏、健康情况、禁忌、服务员工、购买历史、疗程记录、跟进日期和营销同意；健康资料使用独立权限和审计。 | 完成后 Yes |
+| Q4 Appointment Scheduling | 🟡 已实现待最终验收 | 一对一美容预约日历、员工时间、房间/床位/设备、冲突与状态操作已实现；补生产角色、动态越权、移动端证据和自动通知。现有团课 Session 只保留，不作为证据。 | 完成验收后 Yes |
+| Q5–Q6 Booking | 🟡 模块存在但不完整 | 分段完成客户安全登录、实时档期、本人预约/取消/改期和 T&C，再接入升级后的 Salon Package Credits 与 POS/HitPay 订金或全额付款。 | 完成后 Yes |
+| Q7 Customer Management | 🟡 已实现待证据收口 | 客户身份、偏好、过敏、健康/禁忌、Treatment、Follow-up、Consent、敏感权限和审计已实现；补 CRM-01 最终上线状态与申请截图。 | 完成证据后 Yes |
 | Q8 实时同步 | ✅ 基本满足 | 继续使用 Supabase 单一数据源；所有新模块写入同一套客户、预约、销售数据。准备两台设备同步修改和查看的演示。 | Yes |
 | Q9–Q10 Loyalty | ⚪ 本次不做 | 不开发积分、兑换和会员等级；现有 Membership、Package 不描述成 Loyalty Programme。Q9 回答 No 后不会进入 Q10。 | Q9 No |
-| Q11–Q12 Package | 🟡 模块存在但不完整 | 保留现有套餐价格、次数和有效期；增加促销/折扣、适用服务/门店、余额流水、人工调整申请、双人审批和完整审计。 | 完成后 Q11 Yes、Q12 Yes |
+| Q11–Q12 Package | 🟡 模块存在但不完整 | 保留现有 Class Pass、公开购买、HitPay、客户余额和 Class Booking 核销；先接入统一 POS Sale，再增加 Salon Service/Location、opening-balance 迁移、余额/价值流水、人工调整申请、双人审批和完整审计。 | 完成后 Q11 Yes、Q12 Yes |
 | Q13 收据和付款 | ✅ 基本满足 | 复用现有付款记录、编号、PDF Invoice 和退款；POS 完成后升级为多项目收据、退款收据/Credit Note，并显示门店、员工和付款方式。 | Yes |
 | Q14 数字支付 | ✅ 基本满足 | 继续使用 HitPay；保留现金记录。申请材料只列出生产环境真实启用、可现场完成的 HitPay 支付方式。 | Yes |
-| Q15 POS | 🟡 部分满足 | 将现有 Front Desk Walk-in 升级为 in-house POS：选择客户、多个服务/商品、服务员工、折扣、Cash/HitPay、收据、退款、作废、门店归属和日结。 | 完成后 Yes |
+| Q15 POS | 🟡 部分满足 | 将现有 Front Desk Walk-in、Payment、HitPay、Invoice、Service/Shop/Package 购买基础统一为 in-house POS：客户、多服务/商品/套餐、员工、折扣、Cash/HitPay、收据、退款、作废、门店归属和日结。 | 完成后 Yes |
 | Q16 SMS/E-Marketing | ❌ 尚未开发 | 已确认本题是 OR。本次只建立 Email E-Marketing：VIP、常客、长期未到店分群，Email 标题、图片和预约按钮，立即/预约发送、成功率、点击率和退订。SMS、WhatsApp 不做。 | 完成后 Yes |
 | Q17 HR Management | ❌ 尚未开发 | 已确认可以使用自建 Payroll。建立员工档案和自助资料、佣金、Payroll、工资/佣金报告、CPF/SDL/SHG 规则和 MOM Itemised Payslip，并由专业人士验证计算。 | 完成后 Yes |
 | Q18 IRAS AIS | ⚪ 本次不做 | 第一版不接 IRAS AIS，也不宣称属于 IRAS Supporting Payroll Software Vendor；已确认回答 No 不影响 Q17。 | No |
@@ -43,7 +43,7 @@
 
 这些项目仍然需要准备正式环境截图、操作记录和现场演示，不能只提供代码说明。
 
-### 必须完成开发后才能回答 Yes
+### 必须完成开发或验收收口后才能回答 Yes
 
 - Q2 多门店
 - Q3 Dashboard/Reports
@@ -80,9 +80,10 @@
 
 1. 先归档 Q16/Q17 回复证据，并确认 Product Principal 身份、VA/PT 报价和认证路径。
 2. 开发员工、客户、门店和审计基础。
-3. 开发 Appointment、Booking、Customer、Package。
-4. 开发 POS、Commission、Marketing、Payroll。
-5. 最后开发 Dashboard 和多格式数据导出。
-6. 完成 PDPA 表格及证据、安全加固、第三方 VA/PT、演示数据和申请截图。
+3. 收口 Appointment、Customer 并完成预约通知。
+4. 先开发 POS Sale/Cart，再并行升级 Package Ledger、Cash/HitPay 和客户自助 Booking。
+5. 开发 Commission、Refund/Close、Marketing、Payroll。
+6. 最后开发 Dashboard 和多格式数据导出。
+7. 完成 PDPA 表格及证据、安全加固、第三方 VA/PT、演示数据和申请截图。
 
 技术团队不要直接从本表开发，应从 [统一开发约定](./00-development-guide.md) 和 [开发任务清单](./10-development-backlog.md) 领取单个任务。

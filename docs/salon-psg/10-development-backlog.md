@@ -42,35 +42,35 @@
 
 依赖：APT-03、CRM-01。Completed Appointment 建立/关联 Treatment，支持修订、实际员工、跟进日期和 Follow-up Queue，但不在此任务生成佣金。
 
-### APT-04 客户自助预约
-
-依赖：APT-03、CRM-01、PKG-01。实现安全登录后的实时可用时段、客户预约/查看/改期/取消、Package Credits/资格或在线付款、订金入口、Terms 版本和接受证据。Guest 仅由 Frontdesk 建立，不作为自助演示。
-
 ### APT-05 预约通知
 
 依赖：APT-03。实现 Email 确认、提醒、变更、取消任务和幂等 Cron；SMS 不属于本次范围。
 
-## Phase 2：套餐、POS 与佣金
+## Phase 2：POS、套餐、自助预约与佣金
+
+### POS-01 销售主单和购物车
+
+依赖：FND-01、FND-02、FND-03、FND-04。实现 `pos_sales`、多项目 `pos_sale_items`、客户/门店/员工归属、价格快照、折扣分摊和权限校验；Service、Product、Package 共用一套销售事实。现有 `/api/package/buy` 保留为单 Package 在线销售入口，但内部逐步接入 POS Sale/Payment。
 
 ### PKG-01 套餐 Ledger
 
-依赖：FND-02、FND-03、FND-04。为购买、使用、返还、退款和过期建立不可修改 Ledger，接入 Salon Service/Location 适用范围并迁移当前余额。
+依赖：FND-02、FND-03、FND-04、POS-01。渐进升级现有 `packages` / `client_packages`：保留 Class Pass、公开购买和历史余额，为购买、使用、返还、退款和过期建立不可修改 Ledger，接入 Salon Customer、Service/Location 适用范围，并将当前余额迁移为可核对的 opening balance。
+
+### POS-02 Cash 收款和收据
+
+依赖：POS-01。实现原子 Cash 付款、找零、Payment 关联、商品扣库存、多项目 Receipt 和重复提交保护；Package Item 只有 Paid 后才发放权益。
+
+### POS-03 HitPay 收款
+
+依赖：POS-01。实现 Pending Payment Request、Webhook/主动同步、签名和幂等；只有服务端确认 Paid 才完成销售、库存、Package 权益和收据。可与 PKG-01 并行，但 Package 购买联合 Gate 需两者均完成。
 
 ### PKG-02 套餐调整审批
 
 依赖：PKG-01。实现 maker-checker 申请、批准、拒绝、并发保护、审计和客户 Ledger 页面。
 
-### POS-01 销售主单和购物车
+### APT-04 客户自助预约
 
-依赖：FND-01、FND-02、FND-03、FND-04。实现 `pos_sales`、多项目 `pos_sale_items`、客户/门店/员工归属、价格快照、折扣分摊和权限校验。
-
-### POS-02 Cash 收款和收据
-
-依赖：POS-01。实现原子 Cash 付款、找零、Payment 关联、商品扣库存、多项目 Receipt 和重复提交保护。
-
-### POS-03 HitPay 收款
-
-依赖：POS-01。实现 Pending Payment Request、Webhook/主动同步、签名和幂等；只有服务端确认 Paid 才完成销售、库存和收据。
+启动依赖：APT-03、CRM-01；最终上线依赖：PKG-01、POS-03。先实现安全登录后的实时可用时段、客户预约/查看/改期/取消和 Terms 版本证据，再接 Package Credits、在线全款和订金。Guest 仅由 Frontdesk 建立，不作为自助演示。
 
 ### COM-01 佣金规则和入账
 
@@ -78,7 +78,7 @@
 
 ### POS-04 退款、作废和日结
 
-依赖：COM-01。实现整单/明细/部分退款、库存回补、佣金反向 Entry、Credit Note、作废、Cash Session 和每日汇总。
+依赖：COM-01、PKG-01。实现整单/明细/部分退款、库存回补、Package 反向 Ledger、佣金反向 Entry、Credit Note、作废、Cash Session 和每日汇总。
 
 ## Phase 3：Marketing 与 Payroll
 

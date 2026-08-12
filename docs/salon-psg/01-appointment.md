@@ -97,6 +97,8 @@ Owner、Manager 和 Frontdesk 可以：
 
 客户确认预约时，系统按以下任一有效方式完成资格/付款检查：使用适用于该服务及门店且余额充足的 Package Credits、符合已配置规则的 Free Trial/First-time Customer 权益、支付订金、或支付全额。Package 扣减和预约建立必须通过唯一来源键关联；任何失败都不能留下已扣余额但未建立预约的状态。
 
+APT-04 分两段交付：在 APT-03、CRM-01 完成后可先实现安全登录、实时档期、本人预约、改期/取消和 Terms；最终上线 Gate 等待 PKG-01 与 POS-03，补齐 Package Credits、订金和全额付款。现有 Class Pass 只继续用于 Class Session，除非套餐已通过 PKG-01 明确配置 Salon Service/Location 适用关系，否则不得用于 Salon Appointment。
+
 ## 1.6 防止重复预约
 
 冲突检查不能只在页面完成，必须在数据库事务或原子 RPC 中再次执行，避免两名前台员工同时抢到同一个时段。
