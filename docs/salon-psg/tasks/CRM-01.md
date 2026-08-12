@@ -1,6 +1,6 @@
 # CRM-01：客户敏感资料与 Consent
 
-状态：已实现/待验证
+状态：已验证/待上线
 
 负责人：Codex
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-12
 
-Commit / Release：未提交
+Commit / Release：`f8a67d6`、`5ac7300`、`5758eac`、`bdb40df`；已部署至 Production，等待上线窗口确认
 
 ## 1. 目标
 
@@ -117,16 +117,17 @@ Commit / Release：未提交
 
 ### 验证结果
 
-- `npm run test:crm01-db`
-- `npx tsc --noEmit`
-- `npx eslint src/lib/salon-customer-sensitive.ts src/lib/salon-appointments.ts src/app/(app)/dashboard/_actions/staff-clients.ts src/app/(app)/dashboard/clients/page.tsx src/app/(app)/dashboard/clients/[clientId]/page.tsx`
-- `git diff --check`
+- `npm run test:crm01-db`、`npm run test:crm01-app`、`npm run test:crm01-static`
+- `npx tsc --noEmit`、相关 ESLint、`git diff --check`
+- Production 预检：`npm run verify:crm01-preflight` 通过（隔离 Studio 的 active employee、Manager/Frontdesk/Instructor membership、健康/偏好档案与 booking 关系）
+- Production 浏览器回归：Manager 桌面/390px 移动端允许 L1 booking-only 客户；Frontdesk 桌面允许同一客户；Instructor 桌面/390px 移动端直访被拒绝，文案为 `Customer not found in your authorized scope.`
+- Production 审计抽样：Instructor 被拒绝请求后 `salon_customer_access_audits` 的成功访问记录为 0；Manager/Frontdesk 读取仅显示安全提醒和授权范围内资料
+- OTP 冷却与会话切换：已验证本地 session sign-out；OTP 发出后 60 秒禁用重发，避免重复发码导致冷却或旧码失效
 
 ### 未解决风险
 
-- 真实环境尚未完成浏览器与移动端手工回归
-- 真实环境尚未完成完整角色矩阵（跨门店动态关系）手测
 - 现有 `updateMemberProfile` 仍保留历史 `user_profiles.notes` 路径，后续需在 CRM-02 统一清理
+- 上线窗口前仍应由业务方抽样复核真实门店的 Owner/Global Manager 与多门店关系变化；隔离 Studio 的生产角色矩阵已通过
 
 ## 10. 后续任务接口
 
