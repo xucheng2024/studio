@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker is required for verify-pkg01-db" >&2
+  exit 1
+fi
+
+if ! command -v psql >/dev/null 2>&1; then
+  echo "psql is required for verify-pkg01-db" >&2
+  exit 1
+fi
+
+PORT="${PKG01_VERIFY_DB_PORT:-55441}"
+DB_URL="postgresql://postgres:postgres@127.0.0.1:${PORT}/pkg01_verify"
+CID="$(docker run -d -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pkg01_verify -p "${PORT}:5432" postgres:15)"
+cleanup() {
+  docker rm -f "${CID}" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+for _ in {1..60}; do
+  if docker exec "${CID}" pg_isready -U postgres -d pkg01_verify >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/apt02_minimal_pre_schema.sql >/tmp/pkg01_pre_schema.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/pos01_verify_patch_schema.sql >/tmp/pkg01_pos01_patch_schema.log
+
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813001000_pos01_sale_fact_skeleton.sql >/tmp/pkg01_pos01_batch1.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813013000_pos01_write_rpcs_idempotency_audit_rls.sql >/tmp/pkg01_pos01_batch2.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813023000_pos01_lock_hard_validation.sql >/tmp/pkg01_pos01_batch5.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/pos01_e2e_payments_stub.sql >/tmp/pkg01_payments_stub.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/pkg01_verify_patch_schema.sql >/tmp/pkg01_patch_schema.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813033000_pos01_payment_link_and_source.sql >/tmp/pkg01_pos01_batch6.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813043000_pos02_cash_complete_rpc.sql >/tmp/pkg01_pos02_batch1.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813050000_pos02_cash_receipt_number.sql >/tmp/pkg01_pos02_batch2.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813180000_pos04_refund_items_rpc.sql >/tmp/pkg01_pos04_batch2.log
+
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814001000_pkg01_package_ledger_foundation.sql >/tmp/pkg01_batch1.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814002000_pkg01_pos_package_grant_refund_linkage.sql >/tmp/pkg01_batch2.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814003000_pkg01_opening_balance_backfill.sql >/tmp/pkg01_batch3.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814004000_pkg01_deferred_value_view_rpc.sql >/tmp/pkg01_batch4.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814005000_pkg01_deferred_value_summary_rpc.sql >/tmp/pkg01_batch5.log
+
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pkg01_pos_minimal.sql | tee /tmp/pkg01_verify.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pkg01_opening_balance.sql | tee -a /tmp/pkg01_verify.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pkg01_deferred_value.sql | tee -a /tmp/pkg01_verify.log
+
+echo "verify-pkg01-db: ok"
