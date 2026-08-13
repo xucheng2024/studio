@@ -5,7 +5,8 @@ export type PosWriteOperation =
   | "pos_sale_item:upsert"
   | "pos_sale:lock"
   | "pos_sale:complete_cash"
-  | "pos_sale:void";
+  | "pos_sale:void"
+  | "pos_sale:refund_items";
 
 export type PosDraftHashPayload = {
   operation: "pos_sale:create_draft";
@@ -53,6 +54,20 @@ export type PosVoidSaleHashPayload = {
   studioId: string;
   saleId: string;
   reason: string | null;
+};
+
+export type PosRefundItemInputHash = {
+  itemId: string;
+  refundQty: number | null;
+  refundAmount: number | null;
+};
+
+export type PosRefundItemsHashPayload = {
+  operation: "pos_sale:refund_items";
+  studioId: string;
+  saleId: string;
+  reason: string | null;
+  items: PosRefundItemInputHash[];
 };
 
 type PosIdempotencyMeta<TPayload> = {
@@ -193,6 +208,39 @@ export function buildVoidPosSaleIdempotency(params: {
     saleId: params.saleId,
     reason: trimToNull(params.reason),
   };
+  return normalizeOperationIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    requestPayload,
+  });
+}
+
+export function buildRefundPosSaleItemsIdempotency(params: {
+  idempotencyKey?: string | null;
+  studioId: string;
+  saleId: string;
+  reason?: string | null;
+  items: Array<{
+    itemId: string;
+    refundQty?: number | null;
+    refundAmount?: number | null;
+  }>;
+}) {
+  const normalizedItems = [...params.items]
+    .map((item) => ({
+      itemId: item.itemId.trim(),
+      refundQty: item.refundQty == null ? null : Math.round(item.refundQty * 1000) / 1000,
+      refundAmount: item.refundAmount == null ? null : Math.round(item.refundAmount * 100) / 100,
+    }))
+    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+
+  const requestPayload: PosRefundItemsHashPayload = {
+    operation: "pos_sale:refund_items",
+    studioId: params.studioId,
+    saleId: params.saleId,
+    reason: trimToNull(params.reason),
+    items: normalizedItems,
+  };
+
   return normalizeOperationIdempotency({
     idempotencyKey: params.idempotencyKey,
     requestPayload,

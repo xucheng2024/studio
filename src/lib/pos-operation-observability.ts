@@ -5,12 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const POS_OPERATION_FAILURE_CODES = [
   "void_pos_sale_failed",
   "refund_pos_sale_failed",
+  "refund_pos_sale_items_failed",
 ] as const;
 
 export type PosOperationFailureCode = (typeof POS_OPERATION_FAILURE_CODES)[number];
 
 export async function recordPosOperationFailure(input: {
-  operation: "void_pos_sale" | "refund_pos_sale";
+  operation: "void_pos_sale" | "refund_pos_sale" | "refund_pos_sale_items";
   code: PosOperationFailureCode;
   detail?: string | null;
   studioId?: string | null;

@@ -4,6 +4,7 @@ import {
   buildCompletePosCashSaleIdempotency,
   buildCreatePosSaleDraftIdempotency,
   buildLockPosSaleIdempotency,
+  buildRefundPosSaleItemsIdempotency,
   buildUpsertPosSaleItemIdempotency,
   buildVoidPosSaleIdempotency,
 } from "@/lib/pos-idempotency";
@@ -96,6 +97,17 @@ export type VoidPosSalePayload = {
   payment_id: string | null;
   payment_status: string | null;
   already_voided: boolean;
+  already_completed: boolean;
+};
+
+export type RefundPosSaleItemsPayload = {
+  sale_id: string;
+  sale_status: string;
+  refunded_amount: number;
+  refund_delta: number;
+  item_count: number;
+  payment_id: string | null;
+  payment_status: string | null;
   already_completed: boolean;
 };
 
@@ -664,4 +676,78 @@ export async function voidPosSale(params: {
   }
 
   return { ok: true, payload: data as VoidPosSalePayload };
+}
+
+export async function refundPosSaleItems(params: {
+  userId: string;
+  studioId: string;
+  saleId: string;
+  items: Array<{ itemId: string; refundQty?: number | null; refundAmount?: number | null }>;
+  reason?: string | null;
+  idempotencyKey?: string | null;
+}): Promise<PosMutationResult<RefundPosSaleItemsPayload>> {
+  const idempotency = buildRefundPosSaleItemsIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    studioId: params.studioId,
+    saleId: params.saleId,
+    reason: params.reason,
+    items: params.items,
+  });
+
+  const admin = createAdminClient();
+  const { data: sale, error: saleErr } = await admin
+    .from("pos_sales")
+    .select("id, location_id")
+    .eq("id", params.saleId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ id: string; location_id: string | null }>();
+  if (saleErr) {
+    const mapped = mapPosRpcError(saleErr);
+    return { ok: false, ...mapped };
+  }
+  if (!sale || !sale.location_id) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "sale_not_found",
+    };
+  }
+
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: sale.location_id,
+    roles: ["owner", "manager"],
+  });
+  if (!scope.ok) {
+    return {
+      ok: false,
+      code: scope.reason,
+      message: scope.reason,
+    };
+  }
+
+  const payloadItems = params.items.map((item) => ({
+    item_id: item.itemId,
+    refund_qty: item.refundQty ?? null,
+    refund_amount: item.refundAmount ?? null,
+  }));
+
+  const { data, error } = await admin.rpc("refund_pos_sale_items", {
+    p_actor_id: params.userId,
+    p_actor_role: scope.role,
+    p_studio_id: params.studioId,
+    p_sale_id: params.saleId,
+    p_items: payloadItems,
+    p_reason: trimToNull(params.reason),
+    p_idempotency_key: idempotency.idempotencyKey,
+    p_request_hash: idempotency.requestHash,
+  });
+
+  if (error) {
+    const mapped = mapPosRpcError(error);
+    return { ok: false, ...mapped };
+  }
+
+  return { ok: true, payload: data as RefundPosSaleItemsPayload };
 }

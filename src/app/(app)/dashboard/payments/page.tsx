@@ -655,7 +655,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             </DashboardAppLink>
           </div>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
             <p className={`text-xs ${ui.muted}`}>invalid_signature</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{webhookFailureCounts.get("invalid_signature") ?? 0}</p>
@@ -675,6 +675,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
             <p className={`text-xs ${ui.muted}`}>refund_pos_sale_failed</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{posFailureCounts.get("refund_pos_sale_failed") ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
+            <p className={`text-xs ${ui.muted}`}>refund_pos_sale_items_failed</p>
+            <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{posFailureCounts.get("refund_pos_sale_items_failed") ?? 0}</p>
           </div>
         </div>
         {recentExceptions.length > 0 ? (

@@ -3,7 +3,7 @@ import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { PosHitpayPaymentButton } from "@/components/dashboard/PosHitpayPaymentButton";
-import { completePosCashSaleAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
+import { completePosCashSaleAction, refundPosSaleItemsAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getPosSaleDetailForDashboard } from "@/lib/pos-sales-read";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -103,6 +103,10 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
   if (sale.payment_progress.latest_payment_id) {
     paymentQuery.set("payment_id", sale.payment_progress.latest_payment_id);
   }
+
+  const canRefundItems =
+    (sale.status === "paid" || sale.status === "partially_refunded")
+    && detailResult.role !== "frontdesk";
 
   return (
     <div className="flex flex-col gap-6">
@@ -280,9 +284,108 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
       </section>
 
       <section className={`${ui.card} overflow-x-auto`}>
-        <h2 className={ui.h2}>Sale items</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={ui.h2}>Sale items</h2>
+          {canRefundItems ? (
+            <span className={`text-xs ${ui.muted}`}>Select rows and fill either qty or amount to refund.</span>
+          ) : null}
+        </div>
         {items.length === 0 ? (
           <p className={`mt-3 ${ui.muted}`}>No items yet.</p>
+        ) : canRefundItems ? (
+          <ServerActionToastForm action={refundPosSaleItemsAction} className="mt-3 flex flex-col gap-3">
+            <input type="hidden" name="studio_id" value={studioId} />
+            <input type="hidden" name="sale_id" value={sale.id} />
+            <input type="hidden" name="idempotency_key" value={`pos-refund-items:${sale.id}:${sale.updated_at}`} />
+
+            <label className="flex max-w-xl flex-col gap-1 text-xs text-stone-700 dark:text-stone-300">
+              <span>Refund reason (optional)</span>
+              <input
+                type="text"
+                name="reason"
+                maxLength={240}
+                placeholder="e.g. service quality issue"
+                className="min-h-9 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none focus:border-teal-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              />
+            </label>
+
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:text-stone-400">
+                  <th className="px-3 py-2">Refund</th>
+                  <th className="px-3 py-2">Line</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Item</th>
+                  <th className="px-3 py-2">Qty</th>
+                  <th className="px-3 py-2">Refunded qty</th>
+                  <th className="px-3 py-2">Remaining qty</th>
+                  <th className="px-3 py-2">Total</th>
+                  <th className="px-3 py-2">Refunded</th>
+                  <th className="px-3 py-2">Remaining</th>
+                  <th className="px-3 py-2">Input qty</th>
+                  <th className="px-3 py-2">Input amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const remainingQty = Math.max(0, Number(item.quantity) - Number(item.refunded_quantity));
+                  const remainingAmount = Math.max(0, Number(item.total_amount) - Number(item.refunded_amount));
+                  const isFullyRefunded = remainingAmount <= 0.0001;
+                  return (
+                    <tr key={item.id} className="border-b border-stone-100 align-top last:border-b-0 dark:border-stone-900">
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          name="refund_item_id"
+                          value={item.id}
+                          disabled={isFullyRefunded}
+                          className="h-4 w-4 rounded border-stone-300 text-teal-600 focus:ring-teal-500 disabled:opacity-50 dark:border-stone-700"
+                        />
+                      </td>
+                      <td className="px-3 py-2">{item.line_number}</td>
+                      <td className="px-3 py-2 capitalize">{item.item_type}</td>
+                      <td className="px-3 py-2">{item.item_name_snapshot}</td>
+                      <td className="px-3 py-2">{Number(item.quantity).toFixed(3)}</td>
+                      <td className="px-3 py-2">{Number(item.refunded_quantity).toFixed(3)}</td>
+                      <td className="px-3 py-2">{remainingQty.toFixed(3)}</td>
+                      <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.total_amount).toFixed(2)}</td>
+                      <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.refunded_amount).toFixed(2)}</td>
+                      <td className="px-3 py-2">{item.item_currency_snapshot} {remainingAmount.toFixed(2)}</td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          name={`refund_qty__${item.id}`}
+                          min="0"
+                          step="0.001"
+                          placeholder="Qty"
+                          disabled={isFullyRefunded}
+                          className="min-h-8 w-24 rounded-md border border-stone-300 bg-white px-2 text-xs text-stone-900 outline-none focus:border-teal-500 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          name={`refund_amount__${item.id}`}
+                          min="0"
+                          step="0.01"
+                          placeholder="Amount"
+                          disabled={isFullyRefunded}
+                          className="min-h-8 w-24 rounded-md border border-stone-300 bg-white px-2 text-xs text-stone-900 outline-none focus:border-teal-500 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className={`text-xs ${ui.muted}`}>
+                Tips: fill only one field per selected row. Full refund is auto-marked on payment when sale reaches refunded.
+              </p>
+              <button type="submit" className={ui.btnDangerSm}>Refund items</button>
+            </div>
+          </ServerActionToastForm>
         ) : (
           <table className="mt-3 min-w-full text-sm">
             <thead>
@@ -291,10 +394,12 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
                 <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2">Item</th>
                 <th className="px-3 py-2">Qty</th>
+                <th className="px-3 py-2">Refunded qty</th>
                 <th className="px-3 py-2">Unit</th>
                 <th className="px-3 py-2">Discount</th>
                 <th className="px-3 py-2">Tax</th>
                 <th className="px-3 py-2">Total</th>
+                <th className="px-3 py-2">Refunded</th>
               </tr>
             </thead>
             <tbody>
@@ -304,10 +409,12 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
                   <td className="px-3 py-2 capitalize">{item.item_type}</td>
                   <td className="px-3 py-2">{item.item_name_snapshot}</td>
                   <td className="px-3 py-2">{Number(item.quantity).toFixed(3)}</td>
+                  <td className="px-3 py-2">{Number(item.refunded_quantity).toFixed(3)}</td>
                   <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.unit_price_amount).toFixed(2)}</td>
                   <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.discount_amount).toFixed(2)}</td>
                   <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.tax_amount).toFixed(2)}</td>
                   <td className="px-3 py-2 font-medium">{item.item_currency_snapshot} {Number(item.total_amount).toFixed(2)}</td>
+                  <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.refunded_amount).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

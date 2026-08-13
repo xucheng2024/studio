@@ -63,6 +63,27 @@ export function mapPosMutationMessage(code: PosMutationErrorCode, rawMessage?: s
     if (/payment .*cannot be voided/i.test(message)) {
       return "Linked payment is no longer pending, so this sale cannot be voided.";
     }
+    if (/status .*cannot be refunded by items/i.test(message)) {
+      return "Only paid or partially refunded sales can use item refund.";
+    }
+    if (/refund_amount exceeds remaining amount/i.test(message)) {
+      return "Refund amount exceeds remaining refundable amount for one or more items.";
+    }
+    if (/refund_qty exceeds remaining qty/i.test(message)) {
+      return "Refund quantity exceeds remaining refundable quantity for one or more items.";
+    }
+    if (/each refund item requires exactly one of refund_qty\/refund_amount/i.test(message)) {
+      return "Each selected item must provide either refund quantity or refund amount (not both).";
+    }
+    if (/refund_qty must be > 0/i.test(message) || /refund_amount must be > 0/i.test(message)) {
+      return "Refund quantity/amount must be greater than zero.";
+    }
+    if (/empty items payload/i.test(message)) {
+      return "Select at least one item to refund.";
+    }
+    if (/payment .*not ready for item refund/i.test(message)) {
+      return "Linked payment is not in a refundable state.";
+    }
     if (/payment.*not ready/i.test(message)) {
       return "Linked payment is not in a payable state. Refresh and retry.";
     }

@@ -5,6 +5,7 @@ import {
   createPosSaleDraft,
   ensurePosSalePayment,
   lockPosSale,
+  refundPosSaleItems,
   upsertPosSaleItem,
   voidPosSale,
 } from "@/lib/pos-sales";
@@ -27,6 +28,42 @@ function asIntegerOrNull(raw: FormDataEntryValue | null) {
   const value = asNumberOrNull(raw);
   if (value == null) return null;
   return Math.trunc(value);
+}
+
+function parseRefundItems(formData: FormData) {
+  const selectedIds = formData
+    .getAll("refund_item_id")
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+  const uniqueIds = [...new Set(selectedIds)];
+  const items: Array<{ itemId: string; refundQty?: number | null; refundAmount?: number | null }> = [];
+
+  for (const itemId of uniqueIds) {
+    const refundQty = asNumberOrNull(formData.get(`refund_qty__${itemId}`));
+    const refundAmount = asNumberOrNull(formData.get(`refund_amount__${itemId}`));
+
+    if (refundQty != null && refundQty <= 0) {
+      return { ok: false as const, message: "Refund quantity must be greater than zero." };
+    }
+    if (refundAmount != null && refundAmount <= 0) {
+      return { ok: false as const, message: "Refund amount must be greater than zero." };
+    }
+    if ((refundQty == null) === (refundAmount == null)) {
+      return {
+        ok: false as const,
+        message: "Each selected row needs either refund quantity or refund amount.",
+      };
+    }
+
+    items.push({ itemId, refundQty, refundAmount });
+  }
+
+  if (items.length === 0) {
+    return { ok: false as const, message: "Select at least one row to refund." };
+  }
+
+  return { ok: true as const, items };
 }
 
 export async function createPosSaleDraftAction(
@@ -248,4 +285,60 @@ export async function voidPosSaleAction(
     return ok("Sale already voided.");
   }
   return ok("Sale voided.");
+}
+
+export async function refundPosSaleItemsAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const saleId = String(formData.get("sale_id") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || null;
+
+  if (!studioId || !saleId) {
+    return err("Missing required fields: studio and sale.");
+  }
+
+  const parsedItems = parseRefundItems(formData);
+  if (!parsedItems.ok) {
+    return err(parsedItems.message);
+  }
+
+  const { user } = await requireUser();
+  const result = await refundPosSaleItems({
+    userId: user.id,
+    studioId,
+    saleId,
+    items: parsedItems.items,
+    reason,
+    idempotencyKey,
+  });
+
+  if (!result.ok) {
+    await recordPosOperationFailure({
+      operation: "refund_pos_sale_items",
+      code: "refund_pos_sale_items_failed",
+      detail: `${result.code}:${result.message}`,
+      studioId,
+      saleId,
+      safePayload: {
+        actor_id: user.id,
+        reason,
+        idempotency_key: idempotencyKey,
+        item_count: parsedItems.items.length,
+      },
+    });
+    return err(mapPosMutationMessage(result.code, result.message || "Could not refund POS sale items."));
+  }
+
+  if (result.payload.already_completed) {
+    return ok("Refund request already completed.");
+  }
+
+  if (result.payload.sale_status === "refunded") {
+    return ok("Sale fully refunded.");
+  }
+
+  return ok(`Refund applied to ${result.payload.item_count} item(s).`);
 }
