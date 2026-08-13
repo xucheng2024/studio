@@ -12,6 +12,7 @@ import {
   syncServiceOrderPaymentStatus,
   syncShopOrderPaymentStatus,
 } from "@/lib/paymentStatusTransitions";
+import { recordPosOperationFailure } from "@/lib/pos-operation-observability";
 import { ensurePaymentClientId } from "@/lib/resolveClientId";
 import { requireStaffScope, staffScopeFailureResponse } from "@/lib/scope";
 import { createClient } from "@/lib/supabase/server";
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       event_booking_id,
       customer_subscription_id,
       source,
+      pos_sale_id,
       payment_method,
       amount,
       pos_sale_id,
@@ -149,6 +151,23 @@ export async function POST(req: Request) {
   }
 
   if (parsed.data.status === "refunded") {
+    const logRefundPosFailure = async (errorCode: string, detail: string) => {
+      if (!payment.pos_sale_id) return;
+      await recordPosOperationFailure({
+        operation: "refund_pos_sale",
+        code: "refund_pos_sale_failed",
+        detail: `${errorCode}:${detail}`,
+        studioId: payment.studio_id,
+        locationId: payment.location_id ?? null,
+        saleId: payment.pos_sale_id,
+        paymentId: parsed.data.payment_id,
+        safePayload: {
+          payment_method: payment.payment_method,
+          source: payment.source,
+        },
+      });
+    };
+
     if (payment.source === "membership_subscription" || payment.customer_subscription_id) {
       return NextResponse.json(
         {
@@ -175,6 +194,7 @@ export async function POST(req: Request) {
         .maybeSingle();
       const apiKey = secrets?.hitpay_api_key ?? null;
       if (!apiKey) {
+        await logRefundPosFailure("hitpay_not_configured", "missing studio hitpay api key");
         return NextResponse.json(
           {
             error: "hitpay_not_configured",
@@ -184,6 +204,7 @@ export async function POST(req: Request) {
         );
       }
       if (!payment.gateway_refund_payment_id) {
+        await logRefundPosFailure("gateway_payment_id_missing", "missing gateway_refund_payment_id");
         return NextResponse.json(
           {
             error: "gateway_payment_id_missing",
@@ -200,6 +221,7 @@ export async function POST(req: Request) {
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : "hitpay_refund_failed";
+        await logRefundPosFailure("hitpay_refund_failed", message);
         const lowered = message.toLowerCase();
         const manual =
           lowered.includes("refund not supported") ||
@@ -222,7 +244,10 @@ export async function POST(req: Request) {
       p_operator_id: user.id,
       p_reason: parsed.data.refund_reason?.trim() || null,
     });
-    if (refundErr) return NextResponse.json({ error: refundErr.message }, { status: 500 });
+    if (refundErr) {
+      await logRefundPosFailure("refund_payment_with_invoice_void_rpc_failed", refundErr.message);
+      return NextResponse.json({ error: refundErr.message }, { status: 500 });
+    }
     const rr = refundResult as {
       ok?: boolean;
       error?: string;
@@ -234,12 +259,14 @@ export async function POST(req: Request) {
     };
     if (!rr?.ok) {
       if (rr?.error === "not_paid") {
+        await logRefundPosFailure("not_paid", "refund only allowed on paid payments");
         return NextResponse.json(
           { error: "not_paid", message: "Only payments in paid status can be refunded." },
           { status: 409 },
         );
       }
       if (rr?.error === "must_uncheckin_first") {
+        await logRefundPosFailure("must_uncheckin_first", "booking is attended");
         return NextResponse.json(
           {
             error: "must_uncheckin_first",
@@ -248,6 +275,7 @@ export async function POST(req: Request) {
           { status: 409 },
         );
       }
+      await logRefundPosFailure(rr?.error ?? "refund_failed", "refund rpc returned !ok");
       return NextResponse.json({ error: rr?.error ?? "refund_failed" }, { status: 409 });
     }
     const alreadyRefunded = rr.already_refunded === true;
@@ -282,10 +310,12 @@ export async function POST(req: Request) {
         p_reason: parsed.data.refund_reason?.trim() || null,
       });
       if (posSyncErr) {
+        await logRefundPosFailure("sync_pos_sale_refund_status_rpc_failed", posSyncErr.message);
         return NextResponse.json({ error: posSyncErr.message }, { status: 500 });
       }
       const posPayload = posSyncResult as { ok?: boolean; reason?: string } | null;
       if (!posPayload?.ok) {
+        await logRefundPosFailure("sync_pos_sale_refund_status_failed", posPayload?.reason ?? "unknown");
         return NextResponse.json({ error: posPayload?.reason ?? "pos_sale_refund_sync_failed" }, { status: 409 });
       }
     }

@@ -19,6 +19,7 @@ import {
 } from "@/lib/payment-filter-options";
 import { paymentOrderType, paymentOrderTypeLabel, paymentSalesChannelLabel } from "@/lib/payment-classification";
 import { HITPAY_WEBHOOK_FAILURE_CODES } from "@/lib/hitpay-webhook-observability";
+import { POS_OPERATION_FAILURE_CODES } from "@/lib/pos-operation-observability";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -256,6 +257,65 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     if (!webhookFailureCounts.has(row.error_code)) continue;
     webhookFailureCounts.set(row.error_code, (webhookFailureCounts.get(row.error_code) ?? 0) + 1);
   }
+
+  let posFailuresQuery = admin
+    .from("pos_operation_failures")
+    .select("id, location_id, sale_id, payment_id, operation, error_code, error_detail, occurred_at")
+    .eq("studio_id", activeStudioId)
+    .gte("occurred_at", webhookWindowStart)
+    .order("occurred_at", { ascending: false })
+    .limit(40);
+  if (locationFilter === "__unassigned") posFailuresQuery = posFailuresQuery.is("location_id", null);
+  else if (locationFilter) posFailuresQuery = posFailuresQuery.eq("location_id", locationFilter);
+
+  const { data: posFailuresRaw } = await posFailuresQuery;
+  type PosFailureRow = {
+    id: string;
+    location_id: string | null;
+    sale_id: string | null;
+    payment_id: string | null;
+    operation: string;
+    error_code: string;
+    error_detail: string | null;
+    occurred_at: string;
+  };
+  const posFailures = (posFailuresRaw ?? []) as PosFailureRow[];
+  const posFailureCounts = new Map<string, number>(POS_OPERATION_FAILURE_CODES.map((code) => [code, 0]));
+  for (const row of posFailures) {
+    if (!posFailureCounts.has(row.error_code)) continue;
+    posFailureCounts.set(row.error_code, (posFailureCounts.get(row.error_code) ?? 0) + 1);
+  }
+
+  const recentExceptions = [
+    ...webhookFailures.map((row) => ({
+      id: `webhook:${row.id}`,
+      source: "webhook" as const,
+      code: row.error_code,
+      detail: row.error_detail,
+      eventType: row.event_type,
+      paymentId: row.payment_id,
+      saleId: null as string | null,
+      providerEventId: row.provider_event_id,
+      providerPaymentId: row.provider_payment_id,
+      operation: null as string | null,
+      occurredAt: row.occurred_at,
+    })),
+    ...posFailures.map((row) => ({
+      id: `pos:${row.id}`,
+      source: "pos" as const,
+      code: row.error_code,
+      detail: row.error_detail,
+      eventType: null as string | null,
+      paymentId: row.payment_id,
+      saleId: row.sale_id,
+      providerEventId: null as string | null,
+      providerPaymentId: null as string | null,
+      operation: row.operation,
+      occurredAt: row.occurred_at,
+    })),
+  ]
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+    .slice(0, 10);
 
   const { data: rawPayments } = await q;
   const payments = rawPayments ?? [];
@@ -577,8 +637,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className={ui.h2}>HitPay webhook exceptions (24h)</h2>
-            <p className={ui.muted}>Ops fallback board for signature, event-claim, and POS completion failures.</p>
+            <h2 className={ui.h2}>Payments/POS exceptions (24h)</h2>
+            <p className={ui.muted}>Ops fallback board for webhook and POS void/refund failures.</p>
           </div>
           <DashboardAppLink
             href={`/dashboard/payments/runbook?studio_id=${activeStudioId}${locationFilter ? `&location_id=${locationFilter}` : ""}`}
@@ -587,7 +647,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             Open pending-payment SOP
           </DashboardAppLink>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
             <p className={`text-xs ${ui.muted}`}>invalid_signature</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{webhookFailureCounts.get("invalid_signature") ?? 0}</p>
@@ -600,25 +660,36 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             <p className={`text-xs ${ui.muted}`}>complete_pos_hitpay_sale_failed</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{webhookFailureCounts.get("complete_pos_hitpay_sale_failed") ?? 0}</p>
           </div>
+          <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
+            <p className={`text-xs ${ui.muted}`}>void_pos_sale_failed</p>
+            <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{posFailureCounts.get("void_pos_sale_failed") ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
+            <p className={`text-xs ${ui.muted}`}>refund_pos_sale_failed</p>
+            <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{posFailureCounts.get("refund_pos_sale_failed") ?? 0}</p>
+          </div>
         </div>
-        {webhookFailures.length > 0 ? (
+        {recentExceptions.length > 0 ? (
           <ul className="mt-3 space-y-1">
-            {webhookFailures.slice(0, 8).map((failure) => (
+            {recentExceptions.map((failure) => (
               <li key={failure.id} className="rounded-lg border border-stone-100 bg-white px-3 py-2 text-xs dark:border-stone-800 dark:bg-stone-900/40">
-                <span className="font-medium text-stone-900 dark:text-stone-100">{failure.error_code}</span>
-                {failure.event_type ? ` · ${failure.event_type}` : ""}
-                {failure.payment_id ? ` · payment ${failure.payment_id}` : ""}
-                {failure.provider_event_id ? ` · event ${failure.provider_event_id}` : ""}
-                {failure.provider_payment_id ? ` · provider payment ${failure.provider_payment_id}` : ""}
-                {failure.error_detail ? ` · ${failure.error_detail}` : ""}
+                <span className="font-medium text-stone-900 dark:text-stone-100">{failure.code}</span>
+                <span className={`ml-1 ${ui.muted}`}>[{failure.source === "webhook" ? "webhook" : "pos"}]</span>
+                {failure.operation ? ` · ${failure.operation}` : ""}
+                {failure.eventType ? ` · ${failure.eventType}` : ""}
+                {failure.saleId ? ` · sale ${failure.saleId}` : ""}
+                {failure.paymentId ? ` · payment ${failure.paymentId}` : ""}
+                {failure.providerEventId ? ` · event ${failure.providerEventId}` : ""}
+                {failure.providerPaymentId ? ` · provider payment ${failure.providerPaymentId}` : ""}
+                {failure.detail ? ` · ${failure.detail}` : ""}
                 <span className={`ml-1 ${ui.muted}`}>
-                  (<LocalTime iso={failure.occurred_at} />)
+                  (<LocalTime iso={failure.occurredAt} />)
                 </span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className={`mt-3 text-sm ${ui.muted}`}>No tracked HitPay webhook exceptions in the last 24 hours.</p>
+          <p className={`mt-3 text-sm ${ui.muted}`}>No tracked payment/POS exceptions in the last 24 hours.</p>
         )}
       </section>
 

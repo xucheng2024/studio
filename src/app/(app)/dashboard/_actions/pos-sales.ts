@@ -8,6 +8,7 @@ import {
   upsertPosSaleItem,
   voidPosSale,
 } from "@/lib/pos-sales";
+import { recordPosOperationFailure } from "@/lib/pos-operation-observability";
 import { mapPosMutationMessage } from "@/lib/pos-error-message";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
 
@@ -228,6 +229,18 @@ export async function voidPosSaleAction(
   });
 
   if (!result.ok) {
+    await recordPosOperationFailure({
+      operation: "void_pos_sale",
+      code: "void_pos_sale_failed",
+      detail: `${result.code}:${result.message}`,
+      studioId,
+      saleId,
+      safePayload: {
+        actor_id: user.id,
+        reason,
+        idempotency_key: idempotencyKey,
+      },
+    });
     return err(mapPosMutationMessage(result.code, result.message || "Could not void POS sale."));
   }
 
