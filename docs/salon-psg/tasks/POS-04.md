@@ -1,6 +1,6 @@
 # POS-04：退款 / 作废 / 日结（Batch 1 + Batch 2 + Batch 3）
 
-状态：进行中（Batch 1/2 已落地，Batch 3 规划就绪）
+状态：已完成（Batch 1/2/3 已落地，进入发布验证）
 
 负责人：Codex
 
@@ -57,7 +57,7 @@
   - `supabase/migrations/20260813180000_pos04_refund_items_rpc.sql`
   - `supabase/migrations/20260813145500_pos04_sync_sale_refund_status.sql`
 
-## 7. Batch 3（日结 / Cash Session）实现计划
+## 7. Batch 3（日结 / Cash Session）已落地
 
 目标：建立“开班 → 收款归集 → 关班对账 → 差异审计”的现金日结闭环，确保前台现金与 POS 现金交易可追溯、可复盘、不可静默篡改。
 
@@ -155,7 +155,7 @@
 - RPC 重放不重复开班/关班
 - `npx tsc --noEmit` 与新增 DB 验证脚本通过
 
-### 7.8 开发顺序（Batch 3 建议）
+### 7.8 开发顺序（Batch 3，已完成）
 
 1. 先上 DB migration（`pos_cash_sessions` + `payments.cash_session_id` + 约束/索引）
 2. 实现 `open_pos_cash_session` / `close_pos_cash_session` RPC
@@ -163,9 +163,23 @@
 4. 开发 Dashboard list/detail 页面
 5. 补强异常看板、Runbook 与 DB 验证脚本
 
-### 7.9 风险与决策点（开工前确认）
+### 7.9 风险与决策点（已决策）
 
 - 无 open session 时现金收款策略：严格阻断 vs 兼容放行
 - `frontdesk` 是否允许关闭“非本人开启”的班次
 - 关班后是否允许补录 `counted_cash`（建议不允许，仅可新建差异说明）
 - 与 COM-01 / PKG-01 的退款反向分录保持时序一致（避免关班后再改当班现金）
+
+## 8. Batch 3 完成清单（2026-08-14）
+
+- SQL migration 已提交并推送：
+  - `supabase/migrations/20260813193000_pos04_cash_sessions_foundation.sql`
+  - `supabase/migrations/20260813194500_pos04_cash_session_open_close_rpcs.sql`
+  - `supabase/migrations/20260813200000_pos04_bind_cash_sale_to_session.sql`
+- DB 验证脚本：
+  - `scripts/sql/verify_pos04_cash_sessions.sql`
+- 应用层：
+  - Cash Session 列表/详情页已上线代码路径
+  - Payments 页面已补 `cash_session_id / unassigned_cash` 筛选与异常提示卡
+  - POS / Payments 顶部已补“当前门店 open cash session 状态”提示
+  - POS Runbook 已更新“开班 → 收款 → 关班 → 差异处理”SOP
