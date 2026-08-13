@@ -1,8 +1,9 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { PosProceedToPaymentForm } from "@/components/dashboard/PosProceedToPaymentForm";
-import { proceedPosSaleToPaymentAction } from "@/app/(app)/dashboard/actions";
+import { proceedPosSaleToPaymentAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { listPosSalesForDashboard } from "@/lib/pos-sales-read";
@@ -229,14 +230,28 @@ export default async function PosSalesPage({ searchParams }: Props) {
                     <td className="px-3 py-2">{formatLocalDateTime(sale.created_at)}</td>
                     <td className="px-3 py-2">
                       {sale.status === "draft" ? (
-                        <PosProceedToPaymentForm
-                          action={proceedPosSaleToPaymentAction}
-                          studioId={activeStudioId}
-                          locationId={effectiveLocationId}
-                          saleId={sale.id}
-                          idempotencyKey={`pos-lock:${sale.id}:${sale.updated_at}`}
-                          ctaLabel="Proceed to payment"
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <PosProceedToPaymentForm
+                            action={proceedPosSaleToPaymentAction}
+                            studioId={activeStudioId}
+                            locationId={effectiveLocationId}
+                            saleId={sale.id}
+                            idempotencyKey={`pos-lock:${sale.id}:${sale.updated_at}`}
+                            ctaLabel="Proceed to payment"
+                          />
+                          <ToastConfirmForm
+                            action={voidPosSaleAction}
+                            confirmMessage="Void this draft sale?"
+                            confirmLabel="Void"
+                            pendingLabel="Voiding…"
+                          >
+                            <input type="hidden" name="studio_id" value={activeStudioId} />
+                            <input type="hidden" name="sale_id" value={sale.id} />
+                            <input type="hidden" name="reason" value="voided_from_pos_list" />
+                            <input type="hidden" name="idempotency_key" value={`pos-void-list:${sale.id}:${sale.updated_at}`} />
+                            <button type="submit" className={ui.btnDangerSm}>Void</button>
+                          </ToastConfirmForm>
+                        </div>
                       ) : sale.status === "pending_payment" ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <DashboardAppLink
@@ -254,6 +269,18 @@ export default async function PosSalesPage({ searchParams }: Props) {
                             if (method !== "hitpay" || !latestPayment.gateway_payment_id) return null;
                             return <SyncHitpayPaymentButton paymentId={latestPaymentId} studioSlug={activeStudioSlug} compact />;
                           })()}
+                          <ToastConfirmForm
+                            action={voidPosSaleAction}
+                            confirmMessage="Void this pending-payment sale?"
+                            confirmLabel="Void"
+                            pendingLabel="Voiding…"
+                          >
+                            <input type="hidden" name="studio_id" value={activeStudioId} />
+                            <input type="hidden" name="sale_id" value={sale.id} />
+                            <input type="hidden" name="reason" value="voided_from_pos_list" />
+                            <input type="hidden" name="idempotency_key" value={`pos-void-list:${sale.id}:${sale.updated_at}`} />
+                            <button type="submit" className={ui.btnDangerSm}>Void</button>
+                          </ToastConfirmForm>
                         </div>
                       ) : (
                         <span className={`text-xs ${ui.muted}`}>Locked/closed</span>

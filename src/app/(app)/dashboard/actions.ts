@@ -86,5 +86,6 @@ export {
   lockPosSaleAction,
   proceedPosSaleToPaymentAction,
   upsertPosSaleItemAction,
+  voidPosSaleAction,
 } from "./_actions/pos-sales";
 export type { PosProceedToPaymentResult } from "./_actions/pos-sales";

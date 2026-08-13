@@ -5,6 +5,7 @@ import {
   buildCreatePosSaleDraftIdempotency,
   buildLockPosSaleIdempotency,
   buildUpsertPosSaleItemIdempotency,
+  buildVoidPosSaleIdempotency,
 } from "@/lib/pos-idempotency";
 import { requireStaffScope } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -85,6 +86,16 @@ export type CompletePosHitpaySalePayload = {
   payment_method: string | null;
   receipt_number: string | null;
   already_paid: boolean;
+  already_completed: boolean;
+};
+
+export type VoidPosSalePayload = {
+  sale_id: string;
+  status: string;
+  voided_at: string | null;
+  payment_id: string | null;
+  payment_status: string | null;
+  already_voided: boolean;
   already_completed: boolean;
 };
 
@@ -588,4 +599,69 @@ export async function completePosHitpaySale(params: {
   }
 
   return { ok: true, payload: data as CompletePosHitpaySalePayload };
+}
+
+export async function voidPosSale(params: {
+  userId: string;
+  studioId: string;
+  saleId: string;
+  reason?: string | null;
+  idempotencyKey?: string | null;
+}): Promise<PosMutationResult<VoidPosSalePayload>> {
+  const idempotency = buildVoidPosSaleIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    studioId: params.studioId,
+    saleId: params.saleId,
+    reason: params.reason,
+  });
+
+  const admin = createAdminClient();
+  const { data: sale, error: saleErr } = await admin
+    .from("pos_sales")
+    .select("id, location_id")
+    .eq("id", params.saleId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ id: string; location_id: string | null }>();
+  if (saleErr) {
+    const mapped = mapPosRpcError(saleErr);
+    return { ok: false, ...mapped };
+  }
+  if (!sale || !sale.location_id) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "sale_not_found",
+    };
+  }
+
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: sale.location_id,
+    roles: [...POS_MUTATION_ROLES],
+  });
+  if (!scope.ok) {
+    return {
+      ok: false,
+      code: scope.reason,
+      message: scope.reason,
+    };
+  }
+
+  const { data, error } = await admin.rpc("void_pos_sale", {
+    p_actor_id: params.userId,
+    p_actor_role: scope.role,
+    p_studio_id: params.studioId,
+    p_sale_id: params.saleId,
+    p_reason: trimToNull(params.reason),
+    p_idempotency_key: idempotency.idempotencyKey,
+    p_request_hash: idempotency.requestHash,
+  });
+
+  if (error) {
+    const mapped = mapPosRpcError(error);
+    return { ok: false, ...mapped };
+  }
+
+  return { ok: true, payload: data as VoidPosSalePayload };
 }

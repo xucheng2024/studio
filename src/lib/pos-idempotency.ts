@@ -1,6 +1,11 @@
 import { hashIdempotencyRequest } from "@/lib/idempotency";
 
-export type PosWriteOperation = "pos_sale:create_draft" | "pos_sale_item:upsert" | "pos_sale:lock" | "pos_sale:complete_cash";
+export type PosWriteOperation =
+  | "pos_sale:create_draft"
+  | "pos_sale_item:upsert"
+  | "pos_sale:lock"
+  | "pos_sale:complete_cash"
+  | "pos_sale:void";
 
 export type PosDraftHashPayload = {
   operation: "pos_sale:create_draft";
@@ -41,6 +46,13 @@ export type PosCompleteCashHashPayload = {
   operation: "pos_sale:complete_cash";
   studioId: string;
   saleId: string;
+};
+
+export type PosVoidSaleHashPayload = {
+  operation: "pos_sale:void";
+  studioId: string;
+  saleId: string;
+  reason: string | null;
 };
 
 type PosIdempotencyMeta<TPayload> = {
@@ -162,6 +174,24 @@ export function buildCompletePosCashSaleIdempotency(params: {
     operation: "pos_sale:complete_cash",
     studioId: params.studioId,
     saleId: params.saleId,
+  };
+  return normalizeOperationIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    requestPayload,
+  });
+}
+
+export function buildVoidPosSaleIdempotency(params: {
+  idempotencyKey?: string | null;
+  studioId: string;
+  saleId: string;
+  reason?: string | null;
+}) {
+  const requestPayload: PosVoidSaleHashPayload = {
+    operation: "pos_sale:void",
+    studioId: params.studioId,
+    saleId: params.saleId,
+    reason: trimToNull(params.reason),
   };
   return normalizeOperationIdempotency({
     idempotencyKey: params.idempotencyKey,

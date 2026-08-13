@@ -1,8 +1,9 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { PosHitpayPaymentButton } from "@/components/dashboard/PosHitpayPaymentButton";
-import { completePosCashSaleAction } from "@/app/(app)/dashboard/actions";
+import { completePosCashSaleAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getPosSaleDetailForDashboard } from "@/lib/pos-sales-read";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -208,6 +209,23 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
                 </button>
               </ServerActionToastForm>
             </>
+          ) : null}
+          {sale.status === "draft" || sale.status === "pending_payment" ? (
+            <ToastConfirmForm
+              action={voidPosSaleAction}
+              confirmMessage="Void this sale? This action cannot be undone from POS."
+              confirmLabel="Void sale"
+              pendingLabel="Voiding…"
+              requireText="VOID"
+            >
+              <input type="hidden" name="studio_id" value={studioId} />
+              <input type="hidden" name="sale_id" value={sale.id} />
+              <input type="hidden" name="reason" value="voided_from_pos_detail" />
+              <input type="hidden" name="idempotency_key" value={`pos-void:${sale.id}:${sale.updated_at}`} />
+              <button type="submit" className={ui.btnDangerSm}>
+                Void sale
+              </button>
+            </ToastConfirmForm>
           ) : null}
         </div>
       </section>

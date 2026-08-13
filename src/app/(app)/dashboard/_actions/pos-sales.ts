@@ -6,6 +6,7 @@ import {
   ensurePosSalePayment,
   lockPosSale,
   upsertPosSaleItem,
+  voidPosSale,
 } from "@/lib/pos-sales";
 import { mapPosMutationMessage } from "@/lib/pos-error-message";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
@@ -202,4 +203,36 @@ export async function completePosCashSaleAction(
     return ok("Cash payment already confirmed.");
   }
   return ok("Cash payment confirmed.");
+}
+
+export async function voidPosSaleAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const saleId = String(formData.get("sale_id") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || null;
+
+  if (!studioId || !saleId) {
+    return err("Missing required fields: studio and sale.");
+  }
+
+  const { user } = await requireUser();
+  const result = await voidPosSale({
+    userId: user.id,
+    studioId,
+    saleId,
+    reason,
+    idempotencyKey,
+  });
+
+  if (!result.ok) {
+    return err(mapPosMutationMessage(result.code, result.message || "Could not void POS sale."));
+  }
+
+  if (result.payload.already_voided) {
+    return ok("Sale already voided.");
+  }
+  return ok("Sale voided.");
 }

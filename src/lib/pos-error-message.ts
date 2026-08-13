@@ -57,6 +57,12 @@ export function mapPosMutationMessage(code: PosMutationErrorCode, rawMessage?: s
     if (/cannot complete cash sale/i.test(message)) {
       return "Only pending-payment sales can be marked as cash paid.";
     }
+    if (/sale .*cannot be voided/i.test(message)) {
+      return "Only draft or pending-payment sales can be voided.";
+    }
+    if (/payment .*cannot be voided/i.test(message)) {
+      return "Linked payment is no longer pending, so this sale cannot be voided.";
+    }
     if (/payment.*not ready/i.test(message)) {
       return "Linked payment is not in a payable state. Refresh and retry.";
     }
