@@ -81,6 +81,7 @@ export {
 } from "./_actions/commerce";
 
 export {
+  completePosCashSaleAction,
   createPosSaleDraftAction,
   lockPosSaleAction,
   proceedPosSaleToPaymentAction,

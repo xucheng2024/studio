@@ -1,4 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
+import { completePosCashSaleAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getPosSaleDetailForDashboard } from "@/lib/pos-sales-read";
 import { ui } from "@/lib/ui";
@@ -135,6 +137,14 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
             <dd>{sale.paid_at ? formatLocalDateTime(sale.paid_at) : "-"}</dd>
           </div>
           <div>
+            <dt className={`text-xs ${ui.muted}`}>Cash collected at</dt>
+            <dd>{sale.cash_collected_at ? formatLocalDateTime(sale.cash_collected_at) : "-"}</dd>
+          </div>
+          <div>
+            <dt className={`text-xs ${ui.muted}`}>Cash collected by</dt>
+            <dd>{sale.cash_collected_by ?? "-"}</dd>
+          </div>
+          <div>
             <dt className={`text-xs ${ui.muted}`}>Payment progress</dt>
             <dd>{toPaymentProgressLabel(sale.payment_progress.status)}</dd>
           </div>
@@ -172,6 +182,16 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
           <DashboardAppLink href={`/dashboard/payments?${paymentQuery.toString()}`} className={ui.btnSecondarySm}>
             Open payment record
           </DashboardAppLink>
+          {sale.status === "pending_payment" ? (
+            <ServerActionToastForm action={completePosCashSaleAction} refreshOnSuccess>
+              <input type="hidden" name="studio_id" value={studioId} />
+              <input type="hidden" name="sale_id" value={sale.id} />
+              <input type="hidden" name="idempotency_key" value={`pos-cash-complete:${sale.id}:${sale.updated_at}`} />
+              <button type="submit" className={ui.btnPrimarySm}>
+                Mark as paid (cash)
+              </button>
+            </ServerActionToastForm>
+          ) : null}
         </div>
       </section>
 

@@ -1,6 +1,6 @@
 import { hashIdempotencyRequest } from "@/lib/idempotency";
 
-export type PosWriteOperation = "pos_sale:create_draft" | "pos_sale_item:upsert" | "pos_sale:lock";
+export type PosWriteOperation = "pos_sale:create_draft" | "pos_sale_item:upsert" | "pos_sale:lock" | "pos_sale:complete_cash";
 
 export type PosDraftHashPayload = {
   operation: "pos_sale:create_draft";
@@ -33,6 +33,12 @@ export type PosItemUpsertHashPayload = {
 
 export type PosLockHashPayload = {
   operation: "pos_sale:lock";
+  studioId: string;
+  saleId: string;
+};
+
+export type PosCompleteCashHashPayload = {
+  operation: "pos_sale:complete_cash";
   studioId: string;
   saleId: string;
 };
@@ -138,6 +144,22 @@ export function buildLockPosSaleIdempotency(params: {
 }) {
   const requestPayload: PosLockHashPayload = {
     operation: "pos_sale:lock",
+    studioId: params.studioId,
+    saleId: params.saleId,
+  };
+  return normalizeOperationIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    requestPayload,
+  });
+}
+
+export function buildCompletePosCashSaleIdempotency(params: {
+  idempotencyKey?: string | null;
+  studioId: string;
+  saleId: string;
+}) {
+  const requestPayload: PosCompleteCashHashPayload = {
+    operation: "pos_sale:complete_cash",
     studioId: params.studioId,
     saleId: params.saleId,
   };

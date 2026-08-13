@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  completePosCashSale,
   createPosSaleDraft,
   ensurePosSalePayment,
   lockPosSale,
@@ -171,4 +172,34 @@ export async function proceedPosSaleToPaymentAction(
     payment_id: paymentResult.payment_id,
     payment_reference_code: paymentResult.payment_reference_code,
   };
+}
+
+export async function completePosCashSaleAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const saleId = String(formData.get("sale_id") ?? "").trim();
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || null;
+
+  if (!studioId || !saleId) {
+    return err("Missing required fields: studio and sale.");
+  }
+
+  const { user } = await requireUser();
+  const result = await completePosCashSale({
+    userId: user.id,
+    studioId,
+    saleId,
+    idempotencyKey,
+  });
+
+  if (!result.ok) {
+    return err(mapPosMutationMessage(result.code, result.message || "Could not confirm cash payment."));
+  }
+
+  if (result.payload.already_paid) {
+    return ok("Cash payment already confirmed.");
+  }
+  return ok("Cash payment confirmed.");
 }

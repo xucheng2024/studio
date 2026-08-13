@@ -4,7 +4,9 @@ import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
+import { completePosCashSaleAction } from "@/app/(app)/dashboard/actions";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
@@ -792,6 +794,16 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
               {/* ── Action buttons ────────────────────────────────── */}
               <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
+                {p.status === "pending" && source === "pos_sale" && (p as { pos_sale_id?: string | null }).pos_sale_id ? (
+                  <ServerActionToastForm action={completePosCashSaleAction} refreshOnSuccess>
+                    <input type="hidden" name="studio_id" value={activeStudioId} />
+                    <input type="hidden" name="sale_id" value={(p as { pos_sale_id?: string | null }).pos_sale_id ?? ""} />
+                    <input type="hidden" name="idempotency_key" value={`pos-cash-complete-payment:${p.id}:${p.created_at}`} />
+                    <button type="submit" className={ui.btnPrimarySm}>
+                      Mark as paid (cash)
+                    </button>
+                  </ServerActionToastForm>
+                ) : null}
                 {canSyncHitpayPayments &&
                 activeStudioSlug &&
                 p.status === "pending" &&

@@ -66,6 +66,8 @@ export type PosSaleDetail = {
     refunded_amount: number;
     paid_at: string | null;
     voided_at: string | null;
+    cash_collected_at: string | null;
+    cash_collected_by: string | null;
   };
   items: PosSaleItemDetailRow[];
   payments: Array<{
@@ -78,6 +80,8 @@ export type PosSaleDetail = {
     created_at: string;
     verified_at: string | null;
     paid_at: string | null;
+    verified_by: string | null;
+    verified_by_email: string | null;
   }>;
 };
 
@@ -99,6 +103,7 @@ type PosPaymentSnapshot = {
   created_at: string;
   verified_at: string | null;
   paid_at: string | null;
+  verified_by: string | null;
 };
 
 function computePaymentProgress(input: {
@@ -233,7 +238,7 @@ export async function listPosSalesForDashboard(params: {
     saleIds.length > 0
       ? await admin
           .from("payments")
-          .select("id, pos_sale_id, status, amount, currency, payment_method, reference_code, created_at, verified_at, paid_at")
+          .select("id, pos_sale_id, status, amount, currency, payment_method, reference_code, created_at, verified_at, paid_at, verified_by")
           .eq("studio_id", access.access.studioId)
           .in("pos_sale_id", saleIds)
           .order("created_at", { ascending: false })
@@ -332,11 +337,26 @@ export async function getPosSaleDetailForDashboard(params: {
 
   const { data: paymentRows, error: paymentError } = await admin
     .from("payments")
-    .select("id, pos_sale_id, status, amount, currency, payment_method, reference_code, created_at, verified_at, paid_at")
+    .select("id, pos_sale_id, status, amount, currency, payment_method, reference_code, created_at, verified_at, paid_at, verified_by")
     .eq("studio_id", access.access.studioId)
     .eq("pos_sale_id", params.saleId)
     .order("created_at", { ascending: false });
   if (paymentError) throw paymentError;
+
+  const verifiedByIds = [...new Set(
+    ((paymentRows ?? []) as PosPaymentSnapshot[])
+      .map((payment) => payment.verified_by)
+      .filter((value): value is string => Boolean(value)),
+  )];
+  const { data: verifiedUsers, error: verifiedUsersError } =
+    verifiedByIds.length > 0
+      ? await admin
+          .from("users")
+          .select("id, email")
+          .in("id", verifiedByIds)
+      : { data: [], error: null };
+  if (verifiedUsersError) throw verifiedUsersError;
+  const verifiedByMap = new Map((verifiedUsers ?? []).map((user) => [user.id, user.email ?? null]));
 
   const payments = ((paymentRows ?? []) as PosPaymentSnapshot[]).map((payment) => ({
     id: payment.id,
@@ -348,7 +368,11 @@ export async function getPosSaleDetailForDashboard(params: {
     created_at: payment.created_at,
     verified_at: payment.verified_at,
     paid_at: payment.paid_at,
+    verified_by: payment.verified_by,
+    verified_by_email: payment.verified_by ? (verifiedByMap.get(payment.verified_by) ?? null) : null,
   }));
+
+  const latestCashPaid = payments.find((payment) => payment.status === "paid" && payment.payment_method === "cash") ?? null;
 
   const paymentProgress = computePaymentProgress({
     saleStatus: saleRow.status,
@@ -385,6 +409,8 @@ export async function getPosSaleDetailForDashboard(params: {
         refunded_amount: saleRow.refunded_amount,
         paid_at: saleRow.paid_at,
         voided_at: saleRow.voided_at,
+        cash_collected_at: latestCashPaid?.paid_at ?? latestCashPaid?.verified_at ?? null,
+        cash_collected_by: latestCashPaid?.verified_by_email ?? latestCashPaid?.verified_by ?? null,
       },
       items: (itemRows ?? []).map((item) => ({
         id: item.id,

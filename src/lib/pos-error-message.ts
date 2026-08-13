@@ -54,6 +54,15 @@ export function mapPosMutationMessage(code: PosMutationErrorCode, rawMessage?: s
     if (/not ready for payment/i.test(message)) {
       return "Sale is not in a payable state yet. Refresh and retry.";
     }
+    if (/cannot complete cash sale/i.test(message)) {
+      return "Only pending-payment sales can be marked as cash paid.";
+    }
+    if (/payment.*not ready/i.test(message)) {
+      return "Linked payment is not in a payable state. Refresh and retry.";
+    }
+    if (/payment.*not found/i.test(message)) {
+      return "No linked payment record found for this sale.";
+    }
     if (/either item_id or line_number is required/i.test(message)) {
       return "Item update requires either item id or line number.";
     }
