@@ -28,6 +28,14 @@ export type PosSaleListRow = {
   submitted_at: string | null;
   created_at: string;
   updated_at: string;
+  payment_progress: {
+    status: "no_payment" | "pending" | "paid" | "partially_refunded" | "refunded" | "failed_or_expired";
+    source: "payments+pos_sales";
+    payment_count: number;
+    latest_payment_id: string | null;
+    latest_payment_status: string | null;
+    latest_payment_reference_code: string | null;
+  };
 };
 
 export type PosSaleItemDetailRow = {
@@ -60,6 +68,17 @@ export type PosSaleDetail = {
     voided_at: string | null;
   };
   items: PosSaleItemDetailRow[];
+  payments: Array<{
+    id: string;
+    status: string;
+    amount: number;
+    currency: string;
+    payment_method: string | null;
+    reference_code: string | null;
+    created_at: string;
+    verified_at: string | null;
+    paid_at: string | null;
+  }>;
 };
 
 type PosReadAccess = {
@@ -68,6 +87,49 @@ type PosReadAccess = {
   allowedLocationIds: string[];
   hasGlobalLocationScope: boolean;
 };
+
+type PosPaymentSnapshot = {
+  id: string;
+  pos_sale_id: string | null;
+  status: string;
+  amount: number;
+  currency: string;
+  payment_method: string | null;
+  reference_code: string | null;
+  created_at: string;
+  verified_at: string | null;
+  paid_at: string | null;
+};
+
+function computePaymentProgress(input: {
+  saleStatus: string;
+  payments: PosPaymentSnapshot[];
+}): PosSaleListRow["payment_progress"] {
+  const latest = [...input.payments].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
+  const statuses = new Set(input.payments.map((row) => row.status));
+
+  let status: PosSaleListRow["payment_progress"]["status"] = "no_payment";
+  if (input.saleStatus === "partially_refunded") {
+    status = "partially_refunded";
+  } else if (input.saleStatus === "refunded") {
+    status = "refunded";
+  } else if (statuses.has("paid") || input.saleStatus === "paid") {
+    status = "paid";
+  } else if (statuses.has("pending") || input.saleStatus === "pending_payment") {
+    status = "pending";
+  } else if (statuses.has("failed") || statuses.has("expired")) {
+    status = "failed_or_expired";
+  }
+
+  return {
+    status,
+    source: "payments+pos_sales",
+    payment_count: input.payments.length,
+    latest_payment_id: latest?.id ?? null,
+    latest_payment_status: latest?.status ?? null,
+    latest_payment_reference_code: latest?.reference_code ?? null,
+  };
+}
 
 function isUuid(value: string | null | undefined) {
   return Boolean(value && UUID_PATTERN.test(value));
@@ -166,9 +228,33 @@ export async function listPosSalesForDashboard(params: {
   const { data, count, error } = await query;
   if (error) throw error;
 
+  const saleIds = (data ?? []).map((row) => row.id);
+  const { data: paymentRows, error: paymentError } =
+    saleIds.length > 0
+      ? await admin
+          .from("payments")
+          .select("id, pos_sale_id, status, amount, currency, payment_method, reference_code, created_at, verified_at, paid_at")
+          .eq("studio_id", access.access.studioId)
+          .in("pos_sale_id", saleIds)
+          .order("created_at", { ascending: false })
+      : { data: [], error: null };
+  if (paymentError) throw paymentError;
+
+  const paymentsBySaleId = new Map<string, PosPaymentSnapshot[]>();
+  for (const payment of (paymentRows ?? []) as PosPaymentSnapshot[]) {
+    if (!payment.pos_sale_id) continue;
+    const bucket = paymentsBySaleId.get(payment.pos_sale_id) ?? [];
+    bucket.push(payment);
+    paymentsBySaleId.set(payment.pos_sale_id, bucket);
+  }
+
   const sales = (data ?? []).map((row) => {
     const location = Array.isArray(row.locations) ? row.locations[0] : row.locations;
     const customer = Array.isArray(row.salon_customers) ? row.salon_customers[0] : row.salon_customers;
+    const paymentProgress = computePaymentProgress({
+      saleStatus: row.status,
+      payments: paymentsBySaleId.get(row.id) ?? [],
+    });
     return {
       id: row.id,
       sale_number: row.sale_number,
@@ -186,6 +272,7 @@ export async function listPosSalesForDashboard(params: {
       submitted_at: row.submitted_at,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      payment_progress: paymentProgress,
     } as PosSaleListRow;
   });
 
@@ -243,6 +330,31 @@ export async function getPosSaleDetailForDashboard(params: {
     .order("line_number", { ascending: true });
   if (itemsError) throw itemsError;
 
+  const { data: paymentRows, error: paymentError } = await admin
+    .from("payments")
+    .select("id, pos_sale_id, status, amount, currency, payment_method, reference_code, created_at, verified_at, paid_at")
+    .eq("studio_id", access.access.studioId)
+    .eq("pos_sale_id", params.saleId)
+    .order("created_at", { ascending: false });
+  if (paymentError) throw paymentError;
+
+  const payments = ((paymentRows ?? []) as PosPaymentSnapshot[]).map((payment) => ({
+    id: payment.id,
+    status: payment.status,
+    amount: payment.amount,
+    currency: payment.currency,
+    payment_method: payment.payment_method,
+    reference_code: payment.reference_code,
+    created_at: payment.created_at,
+    verified_at: payment.verified_at,
+    paid_at: payment.paid_at,
+  }));
+
+  const paymentProgress = computePaymentProgress({
+    saleStatus: saleRow.status,
+    payments: (paymentRows ?? []) as PosPaymentSnapshot[],
+  });
+
   const location = Array.isArray(saleRow.locations) ? saleRow.locations[0] : saleRow.locations;
   const customer = Array.isArray(saleRow.salon_customers) ? saleRow.salon_customers[0] : saleRow.salon_customers;
 
@@ -267,6 +379,7 @@ export async function getPosSaleDetailForDashboard(params: {
         submitted_at: saleRow.submitted_at,
         created_at: saleRow.created_at,
         updated_at: saleRow.updated_at,
+        payment_progress: paymentProgress,
         note: saleRow.note,
         receipt_number: saleRow.receipt_number,
         refunded_amount: saleRow.refunded_amount,
@@ -293,6 +406,7 @@ export async function getPosSaleDetailForDashboard(params: {
         refunded_quantity: item.refunded_quantity,
         refunded_amount: item.refunded_amount,
       })),
+      payments,
     },
   };
 }

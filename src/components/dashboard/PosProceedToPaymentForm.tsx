@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import type { DashboardFormResult } from "@/app/(app)/dashboard/actions";
+import type { PosProceedToPaymentResult } from "@/app/(app)/dashboard/actions";
 import { useRouter } from "next/navigation";
 
 type LockErrorTone = "amber" | "red" | "stone";
@@ -38,7 +38,7 @@ function toneClass(tone: LockErrorTone) {
 }
 
 export function PosProceedToPaymentForm(props: {
-  action: (prevState: DashboardFormResult | null, formData: FormData) => Promise<DashboardFormResult>;
+  action: (prevState: PosProceedToPaymentResult | null, formData: FormData) => Promise<PosProceedToPaymentResult>;
   studioId: string;
   locationId?: string | null;
   saleId: string;
@@ -46,7 +46,7 @@ export function PosProceedToPaymentForm(props: {
   ctaLabel?: string;
 }) {
   const router = useRouter();
-  const [state, formAction] = useActionState<DashboardFormResult | null, FormData>(props.action, null);
+  const [state, formAction] = useActionState<PosProceedToPaymentResult | null, FormData>(props.action, null);
   const lastMessageRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -60,6 +60,8 @@ export function PosProceedToPaymentForm(props: {
       q.set("studio_id", props.studioId);
       if (props.locationId) q.set("location_id", props.locationId);
       q.set("sales_channel", "frontdesk");
+      if (state.payment_id) q.set("payment_id", state.payment_id);
+      if (state.payment_reference_code) q.set("q", state.payment_reference_code);
       router.push(`/dashboard/payments?${q.toString()}`);
       return;
     }

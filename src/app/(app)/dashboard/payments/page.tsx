@@ -31,6 +31,7 @@ type Props = {
     date_from?: string;
     date_to?: string;
     q?: string;
+    payment_id?: string;
     attention?: string;
   }>;
 };
@@ -173,7 +174,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   let q = admin
     .from("payments")
     .select(
-      "id, studio_id, location_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, service_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot",
+      "id, studio_id, location_id, pos_sale_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, service_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -182,16 +183,19 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   else if (locationFilter) q = q.eq("location_id", locationFilter);
   if (isPendingHitpayAttention) q = q.eq("status", "pending").eq("payment_method", "hitpay");
   else if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
+  if (sp.payment_id) q = q.eq("id", sp.payment_id);
   if (sp.source) q = q.eq("source", sp.source);
   if (sp.sales_channel) q = q.eq("sales_channel", sp.sales_channel);
   const defaultDate = localISODate();
   const attentionDateFrom = isoDateDaysAgo(6);
   const dateFrom = sp.date_from ?? (isPendingHitpayAttention ? attentionDateFrom : defaultDate);
   const dateTo = sp.date_to ?? defaultDate;
-  const from = dayRangeStartIso(dateFrom);
-  if (from) q = q.gte("created_at", from);
-  const to = dayRangeEndExclusiveIso(dateTo);
-  if (to) q = q.lt("created_at", to);
+  if (!sp.payment_id) {
+    const from = dayRangeStartIso(dateFrom);
+    if (from) q = q.gte("created_at", from);
+    const to = dayRangeEndExclusiveIso(dateTo);
+    if (to) q = q.lt("created_at", to);
+  }
 
   const pendingHitpayStart = dayRangeStartIso(attentionDateFrom) ?? "";
   const pendingHitpayEnd = dayRangeEndExclusiveIso(defaultDate) ?? "";
@@ -318,6 +322,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       : null;
     const eventTitle = eventObj?.title ?? null;
     return [
+      p.id,
+      (p as { pos_sale_id?: string | null }).pos_sale_id ?? null,
       p.reference_code,
       p.guest_email,
       p.guest_name,

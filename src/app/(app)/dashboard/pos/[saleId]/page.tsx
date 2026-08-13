@@ -13,6 +13,32 @@ function toStatusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
 
+function toPaymentProgressLabel(status: string) {
+  switch (status) {
+    case "pending":
+      return "Pending payment";
+    case "paid":
+      return "Paid";
+    case "partially_refunded":
+      return "Partially refunded";
+    case "refunded":
+      return "Refunded";
+    case "failed_or_expired":
+      return "Failed/expired";
+    default:
+      return "No payment";
+  }
+}
+
+function paymentMethodLabel(method: string | null | undefined) {
+  const m = String(method ?? "").toLowerCase();
+  if (m === "hitpay") return "HitPay";
+  if (m === "cash") return "Cash";
+  if (m === "free") return "Free";
+  if (!method) return "-";
+  return method;
+}
+
 export default async function PosSaleDetailPage({ params, searchParams }: Props) {
   const { saleId } = await params;
   const sp = await searchParams;
@@ -57,6 +83,12 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
   }
 
   const { sale, items } = detailResult.detail;
+  const paymentQuery = new URLSearchParams(backQuery.toString());
+  paymentQuery.set("source", "pos_sale");
+  paymentQuery.set("q", sale.id);
+  if (sale.payment_progress.latest_payment_id) {
+    paymentQuery.set("payment_id", sale.payment_progress.latest_payment_id);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -103,6 +135,10 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
             <dd>{sale.paid_at ? formatLocalDateTime(sale.paid_at) : "-"}</dd>
           </div>
           <div>
+            <dt className={`text-xs ${ui.muted}`}>Payment progress</dt>
+            <dd>{toPaymentProgressLabel(sale.payment_progress.status)}</dd>
+          </div>
+          <div>
             <dt className={`text-xs ${ui.muted}`}>Subtotal</dt>
             <dd>{sale.currency} {Number(sale.subtotal_amount).toFixed(2)}</dd>
           </div>
@@ -127,6 +163,60 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
             <dd>{sale.note ?? "-"}</dd>
           </div>
         </dl>
+        <p className={`mt-3 text-xs ${ui.muted}`}>
+          Status source: sale lifecycle uses <span className={ui.code}>pos_sales.status</span>; payment progress is read from linked
+          <span className={ui.code}> payments.pos_sale_id </span>
+          and reconciled with sale status.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <DashboardAppLink href={`/dashboard/payments?${paymentQuery.toString()}`} className={ui.btnSecondarySm}>
+            Open payment record
+          </DashboardAppLink>
+        </div>
+      </section>
+
+      <section className={`${ui.card} overflow-x-auto`}>
+        <h2 className={ui.h2}>Payment records</h2>
+        {detailResult.detail.payments.length === 0 ? (
+          <p className={`mt-3 ${ui.muted}`}>No payment records linked yet.</p>
+        ) : (
+          <table className="mt-3 min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:text-stone-400">
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Method</th>
+                <th className="px-3 py-2">Amount</th>
+                <th className="px-3 py-2">Ref</th>
+                <th className="px-3 py-2">Created</th>
+                <th className="px-3 py-2">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detailResult.detail.payments.map((payment) => {
+                const onePaymentQuery = new URLSearchParams(backQuery.toString());
+                onePaymentQuery.set("source", "pos_sale");
+                onePaymentQuery.set("payment_id", payment.id);
+                return (
+                  <tr key={payment.id} className="border-b border-stone-100 align-top last:border-b-0 dark:border-stone-900">
+                    <td className="px-3 py-2 capitalize">{toStatusLabel(payment.status)}</td>
+                    <td className="px-3 py-2">{paymentMethodLabel(payment.payment_method)}</td>
+                    <td className="px-3 py-2">{payment.currency} {Number(payment.amount).toFixed(2)}</td>
+                    <td className="px-3 py-2"><span className={ui.code}>{payment.reference_code ?? "-"}</span></td>
+                    <td className="px-3 py-2">{formatLocalDateTime(payment.created_at)}</td>
+                    <td className="px-3 py-2">
+                      <DashboardAppLink
+                        href={`/dashboard/payments?${onePaymentQuery.toString()}`}
+                        className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+                      >
+                        Open
+                      </DashboardAppLink>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className={`${ui.card} overflow-x-auto`}>
@@ -167,4 +257,3 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
     </div>
   );
 }
-

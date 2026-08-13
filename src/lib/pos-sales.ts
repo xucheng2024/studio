@@ -51,6 +51,14 @@ export type LockPosSalePayload = {
   already_completed: boolean;
 };
 
+export type EnsurePosSalePaymentPayload = {
+  sale_id: string;
+  payment_id: string;
+  payment_status: string;
+  payment_reference_code: string | null;
+  already_exists: boolean;
+};
+
 function trimToNull(raw: string | null | undefined) {
   const value = raw?.trim();
   return value ? value : null;
@@ -298,3 +306,155 @@ export async function lockPosSale(params: {
   return { ok: true, payload: data as LockPosSalePayload };
 }
 
+export async function ensurePosSalePayment(params: {
+  userId: string;
+  studioId: string;
+  saleId: string;
+}): Promise<PosMutationResult<EnsurePosSalePaymentPayload>> {
+  const admin = createAdminClient();
+
+  const { data: sale, error: saleErr } = await admin
+    .from("pos_sales")
+    .select("id, studio_id, location_id, salon_customer_id, status, total_amount, currency")
+    .eq("id", params.saleId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{
+      id: string;
+      studio_id: string;
+      location_id: string | null;
+      salon_customer_id: string | null;
+      status: string;
+      total_amount: number;
+      currency: string;
+    }>();
+
+  if (saleErr) {
+    const mapped = mapPosRpcError(saleErr);
+    return { ok: false, ...mapped };
+  }
+  if (!sale || !sale.location_id) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "sale_not_found",
+    };
+  }
+
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: sale.location_id,
+    roles: [...POS_MUTATION_ROLES],
+  });
+  if (!scope.ok) {
+    return {
+      ok: false,
+      code: scope.reason,
+      message: scope.reason,
+    };
+  }
+
+  if (sale.status !== "pending_payment" && sale.status !== "paid" && sale.status !== "partially_refunded" && sale.status !== "refunded") {
+    return {
+      ok: false,
+      code: "invalid_request",
+      message: `sale ${sale.id} status ${sale.status} is not ready for payment`,
+    };
+  }
+
+  const { data: existing } = await admin
+    .from("payments")
+    .select("id, status, reference_code")
+    .eq("studio_id", params.studioId)
+    .eq("pos_sale_id", sale.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; status: string; reference_code: string | null }>();
+
+  if (existing) {
+    return {
+      ok: true,
+      payload: {
+        sale_id: sale.id,
+        payment_id: existing.id,
+        payment_status: existing.status,
+        payment_reference_code: existing.reference_code,
+        already_exists: true,
+      },
+    };
+  }
+
+  const customer = sale.salon_customer_id
+    ? (await admin
+      .from("salon_customers")
+      .select("user_id, full_name, email, phone")
+      .eq("id", sale.salon_customer_id)
+      .eq("studio_id", params.studioId)
+      .maybeSingle<{ user_id: string | null; full_name: string | null; email: string | null; phone: string | null }>()).data
+    : null;
+
+  const referenceCode = `POS-${sale.id.replaceAll("-", "")}`;
+  const insertPayload = {
+    studio_id: params.studioId,
+    location_id: sale.location_id,
+    pos_sale_id: sale.id,
+    client_id: customer?.user_id ?? null,
+    guest_name: customer?.user_id ? null : (customer?.full_name ?? null),
+    guest_email: customer?.user_id ? null : (customer?.email ?? null),
+    guest_phone: customer?.user_id ? null : (customer?.phone ?? null),
+    amount: Number(sale.total_amount ?? 0),
+    currency: sale.currency,
+    payment_method: "cash",
+    sales_channel: "frontdesk",
+    source: "pos_sale",
+    status: "pending",
+    reference_code: referenceCode,
+    type: "single",
+    remaining_uses: 0,
+  };
+
+  const { data: created, error: createErr } = await admin
+    .from("payments")
+    .insert(insertPayload)
+    .select("id, status, reference_code")
+    .single<{ id: string; status: string; reference_code: string | null }>();
+
+  if (createErr) {
+    if (createErr.code === "23505") {
+      const { data: concurrent } = await admin
+        .from("payments")
+        .select("id, status, reference_code")
+        .eq("studio_id", params.studioId)
+        .eq("pos_sale_id", sale.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ id: string; status: string; reference_code: string | null }>();
+      if (concurrent) {
+        return {
+          ok: true,
+          payload: {
+            sale_id: sale.id,
+            payment_id: concurrent.id,
+            payment_status: concurrent.status,
+            payment_reference_code: concurrent.reference_code,
+            already_exists: true,
+          },
+        };
+      }
+    }
+
+    const mapped = mapPosRpcError(createErr);
+    return { ok: false, ...mapped };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      sale_id: sale.id,
+      payment_id: created.id,
+      payment_status: created.status,
+      payment_reference_code: created.reference_code,
+      already_exists: false,
+    },
+  };
+}

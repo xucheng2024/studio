@@ -1,14 +1,14 @@
 # POS-01：销售主单与购物车统一事实
 
-状态：未开始
+状态：已完成（第1-8批）
 
 负责人：Codex
 
 开始日期：2026-08-12
 
-完成日期：
+完成日期：2026-08-13
 
-Commit / Release：未提交
+Commit / Release：未提交（本地验证完成）
 
 ## 1. 目标
 
@@ -79,34 +79,72 @@ Commit / Release：未提交
 
 ## 8. 验收场景
 
-- [ ] 正常创建 Sale + 多 Item 保存
-- [ ] Studio 隔离
-- [ ] Location Scope 允许/拒绝
-- [ ] 角色允许/拒绝
-- [ ] Item 归属约束拒绝非法组合
-- [ ] 幂等重放不重复创建 Sale/Item
-- [ ] Migration 在空库、现有数据及二次执行通过
-- [ ] `npx tsc --noEmit`
-- [ ] 相关 ESLint/测试
-- [ ] anon/authenticated/service_role 表与 RPC 权限矩阵
+- [x] 正常创建 Sale + 多 Item 保存
+- [x] Studio 隔离
+- [x] Location Scope 允许/拒绝
+- [x] 角色允许/拒绝
+- [x] Item 归属约束拒绝非法组合
+- [x] 幂等重放不重复创建 Sale/Item
+- [x] Migration 在空库、现有数据及二次执行通过
+- [x] `npx tsc --noEmit`
+- [x] 相关 ESLint/测试
+- [x] anon/authenticated/service_role 表与 RPC 权限矩阵
 
 ## 9. 实际交付
 
 ### 修改文件
 
 - `docs/salon-psg/tasks/POS-01.md`
+- `docs/salon-psg/releases/2026-08-13-pos01-release-checklist.md`
+- `supabase/migrations/20260813001000_pos01_sale_fact_skeleton.sql`
+- `supabase/migrations/20260813013000_pos01_write_rpcs_idempotency_audit_rls.sql`
+- `supabase/migrations/20260813023000_pos01_lock_hard_validation.sql`
+- `supabase/migrations/20260813033000_pos01_payment_link_and_source.sql`
+- `src/lib/pos-idempotency.ts`
+- `src/lib/pos-sales.ts`
+- `src/lib/pos-sales-read.ts`
+- `src/lib/pos-error-message.ts`
+- `src/lib/payment-filter-options.ts`
+- `src/lib/payment-classification.ts`
+- `src/components/dashboard/PosProceedToPaymentForm.tsx`
+- `src/app/(app)/dashboard/_actions/pos-sales.ts`
+- `src/app/(app)/dashboard/actions.ts`
+- `src/app/(app)/dashboard/pos/page.tsx`
+- `src/app/(app)/dashboard/pos/[saleId]/page.tsx`
+- `src/app/(app)/dashboard/payments/page.tsx`
+- `scripts/verify-pos01-db.sh`
+- `scripts/verify-pos01-e2e.sh`
+- `scripts/sql/verify_pos01_sale_fact_skeleton.sql`
+- `scripts/sql/verify_pos01_write_rpcs_v2.sql`
+- `scripts/sql/verify_pos01_write_rpcs_v3.sql`
+- `scripts/sql/pos01_e2e_payments_stub.sql`
+- `scripts/sql/verify_pos01_e2e_proceed_to_payment.sql`
+- `package.json`
 
 ### 数据库变化
 
-- 待实现
+- 新增 `pos_sales` / `pos_sale_items` 事实层与约束、索引、触发器。
+- 新增 POS-01 写入 RPC：`create_pos_sale_draft`、`upsert_pos_sale_item`、`lock_pos_sale`。
+- 写入路径接入 FND-04 Claim/Complete/Fail 幂等栅栏与强审计。
+- `lock_pos_sale` 增加提交前硬校验（空单、快照缺失、币种/金额不一致拒绝）。
+- 新增 `payments.pos_sale_id` 关联、唯一索引与 `source='pos_sale'` 约束扩展。
 
 ### 验证结果
 
-- 待实现
+- `npm run -s test:pos01-db`：通过（包含 skeleton + write-rpc + lock-hard-validation 验证）。
+- `npm run -s test:pos01-e2e`：通过（创建草稿 → 加项 → 去收款锁单 → 幂等 payment ensure → 状态改为 paid）。
+- `npx tsc --noEmit`：通过。
+- `npx eslint src/lib/pos-sales.ts src/lib/pos-sales-read.ts src/app/(app)/dashboard/_actions/pos-sales.ts src/app/(app)/dashboard/pos/page.tsx src/app/(app)/dashboard/pos/[saleId]/page.tsx src/app/(app)/dashboard/payments/page.tsx src/components/dashboard/PosProceedToPaymentForm.tsx src/lib/payment-filter-options.ts src/lib/payment-classification.ts src/lib/pos-error-message.ts`：通过。
 
 ### 未解决风险
 
-- 待实现
+- 目前 `pos_sale` 来源在报表分类临时映射到 `service` 桶，后续若新增专属 POS 桶需同步报表口径。
+- 支付“创建并关联”当前在应用层 `ensure`，后续若接入多支付方式（POS-02/03）建议下沉单一事务/RPC。
+- `pending_payment -> paid/refunded` 的自动回写依赖后续 POS-02/POS-03 交易闭环，不在 POS-01 范围内。
+
+### 发布清单
+
+- `docs/salon-psg/releases/2026-08-13-pos01-release-checklist.md`
 
 没有实际命令输出或测试证据时，不勾选对应项目。
 

@@ -40,7 +40,7 @@
 | Phase 1 | CRM-01 Sensitive Customer Data | 已验证/待上线 | FND-02 | 已部署 Production；隔离 Studio 的预检、Manager/Frontdesk booking-only 允许、Instructor 直访拒绝、390px 移动端及“拒绝不写成功访问审计”均已通过。上线窗口前由业务方抽样复核真实门店 Owner/Global Manager 与动态门店关系。 |
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
 | Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
-| Phase 2 | POS-01 Sale/Cart | 未开始 | FND-01、FND-02、FND-03、FND-04 | 下一项核心营业闭环；统一 Service/Product/Package 销售事实，并为现有 Package 购买提供适配入口 |
+| Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
 | Phase 2 | PKG-01 Package Ledger | 未开始 | FND-02、FND-03、FND-04、POS-01 | 保留现有 Class Pass、公开购买和余额；迁移 opening balance，补 Salon Service/Location、Ledger、强审计和 deferred value |
 | Phase 2 | POS-02 Cash/Receipt | 未开始 | POS-01 | 等待依赖 |
 | Phase 2 | POS-03 HitPay | 未开始 | POS-01 | 可与 POS-02、PKG-01 并行；Package Paid 发放需联合验收 |

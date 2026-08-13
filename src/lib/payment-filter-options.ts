@@ -14,6 +14,7 @@ export const PAYMENT_METHOD_FILTER_OPTIONS: { value: string; label: string }[] =
 ];
 
 export const PAYMENT_SOURCE_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "pos_sale", label: "POS sale" },
   { value: "online_booking", label: "Session" },
   { value: "event_booking", label: "Event" },
   { value: "package_buy", label: "Package" },

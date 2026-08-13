@@ -83,5 +83,7 @@ export {
 export {
   createPosSaleDraftAction,
   lockPosSaleAction,
+  proceedPosSaleToPaymentAction,
   upsertPosSaleItemAction,
 } from "./_actions/pos-sales";
+export type { PosProceedToPaymentResult } from "./_actions/pos-sales";

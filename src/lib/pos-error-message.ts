@@ -51,6 +51,9 @@ export function mapPosMutationMessage(code: PosMutationErrorCode, rawMessage?: s
     if (/cannot be edited/i.test(message)) {
       return "Sale is already locked and cannot be edited.";
     }
+    if (/not ready for payment/i.test(message)) {
+      return "Sale is not in a payable state yet. Refresh and retry.";
+    }
     if (/either item_id or line_number is required/i.test(message)) {
       return "Item update requires either item id or line number.";
     }

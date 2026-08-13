@@ -18,6 +18,8 @@ type PaymentClassificationInput = {
 
 export function paymentOrderType(input: PaymentClassificationInput): PaymentOrderType {
   switch (input.source) {
+    case "pos_sale":
+      return "service";
     case "event_booking":
       return "event";
     case "package_buy":

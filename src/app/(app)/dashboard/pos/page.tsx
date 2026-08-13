@@ -1,7 +1,7 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { PosProceedToPaymentForm } from "@/components/dashboard/PosProceedToPaymentForm";
-import { lockPosSaleAction } from "@/app/(app)/dashboard/actions";
+import { proceedPosSaleToPaymentAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { listPosSalesForDashboard } from "@/lib/pos-sales-read";
@@ -23,6 +23,23 @@ type PosSaleStatusFilter = (typeof STATUS_OPTIONS)[number];
 
 function toStatusLabel(status: string) {
   return status.replaceAll("_", " ");
+}
+
+function toPaymentProgressLabel(status: string) {
+  switch (status) {
+    case "pending":
+      return "Pending payment";
+    case "paid":
+      return "Paid";
+    case "partially_refunded":
+      return "Partially refunded";
+    case "refunded":
+      return "Refunded";
+    case "failed_or_expired":
+      return "Failed/expired";
+    default:
+      return "No payment";
+  }
 }
 
 type Props = {
@@ -140,6 +157,7 @@ export default async function PosSalesPage({ searchParams }: Props) {
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:text-stone-400">
                 <th className="px-3 py-2">Sale</th>
                 <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Payment progress</th>
                 <th className="px-3 py-2">Customer</th>
                 <th className="px-3 py-2">Location</th>
                 <th className="px-3 py-2">Total</th>
@@ -150,6 +168,12 @@ export default async function PosSalesPage({ searchParams }: Props) {
             <tbody>
               {salesResult.sales.map((sale) => {
                 const detailQuery = new URLSearchParams(scopeQuery.toString());
+                const paymentQuery = new URLSearchParams(scopeQuery.toString());
+                paymentQuery.set("source", "pos_sale");
+                paymentQuery.set("q", sale.id);
+                if (sale.payment_progress.latest_payment_id) {
+                  paymentQuery.set("payment_id", sale.payment_progress.latest_payment_id);
+                }
                 return (
                   <tr key={sale.id} className="border-b border-stone-100 align-top last:border-b-0 dark:border-stone-900">
                     <td className="px-3 py-2">
@@ -161,6 +185,18 @@ export default async function PosSalesPage({ searchParams }: Props) {
                       </DashboardAppLink>
                     </td>
                     <td className="px-3 py-2 capitalize">{toStatusLabel(sale.status)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-medium text-stone-800 dark:text-stone-200">
+                          {toPaymentProgressLabel(sale.payment_progress.status)}
+                        </span>
+                        <span className={`text-[11px] ${ui.muted}`}>
+                          {sale.payment_progress.payment_count > 0
+                            ? `${sale.payment_progress.payment_count} payment record${sale.payment_progress.payment_count === 1 ? "" : "s"}`
+                            : "No payment record yet"}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-3 py-2">{sale.customer_name ?? "Walk-in"}</td>
                     <td className="px-3 py-2">{sale.location_name ?? sale.location_id.slice(0, 8)}</td>
                     <td className="px-3 py-2">{sale.currency} {Number(sale.total_amount).toFixed(2)}</td>
@@ -168,7 +204,7 @@ export default async function PosSalesPage({ searchParams }: Props) {
                     <td className="px-3 py-2">
                       {sale.status === "draft" ? (
                         <PosProceedToPaymentForm
-                          action={lockPosSaleAction}
+                          action={proceedPosSaleToPaymentAction}
                           studioId={activeStudioId}
                           locationId={effectiveLocationId}
                           saleId={sale.id}
@@ -177,7 +213,7 @@ export default async function PosSalesPage({ searchParams }: Props) {
                         />
                       ) : sale.status === "pending_payment" ? (
                         <DashboardAppLink
-                          href={`/dashboard/payments?${scopeQuery.toString()}`}
+                          href={`/dashboard/payments?${paymentQuery.toString()}`}
                           className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
                         >
                           Go to payment

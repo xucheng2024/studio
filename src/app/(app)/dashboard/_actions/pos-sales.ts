@@ -2,11 +2,17 @@
 
 import {
   createPosSaleDraft,
+  ensurePosSalePayment,
   lockPosSale,
   upsertPosSaleItem,
 } from "@/lib/pos-sales";
 import { mapPosMutationMessage } from "@/lib/pos-error-message";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
+
+export type PosProceedToPaymentResult = DashboardFormResult & {
+  payment_id?: string;
+  payment_reference_code?: string | null;
+};
 
 function asNumberOrNull(raw: FormDataEntryValue | null) {
   if (raw == null || String(raw).trim() === "") return null;
@@ -121,4 +127,48 @@ export async function lockPosSaleAction(
     return ok("Sale is already ready for payment.");
   }
   return ok("Sale is ready for payment.");
+}
+
+export async function proceedPosSaleToPaymentAction(
+  _prevState: PosProceedToPaymentResult | null,
+  formData: FormData,
+): Promise<PosProceedToPaymentResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const saleId = String(formData.get("sale_id") ?? "").trim();
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || null;
+
+  if (!studioId || !saleId) {
+    return err("Missing required fields: studio and sale.");
+  }
+
+  const { user } = await requireUser();
+  const lockResult = await lockPosSale({
+    userId: user.id,
+    studioId,
+    saleId,
+    idempotencyKey,
+  });
+
+  if (!lockResult.ok) {
+    return err(mapPosMutationMessage(lockResult.code, lockResult.message || "Could not lock POS sale."));
+  }
+
+  const ensurePayment = await ensurePosSalePayment({
+    userId: user.id,
+    studioId,
+    saleId,
+  });
+  if (!ensurePayment.ok) {
+    return err(mapPosMutationMessage(ensurePayment.code, ensurePayment.message || "Could not create POS payment."));
+  }
+
+  const paymentResult = ensurePayment.payload;
+  return {
+    ok: true,
+    message: paymentResult.already_exists
+      ? "Payment already exists. Opened current payment flow."
+      : "Payment created. Proceed to collect payment.",
+    payment_id: paymentResult.payment_id,
+    payment_reference_code: paymentResult.payment_reference_code,
+  };
 }
