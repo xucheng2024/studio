@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
+import { recordHitpayWebhookFailure } from "@/lib/hitpay-webhook-observability";
 import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
 import { completePosHitpaySale } from "@/lib/pos-sales";
 import {
@@ -209,6 +210,7 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
   const signature = getHitpaySignatureHeader(req);
   const eventType = (req.headers.get("hitpay-event-type") ?? "").trim().toLowerCase();
   const eventObject = (req.headers.get("hitpay-event-object") ?? "").trim().toLowerCase();
+  const payloadHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
   const referenceCode = payload.reference_number?.trim() || payload.reference?.trim() || null;
   /** HitPay sends recurring billing UUID on recurring_billing object and on method_attached / subscription_updated (reference alone may be missing). */
   let recurringBillingId: string | null = null;
@@ -235,6 +237,29 @@ async function handleRecurringWebhook(req: Request, rawBody: string, payload: Hi
     chargeId,
   });
   if (signatureValid === false) {
+    const providerId = recurringBillingId || chargeId || payload.id?.trim() || null;
+    const providerEventId = resolveProviderEventId(req, {
+      eventObject,
+      eventType,
+      providerId,
+      payloadHash,
+    });
+    await recordHitpayWebhookFailure({
+      code: "invalid_signature",
+      detail: "recurring webhook signature verification failed",
+      studioId: subscription?.studio_id ?? null,
+      providerEventId,
+      providerPaymentId: chargeId,
+      referenceCode,
+      eventObject: eventObject || null,
+      eventType: eventType || null,
+      payloadHash,
+      safePayload: {
+        recurring_billing_id: recurringBillingId,
+        charge_id: chargeId,
+        reference_code: referenceCode,
+      },
+    });
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
   if (!subscription?.id) {
@@ -346,6 +371,30 @@ export async function POST(req: Request) {
     .maybeSingle();
   const verified = verifyHitpayWebhookSignature(rawBody, signature, secrets?.hitpay_webhook_salt ?? null);
   if (!verified) {
+    const providerEventId = resolveProviderEventId(req, {
+      eventObject,
+      eventType,
+      providerId,
+      payloadHash,
+    });
+    await recordHitpayWebhookFailure({
+      code: "invalid_signature",
+      detail: "one-time webhook signature verification failed",
+      studioId: payment.studio_id,
+      locationId: payment.location_id ?? null,
+      paymentId: payment.id,
+      providerEventId,
+      providerPaymentId,
+      referenceCode,
+      eventObject: eventObject || null,
+      eventType: eventType || null,
+      payloadHash,
+      safePayload: {
+        provider_id: providerId,
+        reference_code: referenceCode,
+        provider_status: providerStatus,
+      },
+    });
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
 
@@ -375,6 +424,23 @@ export async function POST(req: Request) {
 
   const claim = (eventClaim ?? null) as ProviderEventClaim | null;
   if (eventClaimErr || !claim || !claim.ok) {
+    await recordHitpayWebhookFailure({
+      code: "provider_event_claim_failed",
+      detail: eventClaimErr?.message ?? `claim_response:${JSON.stringify(claim ?? null)}`,
+      studioId: payment.studio_id,
+      locationId: payment.location_id ?? null,
+      paymentId: payment.id,
+      providerEventId,
+      providerPaymentId,
+      referenceCode,
+      eventObject: eventObject || null,
+      eventType: eventType || null,
+      payloadHash,
+      safePayload: {
+        provider_id: providerId,
+        provider_status: providerStatus,
+      },
+    });
     return NextResponse.json({ error: "provider_event_claim_failed" }, { status: 409 });
   }
 
@@ -432,6 +498,26 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     const summary = error instanceof Error ? error.message : "hitpay_webhook_failed";
+    if (summary.includes("complete_pos_hitpay_sale_failed")) {
+      await recordHitpayWebhookFailure({
+        code: "complete_pos_hitpay_sale_failed",
+        detail: summary,
+        studioId: payment.studio_id,
+        locationId: payment.location_id ?? null,
+        paymentId: payment.id,
+        providerEventId,
+        providerPaymentId,
+        referenceCode,
+        eventObject: eventObject || null,
+        eventType: eventType || null,
+        payloadHash,
+        safePayload: {
+          provider_id: providerId,
+          provider_status: providerStatus,
+          pos_sale_id: payment.pos_sale_id ?? null,
+        },
+      });
+    }
     await admin.rpc("fail_provider_event", {
       p_id: claimId,
       p_claim_token: claimToken,

@@ -1,11 +1,13 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
 import { PosProceedToPaymentForm } from "@/components/dashboard/PosProceedToPaymentForm";
 import { proceedPosSaleToPaymentAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { listPosSalesForDashboard } from "@/lib/pos-sales-read";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -75,6 +77,7 @@ export default async function PosSalesPage({ searchParams }: Props) {
   }
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const admin = createAdminClient();
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
 
   const { data: locations } = await supabase
@@ -109,6 +112,29 @@ export default async function PosSalesPage({ searchParams }: Props) {
     }
     return <p className={ui.error}>Could not load POS sales: {salesResult.message}</p>;
   }
+
+  const { data: activeStudio } = await admin
+    .from("studios")
+    .select("public_slug")
+    .eq("id", activeStudioId)
+    .maybeSingle();
+  const activeStudioSlug = activeStudio?.public_slug?.trim() ?? null;
+
+  const latestPaymentIds = [...new Set(
+    salesResult.sales
+      .map((sale) => sale.payment_progress.latest_payment_id)
+      .filter((value): value is string => Boolean(value)),
+  )];
+  const { data: latestPaymentsRaw } =
+    latestPaymentIds.length > 0
+      ? await admin
+          .from("payments")
+          .select("id, payment_method, gateway_payment_id")
+          .in("id", latestPaymentIds)
+      : { data: [] as const };
+  const latestPaymentById = new Map(
+    (latestPaymentsRaw ?? []).map((payment) => [payment.id, payment]),
+  );
 
   const scopeQuery = new URLSearchParams();
   scopeQuery.set("studio_id", activeStudioId);
@@ -212,12 +238,23 @@ export default async function PosSalesPage({ searchParams }: Props) {
                           ctaLabel="Proceed to payment"
                         />
                       ) : sale.status === "pending_payment" ? (
-                        <DashboardAppLink
-                          href={`/dashboard/payments?${paymentQuery.toString()}`}
-                          className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
-                        >
-                          Go to payment
-                        </DashboardAppLink>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <DashboardAppLink
+                            href={`/dashboard/payments?${paymentQuery.toString()}`}
+                            className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+                          >
+                            Go to payment
+                          </DashboardAppLink>
+                          {(() => {
+                            const latestPaymentId = sale.payment_progress.latest_payment_id;
+                            if (!activeStudioSlug || !latestPaymentId) return null;
+                            const latestPayment = latestPaymentById.get(latestPaymentId);
+                            if (!latestPayment) return null;
+                            const method = String(latestPayment.payment_method ?? "").toLowerCase();
+                            if (method !== "hitpay" || !latestPayment.gateway_payment_id) return null;
+                            return <SyncHitpayPaymentButton paymentId={latestPaymentId} studioSlug={activeStudioSlug} compact />;
+                          })()}
+                        </div>
                       ) : (
                         <span className={`text-xs ${ui.muted}`}>Locked/closed</span>
                       )}

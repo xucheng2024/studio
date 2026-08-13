@@ -1,6 +1,6 @@
-# POS-03：HitPay 在线支付闭环（Batch 1）
+# POS-03：HitPay 在线支付闭环（Batch 1 + Batch 2）
 
-状态：进行中（Batch 1 开发中）
+状态：进行中（Batch 2 开发中）
 
 负责人：Codex
 
@@ -41,3 +41,14 @@
 - 重放同一 webhook 事件不重复入账、不重复审计
 - 签名失败 webhook 返回 `401 invalid_signature`
 - `npm run test:pos03-db` 与 `npx tsc --noEmit` 通过
+
+## 5. Batch 2（运营兜底能力）
+
+- POS 明细页 payment records 增加 `Sync HitPay` 手动同步按钮（复用 `POST /api/payment/hitpay/sync`）
+- 新增 webhook 失败落库与看板：
+  - `invalid_signature`
+  - `provider_event_claim_failed`
+  - `complete_pos_hitpay_sale_failed`
+- Payments 页面新增 `HitPay webhook exceptions (24h)` 看板（统计 + 最近失败事件）
+- 新增前台/运营可直接使用的 SOP 页面：
+  - `/dashboard/payments/runbook`

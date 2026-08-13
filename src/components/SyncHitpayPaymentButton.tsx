@@ -10,9 +10,11 @@ import { ui } from "@/lib/ui";
 export function SyncHitpayPaymentButton({
   paymentId,
   studioSlug,
+  compact = false,
 }: {
   paymentId: string;
   studioSlug: string;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -53,11 +55,14 @@ export function SyncHitpayPaymentButton({
       type="button"
       disabled={busy}
       title="Pull the latest one-time payment status from HitPay"
-      className={`${ui.btnSecondarySm} disabled:opacity-60`}
+      className={compact
+        ? `inline-flex size-8 items-center justify-center rounded-md border border-stone-300 bg-white text-stone-700 transition hover:bg-stone-50 disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800`
+        : `${ui.btnSecondarySm} disabled:opacity-60`}
       onClick={() => void sync()}
+      aria-label={busy ? "Syncing HitPay payment status" : "Sync HitPay payment status"}
     >
       <RefreshCw size={13} className={busy ? "animate-spin" : ""} aria-hidden />
-      {busy ? "Syncing..." : "Sync HitPay"}
+      {compact ? <span className="sr-only">{busy ? "Syncing..." : "Sync HitPay"}</span> : (busy ? "Syncing..." : "Sync HitPay")}
     </button>
   );
 }

@@ -1,9 +1,11 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { PosHitpayPaymentButton } from "@/components/dashboard/PosHitpayPaymentButton";
 import { completePosCashSaleAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getPosSaleDetailForDashboard } from "@/lib/pos-sales-read";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
@@ -86,6 +88,14 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
   }
 
   const { sale, items } = detailResult.detail;
+  const admin = createAdminClient();
+  const { data: activeStudio } = await admin
+    .from("studios")
+    .select("public_slug")
+    .eq("id", studioId)
+    .maybeSingle();
+  const activeStudioSlug = activeStudio?.public_slug?.trim() ?? null;
+
   const paymentQuery = new URLSearchParams(backQuery.toString());
   paymentQuery.set("source", "pos_sale");
   paymentQuery.set("q", sale.id);
@@ -231,12 +241,17 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
                     <td className="px-3 py-2"><span className={ui.code}>{payment.reference_code ?? "-"}</span></td>
                     <td className="px-3 py-2">{formatLocalDateTime(payment.created_at)}</td>
                     <td className="px-3 py-2">
-                      <DashboardAppLink
-                        href={`/dashboard/payments?${onePaymentQuery.toString()}`}
-                        className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
-                      >
-                        Open
-                      </DashboardAppLink>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <DashboardAppLink
+                          href={`/dashboard/payments?${onePaymentQuery.toString()}`}
+                          className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+                        >
+                          Open
+                        </DashboardAppLink>
+                        {activeStudioSlug && payment.status === "pending" && (payment.payment_method ?? "").toLowerCase() === "hitpay" ? (
+                          <SyncHitpayPaymentButton paymentId={payment.id} studioSlug={activeStudioSlug} />
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );
