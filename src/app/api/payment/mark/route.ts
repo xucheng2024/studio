@@ -49,6 +49,7 @@ export async function POST(req: Request) {
       source,
       payment_method,
       amount,
+      pos_sale_id,
       gateway_payment_id,
       gateway_refund_payment_id,
       studios ( owner_id )
@@ -272,6 +273,23 @@ export async function POST(req: Request) {
     await syncMemberZonePurchasePaymentStatus(admin, parsed.data.payment_id, "refunded");
     await syncShopOrderPaymentStatus(admin, parsed.data.payment_id, "refunded");
     await syncServiceOrderPaymentStatus(admin, parsed.data.payment_id, "refunded");
+
+    if (payment.pos_sale_id) {
+      const { data: posSyncResult, error: posSyncErr } = await admin.rpc("sync_pos_sale_refund_status", {
+        p_payment_id: parsed.data.payment_id,
+        p_actor_id: user.id,
+        p_actor_role: scoped.role,
+        p_reason: parsed.data.refund_reason?.trim() || null,
+      });
+      if (posSyncErr) {
+        return NextResponse.json({ error: posSyncErr.message }, { status: 500 });
+      }
+      const posPayload = posSyncResult as { ok?: boolean; reason?: string } | null;
+      if (!posPayload?.ok) {
+        return NextResponse.json({ error: posPayload?.reason ?? "pos_sale_refund_sync_failed" }, { status: 409 });
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       already_refunded: alreadyRefunded,
