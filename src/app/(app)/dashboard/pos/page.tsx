@@ -167,7 +167,15 @@ export default async function PosSalesPage({ searchParams }: Props) {
       </section>
 
       <section>
-        <h1 className={ui.h1}>POS sales</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className={ui.h1}>POS sales</h1>
+          <DashboardAppLink
+            href={`/dashboard/pos/runbook?studio_id=${activeStudioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}`}
+            className={ui.btnSecondarySm}
+          >
+            POS-04 SOP
+          </DashboardAppLink>
+        </div>
         <p className={`mt-1 ${ui.muted}`}>
           Unified POS draft/locked sales. Total {salesResult.totalCount} record{salesResult.totalCount === 1 ? "" : "s"}.
         </p>

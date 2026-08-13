@@ -640,12 +640,20 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             <h2 className={ui.h2}>Payments/POS exceptions (24h)</h2>
             <p className={ui.muted}>Ops fallback board for webhook and POS void/refund failures.</p>
           </div>
-          <DashboardAppLink
-            href={`/dashboard/payments/runbook?studio_id=${activeStudioId}${locationFilter ? `&location_id=${locationFilter}` : ""}`}
-            className={ui.btnSecondarySm}
-          >
-            Open pending-payment SOP
-          </DashboardAppLink>
+          <div className="flex flex-wrap gap-2">
+            <DashboardAppLink
+              href={`/dashboard/payments/runbook?studio_id=${activeStudioId}${locationFilter ? `&location_id=${locationFilter}` : ""}`}
+              className={ui.btnSecondarySm}
+            >
+              Pending-payment SOP
+            </DashboardAppLink>
+            <DashboardAppLink
+              href={`/dashboard/pos/runbook?studio_id=${activeStudioId}${locationFilter ? `&location_id=${locationFilter}` : ""}`}
+              className={ui.btnSecondarySm}
+            >
+              POS-04 SOP
+            </DashboardAppLink>
+          </div>
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
