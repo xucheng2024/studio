@@ -1,6 +1,6 @@
 # Salon PSG 实施状态表
 
-更新时间：2026-08-12
+更新时间：2026-08-14
 
 本文件是开发进度的唯一来源。模块需求说明“最终产品要做什么”，Backlog 说明依赖顺序，本文件只记录每个任务当前真实状态和交付证据。
 
@@ -42,12 +42,12 @@
 | Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
 | Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
 | Phase 2 | PKG-01 Package Ledger | 未开始 | FND-02、FND-03、FND-04、POS-01 | 保留现有 Class Pass、公开购买和余额；迁移 opening balance，补 Salon Service/Location、Ledger、强审计和 deferred value |
-| Phase 2 | POS-02 Cash/Receipt | 未开始 | POS-01 | 等待依赖 |
-| Phase 2 | POS-03 HitPay | 未开始 | POS-01 | 可与 POS-02、PKG-01 并行；Package Paid 发放需联合验收 |
+| Phase 2 | POS-02 Cash/Receipt | 进行中（Batch 1 开发中） | POS-01 | 补齐任务文档与实施状态一致的验证证据，完成发布前回归后转为已验证/待上线 |
+| Phase 2 | POS-03 HitPay | 进行中（Batch 2 开发中） | POS-01 | 继续 Batch 2 收口并补齐联合验收（含 Package Paid 发放 Gate） |
 | Phase 2 | PKG-02 Package Approval | 未开始 | PKG-01 | 等待依赖 |
 | Phase 2 | APT-04 Self Booking | 未开始 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 可先开发登录/实时档期/本人改期取消，最终接入 Package、订金和全款 |
 | Phase 2 | COM-01 Commission | 未开始 | POS-02、POS-03、CRM-02 | 等待依赖 |
-| Phase 2 | POS-04 Refund/Void/Close | 未开始 | COM-01、PKG-01 | 等待依赖；退款必须同步 Package 与 Commission 反向事实 |
+| Phase 2 | POS-04 Refund/Void/Close | 已验证/待上线（Batch 1/2/3 已完成） | COM-01、PKG-01 | 进入发布验证：执行目标环境 migration、完成门店 UAT 与上线窗口回归；后续与 COM-01/PKG-01 对齐反向事实 |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
 | Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 等待依赖 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
@@ -87,7 +87,13 @@
 
 ## 当前建议领取顺序
 
-1. 先补 `CRM01_E2E_STUDIO_ID` 预检与 APT-01/APT-03 的 390px 浏览器证据，完成真实环境收口留档。
-2. 下一项产品任务为 POS-01；沿用 FND-04 强审计与 Claim/Complete/Fail 幂等 fencing，先建立统一销售主单与购物车事实。
-3. POS-01 完成后按计划并行 PKG-01、POS-02、POS-03；Package 购买结算按联合 Gate 验收。
-4. APT-04 的登录、实时档期、本人预约/改期/取消可提前开发，最终上线仍需联合通过 PKG-01 Package Credits 与 POS-03 订金/全款验收。
+1. 先做 POS-04 发布验证收口：目标环境 migration 执行记录、门店 UAT、回归证据归档（Payments/POS/Cash Session/Runbook）。
+2. 并行补 Phase 1 证据缺口：`CRM01_E2E_STUDIO_ID` 预检、APT-01/APT-03 的 390px 浏览器证据。
+3. 按 Phase 2 主路径推进 PKG-01（当前关键未完成依赖），随后衔接 COM-01、PKG-02。
+4. APT-04 保持“先可用后结算”策略：先推进登录/档期/本人预约流，最终联调 PKG-01 credits 与 POS-03 订金/全款 Gate。
+
+## 2026-08-14 状态更新（POS-04 Batch 3）
+
+- POS-04 已完成 Batch 1/2/3 代码与验证闭环，新增 cash session migration、DB 验证脚本、Payments 联动筛选、POS/Payments 顶部班次状态提示与 Runbook SOP。
+- 代码与文档已推送 `main`：`11501b1`、`7e67600`、`ba5498e`。
+- 本文件已同步 POS-02/POS-03/POS-04 真实状态，后续以发布验证结果决定是否升为“已上线”。
