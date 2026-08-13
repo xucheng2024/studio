@@ -27,6 +27,8 @@ declare
   v_verified_at timestamptz;
   v_verified_by uuid;
   v_payment_method text;
+  v_receipt_number text;
+  v_receipt_number_replay text;
 
   v_audit_count integer;
   v_audit_count_after_replay integer;
@@ -165,6 +167,11 @@ begin
   from public.pos_sales s
   where s.id = v_sale_id;
 
+  select s.receipt_number
+    into v_receipt_number
+  from public.pos_sales s
+  where s.id = v_sale_id;
+
   select p.status, p.verified_at, p.verified_by, p.payment_method
     into v_payment_status, v_verified_at, v_verified_by, v_payment_method
   from public.payments p
@@ -181,6 +188,10 @@ begin
 
   if v_payment_method <> 'cash' then
     raise exception 'POS-02 verify payment_method must be cash, got %', v_payment_method;
+  end if;
+
+  if v_receipt_number is null or v_receipt_number = '' then
+    raise exception 'POS-02 verify receipt_number is required after cash completion';
   end if;
 
   select count(*)::integer
@@ -207,6 +218,16 @@ begin
   if (v_complete_2->>'sale_id')::uuid is distinct from v_sale_id
      or (v_complete_2->>'payment_id')::uuid is distinct from v_payment_id then
     raise exception 'POS-02 verify idempotency replay mismatch: %', v_complete_2;
+  end if;
+
+  select s.receipt_number
+    into v_receipt_number_replay
+  from public.pos_sales s
+  where s.id = v_sale_id;
+
+  if v_receipt_number_replay is distinct from v_receipt_number then
+    raise exception 'POS-02 verify replay must keep same receipt_number: first %, replay %',
+      v_receipt_number, v_receipt_number_replay;
   end if;
 
   select count(*)::integer

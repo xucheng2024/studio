@@ -159,6 +159,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const canRefundPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const canSyncHitpayPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
   const isPendingHitpayAttention = sp.attention === "pending_hitpay";
+  const isPendingPosCashAttention = sp.attention === "pending_pos_cash";
   const { data: activeStudio } = await admin
     .from("studios")
     .select("id, public_slug")
@@ -183,14 +184,18 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .limit(300);
   if (locationFilter === "__unassigned") q = q.is("location_id", null);
   else if (locationFilter) q = q.eq("location_id", locationFilter);
-  if (isPendingHitpayAttention) q = q.eq("status", "pending").eq("payment_method", "hitpay");
+  if (isPendingHitpayAttention) {
+    q = q.eq("status", "pending").eq("payment_method", "hitpay");
+  } else if (isPendingPosCashAttention) {
+    q = q.eq("status", "pending").eq("payment_method", "cash").eq("source", "pos_sale");
+  }
   else if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
   if (sp.payment_id) q = q.eq("id", sp.payment_id);
   if (sp.source) q = q.eq("source", sp.source);
   if (sp.sales_channel) q = q.eq("sales_channel", sp.sales_channel);
   const defaultDate = localISODate();
   const attentionDateFrom = isoDateDaysAgo(6);
-  const dateFrom = sp.date_from ?? (isPendingHitpayAttention ? attentionDateFrom : defaultDate);
+  const dateFrom = sp.date_from ?? ((isPendingHitpayAttention || isPendingPosCashAttention) ? attentionDateFrom : defaultDate);
   const dateTo = sp.date_to ?? defaultDate;
   if (!sp.payment_id) {
     const from = dayRangeStartIso(dateFrom);
@@ -207,6 +212,16 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .eq("studio_id", activeStudioId)
     .eq("status", "pending")
     .eq("payment_method", "hitpay")
+    .gte("created_at", pendingHitpayStart)
+    .lt("created_at", pendingHitpayEnd);
+
+  const { count: pendingPosCashCount } = await admin
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("studio_id", activeStudioId)
+    .eq("status", "pending")
+    .eq("payment_method", "cash")
+    .eq("source", "pos_sale")
     .gte("created_at", pendingHitpayStart)
     .lt("created_at", pendingHitpayEnd);
 
@@ -398,6 +413,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   pendingHitpayParams.set("date_from", attentionDateFrom);
   pendingHitpayParams.set("date_to", defaultDate);
 
+  const pendingPosCashParams = new URLSearchParams(baseScopeParams);
+  pendingPosCashParams.set("attention", "pending_pos_cash");
+  pendingPosCashParams.set("date_from", attentionDateFrom);
+  pendingPosCashParams.set("date_to", defaultDate);
+
   return (
     <div className="flex flex-col gap-6">
       {/* ── Page header ─────────────────────────────────────────── */}
@@ -416,6 +436,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             Pending HitPay (7d)
             {typeof pendingHitpayCount === "number" ? ` · ${pendingHitpayCount}` : ""}
           </DashboardAppLink>
+          <DashboardAppLink
+            href={`/dashboard/payments?${pendingPosCashParams.toString()}`}
+            className={isPendingPosCashAttention ? ui.btnPrimarySm : ui.btnSecondarySm}
+          >
+            Pending POS Cash (7d)
+            {typeof pendingPosCashCount === "number" ? ` · ${pendingPosCashCount}` : ""}
+          </DashboardAppLink>
           <a
             className={`${ui.linkMuted} w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0 inline-flex items-center gap-1.5`}
             href={`/api/payments/export?${exportParams.toString()}`}
@@ -430,6 +457,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
         {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
         {isPendingHitpayAttention ? <input type="hidden" name="attention" value="pending_hitpay" /> : null}
+        {isPendingPosCashAttention ? <input type="hidden" name="attention" value="pending_pos_cash" /> : null}
 
         <div className="flex flex-wrap gap-3">
           <DashboardLocationFilter
@@ -457,7 +485,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             <select
               name="payment_method"
               className={ui.select}
-              defaultValue={isPendingHitpayAttention ? "hitpay" : (sp.payment_method ?? "")}
+              defaultValue={isPendingHitpayAttention ? "hitpay" : (isPendingPosCashAttention ? "cash" : (sp.payment_method ?? ""))}
             >
               <option value="">All</option>
               {PAYMENT_METHOD_FILTER_OPTIONS.map((o) => (
@@ -467,7 +495,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Order type</span>
-            <select name="source" className={ui.select} defaultValue={sp.source ?? ""}>
+            <select name="source" className={ui.select} defaultValue={isPendingPosCashAttention ? "pos_sale" : (sp.source ?? "")}>
               <option value="">All</option>
               {PAYMENT_SOURCE_FILTER_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -506,6 +534,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       {isPendingHitpayAttention ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
           Showing pending one-time HitPay payments from the last 7 days so older exceptions do not disappear behind the default today filter.
+        </div>
+      ) : null}
+      {isPendingPosCashAttention ? (
+        <div className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800 dark:border-teal-900/50 dark:bg-teal-950/30 dark:text-teal-300">
+          Showing pending POS cash payments from the last 7 days for faster frontdesk collection follow-up.
         </div>
       ) : null}
 

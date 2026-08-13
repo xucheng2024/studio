@@ -34,6 +34,7 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813023000_pos01_
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/pos01_e2e_payments_stub.sql >/tmp/pos02_payments_stub.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813033000_pos01_payment_link_and_source.sql >/tmp/pos02_pos01_batch6.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813043000_pos02_cash_complete_rpc.sql >/tmp/pos02_migration_batch1.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813050000_pos02_cash_receipt_number.sql >/tmp/pos02_migration_batch2.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pos02_cash_complete.sql | tee /tmp/pos02_verify.log
 
 echo "verify-pos02-db: ok"

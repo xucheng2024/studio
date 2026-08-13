@@ -69,6 +69,7 @@ export type CompletePosCashSalePayload = {
   verified_at: string | null;
   verified_by: string | null;
   payment_method: string | null;
+  receipt_number: string | null;
   already_paid: boolean;
   already_completed: boolean;
 };
