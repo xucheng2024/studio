@@ -16,6 +16,7 @@ function csvEscape(value: unknown) {
 
 type PaymentRow = {
   id: string;
+  cash_session_id: string | null;
   booking_id: string | null;
   event_booking_id: string | null;
   package_id: string | null;
@@ -71,6 +72,8 @@ export async function GET(req: Request) {
   const paymentMethod = url.searchParams.get("payment_method");
   const source = url.searchParams.get("source");
   const salesChannel = url.searchParams.get("sales_channel");
+  const cashSessionId = url.searchParams.get("cash_session_id")?.trim() ?? "";
+  const isUnassignedCash = url.searchParams.get("unassigned_cash") === "1";
   const dateFromParam = url.searchParams.get("date_from");
   const dateToParam = url.searchParams.get("date_to");
 
@@ -133,7 +136,7 @@ export async function GET(req: Request) {
   let q = admin
     .from("payments")
     .select(
-      "id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, service_title_snapshot",
+      "id, cash_session_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, client_id, guest_name, guest_email, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, recon_status, amount, paid_amount, currency, reference_code, created_at, paid_at, refunded_at, verified_at, verified_by, recon_note, invoice_number, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, service_title_snapshot",
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
@@ -143,6 +146,8 @@ export async function GET(req: Request) {
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
   if (source) q = q.eq("source", source);
   if (salesChannel) q = q.eq("sales_channel", salesChannel);
+  if (cashSessionId) q = q.eq("payment_method", "cash").eq("source", "pos_sale").eq("cash_session_id", cashSessionId);
+  if (isUnassignedCash) q = q.eq("payment_method", "cash").eq("source", "pos_sale").is("cash_session_id", null);
   if (from && to) {
     q = q.or(
       `and(status.eq.paid,verified_at.gte.${from},verified_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.gte.${from},paid_at.lt.${to}),and(status.eq.paid,verified_at.is.null,paid_at.is.null,created_at.gte.${from},created_at.lt.${to}),and(status.eq.refunded,refunded_at.gte.${from},refunded_at.lt.${to}),and(status.neq.paid,status.neq.refunded,created_at.gte.${from},created_at.lt.${to})`,
@@ -206,6 +211,7 @@ export async function GET(req: Request) {
         : null;
       return [
         p.reference_code,
+        p.cash_session_id,
         p.recon_note,
         p.guest_email,
         p.guest_name,
@@ -256,6 +262,7 @@ export async function GET(req: Request) {
     "paid_amount",
     "delta",
     "reference",
+    "cash_session_id",
     "created_at",
     "submitted_at",
     "effective_at",
@@ -318,6 +325,7 @@ export async function GET(req: Request) {
       paid.toFixed(2),
       (paid - expected).toFixed(2),
       p.reference_code ?? "",
+      p.cash_session_id ?? "",
       p.created_at ?? "",
       p.created_at ?? "",
       paymentEffectiveTimestamp(p) ?? "",

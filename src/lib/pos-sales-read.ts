@@ -66,6 +66,7 @@ export type PosSaleDetail = {
     refunded_amount: number;
     paid_at: string | null;
     voided_at: string | null;
+    cash_session_id: string | null;
     cash_collected_at: string | null;
     cash_collected_by: string | null;
   };
@@ -76,6 +77,7 @@ export type PosSaleDetail = {
     amount: number;
     currency: string;
     payment_method: string | null;
+    cash_session_id: string | null;
     reference_code: string | null;
     created_at: string;
     verified_at: string | null;
@@ -99,6 +101,7 @@ type PosPaymentSnapshot = {
   amount: number;
   currency: string;
   payment_method: string | null;
+  cash_session_id: string | null;
   reference_code: string | null;
   created_at: string;
   verified_at: string | null;
@@ -337,7 +340,7 @@ export async function getPosSaleDetailForDashboard(params: {
 
   const { data: paymentRows, error: paymentError } = await admin
     .from("payments")
-    .select("id, pos_sale_id, status, amount, currency, payment_method, reference_code, created_at, verified_at, paid_at, verified_by")
+    .select("id, pos_sale_id, status, amount, currency, payment_method, cash_session_id, reference_code, created_at, verified_at, paid_at, verified_by")
     .eq("studio_id", access.access.studioId)
     .eq("pos_sale_id", params.saleId)
     .order("created_at", { ascending: false });
@@ -364,6 +367,7 @@ export async function getPosSaleDetailForDashboard(params: {
     amount: payment.amount,
     currency: payment.currency,
     payment_method: payment.payment_method,
+    cash_session_id: payment.cash_session_id,
     reference_code: payment.reference_code,
     created_at: payment.created_at,
     verified_at: payment.verified_at,
@@ -409,6 +413,7 @@ export async function getPosSaleDetailForDashboard(params: {
         refunded_amount: saleRow.refunded_amount,
         paid_at: saleRow.paid_at,
         voided_at: saleRow.voided_at,
+        cash_session_id: latestCashPaid?.cash_session_id ?? null,
         cash_collected_at: latestCashPaid?.paid_at ?? latestCashPaid?.verified_at ?? null,
         cash_collected_by: latestCashPaid?.verified_by_email ?? latestCashPaid?.verified_by ?? null,
       },

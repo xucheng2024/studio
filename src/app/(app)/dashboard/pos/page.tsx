@@ -93,6 +93,23 @@ export default async function PosSalesPage({ searchParams }: Props) {
     selectedLocationId && normalizedLocations.some((location) => location.id === selectedLocationId)
       ? selectedLocationId
       : null;
+  const locationNameForStatus =
+    effectiveLocationId
+      ? (normalizedLocations.find((location) => location.id === effectiveLocationId)?.name ?? "Current location")
+      : null;
+
+  const { data: openCashSession } =
+    effectiveLocationId
+      ? await admin
+          .from("pos_cash_sessions")
+          .select("id, opened_at, opening_float, status")
+          .eq("studio_id", activeStudioId)
+          .eq("location_id", effectiveLocationId)
+          .eq("status", "open")
+          .order("opened_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : { data: null as { id: string; opened_at: string; opening_float: number; status: string } | null };
 
   const selectedStatus = STATUS_OPTIONS.includes((sp.status ?? "all") as PosSaleStatusFilter)
     ? (sp.status ?? "all")
@@ -144,6 +161,12 @@ export default async function PosSalesPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <section className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardAppLink
+          href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`}
+          className={ui.btnSecondarySm}
+        >
+          Cash sessions
+        </DashboardAppLink>
         <DashboardLocationFilter
           locations={normalizedLocations}
           selectedStudioId={activeStudioId}
@@ -179,6 +202,29 @@ export default async function PosSalesPage({ searchParams }: Props) {
         <p className={`mt-1 ${ui.muted}`}>
           Unified POS draft/locked sales. Total {salesResult.totalCount} record{salesResult.totalCount === 1 ? "" : "s"}.
         </p>
+        <div className="mt-3">
+          {!effectiveLocationId ? (
+            <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-200">
+              Select a location to show current open cash-session status before collecting POS cash.
+              <DashboardAppLink href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`} className="ml-1 underline">Open cash sessions</DashboardAppLink>
+            </div>
+          ) : openCashSession ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <p className="font-medium">{locationNameForStatus} has an open cash session.</p>
+              <p className="mt-1 text-xs sm:text-sm">
+                Session {openCashSession.id} opened {formatLocalDateTime(openCashSession.opened_at)} · opening float SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)}.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+              <p className="font-medium">{locationNameForStatus} has no open cash session.</p>
+              <p className="mt-1 text-xs sm:text-sm">
+                Open a cash session first to avoid trial-and-error when confirming POS cash payments.
+                <DashboardAppLink href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`} className="ml-1 underline">Open now</DashboardAppLink>
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       {salesResult.sales.length === 0 ? (

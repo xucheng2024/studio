@@ -81,9 +81,11 @@ export {
 } from "./_actions/commerce";
 
 export {
+  closePosCashSessionAction,
   completePosCashSaleAction,
   createPosSaleDraftAction,
   lockPosSaleAction,
+  openPosCashSessionAction,
   proceedPosSaleToPaymentAction,
   refundPosSaleItemsAction,
   upsertPosSaleItemAction,

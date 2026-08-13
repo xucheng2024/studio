@@ -1,9 +1,11 @@
 import "server-only";
 
 import {
+  buildClosePosCashSessionIdempotency,
   buildCompletePosCashSaleIdempotency,
   buildCreatePosSaleDraftIdempotency,
   buildLockPosSaleIdempotency,
+  buildOpenPosCashSessionIdempotency,
   buildRefundPosSaleItemsIdempotency,
   buildUpsertPosSaleItemIdempotency,
   buildVoidPosSaleIdempotency,
@@ -65,6 +67,7 @@ export type EnsurePosSalePaymentPayload = {
 export type CompletePosCashSalePayload = {
   sale_id: string;
   payment_id: string;
+  cash_session_id?: string | null;
   sale_status: string;
   payment_status: string;
   paid_at: string | null;
@@ -108,6 +111,34 @@ export type RefundPosSaleItemsPayload = {
   item_count: number;
   payment_id: string | null;
   payment_status: string | null;
+  already_completed: boolean;
+};
+
+export type OpenPosCashSessionPayload = {
+  session_id: string;
+  studio_id: string;
+  location_id: string;
+  status: string;
+  opened_at: string;
+  opening_float: number;
+  expected_cash: number;
+  already_completed: boolean;
+};
+
+export type ClosePosCashSessionPayload = {
+  session_id: string;
+  studio_id: string;
+  location_id: string;
+  status: string;
+  opened_at: string;
+  closed_at: string;
+  opening_float: number;
+  cash_in: number;
+  cash_out: number;
+  expected_cash: number;
+  counted_cash: number;
+  cash_over_short: number;
+  already_closed: boolean;
   already_completed: boolean;
 };
 
@@ -750,4 +781,122 @@ export async function refundPosSaleItems(params: {
   }
 
   return { ok: true, payload: data as RefundPosSaleItemsPayload };
+}
+
+export async function openPosCashSession(params: {
+  userId: string;
+  studioId: string;
+  locationId: string;
+  openingFloat?: number | null;
+  notes?: string | null;
+  idempotencyKey?: string | null;
+}): Promise<PosMutationResult<OpenPosCashSessionPayload>> {
+  const idempotency = buildOpenPosCashSessionIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    studioId: params.studioId,
+    locationId: params.locationId,
+    openingFloat: params.openingFloat,
+    notes: params.notes,
+  });
+
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: params.locationId,
+    roles: [...POS_MUTATION_ROLES],
+  });
+  if (!scope.ok) {
+    return {
+      ok: false,
+      code: scope.reason,
+      message: scope.reason,
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("open_pos_cash_session", {
+    p_actor_id: params.userId,
+    p_actor_role: scope.role,
+    p_studio_id: params.studioId,
+    p_location_id: params.locationId,
+    p_opening_float: params.openingFloat ?? 0,
+    p_notes: trimToNull(params.notes),
+    p_idempotency_key: idempotency.idempotencyKey,
+    p_request_hash: idempotency.requestHash,
+  });
+
+  if (error) {
+    const mapped = mapPosRpcError(error);
+    return { ok: false, ...mapped };
+  }
+
+  return { ok: true, payload: data as OpenPosCashSessionPayload };
+}
+
+export async function closePosCashSession(params: {
+  userId: string;
+  studioId: string;
+  sessionId: string;
+  countedCash: number;
+  notes?: string | null;
+  idempotencyKey?: string | null;
+}): Promise<PosMutationResult<ClosePosCashSessionPayload>> {
+  const idempotency = buildClosePosCashSessionIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    studioId: params.studioId,
+    sessionId: params.sessionId,
+    countedCash: params.countedCash,
+    notes: params.notes,
+  });
+
+  const admin = createAdminClient();
+  const { data: session, error: sessionErr } = await admin
+    .from("pos_cash_sessions")
+    .select("id, location_id")
+    .eq("id", params.sessionId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ id: string; location_id: string | null }>();
+  if (sessionErr) {
+    const mapped = mapPosRpcError(sessionErr);
+    return { ok: false, ...mapped };
+  }
+  if (!session || !session.location_id) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "cash_session_not_found",
+    };
+  }
+
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: session.location_id,
+    roles: [...POS_MUTATION_ROLES],
+  });
+  if (!scope.ok) {
+    return {
+      ok: false,
+      code: scope.reason,
+      message: scope.reason,
+    };
+  }
+
+  const { data, error } = await admin.rpc("close_pos_cash_session", {
+    p_actor_id: params.userId,
+    p_actor_role: scope.role,
+    p_studio_id: params.studioId,
+    p_session_id: params.sessionId,
+    p_counted_cash: params.countedCash,
+    p_notes: trimToNull(params.notes),
+    p_idempotency_key: idempotency.idempotencyKey,
+    p_request_hash: idempotency.requestHash,
+  });
+
+  if (error) {
+    const mapped = mapPosRpcError(error);
+    return { ok: false, ...mapped };
+  }
+
+  return { ok: true, payload: data as ClosePosCashSessionPayload };
 }

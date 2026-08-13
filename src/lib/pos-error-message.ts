@@ -23,7 +23,10 @@ export function mapPosMutationMessage(code: PosMutationErrorCode, rawMessage?: s
     return "Studio is suspended. Reactivate the contract first.";
   }
   if (code === "not_found") {
-    return "Requested sale or item not found.";
+    if (/cash_session_not_found/i.test(message)) {
+      return "Cash session not found in this studio.";
+    }
+    return "Requested sale, item, or cash session was not found.";
   }
   if (code === "forbidden") {
     if (/location_out_of_scope/i.test(message)) {
@@ -56,6 +59,15 @@ export function mapPosMutationMessage(code: PosMutationErrorCode, rawMessage?: s
     }
     if (/cannot complete cash sale/i.test(message)) {
       return "Only pending-payment sales can be marked as cash paid.";
+    }
+    if (/no open cash session for location/i.test(message)) {
+      return "No open cash session for this location. Open a cash session before collecting cash.";
+    }
+    if (/already has open cash session/i.test(message)) {
+      return "This location already has an open cash session.";
+    }
+    if (/status .*cannot be closed/i.test(message)) {
+      return "Only open cash sessions can be closed.";
     }
     if (/sale .*cannot be voided/i.test(message)) {
       return "Only draft or pending-payment sales can be voided.";

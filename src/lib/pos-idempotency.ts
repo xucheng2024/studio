@@ -5,6 +5,8 @@ export type PosWriteOperation =
   | "pos_sale_item:upsert"
   | "pos_sale:lock"
   | "pos_sale:complete_cash"
+  | "pos_cash_session:open"
+  | "pos_cash_session:close"
   | "pos_sale:void"
   | "pos_sale:refund_items";
 
@@ -54,6 +56,22 @@ export type PosVoidSaleHashPayload = {
   studioId: string;
   saleId: string;
   reason: string | null;
+};
+
+export type PosOpenCashSessionHashPayload = {
+  operation: "pos_cash_session:open";
+  studioId: string;
+  locationId: string;
+  openingFloat: number;
+  notes: string | null;
+};
+
+export type PosCloseCashSessionHashPayload = {
+  operation: "pos_cash_session:close";
+  studioId: string;
+  sessionId: string;
+  countedCash: number;
+  notes: string | null;
 };
 
 export type PosRefundItemInputHash = {
@@ -208,6 +226,48 @@ export function buildVoidPosSaleIdempotency(params: {
     saleId: params.saleId,
     reason: trimToNull(params.reason),
   };
+  return normalizeOperationIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    requestPayload,
+  });
+}
+
+export function buildOpenPosCashSessionIdempotency(params: {
+  idempotencyKey?: string | null;
+  studioId: string;
+  locationId: string;
+  openingFloat?: number | null;
+  notes?: string | null;
+}) {
+  const requestPayload: PosOpenCashSessionHashPayload = {
+    operation: "pos_cash_session:open",
+    studioId: params.studioId,
+    locationId: params.locationId,
+    openingFloat: params.openingFloat == null ? 0 : Math.round(params.openingFloat * 100) / 100,
+    notes: trimToNull(params.notes),
+  };
+
+  return normalizeOperationIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    requestPayload,
+  });
+}
+
+export function buildClosePosCashSessionIdempotency(params: {
+  idempotencyKey?: string | null;
+  studioId: string;
+  sessionId: string;
+  countedCash: number;
+  notes?: string | null;
+}) {
+  const requestPayload: PosCloseCashSessionHashPayload = {
+    operation: "pos_cash_session:close",
+    studioId: params.studioId,
+    sessionId: params.sessionId,
+    countedCash: Math.round(params.countedCash * 100) / 100,
+    notes: trimToNull(params.notes),
+  };
+
   return normalizeOperationIdempotency({
     idempotencyKey: params.idempotencyKey,
     requestPayload,

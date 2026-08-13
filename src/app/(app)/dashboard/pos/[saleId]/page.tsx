@@ -161,6 +161,21 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
             <dd>{sale.cash_collected_by ?? "-"}</dd>
           </div>
           <div>
+            <dt className={`text-xs ${ui.muted}`}>Cash session</dt>
+            <dd>
+              {sale.cash_session_id ? (
+                <DashboardAppLink
+                  href={`/dashboard/pos/cash-sessions/${sale.cash_session_id}?studio_id=${studioId}&location_id=${sale.location_id}`}
+                  className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+                >
+                  {sale.cash_session_id}
+                </DashboardAppLink>
+              ) : (
+                "-"
+              )}
+            </dd>
+          </div>
+          <div>
             <dt className={`text-xs ${ui.muted}`}>Payment progress</dt>
             <dd>{toPaymentProgressLabel(sale.payment_progress.status)}</dd>
           </div>
@@ -244,6 +259,7 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:text-stone-400">
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Method</th>
+                <th className="px-3 py-2">Cash session</th>
                 <th className="px-3 py-2">Amount</th>
                 <th className="px-3 py-2">Ref</th>
                 <th className="px-3 py-2">Created</th>
@@ -259,6 +275,18 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
                   <tr key={payment.id} className="border-b border-stone-100 align-top last:border-b-0 dark:border-stone-900">
                     <td className="px-3 py-2 capitalize">{toStatusLabel(payment.status)}</td>
                     <td className="px-3 py-2">{paymentMethodLabel(payment.payment_method)}</td>
+                    <td className="px-3 py-2">
+                      {payment.cash_session_id ? (
+                        <DashboardAppLink
+                          href={`/dashboard/pos/cash-sessions/${payment.cash_session_id}?studio_id=${studioId}&location_id=${sale.location_id}`}
+                          className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+                        >
+                          {payment.cash_session_id}
+                        </DashboardAppLink>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td className="px-3 py-2">{payment.currency} {Number(payment.amount).toFixed(2)}</td>
                     <td className="px-3 py-2"><span className={ui.code}>{payment.reference_code ?? "-"}</span></td>
                     <td className="px-3 py-2">{formatLocalDateTime(payment.created_at)}</td>

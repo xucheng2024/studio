@@ -32,6 +32,8 @@ type Props = {
     payment_method?: string;
     source?: string;
     sales_channel?: string;
+    cash_session_id?: string;
+    unassigned_cash?: string;
     date_from?: string;
     date_to?: string;
     q?: string;
@@ -162,6 +164,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   const canSyncHitpayPayments = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
   const isPendingHitpayAttention = sp.attention === "pending_hitpay";
   const isPendingPosCashAttention = sp.attention === "pending_pos_cash";
+  const cashSessionIdFilter = (sp.cash_session_id ?? "").trim();
+  const isUnassignedCashFilter = sp.unassigned_cash === "1";
   const { data: activeStudio } = await admin
     .from("studios")
     .select("id, public_slug")
@@ -176,10 +180,28 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .order("name");
   const locationMap = new Map((locations ?? []).map((l) => [l.id, l.name ?? "Unnamed location"]));
 
+  const locationNameForStatus =
+    locationFilter && locationFilter !== "__unassigned"
+      ? (locationMap.get(locationFilter) ?? "Current location")
+      : null;
+  const cashSessionScopeHref = `/dashboard/pos/cash-sessions?studio_id=${activeStudioId}${locationFilter && locationFilter !== "__unassigned" ? `&location_id=${locationFilter}` : ""}`;
+  const { data: openCashSession } =
+    locationFilter && locationFilter !== "__unassigned"
+      ? await admin
+          .from("pos_cash_sessions")
+          .select("id, opened_at, opening_float, status")
+          .eq("studio_id", activeStudioId)
+          .eq("location_id", locationFilter)
+          .eq("status", "open")
+          .order("opened_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : { data: null as { id: string; opened_at: string; opening_float: number; status: string } | null };
+
   let q = admin
     .from("payments")
     .select(
-      "id, studio_id, location_id, pos_sale_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, service_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot",
+      "id, studio_id, location_id, pos_sale_id, client_id, booking_id, event_booking_id, package_id, membership_product_id, customer_subscription_id, member_zone_series_id, member_zone_lesson_id, shop_product_id, service_id, guest_name, guest_email, guest_phone, is_gift, gift_recipient_name, gift_recipient_email, gift_message, status, payment_method, source, sales_channel, cash_session_id, amount, currency, reference_code, gateway_payment_id, created_at, expires_at, verified_at, verified_by, invoice_number, invoice_sent_at, invoice_status, invoice_voided_at, invoice_void_reason, package_name_snapshot, membership_name_snapshot, shop_product_name_snapshot, service_title_snapshot",
     )
     .in("studio_id", studioIds)
     .order("created_at", { ascending: false })
@@ -190,8 +212,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     q = q.eq("status", "pending").eq("payment_method", "hitpay");
   } else if (isPendingPosCashAttention) {
     q = q.eq("status", "pending").eq("payment_method", "cash").eq("source", "pos_sale");
+  } else if (cashSessionIdFilter) {
+    q = q.eq("payment_method", "cash").eq("source", "pos_sale").eq("cash_session_id", cashSessionIdFilter);
+  } else if (isUnassignedCashFilter) {
+    q = q.eq("payment_method", "cash").eq("source", "pos_sale").is("cash_session_id", null);
+  } else if (sp.payment_method) {
+    q = q.eq("payment_method", sp.payment_method);
   }
-  else if (sp.payment_method) q = q.eq("payment_method", sp.payment_method);
   if (sp.payment_id) q = q.eq("id", sp.payment_id);
   if (sp.source) q = q.eq("source", sp.source);
   if (sp.sales_channel) q = q.eq("sales_channel", sp.sales_channel);
@@ -226,6 +253,20 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     .eq("source", "pos_sale")
     .gte("created_at", pendingHitpayStart)
     .lt("created_at", pendingHitpayEnd);
+
+  let unassignedPosCashQuery = admin
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("studio_id", activeStudioId)
+    .eq("payment_method", "cash")
+    .eq("source", "pos_sale")
+    .in("status", ["paid", "refunded"])
+    .is("cash_session_id", null)
+    .gte("created_at", pendingHitpayStart)
+    .lt("created_at", pendingHitpayEnd);
+  if (locationFilter === "__unassigned") unassignedPosCashQuery = unassignedPosCashQuery.is("location_id", null);
+  else if (locationFilter) unassignedPosCashQuery = unassignedPosCashQuery.eq("location_id", locationFilter);
+  const { count: unassignedPosCashCount } = await unassignedPosCashQuery;
 
   const webhookWindowStart = dayRangeStartIso(isoDateDaysAgo(1)) ?? "";
   let webhookFailuresQuery = admin
@@ -491,6 +532,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   if (sp.payment_method) exportParams.set("payment_method", sp.payment_method);
   if (sp.source) exportParams.set("source", sp.source);
   if (sp.sales_channel) exportParams.set("sales_channel", sp.sales_channel);
+  if (cashSessionIdFilter) exportParams.set("cash_session_id", cashSessionIdFilter);
+  if (isUnassignedCashFilter) exportParams.set("unassigned_cash", "1");
   exportParams.set("date_from", dateFrom);
   exportParams.set("date_to", dateTo);
   if (sp.q) exportParams.set("q", sp.q);
@@ -510,6 +553,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   pendingPosCashParams.set("date_from", attentionDateFrom);
   pendingPosCashParams.set("date_to", defaultDate);
 
+  const unassignedCashParams = new URLSearchParams(baseScopeParams);
+  unassignedCashParams.set("unassigned_cash", "1");
+  unassignedCashParams.set("payment_method", "cash");
+  unassignedCashParams.set("source", "pos_sale");
+  unassignedCashParams.set("date_from", attentionDateFrom);
+  unassignedCashParams.set("date_to", defaultDate);
+
   return (
     <div className="flex flex-col gap-6">
       {/* ── Page header ─────────────────────────────────────────── */}
@@ -519,6 +569,34 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         <p className={`mt-1 text-sm ${ui.muted}`}>
           Use Sync HitPay before manual changes when a customer says they paid. HitPay refunds are attempted automatically; other refund methods are recorded after you process them outside this app.
         </p>
+
+        <div className="mt-3">
+          {locationFilter === "__unassigned" ? (
+            <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-200">
+              Cash session status is unavailable for unassigned payments scope.
+            </div>
+          ) : !locationFilter ? (
+            <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-200">
+              Select a location to show current open cash-session status before collecting POS cash.
+              <DashboardAppLink href={cashSessionScopeHref} className="ml-1 underline">Open cash sessions</DashboardAppLink>
+            </div>
+          ) : openCashSession ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <p className="font-medium">{locationNameForStatus} has an open cash session.</p>
+              <p className="mt-1 text-xs sm:text-sm">
+                Session {openCashSession.id} opened {openCashSession.opened_at ? <LocalTime iso={openCashSession.opened_at} /> : "-"} · opening float SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)}.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+              <p className="font-medium">{locationNameForStatus} has no open cash session.</p>
+              <p className="mt-1 text-xs sm:text-sm">
+                Open a cash session first to avoid cash-collection errors on POS sales.
+                <DashboardAppLink href={cashSessionScopeHref} className="ml-1 underline">Open now</DashboardAppLink>
+              </p>
+            </div>
+          )}
+        </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
           <DashboardAppLink
@@ -534,6 +612,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           >
             Pending POS Cash (7d)
             {typeof pendingPosCashCount === "number" ? ` · ${pendingPosCashCount}` : ""}
+          </DashboardAppLink>
+          <DashboardAppLink
+            href={`/dashboard/payments?${unassignedCashParams.toString()}`}
+            className={isUnassignedCashFilter ? ui.btnPrimarySm : ui.btnSecondarySm}
+          >
+            Unassigned POS Cash (7d)
+            {typeof unassignedPosCashCount === "number" ? ` · ${unassignedPosCashCount}` : ""}
           </DashboardAppLink>
           <a
             className={`${ui.linkMuted} w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0 inline-flex items-center gap-1.5`}
@@ -603,6 +688,25 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Cash session ID</span>
+            <input
+              name="cash_session_id"
+              defaultValue={cashSessionIdFilter}
+              className={ui.input}
+              placeholder="session uuid"
+            />
+          </label>
+          <label className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-200">
+            <input
+              type="checkbox"
+              name="unassigned_cash"
+              value="1"
+              defaultChecked={isUnassignedCashFilter}
+              className="size-4"
+            />
+            Show POS cash with empty cash session
+          </label>
         </div>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Search customer / item / ref</span>
@@ -631,6 +735,18 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       {isPendingPosCashAttention ? (
         <div className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800 dark:border-teal-900/50 dark:bg-teal-950/30 dark:text-teal-300">
           Showing pending POS cash payments from the last 7 days for faster frontdesk collection follow-up.
+        </div>
+      ) : null}
+      {(isUnassignedCashFilter || cashSessionIdFilter || (typeof unassignedPosCashCount === "number" && unassignedPosCashCount > 0)) ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+          <p className="font-medium">POS cash session tracking</p>
+          <p className="mt-1 text-xs sm:text-sm">
+            Paid/refunded POS cash without cash session (last 7 days): {typeof unassignedPosCashCount === "number" ? unassignedPosCashCount : "-"}.
+            <DashboardAppLink href={`/dashboard/payments?${unassignedCashParams.toString()}`} className="ml-1 underline">
+              Open anomaly filter
+            </DashboardAppLink>
+            {cashSessionIdFilter ? ` · Viewing cash session: ${cashSessionIdFilter}` : ""}
+          </p>
         </div>
       ) : null}
 
@@ -764,6 +880,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const memberZoneSeriesLabel = memberZoneSeries?.title?.trim() || "-";
           const memberZoneLessonLabel = memberZoneLesson?.title?.trim() || "-";
           const source = (p as { source?: string | null }).source ?? null;
+          const cashSessionId = (p as { cash_session_id?: string | null }).cash_session_id ?? null;
+          const isPosCash = (p.payment_method ?? "").toLowerCase() === "cash" && source === "pos_sale";
+          const isUnassignedPosCash = isPosCash && !cashSessionId && (p.status === "paid" || p.status === "refunded");
           const orderTypeLabel = paymentOrderTypeLabel({
             source,
             bookingId: p.booking_id,
@@ -887,6 +1006,25 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Method</dt>
                   <dd className="text-stone-700 dark:text-stone-300">{paymentMethodLabel(p.payment_method)}</dd>
                 </div>
+                {isPosCash ? (
+                  <div className="flex gap-2 sm:col-span-2">
+                    <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Session</dt>
+                    <dd className="min-w-0 break-all text-stone-700 dark:text-stone-300">
+                      {cashSessionId ? (
+                        <DashboardAppLink
+                          href={`/dashboard/pos/cash-sessions/${cashSessionId}?studio_id=${activeStudioId}${p.location_id ? `&location_id=${p.location_id}` : ""}`}
+                          className={ui.linkMuted}
+                        >
+                          {cashSessionId}
+                        </DashboardAppLink>
+                      ) : (
+                        <span className={isUnassignedPosCash ? "font-medium text-rose-700 dark:text-rose-300" : ""}>
+                          Unassigned
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex gap-2">
                   <dt className="w-14 shrink-0 text-stone-400 dark:text-stone-500 sm:w-16">Ref</dt>
                   <dd><span className={ui.code}>{p.reference_code ?? "-"}</span></dd>
@@ -969,6 +1107,11 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                   }`}
                 >
                   {opsHint.text}
+                </div>
+              ) : null}
+              {isUnassignedPosCash ? (
+                <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+                  Cash payment is paid/refunded but has no `cash_session_id`. Investigate and reconcile this sale before day close.
                 </div>
               ) : null}
 

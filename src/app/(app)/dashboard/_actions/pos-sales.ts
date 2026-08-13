@@ -1,10 +1,12 @@
 "use server";
 
 import {
+  closePosCashSession,
   completePosCashSale,
   createPosSaleDraft,
   ensurePosSalePayment,
   lockPosSale,
+  openPosCashSession,
   refundPosSaleItems,
   upsertPosSaleItem,
   voidPosSale,
@@ -341,4 +343,80 @@ export async function refundPosSaleItemsAction(
   }
 
   return ok(`Refund applied to ${result.payload.item_count} item(s).`);
+}
+
+export async function openPosCashSessionAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || null;
+  const openingFloat = asNumberOrNull(formData.get("opening_float"));
+
+  if (!studioId || !locationId) {
+    return err("Missing required fields: studio and location.");
+  }
+
+  if (openingFloat != null && openingFloat < 0) {
+    return err("Opening float must be zero or positive.");
+  }
+
+  const { user } = await requireUser();
+  const result = await openPosCashSession({
+    userId: user.id,
+    studioId,
+    locationId,
+    openingFloat,
+    notes,
+    idempotencyKey,
+  });
+
+  if (!result.ok) {
+    return err(mapPosMutationMessage(result.code, result.message || "Could not open cash session."));
+  }
+
+  return ok("Cash session opened.");
+}
+
+export async function closePosCashSessionAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const sessionId = String(formData.get("session_id") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || null;
+  const countedCash = asNumberOrNull(formData.get("counted_cash"));
+
+  if (!studioId || !sessionId) {
+    return err("Missing required fields: studio and cash session.");
+  }
+
+  if (countedCash == null) {
+    return err("Counted cash is required.");
+  }
+  if (countedCash < 0) {
+    return err("Counted cash must be zero or positive.");
+  }
+
+  const { user } = await requireUser();
+  const result = await closePosCashSession({
+    userId: user.id,
+    studioId,
+    sessionId,
+    countedCash,
+    notes,
+    idempotencyKey,
+  });
+
+  if (!result.ok) {
+    return err(mapPosMutationMessage(result.code, result.message || "Could not close cash session."));
+  }
+
+  if (result.payload.already_closed) {
+    return ok("Cash session already closed.");
+  }
+  return ok("Cash session closed.");
 }
