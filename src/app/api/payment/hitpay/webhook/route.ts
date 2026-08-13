@@ -1,7 +1,9 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHitpayWebhookSignature } from "@/lib/hitpay";
 import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
+import { completePosHitpaySale } from "@/lib/pos-sales";
 import {
   applyRecurringSubscriptionStatus,
   recordRecurringSubscriptionCharge,
@@ -93,10 +95,36 @@ type WebhookPaymentLookupRow = {
   reference_code?: string | null;
   gateway_payment_id?: string | null;
   studio_id: string;
+  location_id?: string | null;
   booking_id?: string | null;
   event_booking_id?: string | null;
+  pos_sale_id?: string | null;
+  source?: string | null;
   studios?: { owner_id?: string | null } | { owner_id?: string | null }[] | null;
 };
+
+function isPaidLikeStatus(raw: string | null | undefined) {
+  const status = String(raw ?? "").trim().toLowerCase();
+  return status === "completed" || status === "succeeded" || status === "paid";
+}
+
+function resolveProviderEventId(req: Request, args: {
+  eventObject: string;
+  eventType: string;
+  providerId: string | null;
+  payloadHash: string;
+}) {
+  const headerId =
+    req.headers.get("x-hitpay-event-id") ??
+    req.headers.get("hitpay-event-id") ??
+    req.headers.get("Hitpay-Event-Id");
+  const trimmedHeader = headerId?.trim();
+  if (trimmedHeader) return trimmedHeader;
+
+  const eventType = args.eventType || args.eventObject || "payment";
+  const providerId = args.providerId || "unknown";
+  return `hitpay:${eventType}:${providerId}:${args.payloadHash}`;
+}
 
 type RecurringSubscriptionContext = {
   id: string;
@@ -110,6 +138,13 @@ type RecurringSubscriptionContext = {
   billing_interval_snapshot?: string | null;
   current_period_end?: string | null;
   cancel_at_period_end?: boolean | null;
+};
+
+type ProviderEventClaim = {
+  ok?: boolean;
+  outcome?: string;
+  id?: string;
+  claimToken?: string;
 };
 
 async function resolveRecurringWebhookContext(args: {
@@ -271,6 +306,7 @@ export async function POST(req: Request) {
     firstSettledPayment?.id?.trim() || payload.payment_id?.trim() || payload.charge_id?.trim() || null;
   const referenceCode = payload.reference_number?.trim() || payload.reference?.trim() || null;
   const providerStatus = (payload.status ?? "").trim().toLowerCase();
+  const payloadHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
   if (!providerId && !referenceCode) {
     return NextResponse.json({ error: "missing_payment_reference" }, { status: 400 });
   }
@@ -280,7 +316,7 @@ export async function POST(req: Request) {
   if (providerId) {
     const { data } = await admin
       .from("payments")
-      .select("id, status, reference_code, gateway_payment_id, studio_id, booking_id, event_booking_id, studios(owner_id)")
+      .select("id, status, reference_code, gateway_payment_id, studio_id, location_id, booking_id, event_booking_id, pos_sale_id, source, studios(owner_id)")
       .eq("gateway_payment_id", providerId)
       .limit(1)
       .maybeSingle();
@@ -289,7 +325,7 @@ export async function POST(req: Request) {
   if (!payment?.id && referenceCode) {
     const { data } = await admin
       .from("payments")
-      .select("id, status, reference_code, gateway_payment_id, studio_id, booking_id, event_booking_id, studios(owner_id)")
+      .select("id, status, reference_code, gateway_payment_id, studio_id, location_id, booking_id, event_booking_id, pos_sale_id, source, studios(owner_id)")
       .eq("reference_code", referenceCode)
       .limit(1)
       .maybeSingle();
@@ -313,13 +349,99 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
 
-  await applyHitpayPaymentRequestStatus(
-    admin,
-    payment,
-    studio,
-    providerStatus,
-    rawBody,
-    providerPaymentId,
-  );
+  const providerEventId = resolveProviderEventId(req, {
+    eventObject,
+    eventType,
+    providerId,
+    payloadHash,
+  });
+
+  const { data: eventClaim, error: eventClaimErr } = await admin.rpc("claim_provider_event", {
+    p_provider: "hitpay",
+    p_provider_event_id: providerEventId,
+    p_payload_hash: payloadHash,
+    p_event_type: eventType || null,
+    p_studio_id: payment.studio_id,
+    p_location_id: payment.location_id ?? null,
+    p_safe_payload: {
+      provider_id: providerId,
+      provider_payment_id: providerPaymentId,
+      reference_code: referenceCode,
+      provider_status: providerStatus,
+      event_object: eventObject || null,
+      event_type: eventType || null,
+    },
+  });
+
+  const claim = (eventClaim ?? null) as ProviderEventClaim | null;
+  if (eventClaimErr || !claim || !claim.ok) {
+    return NextResponse.json({ error: "provider_event_claim_failed" }, { status: 409 });
+  }
+
+  if (claim.outcome === "already_processed" || claim.outcome === "in_progress") {
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+
+  const claimId = String(claim.id ?? "").trim();
+  const claimToken = String(claim.claimToken ?? "").trim();
+  if (!claimId || !claimToken) {
+    return NextResponse.json({ error: "provider_event_claim_incomplete" }, { status: 409 });
+  }
+  const isPosPayment = Boolean(payment.pos_sale_id) && payment.source === "pos_sale";
+
+  try {
+    if (isPosPayment && isPaidLikeStatus(providerStatus)) {
+      await admin
+        .from("payments")
+        .update({
+          gateway_status: providerStatus || null,
+          gateway_payload: rawBody,
+          gateway_refund_payment_id: providerPaymentId,
+        })
+        .eq("id", payment.id);
+
+      const result = await completePosHitpaySale({
+        studioId: payment.studio_id,
+        paymentId: payment.id,
+        saleId: payment.pos_sale_id ?? null,
+        providerEventId: claimId,
+        providerPaymentId,
+        providerStatus,
+        gatewayPayload: rawBody,
+        verifiedBy: studio?.owner_id ?? null,
+      });
+      if (!result.ok) {
+        throw new Error(`complete_pos_hitpay_sale_failed:${result.code}:${result.message}`);
+      }
+    } else {
+      await applyHitpayPaymentRequestStatus(
+        admin,
+        payment,
+        studio,
+        providerStatus,
+        rawBody,
+        providerPaymentId,
+      );
+    }
+
+    await admin.rpc("complete_provider_event", {
+      p_id: claimId,
+      p_claim_token: claimToken,
+      p_studio_id: payment.studio_id,
+      p_location_id: payment.location_id ?? null,
+    });
+  } catch (error) {
+    const summary = error instanceof Error ? error.message : "hitpay_webhook_failed";
+    await admin.rpc("fail_provider_event", {
+      p_id: claimId,
+      p_claim_token: claimToken,
+      p_error_summary: summary.slice(0, 1000),
+      p_retryable: true,
+      p_studio_id: payment.studio_id,
+      p_location_id: payment.location_id ?? null,
+    });
+    throw error;
+  }
+
   return NextResponse.json({ ok: true });
 }

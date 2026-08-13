@@ -74,6 +74,20 @@ export type CompletePosCashSalePayload = {
   already_completed: boolean;
 };
 
+export type CompletePosHitpaySalePayload = {
+  sale_id: string;
+  payment_id: string;
+  sale_status: string;
+  payment_status: string;
+  paid_at: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  payment_method: string | null;
+  receipt_number: string | null;
+  already_paid: boolean;
+  already_completed: boolean;
+};
+
 function trimToNull(raw: string | null | undefined) {
   const value = raw?.trim();
   return value ? value : null;
@@ -534,4 +548,44 @@ export async function completePosCashSale(params: {
   }
 
   return { ok: true, payload: data as CompletePosCashSalePayload };
+}
+
+export async function completePosHitpaySale(params: {
+  studioId: string;
+  paymentId?: string | null;
+  saleId?: string | null;
+  providerEventId?: string | null;
+  providerPaymentId?: string | null;
+  providerStatus?: string | null;
+  gatewayPayload?: string | null;
+  verifiedBy?: string | null;
+}): Promise<PosMutationResult<CompletePosHitpaySalePayload>> {
+  const paymentId = trimToNull(params.paymentId);
+  const saleId = trimToNull(params.saleId);
+  if (!paymentId && !saleId) {
+    return {
+      ok: false,
+      code: "invalid_request",
+      message: "payment_id_or_sale_id_required",
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("complete_pos_hitpay_sale", {
+    p_studio_id: params.studioId,
+    p_payment_id: paymentId,
+    p_sale_id: saleId,
+    p_provider_event_id: trimToNull(params.providerEventId),
+    p_gateway_payment_id: trimToNull(params.providerPaymentId),
+    p_gateway_status: trimToNull(params.providerStatus),
+    p_gateway_payload: params.gatewayPayload ?? null,
+    p_verified_by: trimToNull(params.verifiedBy),
+  });
+
+  if (error) {
+    const mapped = mapPosRpcError(error);
+    return { ok: false, ...mapped };
+  }
+
+  return { ok: true, payload: data as CompletePosHitpaySalePayload };
 }

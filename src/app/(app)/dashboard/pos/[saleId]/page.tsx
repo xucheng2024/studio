@@ -1,5 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
+import { PosHitpayPaymentButton } from "@/components/dashboard/PosHitpayPaymentButton";
 import { completePosCashSaleAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getPosSaleDetailForDashboard } from "@/lib/pos-sales-read";
@@ -18,7 +19,7 @@ function toStatusLabel(status: string) {
 function toPaymentProgressLabel(status: string) {
   switch (status) {
     case "pending":
-      return "Pending payment";
+      return "Pending";
     case "paid":
       return "Paid";
     case "partially_refunded":
@@ -26,7 +27,7 @@ function toPaymentProgressLabel(status: string) {
     case "refunded":
       return "Refunded";
     case "failed_or_expired":
-      return "Failed/expired";
+      return "Failed";
     default:
       return "No payment";
   }
@@ -183,14 +184,20 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
             Open payment record
           </DashboardAppLink>
           {sale.status === "pending_payment" ? (
-            <ServerActionToastForm action={completePosCashSaleAction} refreshOnSuccess>
-              <input type="hidden" name="studio_id" value={studioId} />
-              <input type="hidden" name="sale_id" value={sale.id} />
-              <input type="hidden" name="idempotency_key" value={`pos-cash-complete:${sale.id}:${sale.updated_at}`} />
-              <button type="submit" className={ui.btnPrimarySm}>
-                Mark as paid (cash)
-              </button>
-            </ServerActionToastForm>
+            <>
+              <PosHitpayPaymentButton
+                studioId={studioId}
+                saleId={sale.id}
+              />
+              <ServerActionToastForm action={completePosCashSaleAction} refreshOnSuccess>
+                <input type="hidden" name="studio_id" value={studioId} />
+                <input type="hidden" name="sale_id" value={sale.id} />
+                <input type="hidden" name="idempotency_key" value={`pos-cash-complete:${sale.id}:${sale.updated_at}`} />
+                <button type="submit" className={ui.btnPrimarySm}>
+                  Mark as paid (cash)
+                </button>
+              </ServerActionToastForm>
+            </>
           ) : null}
         </div>
       </section>
