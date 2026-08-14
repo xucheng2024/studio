@@ -26,11 +26,13 @@ declare
   v_sale_completed_first jsonb;
   v_sale_walkin_owner jsonb;
   v_sale_walkin_manager jsonb;
+  v_sale_walkin_fulfill_first jsonb;
 
   v_item_paid_first_id uuid;
   v_item_completed_first_id uuid;
   v_item_walkin_owner_id uuid;
   v_item_walkin_manager_id uuid;
+  v_item_walkin_fulfill_first_id uuid;
   v_item_unfinished_id uuid;
   v_item_rule_timing_id uuid;
   v_item_mismatch_id uuid;
@@ -497,7 +499,101 @@ begin
     raise exception 'walk-in fulfillment should write exactly one strong audit row, got %', v_count;
   end if;
 
-  -- Scenario D: manager role allowed.
+  -- Scenario D: walk-in fulfill before payment, then pay later (contract: 先做后付).
+  v_sale_walkin_fulfill_first := public.create_pos_sale_draft(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_location_id := v_location_l1,
+    p_salon_customer_id := v_customer_id,
+    p_note := 'COM01 walkin fulfill first',
+    p_idempotency_key := 'com01-walkin-fulfill-first-create',
+    p_request_hash := encode(digest('com01-walkin-fulfill-first-create', 'sha256'), 'hex')
+  );
+
+  v_result := public.upsert_pos_sale_item(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := (v_sale_walkin_fulfill_first->>'sale_id')::uuid,
+    p_item_id := null,
+    p_line_number := 1,
+    p_item_type := 'service',
+    p_service_id := v_service_id,
+    p_product_id := null,
+    p_package_id := null,
+    p_salon_appointment_id := null,
+    p_employee_id := v_employee_id,
+    p_item_name_snapshot := 'COM01 Service',
+    p_item_currency_snapshot := 'SGD',
+    p_quantity := 1,
+    p_unit_price_amount := 100,
+    p_discount_amount := 0,
+    p_tax_amount := 0,
+    p_idempotency_key := 'com01-walkin-fulfill-first-item',
+    p_request_hash := encode(digest('com01-walkin-fulfill-first-item', 'sha256'), 'hex')
+  );
+  v_item_walkin_fulfill_first_id := (v_result->>'item_id')::uuid;
+
+  perform public.lock_pos_sale(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := (v_sale_walkin_fulfill_first->>'sale_id')::uuid,
+    p_idempotency_key := 'com01-walkin-fulfill-first-lock',
+    p_request_hash := encode(digest('com01-walkin-fulfill-first-lock', 'sha256'), 'hex')
+  );
+
+  v_result := public.com01_mark_pos_service_item_fulfilled(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_item_id := v_item_walkin_fulfill_first_id,
+    p_fulfilled_at := now(),
+    p_fulfillment_note := 'fulfill before payment',
+    p_idempotency_key := 'com01-walkin-fulfill-first-fulfilled',
+    p_request_hash := encode(digest('com01-walkin-fulfill-first-fulfilled', 'sha256'), 'hex')
+  );
+
+  if coalesce((v_result->>'ok')::boolean, false) is false then
+    raise exception 'walk-in fulfill-first should succeed without payment: %', v_result;
+  end if;
+
+  select count(*)::integer into v_count
+  from public.service_commission_entries
+  where pos_sale_item_id = v_item_walkin_fulfill_first_id
+    and entry_type = 'earned';
+
+  if v_count <> 0 then
+    raise exception 'walk-in fulfill-first should not earn before payment, got %', v_count;
+  end if;
+
+  insert into public.payments (
+    studio_id, location_id, pos_sale_id, amount, currency, payment_method, sales_channel, source, status, reference_code, type, remaining_uses
+  ) values (
+    v_studio_id, v_location_l1, (v_sale_walkin_fulfill_first->>'sale_id')::uuid, 100, 'SGD', 'cash', 'frontdesk', 'pos_sale', 'pending', 'COM01-WALKIN-FULFILL-FIRST', 'single', 0
+  )
+  returning id into v_payment_id;
+
+  perform public.complete_pos_cash_sale(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := (v_sale_walkin_fulfill_first->>'sale_id')::uuid,
+    p_idempotency_key := 'com01-walkin-fulfill-first-pay',
+    p_request_hash := encode(digest('com01-walkin-fulfill-first-pay', 'sha256'), 'hex')
+  );
+
+  select count(*)::integer into v_count
+  from public.service_commission_entries
+  where pos_sale_item_id = v_item_walkin_fulfill_first_id
+    and entry_type = 'earned';
+
+  if v_count <> 1 then
+    raise exception 'walk-in fulfill-first should create exactly one earned after payment, got %', v_count;
+  end if;
+
+  -- Scenario E: manager role allowed.
   v_sale_walkin_manager := public.create_pos_sale_draft(
     p_actor_id := v_manager_id,
     p_actor_role := 'manager',

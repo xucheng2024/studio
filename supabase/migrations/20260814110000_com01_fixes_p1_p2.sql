@@ -488,10 +488,6 @@ begin
       and p.source = 'pos_sale'
     for update;
 
-    if not found then
-      raise exception 'payment for sale % not found', v_sale_id using errcode = 'P0002';
-    end if;
-
     select * into v_item_before
     from public.pos_sale_items i
     where i.id = p_sale_item_id
