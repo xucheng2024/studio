@@ -346,6 +346,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   const quickMyPendingHref = buildApprovalsHref({ view: "my_pending", status: undefined, page: "1" });
   const quickMyInitiatedHref = buildApprovalsHref({ view: "my_initiated", page: "1" });
   const quickApprovedBacklogHref = buildApprovalsHref({ backlog_only: "1", status: undefined, page: "1" });
+  const clearRequestIdHref = buildApprovalsHref({ request_id: undefined, page: "1" });
   const prevPageHref = buildApprovalsHref({ page: String(page - 1) });
   const nextPageHref = buildApprovalsHref({ page: String(page + 1) });
 
@@ -522,6 +523,17 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
           </SubmitButton>
         </div>
       </form>
+
+      {requestIdFilter ? (
+        <div className={`${ui.card} flex flex-wrap items-center justify-between gap-2 text-sm`}>
+          <p className={ui.muted}>
+            Exact request filter active: <span className="font-mono text-xs text-stone-800 dark:text-stone-200">{requestIdFilter}</span>
+          </p>
+          <DashboardAppLink href={clearRequestIdHref} className={ui.btnSecondarySm}>
+            Clear request filter
+          </DashboardAppLink>
+        </div>
+      ) : null}
 
       <div className={`${ui.card} flex flex-wrap items-center justify-between gap-2 text-sm`}>
         <p className={ui.muted}>

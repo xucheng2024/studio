@@ -117,6 +117,7 @@ async function fetchLedgerByIds(admin: ReturnType<typeof createAdminClient>, ids
 
 function buildSlackText(params: {
   studioId: string | null;
+  runDetailUrl: string | null;
   checks: CheckSummary[];
   selfApprovalSamples: AdjustmentRequestRow[];
   approvedBacklogSamples: AdjustmentRequestRow[];
@@ -126,6 +127,7 @@ function buildSlackText(params: {
   const scopeLabel = params.studioId ? `studio ${params.studioId}` : "all studios";
   const lines = [
     `⚠️ PKG-02 ops checks detected anomalies (${scopeLabel})`,
+    `• run_detail: ${params.runDetailUrl ?? "unavailable"}`,
     ...params.checks.map((row) => `• ${row.check_name}: ${row.actual} (${row.result})`),
     `• self_approval samples: ${params.selfApprovalSamples.length}`,
     `• approved_backlog samples: ${params.approvedBacklogSamples.length}`,
@@ -247,27 +249,9 @@ export async function GET(req: Request) {
   let notifyStatus: "sent" | "skipped" | "failed" = "skipped";
   let notifyReason: string | null = null;
 
-  if (!dryRun && hasAnomaly) {
-    if (!webhookUrl) {
-      notifyStatus = "failed";
-      notifyReason = "missing OPS_ALERT_SLACK_WEBHOOK_URL";
-    } else {
-      try {
-        const text = buildSlackText({
-          studioId,
-          checks,
-          selfApprovalSamples,
-          approvedBacklogSamples,
-          missingLedgerSamples,
-          reconcileDiffSamples,
-        });
-        await sendSlackAlert(webhookUrl, text);
-        notifyStatus = "sent";
-      } catch (error) {
-        notifyStatus = "failed";
-        notifyReason = error instanceof Error ? error.message : "unknown_notification_error";
-      }
-    }
+  if (!dryRun && hasAnomaly && !webhookUrl) {
+    notifyStatus = "failed";
+    notifyReason = "missing OPS_ALERT_SLACK_WEBHOOK_URL";
   }
 
   const checksPayload = checks.map((row) => ({
@@ -325,6 +309,56 @@ export async function GET(req: Request) {
     studioId,
     locationId,
   });
+
+  if (!dryRun && hasAnomaly && webhookUrl) {
+    try {
+      const text = buildSlackText({
+        studioId,
+        runDetailUrl,
+        checks,
+        selfApprovalSamples,
+        approvedBacklogSamples,
+        missingLedgerSamples,
+        reconcileDiffSamples,
+      });
+      await sendSlackAlert(webhookUrl, text);
+      notifyStatus = "sent";
+      notifyReason = null;
+    } catch (error) {
+      notifyStatus = "failed";
+      notifyReason = error instanceof Error ? error.message : "unknown_notification_error";
+    }
+
+    if (runId) {
+      const { error: notifyUpdateError } = await admin
+        .from("pkg02_ops_check_runs")
+        .update({
+          notify_status: notifyStatus,
+          notify_reason: notifyReason,
+        })
+        .eq("id", runId);
+
+      if (notifyUpdateError) {
+        notifyReason = notifyReason
+          ? `${notifyReason}; notify_status_persist_failed:${notifyUpdateError.message}`
+          : `notify_status_persist_failed:${notifyUpdateError.message}`;
+      }
+    }
+  } else if (runId && notifyStatus === "failed") {
+    const { error: notifyUpdateError } = await admin
+      .from("pkg02_ops_check_runs")
+      .update({
+        notify_status: notifyStatus,
+        notify_reason: notifyReason,
+      })
+      .eq("id", runId);
+
+    if (notifyUpdateError) {
+      notifyReason = notifyReason
+        ? `${notifyReason}; notify_status_persist_failed:${notifyUpdateError.message}`
+        : `notify_status_persist_failed:${notifyUpdateError.message}`;
+    }
+  }
 
   return NextResponse.json({
     ok: true,
