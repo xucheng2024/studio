@@ -87,11 +87,10 @@
 
 ## 当前建议领取顺序
 
-1. Commit、Push 并部署本轮 lint/runner/目标预检变更；部署后重跑 smoke 和只读目标预检。
-2. 为隔离 UAT Studio 配置 HitPay Sandbox merchant key/webhook salt，完成 POS-03 真实支付 Gate；不得使用真实商户生产配置制造测试支付。
-3. 在独立 Staging/UAT Project（或经业务批准的专用 Production fixture）补 Cash/Receipt、Refund/Cash Session、Package Approval 的事务点击流。
-4. 领取 COM-01，建立唯一佣金事实及退款反向 Entry；这是 POS-04 最终 Gate、Payroll 和 Reporting 的关键路径。
-5. APT-04 保持“先可用后结算”策略，并在进入 Phase 3 前补齐 Phase 1 证据缺口。
+1. 为隔离 UAT Studio 配置 HitPay Sandbox merchant key/webhook salt，完成 POS-03 真实支付 Gate；不得使用真实商户生产配置制造测试支付。
+2. 在独立 Staging/UAT Project（或经业务批准的专用 Production fixture）补 Cash/Receipt、Refund/Cash Session、Package Approval 的事务点击流。
+3. 领取 COM-01，建立唯一佣金事实及退款反向 Entry；这是 POS-04 最终 Gate、Payroll 和 Reporting 的关键路径。
+4. APT-04 保持“先可用后结算”策略，并在进入 Phase 3 前补齐 Phase 1 证据缺口。
 
 ## 2026-08-14 状态更新（POS-04 Batch 3）
 
@@ -113,3 +112,4 @@
 - 远端 migration 全量对齐；PKG-01 opening balance dry-run 后正式回填 2 条，冲突为 0，回填后目标只读预检通过。
 - Production 浏览器权限矩阵覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor；POS、Cash Session、Package Approval 允许/拒绝符合预期，Owner 390px 回归通过。
 - 真实 HitPay Sandbox 与事务点击流仍按验收报告中的 Gate 保留。完整证据见 [POS / Package 联合验收](./releases/2026-08-14-pos-pkg-joint-acceptance.md)。
+- `e3c0932` 已推送并部署至 Vercel Production（`dpl_F6UeLQpKUCQA7NATcqtvjasZAFdS`）；部署后 route smoke、目标预检、migration 对齐和完整浏览器权限矩阵再次通过。
