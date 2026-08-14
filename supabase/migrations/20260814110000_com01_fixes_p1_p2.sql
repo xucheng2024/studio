@@ -1,6 +1,6 @@
 -- COM-01 fixes (P1/P2):
 -- 1) appointment employee/service consistency
--- 2) lock-order deadlock prevention (sale -> item)
+-- 2) lock-order deadlock prevention (sale -> payment -> item)
 -- 3) appointment effective_at uses max(paid_at, completed_at)
 -- 4) rule version/schedule conflict constraints
 
@@ -203,7 +203,16 @@ begin
     return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'non_service_item');
   end if;
 
-  -- Lock order aligned with complete_pos_hitpay_sale: payment -> sale -> item.
+  select * into v_sale
+  from public.pos_sales s
+  where s.id = v_item_lookup.sale_id
+    and s.studio_id = v_item_lookup.studio_id
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'sale_not_found');
+  end if;
+
   select * into v_payment
   from public.payments p
   where p.studio_id = v_item_lookup.studio_id
@@ -215,17 +224,7 @@ begin
     return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'not_paid');
   end if;
 
-  select * into v_sale
-  from public.pos_sales s
-  where s.id = v_item_lookup.sale_id
-    and s.studio_id = v_item_lookup.studio_id
-  for update;
-
-  if not found then
-    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'sale_not_found');
-  end if;
-
-  if v_payment.status <> 'paid' or v_sale.status <> 'paid' then
+  if v_sale.status <> 'paid' or v_payment.status <> 'paid' then
     return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'not_paid');
   end if;
 
@@ -465,14 +464,6 @@ begin
       raise exception 'sale item % not found in studio %', p_sale_item_id, p_studio_id using errcode = 'P0002';
     end if;
 
-    -- Lock order aligned with complete_pos_hitpay_sale: payment -> sale -> item.
-    select * into v_payment
-    from public.payments p
-    where p.studio_id = p_studio_id
-      and p.pos_sale_id = v_sale_id
-      and p.source = 'pos_sale'
-    for update;
-
     select * into v_sale
     from public.pos_sales s
     where s.id = v_sale_id
@@ -489,6 +480,17 @@ begin
       p_actor_role := p_actor_role,
       p_location_id := v_sale.location_id
     );
+
+    select * into v_payment
+    from public.payments p
+    where p.studio_id = p_studio_id
+      and p.pos_sale_id = v_sale_id
+      and p.source = 'pos_sale'
+    for update;
+
+    if not found then
+      raise exception 'payment for sale % not found', v_sale_id using errcode = 'P0002';
+    end if;
 
     select * into v_item_before
     from public.pos_sale_items i

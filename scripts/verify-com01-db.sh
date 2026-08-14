@@ -54,6 +54,7 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813043000_pos02_
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813050000_pos02_cash_receipt_number.sql >/tmp/com01_pos02_batch2.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813103000_pos03_hitpay_complete_rpc.sql >/tmp/com01_pos03.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813180000_pos04_refund_items_rpc.sql >/tmp/com01_pos04_batch2.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814114000_pos03_hitpay_lock_order_align.sql >/tmp/com01_pos03_lock_order_align.log
 
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814100000_com01_commission_foundation.sql >/tmp/com01_migration.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814110000_com01_fixes_p1_p2.sql >/tmp/com01_fix_migration.log
@@ -61,22 +62,24 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814110000_com01_
 # migration rerun safety (idempotent apply)
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814100000_com01_commission_foundation.sql >/tmp/com01_migration_rerun.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814110000_com01_fixes_p1_p2.sql >/tmp/com01_fix_migration_rerun.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814114000_pos03_hitpay_lock_order_align.sql >/tmp/com01_pos03_lock_order_align_rerun.log
 
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_com01_commission.sql | tee /tmp/com01_verify.log
 
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_com01_concurrency_setup.sql >/tmp/com01_concurrency_setup.log
 
-# Deterministic two-connection lock contention test (payment vs fulfill).
-# Conn A: lock payment row first (real HitPay order), then execute payment completion.
-# Conn B: start fulfill while A holds payment lock (must wait, not deadlock).
+# Deterministic two-connection lock contention tests.
+# Both payment completion and fulfill take sale -> payment -> item.
+# Conn A pre-locks sale then executes payment completion; Conn B starts fulfill during A hold.
 (
   psql "${DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
 set statement_timeout = '20s';
 begin;
 
-select p.id
-from public.payments p
-where p.reference_code = 'COM01-CONC-REF'
+select s.id
+from public.pos_sales s
+where s.note = 'COM01 concurrency deadlock test hitpay'
+order by s.created_at desc
 limit 1
 for update;
 
@@ -87,13 +90,13 @@ select public.complete_pos_hitpay_sale(
   p_payment_id := (
     select id
     from public.payments
-    where reference_code = 'COM01-CONC-REF'
+    where reference_code = 'COM01-CONC-REF-HITPAY'
     limit 1
   ),
   p_sale_id := (
     select id
     from public.pos_sales
-    where note = 'COM01 concurrency deadlock test'
+    where note = 'COM01 concurrency deadlock test hitpay'
     order by created_at desc
     limit 1
   ),
@@ -106,7 +109,7 @@ select public.complete_pos_hitpay_sale(
 
 commit;
 SQL
-) >/tmp/com01_concurrency_payment.log 2>&1 &
+) >/tmp/com01_concurrency_hitpay_payment.log 2>&1 &
 PID_A=$!
 
 sleep 0.2
@@ -122,44 +125,127 @@ select public.com01_mark_pos_service_item_fulfilled(
     select i.id
     from public.pos_sale_items i
     join public.pos_sales s on s.id = i.sale_id
-    where s.note = 'COM01 concurrency deadlock test'
+    where s.note = 'COM01 concurrency deadlock test hitpay'
     order by i.created_at desc
     limit 1
   ),
   p_fulfilled_at := now(),
-  p_fulfillment_note := 'concurrency test fulfill',
-  p_idempotency_key := 'com01-concurrency-fulfill',
-  p_request_hash := encode(digest('com01-concurrency-fulfill', 'sha256'), 'hex')
+  p_fulfillment_note := 'concurrency hitpay fulfill',
+  p_idempotency_key := 'com01-concurrency-hitpay-fulfill',
+  p_request_hash := encode(digest('com01-concurrency-hitpay-fulfill', 'sha256'), 'hex')
 );
 SQL
-) >/tmp/com01_concurrency_fulfill.log 2>&1 &
+) >/tmp/com01_concurrency_hitpay_fulfill.log 2>&1 &
 PID_B=$!
 
 wait "${PID_A}"
 wait "${PID_B}"
 
+(
+  psql "${DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
+set statement_timeout = '20s';
+begin;
+
+select s.id
+from public.pos_sales s
+where s.note = 'COM01 concurrency deadlock test cash'
+order by s.created_at desc
+limit 1
+for update;
+
+select pg_sleep(1);
+
+select public.complete_pos_cash_sale(
+  p_actor_id := 'e1000000-0000-0000-0000-000000000101'::uuid,
+  p_actor_role := 'owner',
+  p_studio_id := 'e1000000-0000-0000-0000-000000000001'::uuid,
+  p_sale_id := (
+    select id
+    from public.pos_sales
+    where note = 'COM01 concurrency deadlock test cash'
+    order by created_at desc
+    limit 1
+  ),
+  p_idempotency_key := 'com01-concurrency-cash-pay',
+  p_request_hash := encode(digest('com01-concurrency-cash-pay', 'sha256'), 'hex')
+);
+
+commit;
+SQL
+) >/tmp/com01_concurrency_cash_payment.log 2>&1 &
+PID_C=$!
+
+sleep 0.2
+
+(
+  psql "${DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
+set statement_timeout = '20s';
+select public.com01_mark_pos_service_item_fulfilled(
+  p_actor_id := 'e1000000-0000-0000-0000-000000000101'::uuid,
+  p_actor_role := 'owner',
+  p_studio_id := 'e1000000-0000-0000-0000-000000000001'::uuid,
+  p_sale_item_id := (
+    select i.id
+    from public.pos_sale_items i
+    join public.pos_sales s on s.id = i.sale_id
+    where s.note = 'COM01 concurrency deadlock test cash'
+    order by i.created_at desc
+    limit 1
+  ),
+  p_fulfilled_at := now(),
+  p_fulfillment_note := 'concurrency cash fulfill',
+  p_idempotency_key := 'com01-concurrency-cash-fulfill',
+  p_request_hash := encode(digest('com01-concurrency-cash-fulfill', 'sha256'), 'hex')
+);
+SQL
+) >/tmp/com01_concurrency_cash_fulfill.log 2>&1 &
+PID_D=$!
+
+wait "${PID_C}"
+wait "${PID_D}"
+
 psql "${DB_URL}" -v ON_ERROR_STOP=1 <<'SQL' >/tmp/com01_concurrency_assert.log
 do $$
 declare
-  v_item_id uuid;
-  v_earned_count integer;
+  v_hitpay_item_id uuid;
+  v_cash_item_id uuid;
+  v_hitpay_earned_count integer;
+  v_cash_earned_count integer;
 begin
   select i.id
-    into v_item_id
+    into v_hitpay_item_id
   from public.pos_sale_items i
   join public.pos_sales s on s.id = i.sale_id
-  where s.note = 'COM01 concurrency deadlock test'
+  where s.note = 'COM01 concurrency deadlock test hitpay'
   order by i.created_at desc
   limit 1;
 
   select count(*)::integer
-    into v_earned_count
+    into v_hitpay_earned_count
   from public.service_commission_entries e
-  where e.pos_sale_item_id = v_item_id
+  where e.pos_sale_item_id = v_hitpay_item_id
     and e.entry_type = 'earned';
 
-  if v_earned_count <> 1 then
-    raise exception 'concurrency test expected one earned entry, got %', v_earned_count;
+  if v_hitpay_earned_count <> 1 then
+    raise exception 'hitpay concurrency expected one earned entry, got %', v_hitpay_earned_count;
+  end if;
+
+  select i.id
+    into v_cash_item_id
+  from public.pos_sale_items i
+  join public.pos_sales s on s.id = i.sale_id
+  where s.note = 'COM01 concurrency deadlock test cash'
+  order by i.created_at desc
+  limit 1;
+
+  select count(*)::integer
+    into v_cash_earned_count
+  from public.service_commission_entries e
+  where e.pos_sale_item_id = v_cash_item_id
+    and e.entry_type = 'earned';
+
+  if v_cash_earned_count <> 1 then
+    raise exception 'cash concurrency expected one earned entry, got %', v_cash_earned_count;
   end if;
 end;
 $$;

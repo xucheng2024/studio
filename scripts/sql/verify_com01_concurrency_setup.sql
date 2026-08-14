@@ -6,9 +6,12 @@ declare
   v_employee_id uuid := 'e1000000-0000-0000-0000-000000000201';
   v_customer_id uuid := 'e1000000-0000-0000-0000-000000000301';
   v_service_id uuid := 'e1000000-0000-0000-0000-000000000401';
-  v_sale jsonb;
-  v_item jsonb;
-  v_sale_id uuid;
+  v_sale_hitpay jsonb;
+  v_sale_cash jsonb;
+  v_sale_id_hitpay uuid;
+  v_sale_id_cash uuid;
+  v_item_hitpay jsonb;
+  v_item_cash jsonb;
 begin
   insert into public.users (id, email)
   values (v_owner_id, 'com01-concurrency-owner@example.com')
@@ -75,23 +78,23 @@ begin
   )
   on conflict do nothing;
 
-  v_sale := public.create_pos_sale_draft(
+  v_sale_hitpay := public.create_pos_sale_draft(
     p_actor_id := v_owner_id,
     p_actor_role := 'owner',
     p_studio_id := v_studio_id,
     p_location_id := v_location_id,
     p_salon_customer_id := v_customer_id,
-    p_note := 'COM01 concurrency deadlock test',
-    p_idempotency_key := 'com01-conc-create',
-    p_request_hash := encode(digest('com01-conc-create', 'sha256'), 'hex')
+    p_note := 'COM01 concurrency deadlock test hitpay',
+    p_idempotency_key := 'com01-conc-create-hitpay',
+    p_request_hash := encode(digest('com01-conc-create-hitpay', 'sha256'), 'hex')
   );
-  v_sale_id := (v_sale->>'sale_id')::uuid;
+  v_sale_id_hitpay := (v_sale_hitpay->>'sale_id')::uuid;
 
-  v_item := public.upsert_pos_sale_item(
+  v_item_hitpay := public.upsert_pos_sale_item(
     p_actor_id := v_owner_id,
     p_actor_role := 'owner',
     p_studio_id := v_studio_id,
-    p_sale_id := v_sale_id,
+    p_sale_id := v_sale_id_hitpay,
     p_item_id := null,
     p_line_number := 1,
     p_item_type := 'service',
@@ -106,17 +109,17 @@ begin
     p_unit_price_amount := 120,
     p_discount_amount := 0,
     p_tax_amount := 0,
-    p_idempotency_key := 'com01-conc-item',
-    p_request_hash := encode(digest('com01-conc-item', 'sha256'), 'hex')
+    p_idempotency_key := 'com01-conc-item-hitpay',
+    p_request_hash := encode(digest('com01-conc-item-hitpay', 'sha256'), 'hex')
   );
 
   perform public.lock_pos_sale(
     p_actor_id := v_owner_id,
     p_actor_role := 'owner',
     p_studio_id := v_studio_id,
-    p_sale_id := v_sale_id,
-    p_idempotency_key := 'com01-conc-lock',
-    p_request_hash := encode(digest('com01-conc-lock', 'sha256'), 'hex')
+    p_sale_id := v_sale_id_hitpay,
+    p_idempotency_key := 'com01-conc-lock-hitpay',
+    p_request_hash := encode(digest('com01-conc-lock-hitpay', 'sha256'), 'hex')
   );
 
   insert into public.payments (
@@ -135,18 +138,90 @@ begin
   ) values (
     v_studio_id,
     v_location_id,
-    v_sale_id,
+    v_sale_id_hitpay,
     120,
     'SGD',
     'hitpay',
     'frontdesk',
     'pos_sale',
     'pending',
-    'COM01-CONC-REF',
+    'COM01-CONC-REF-HITPAY',
+    'single',
+    0
+  )
+  on conflict (reference_code) do nothing;
+
+  v_sale_cash := public.create_pos_sale_draft(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_location_id := v_location_id,
+    p_salon_customer_id := v_customer_id,
+    p_note := 'COM01 concurrency deadlock test cash',
+    p_idempotency_key := 'com01-conc-create-cash',
+    p_request_hash := encode(digest('com01-conc-create-cash', 'sha256'), 'hex')
+  );
+  v_sale_id_cash := (v_sale_cash->>'sale_id')::uuid;
+
+  v_item_cash := public.upsert_pos_sale_item(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := v_sale_id_cash,
+    p_item_id := null,
+    p_line_number := 1,
+    p_item_type := 'service',
+    p_service_id := v_service_id,
+    p_product_id := null,
+    p_package_id := null,
+    p_salon_appointment_id := null,
+    p_employee_id := v_employee_id,
+    p_item_name_snapshot := 'COM01 CONC Service',
+    p_item_currency_snapshot := 'SGD',
+    p_quantity := 1,
+    p_unit_price_amount := 120,
+    p_discount_amount := 0,
+    p_tax_amount := 0,
+    p_idempotency_key := 'com01-conc-item-cash',
+    p_request_hash := encode(digest('com01-conc-item-cash', 'sha256'), 'hex')
+  );
+
+  perform public.lock_pos_sale(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := v_sale_id_cash,
+    p_idempotency_key := 'com01-conc-lock-cash',
+    p_request_hash := encode(digest('com01-conc-lock-cash', 'sha256'), 'hex')
+  );
+
+  insert into public.payments (
+    studio_id,
+    location_id,
+    pos_sale_id,
+    amount,
+    currency,
+    payment_method,
+    sales_channel,
+    source,
+    status,
+    reference_code,
+    type,
+    remaining_uses
+  ) values (
+    v_studio_id,
+    v_location_id,
+    v_sale_id_cash,
+    120,
+    'SGD',
+    'cash',
+    'frontdesk',
+    'pos_sale',
+    'pending',
+    'COM01-CONC-REF-CASH',
     'single',
     0
   )
   on conflict (reference_code) do nothing;
 end;
 $$;
-
