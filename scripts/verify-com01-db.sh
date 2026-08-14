@@ -66,10 +66,23 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_com01_commission.sql |
 
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_com01_concurrency_setup.sql >/tmp/com01_concurrency_setup.log
 
-# True two-connection concurrency check (payment completion vs walk-in fulfill)
+# Deterministic two-connection lock contention test (payment vs fulfill).
+# Conn A: lock sale row first, then execute payment completion.
+# Conn B: start fulfill while A holds sale lock (must wait, not deadlock).
 (
   psql "${DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
 set statement_timeout = '20s';
+begin;
+
+select s.id
+from public.pos_sales s
+where s.note = 'COM01 concurrency deadlock test'
+order by s.created_at desc
+limit 1
+for update;
+
+select pg_sleep(1);
+
 select public.complete_pos_hitpay_sale(
   p_studio_id := 'e1000000-0000-0000-0000-000000000001'::uuid,
   p_payment_id := (
@@ -91,6 +104,8 @@ select public.complete_pos_hitpay_sale(
   p_gateway_payload := '{}',
   p_verified_by := 'e1000000-0000-0000-0000-000000000101'::uuid
 );
+
+commit;
 SQL
 ) >/tmp/com01_concurrency_payment.log 2>&1 &
 PID_A=$!

@@ -65,6 +65,11 @@ as $$
   limit 1;
 $$;
 
+revoke all on function public.com01_get_appointment_completed_at(uuid)
+  from public, anon, authenticated;
+grant execute on function public.com01_get_appointment_completed_at(uuid)
+  to service_role;
+
 
 create or replace function public.service_commission_entries_validate_refs()
 returns trigger
@@ -176,6 +181,7 @@ security definer
 set search_path to 'public'
 as $$
 declare
+  v_item_lookup record;
   v_item public.pos_sale_items;
   v_sale public.pos_sales;
   v_payment public.payments;
@@ -183,12 +189,30 @@ declare
   v_existing_earned public.service_commission_entries;
   v_rule record;
   v_effective_at timestamptz;
-  v_completed_at timestamptz;
   v_amount numeric(12,2);
   v_entry_id uuid;
   v_source_type text;
   v_result jsonb;
 begin
+  select i.sale_id, i.studio_id
+    into v_item_lookup
+  from public.pos_sale_items i
+  where i.id = p_sale_item_id;
+
+  if not found then
+    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'non_service_item');
+  end if;
+
+  select * into v_sale
+  from public.pos_sales s
+  where s.id = v_item_lookup.sale_id
+    and s.studio_id = v_item_lookup.studio_id
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'sale_not_found');
+  end if;
+
   select * into v_item
   from public.pos_sale_items i
   where i.id = p_sale_item_id
@@ -200,15 +224,6 @@ begin
 
   if v_item.employee_id is null or v_item.service_id is null then
     return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'missing_employee_or_service');
-  end if;
-
-  select * into v_sale
-  from public.pos_sales s
-  where s.id = v_item.sale_id
-  for update;
-
-  if not found then
-    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'sale_not_found');
   end if;
 
   select * into v_payment
@@ -238,10 +253,9 @@ begin
       return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'appointment_item_mismatch');
     end if;
 
-    v_completed_at := public.com01_get_appointment_completed_at(v_appointment.id);
     v_effective_at := greatest(
       coalesce(v_payment.paid_at, now()),
-      coalesce(v_completed_at, now())
+      coalesce(v_appointment.updated_at, now())
     );
   else
     v_source_type := 'walkin';
@@ -329,7 +343,7 @@ begin
       'paymentStatus', v_payment.status,
       'paidAt', v_payment.paid_at,
       'appointmentStatus', case when v_source_type = 'appointment' then v_appointment.status else null end,
-      'appointmentCompletedAt', case when v_source_type = 'appointment' then v_completed_at else null end,
+      'appointmentCompletedAt', case when v_source_type = 'appointment' then v_appointment.updated_at else null end,
       'walkinFulfilledAt', case when v_source_type = 'walkin' then v_item.fulfilled_at else null end
     ),
     p_actor_id
@@ -567,4 +581,3 @@ begin
   end;
 end;
 $$;
-
