@@ -1,6 +1,6 @@
 # APT-04：客户自助预约（Phase 1）
 
-状态：已实现/待验证（Phase 1）
+状态：可验收（Phase 1）
 
 负责人：Codex（编码 Agent）
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-14
 
-Commit / Release：（待提交）
+Commit / Release：`909db75`（Phase 1 隔离 UAT）
 
 ## 1. 目标
 
@@ -88,7 +88,7 @@ Commit / Release：（待提交）
 - [x] 角色允许/拒绝
 - [x] 数据库约束拒绝非法组合
 - [x] 重复调用/并发安全
-- [ ] 移动端（390px）和桌面浏览器验收
+- [x] 移动端（390px viewport）和桌面多浏览器隔离 UAT；真实 Safari/真实设备补证由业务方接受为非阻断剩余风险
 - [x] `npx tsc --noEmit`
 - [x] 相关 ESLint/测试
 - [x] `npm run build`
@@ -141,9 +141,9 @@ Commit / Release：（待提交）
 - `npx tsc --noEmit`
 - `npm run build`
 
-### 未解决风险
+### 已接受的剩余风险
 
-- 移动端（390px）与多浏览器真实账号手工验收证据仍待上线窗口补档。
+- 真实 Safari 与真实 390px 设备证据未补；业务方于 2026-08-14 明确接受该风险，不再阻断 Phase 1 验收。现有证据覆盖真实 Chrome、Firefox/WebKit 关键链路及 Chrome 390x844 viewport。
 - 第一阶段按范围冻结，未接入 Package credits / deposit / full payment。
 
 ### 验收执行模板
@@ -174,9 +174,9 @@ Commit / Release：（待提交）
 - `npx tsc --noEmit`
 - `npm run build`
 
-结论：当前仍保持“已实现/待验证（Phase 1）”，在完成 390px 与多浏览器真实环境验收前，不标记“可验收/已上线”。
+结论：APT-04 Phase 1 标记为“可验收”；这不等同于“已上线”。真实 Safari 与真实 390px 设备补证作为业务方已接受的非阻断剩余风险记录。
 
-隔离 UAT 已执行：`RUN_ID=APT04-UAT-LOCAL-20260814-2350`。真实 Chrome 完整链路、Firefox/WebKit 关键链路及 390px viewport 预检通过；证据见 `docs/salon-psg/releases/2026-08-14-apt04-phase1-uat-evidence.md`。真实 Safari 与真实 390px 设备/系统模拟器仍待人工补证。
+隔离 UAT 已执行：`RUN_ID=APT04-UAT-LOCAL-20260814-2350`。真实 Chrome 完整链路、Firefox/WebKit 关键链路及 390px viewport 预检通过；证据见 `docs/salon-psg/releases/2026-08-14-apt04-phase1-uat-evidence.md`。业务方决定不再以真实 Safari 与真实 390px 设备/系统模拟器补证阻断 Phase 1 验收。
 
 没有实际命令输出或测试证据时，不勾选对应项目。
 

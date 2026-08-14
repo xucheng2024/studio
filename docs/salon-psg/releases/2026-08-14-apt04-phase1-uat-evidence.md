@@ -19,9 +19,10 @@
 3. `/me/appointments` 仅在用户确实绑定 active Studio 时重定向。
 4. 移除会员 tabs 根级负边距，修复 390px 横向溢出。
 
-## 尚未关闭的人工 Gate
+## 已接受的剩余风险
 
 - 真实 Safari：本机 Safari 未开启 Developer → **Allow remote automation**；WebKit 结果不冒充真实 Safari。
 - 真实 390px 设备/系统模拟器：本机没有可用 iOS Simulator；390x844 viewport 仅作为预检。
+- 业务方于 2026-08-14 明确决定不继续执行上述两项，并接受其为非阻断剩余风险。
 
-结论：代码与隔离自动化 UAT 通过；APT-04 继续保持“已实现/待验证”，不得标记“可验收/已上线”。
+结论：代码与隔离 UAT 通过，APT-04 Phase 1 标记为“可验收”；该结论不等同于“已上线”。

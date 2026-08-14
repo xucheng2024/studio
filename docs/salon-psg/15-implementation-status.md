@@ -45,7 +45,7 @@
 | Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色/390px 浏览器 Gate 已通过；待专用 UAT fixture 完成现金收款、找零和收据点击流 |
 | Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | Merchant Key-only 改造已发布，真实 Sandbox 支付、webhook、佣金 earned 与全额退款冲销已通过；主动同步与异常恢复的完整专项 Gate 仍归 POS-03 后续收口 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
-| Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 1） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已完成登录客户实时档期、本人预约/查看/改期/取消、T&C 接受证据和 customer actor DB guard；并已闭环复核问题（Action 运行时重认证、幂等失败释放、改期 key、`/me/appointments` 聚合、反馈提示、营业边界 prep/buffer）；`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:apt03`、`test:pos03-db`、`test:pkg01-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过，待补 390px/多浏览器真实环境验收与第二阶段支付/Package 接入 |
+| Phase 2 | APT-04 Self Booking | Phase 1 可验收；Phase 2 待开发 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | Phase 1 已完成登录客户实时档期、本人预约/查看/改期/取消、T&C 接受证据和 customer actor DB guard；自动化、DB、真实 Chrome、Firefox/WebKit 关键链路及 390px viewport UAT 通过。业务方接受未补真实 Safari/真实 390px 设备证据的剩余风险；下一阶段接入 Package Credits、在线订金与全款。 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
@@ -131,7 +131,7 @@
 - 新增 APT-04 专项验证：`test:apt04-app`、`test:apt04-db`。
 - 相关回归与门禁已通过：`test:apt02-db-foundation`、`test:apt02-concurrency`、`test:apt02-idempotency-faults`、`test:apt03`、`test:crm01-app`、`test:crm01-static`、`test:crm01-db`、`lint`、`tsc`、`build`。
 - 为消除 Docker PostgreSQL 启动竞态，已统一加固 `verify-apt02-*` 与 `verify-crm01-db` 的数据库最终就绪判定（双 ready 日志 + SQL ping）。
-- 待补 Gate：390px 移动端与多浏览器真实环境手工验收；Package/订金/全款接入保持第二阶段范围。
+- Phase 1 已标记为“可验收”；真实 Safari/真实 390px 设备补证由业务方接受为非阻断剩余风险。Package/订金/全款接入保持第二阶段范围。
 
 ## 2026-08-14 状态更新（APT-04 Phase 1 复核修复）
 
@@ -143,6 +143,6 @@
   - 改期/取消后的 `ok/error` 结果可见，页面不再“静默刷新”。
   - 档期边界计算纳入 prep/buffer，避免展示提交即失败的首末档。
 - 本轮复核门禁通过：`test:apt04-app`、`test:apt04-db`、`test:apt03`、`test:apt02-idempotency-faults`、`test:pos03-db`、`test:pkg01-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build`。
-- 结论维持不变：APT-04 仍为“已实现/待验证（Phase 1）”，未完成 390px 与多浏览器真实环境验收前不升为“可验收/已上线”。
+- 验收决策更新：业务方接受真实 Safari 与真实 390px 设备未补证的剩余风险，APT-04 Phase 1 升为“可验收”，但不标记“已上线”。
 - 已补 APT-04 浏览器验收执行资产：`docs/salon-psg/releases/2026-08-14-apt04-phase1-browser-acceptance-checklist.md`（含 390px + 多浏览器清单与证据模板），可直接用于 Phase 1 最终验收留档。
-- 隔离 UAT `APT04-UAT-LOCAL-20260814-2350` 已通过真实 Chrome 完整链路、Firefox/WebKit 关键链路与 390px viewport 预检，并关闭真实 schema/幂等重订/active Studio/移动端溢出问题；真实 Safari 与真实 390px 设备/系统模拟器仍待人工补证，状态不升级。
+- 隔离 UAT `APT04-UAT-LOCAL-20260814-2350` 已通过真实 Chrome 完整链路、Firefox/WebKit 关键链路与 390px viewport 预检，并关闭真实 schema/幂等重订/active Studio/移动端溢出问题；未补的真实 Safari 与真实 390px 设备证据记录为已接受风险，不阻断 Phase 1 验收。
