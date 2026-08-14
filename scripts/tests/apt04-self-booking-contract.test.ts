@@ -68,4 +68,7 @@ test("self booking page renders terms content and acceptance evidence fields", (
   assert.equal(bookingPage.includes("Terms & Conditions"), true);
   assert.equal(bookingPage.includes("name=\"terms_accepted\""), true);
   assert.equal(bookingPage.includes("name=\"terms_version_id\""), true);
+  assert.equal(bookingPage.includes("const latestTermsVersion = await getLatestSalonTermsVersion({ studioId });"), true);
+  assert.equal(bookingPage.includes("latestTermsVersion.id !== termsVersionId"), true);
+  assert.equal(bookingPage.includes("error=terms_version_stale"), true);
 });

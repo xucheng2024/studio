@@ -32,6 +32,7 @@ function messageFromStatus(ok: string | undefined, error: string | undefined) {
   const map: Record<string, string> = {
     missing_fields: "Please select location, service and slot.",
     terms_required: "Please accept the Terms & Conditions before booking.",
+    terms_version_stale: "Terms & Conditions have been updated. Please review the latest version and submit again.",
     invalid_slot: "The selected slot is invalid.",
     forbidden: "Your account is not linked to this studio customer profile.",
     slot_conflict: "This slot was just taken. Please choose another one.",
@@ -147,6 +148,11 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     }
     if (!accepted || !termsVersionId) {
       redirect(`${backTo}${query.toString() ? "&" : "?"}error=terms_required`);
+    }
+
+    const latestTermsVersion = await getLatestSalonTermsVersion({ studioId });
+    if (!latestTermsVersion?.id || latestTermsVersion.id !== termsVersionId) {
+      redirect(`${backTo}${query.toString() ? "&" : "?"}error=terms_version_stale`);
     }
 
     const actionResult = await createSelfAppointment({
