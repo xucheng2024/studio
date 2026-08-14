@@ -203,6 +203,18 @@ begin
     return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'non_service_item');
   end if;
 
+  -- Lock order aligned with complete_pos_hitpay_sale: payment -> sale -> item.
+  select * into v_payment
+  from public.payments p
+  where p.studio_id = v_item_lookup.studio_id
+    and p.pos_sale_id = v_item_lookup.sale_id
+    and p.source = 'pos_sale'
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'not_paid');
+  end if;
+
   select * into v_sale
   from public.pos_sales s
   where s.id = v_item_lookup.sale_id
@@ -211,6 +223,10 @@ begin
 
   if not found then
     return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'sale_not_found');
+  end if;
+
+  if v_payment.status <> 'paid' or v_sale.status <> 'paid' then
+    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'not_paid');
   end if;
 
   select * into v_item
@@ -224,17 +240,6 @@ begin
 
   if v_item.employee_id is null or v_item.service_id is null then
     return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'missing_employee_or_service');
-  end if;
-
-  select * into v_payment
-  from public.payments p
-  where p.studio_id = v_item.studio_id
-    and p.pos_sale_id = v_item.sale_id
-    and p.source = 'pos_sale'
-  for update;
-
-  if not found or v_payment.status <> 'paid' or v_sale.status <> 'paid' then
-    return jsonb_build_object('ok', true, 'skipped', true, 'reason', 'not_paid');
   end if;
 
   if v_item.salon_appointment_id is not null then
@@ -410,6 +415,7 @@ declare
   v_item_before public.pos_sale_items;
   v_item_after public.pos_sale_items;
   v_sale public.pos_sales;
+  v_payment public.payments;
   v_sale_id uuid;
   v_fulfilled_at timestamptz;
   v_result jsonb;
@@ -458,6 +464,14 @@ begin
     if v_sale_id is null then
       raise exception 'sale item % not found in studio %', p_sale_item_id, p_studio_id using errcode = 'P0002';
     end if;
+
+    -- Lock order aligned with complete_pos_hitpay_sale: payment -> sale -> item.
+    select * into v_payment
+    from public.payments p
+    where p.studio_id = p_studio_id
+      and p.pos_sale_id = v_sale_id
+      and p.source = 'pos_sale'
+    for update;
 
     select * into v_sale
     from public.pos_sales s

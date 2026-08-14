@@ -67,17 +67,16 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_com01_commission.sql |
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_com01_concurrency_setup.sql >/tmp/com01_concurrency_setup.log
 
 # Deterministic two-connection lock contention test (payment vs fulfill).
-# Conn A: lock sale row first, then execute payment completion.
-# Conn B: start fulfill while A holds sale lock (must wait, not deadlock).
+# Conn A: lock payment row first (real HitPay order), then execute payment completion.
+# Conn B: start fulfill while A holds payment lock (must wait, not deadlock).
 (
   psql "${DB_URL}" -v ON_ERROR_STOP=1 <<'SQL'
 set statement_timeout = '20s';
 begin;
 
-select s.id
-from public.pos_sales s
-where s.note = 'COM01 concurrency deadlock test'
-order by s.created_at desc
+select p.id
+from public.payments p
+where p.reference_code = 'COM01-CONC-REF'
 limit 1
 for update;
 
