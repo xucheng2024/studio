@@ -61,6 +61,11 @@ Appointment、POS 和 `service_orders` 必须保存：
 - 退款后撤销佣金，或在下一工资周期冲回
 - Owner 手工调整佣金，但必须填写原因并经过审批
 
+COM-01 第一版业务口径冻结为：
+
+- 如果在佣金计算时点没有找到对应员工/服务的生效规则，视为该服务不适用佣金（佣金为 0）。系统返回 `rule_not_found` 并跳过分录，不创建零金额 Entry、不阻断 POS 付款，也不因为以后新增规则而自动追溯补发。
+- 百分比佣金的基数固定为 `pos_sale_items.total_amount`，即 POS Service Item 折扣后的实际成交总额。后续部分或全额退款不改写原 earned Entry，而是按 `refunded_amount / total_amount` 比例追加 `refund_reversal` Entry；累计冲销不得超过原佣金。
+
 只有存在服务完成证据且对应 POS Service Item 已经 Paid，佣金才进入 Earned。预约服务以 Completed Appointment 为完成证据；无预约 Walk-in 以 POS/Service Order 中受审计的 `fulfilled_at` 为完成证据。Appointment 完成不能单独产生佣金，POS 付款也不能为未完成服务提前产生佣金。
 
 每笔原始佣金以 POS Service Item 作为唯一来源，并同时追溯 Appointment、Service Order 和 Payment。数据库必须限制同一 POS Service Item 最多生成一笔原始佣金；退款和人工调整使用新的反向/调整 Entry，不能覆盖原记录或只保存最终总数。

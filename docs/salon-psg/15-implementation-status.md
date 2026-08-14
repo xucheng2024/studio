@@ -100,6 +100,7 @@
 - COM-01 DB Gate 结论：已闭环，无新增阻断。
 - COM-01 生产 Migration/应用已发布，并完成新一轮隔离本地 UAT（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）：SQL 事务场景、DB 证据、角色权限与最终页面断言全部通过，新生成 10 张非 Loading/Skeleton 截图。
 - COM-01 正式升为“已上线”；验收未在 Production 造测试财务数据，生产发布证据与隔离 UAT 证据分开保留。
+- COM-01 剩余两项业务口径已冻结：无生效规则视为不适用佣金（0）且不阻断收款/不自动追溯；百分比佣金基数为 `pos_sale_items.total_amount`，退款按比例追加反向 Entry。现有实现已符合，无需新增生产 Migration。
 
 ## 2026-08-14 状态更新（POS-04 Batch 3）
 

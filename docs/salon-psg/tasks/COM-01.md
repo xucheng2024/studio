@@ -171,12 +171,12 @@ Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`
 - 安全闭环：`com01_get_appointment_completed_at` 已 revoke public/anon/authenticated，仅 `service_role` 可执行。
 - 先做后付回归闭环：新增“无 payment -> fulfill -> 创建并支付 -> 仅一条 earned”测试场景。
 
-### 未解决风险
+### 已冻结业务口径与保留说明
 
-- 规则缺失策略当前为“跳过入账（rule_not_found）但不阻断 POS Paid 主流程”；上线前需确认是否改为强阻断或补偿队列。
+- 规则缺失口径已冻结：计算时点无生效规则即视为不适用佣金（0）；返回 `rule_not_found`、不创建零金额 Entry、不阻断 POS Paid，且日后新增规则不自动追溯补发。
+- 佣金基数口径已冻结：百分比佣金按 `pos_sale_items.total_amount`（POS Service Item 折扣后实际成交总额）计算；退款按 `refunded_amount / total_amount` 比例追加反向 Entry，不改写原 earned Entry。
 - 未在 Production 创建测试财务交易；生产发布证据与交易 UAT 证据分离保留，交易 UAT 在隔离本地 Supabase/HitPay Sandbox 完成。
 - 浏览器证据验证的是 SQL UAT 执行后的真实最终页面与权限结果；事务先后顺序由 SQL/DB 证据断言，不宣称为浏览器逐步点击时序录屏。
-- 佣金基数当前按 `pos_sale_items.total_amount`（含折扣/税后总额）计算；若业务需改为税前或净额，需在 COM-01.1 明确。
 
 ## 10. 后续任务接口
 
@@ -188,4 +188,4 @@ Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`
   - 不假设已有 Payroll 手工调整能力
   - 不假设报表层可直接改写佣金分录
 
-下一步建议：继续 APT-04 Self Booking；PAY-01 启动前另行确认“规则缺失处理”和“佣金计算基数”。
+下一步建议：继续 APT-04 Self Booking；COM-01 已无待确认业务口径。
