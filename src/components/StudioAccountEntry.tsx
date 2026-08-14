@@ -69,6 +69,9 @@ export function StudioAccountEntry({
             <Link href={studioMePath(studioSlug, "bookings")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
               My bookings
             </Link>
+            <Link href={studioMePath(studioSlug, "appointments")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
+              My appointments
+            </Link>
             <Link href={studioMePath(studioSlug, "class-passes")} className={ui.linkHeaderMenu} onClick={() => setMenuOpen(false)}>
               My packages
             </Link>

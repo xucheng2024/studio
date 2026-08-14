@@ -89,6 +89,7 @@ export function SiteHeaderConfigured({
     () =>
       activeStudioSlug
         ? [
+            { href: studioMePath(activeStudioSlug, "appointments"), label: "My appointments" },
             { href: studioMePath(activeStudioSlug, "bookings"), label: "My bookings" },
             { href: studioMePath(activeStudioSlug, "class-passes"), label: "My packages" },
             { href: studioMePath(activeStudioSlug, "orders"), label: "My orders" },
@@ -98,6 +99,7 @@ export function SiteHeaderConfigured({
               : []),
           ]
         : [
+            { href: "/me/appointments", label: "My appointments" },
             { href: "/me/bookings", label: "My bookings" },
             { href: "/me/class-passes", label: "My packages" },
             { href: "/me/orders", label: "My orders" },

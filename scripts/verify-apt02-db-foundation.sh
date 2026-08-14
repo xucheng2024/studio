@@ -19,12 +19,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
+db_ready=false
 for _ in {1..60}; do
-  if docker exec "${CID}" pg_isready -U postgres -d apt02_verify >/dev/null 2>&1; then
+  readiness_count="$(docker logs "${CID}" 2>&1 | awk '/database system is ready to accept connections/{count++} END{print count+0}')"
+  if (( readiness_count >= 2 )) && psql "${DB_URL}" -Atqc 'select 1' >/dev/null 2>&1; then
+    db_ready=true
     break
   fi
   sleep 1
 done
+
+if [[ "${db_ready}" != "true" ]]; then
+  echo "verify-apt02-db-foundation: postgres did not become ready" >&2
+  exit 1
+fi
 
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/apt02_minimal_pre_schema.sql >/tmp/apt02_pre_schema.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260811145810_apt01_service_availability_resources.sql >/tmp/apt02_m1.log

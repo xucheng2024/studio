@@ -107,6 +107,9 @@ export default async function PublicServicePage({ params }: Props) {
         ) : null}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <a href={`/${studio.public_slug ?? rawStudio}/appointments?service_id=${encodeURIComponent(service.id)}`} className={`${ui.btnSecondary} w-full sm:w-auto`}>
+            Book appointment
+          </a>
           {paymentEnabled ? (
             <a href="#service-payment" className={`${ui.btnPrimary} w-full sm:w-auto`}>
               <CreditCard size={16} />

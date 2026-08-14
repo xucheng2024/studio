@@ -45,7 +45,7 @@
 | Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色/390px 浏览器 Gate 已通过；待专用 UAT fixture 完成现金收款、找零和收据点击流 |
 | Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | Merchant Key-only 改造已发布，真实 Sandbox 支付、webhook、佣金 earned 与全额退款冲销已通过；主动同步与异常恢复的完整专项 Gate 仍归 POS-03 后续收口 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
-| Phase 2 | APT-04 Self Booking | 未开始 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 可先开发登录/实时档期/本人改期取消，最终接入 Package、订金和全款 |
+| Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 1） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已完成登录客户实时档期、本人预约/查看/改期/取消、T&C 接受证据和 customer actor DB guard；`test:apt04-app`、`test:apt04-db`、`test:apt02-*`、`test:apt03`、`test:crm01-*`、`lint`、`tsc`、`build` 通过，待补 390px/多浏览器真实环境验收与第二阶段支付/Package 接入 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
@@ -123,3 +123,12 @@
 - Production 浏览器权限矩阵覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor；POS、Cash Session、Package Approval 允许/拒绝符合预期，Owner 390px 回归通过。
 - 真实 HitPay Sandbox 与事务点击流仍按验收报告中的 Gate 保留。完整证据见 [POS / Package 联合验收](./releases/2026-08-14-pos-pkg-joint-acceptance.md)。
 - `e3c0932` 已推送并部署至 Vercel Production（`dpl_F6UeLQpKUCQA7NATcqtvjasZAFdS`）；部署后 route smoke、目标预检、migration 对齐和完整浏览器权限矩阵再次通过。
+
+## 2026-08-14 状态更新（APT-04 Phase 1）
+
+- APT-04 Phase 1 已完成：`/{studioSlug}/appointments`（登录客户实时档期 + 本人预约创建）、`/{studioSlug}/me/appointments` 与 `/me/appointments`（本人查看/改期/取消）。
+- DB 已新增 customer actor guard（`20260814193000_apt04_customer_self_booking_actor.sql`）：customer 仅能操作本人 `salon_customer/appointment`，并继续复用 APT-02 原子 RPC 与 FND-04 幂等链路。
+- 新增 APT-04 专项验证：`test:apt04-app`、`test:apt04-db`。
+- 相关回归与门禁已通过：`test:apt02-db-foundation`、`test:apt02-concurrency`、`test:apt02-idempotency-faults`、`test:apt03`、`test:crm01-app`、`test:crm01-static`、`test:crm01-db`、`lint`、`tsc`、`build`。
+- 为消除 Docker PostgreSQL 启动竞态，已统一加固 `verify-apt02-*` 与 `verify-crm01-db` 的数据库最终就绪判定（双 ready 日志 + SQL ping）。
+- 待补 Gate：390px 移动端与多浏览器真实环境手工验收；Package/订金/全款接入保持第二阶段范围。

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { studioHomePath, studioMePath } from "@/lib/public-paths";
 
 const tabs = [
+  { key: "appointments", label: "Appointments", section: "appointments" },
   { key: "bookings", label: "Bookings", section: "bookings" },
   { key: "class-passes", label: "Passes", section: "class-passes" },
   { key: "orders", label: "Orders", section: "orders" },
