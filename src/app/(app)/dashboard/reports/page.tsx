@@ -1,6 +1,13 @@
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
+import {
+  fetchDeferredValueDetailRows,
+  filterDeferredRowsByKeyword,
+  groupDeferredByCustomer,
+  groupDeferredByPackage,
+} from "@/lib/deferred-value-report";
 import {
   computeRevenueSummary,
   revenueEffectiveTimestamp,
@@ -23,6 +30,10 @@ type Props = {
     date_to?: string;
     source?: string;
     sales_channel?: string;
+    deferred_view?: string;
+    deferred_customer_id?: string;
+    deferred_package_id?: string;
+    deferred_q?: string;
   }>;
 };
 
@@ -77,6 +88,10 @@ export default async function ReportsPage({ searchParams }: Props) {
   const dateTo = sp.date_to ?? bounds.to;
   const source = sp.source ?? "";
   const salesChannel = sp.sales_channel ?? "";
+  const deferredView = sp.deferred_view === "package" ? "package" : "customer";
+  const deferredCustomerId = sp.deferred_customer_id ?? "";
+  const deferredPackageId = sp.deferred_package_id ?? "";
+  const deferredKeyword = sp.deferred_q?.trim() ?? "";
   const fromIso = dayRangeStartIso(dateFrom);
   const toIso = dayRangeEndExclusiveIso(dateTo);
   const { data: locations } = await supabase
@@ -162,6 +177,53 @@ export default async function ReportsPage({ searchParams }: Props) {
     : deferredSummaryRows.length > 1
       ? "MIXED"
       : "SGD";
+
+  const deferredRows = await fetchDeferredValueDetailRows({
+    studioId: activeStudioId,
+    locationId: locationFilter,
+    actorId: user.id,
+    limit: 5000,
+  });
+
+  const deferredRowsKeywordFiltered = filterDeferredRowsByKeyword(deferredRows, deferredKeyword);
+  const deferredRowsFiltered = deferredRowsKeywordFiltered.filter((row) => {
+    if (deferredCustomerId && row.customer_id !== deferredCustomerId) return false;
+    if (deferredPackageId && row.package_id !== deferredPackageId) return false;
+    return true;
+  });
+
+  const deferredCustomerRows = groupDeferredByCustomer(deferredRowsFiltered).slice(0, 200);
+  const deferredPackageRows = groupDeferredByPackage(deferredRowsFiltered).slice(0, 200);
+
+  const deferredCustomerOptions = [...new Map(
+    deferredRows.map((row) => [row.customer_id, { id: row.customer_id, name: row.customer_name }]),
+  ).values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  const deferredPackageOptions = [...new Map(
+    deferredRows.map((row) => [row.package_id, { id: row.package_id, name: row.package_name }]),
+  ).values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  const commonReportParams = new URLSearchParams();
+  if (activeStudioId) commonReportParams.set("studio_id", activeStudioId);
+  if (locationFilter) commonReportParams.set("location_id", locationFilter);
+  if (dateFrom) commonReportParams.set("date_from", dateFrom);
+  if (dateTo) commonReportParams.set("date_to", dateTo);
+  if (source) commonReportParams.set("source", source);
+  if (salesChannel) commonReportParams.set("sales_channel", salesChannel);
+
+  const deferredCustomerDetailParams = new URLSearchParams(commonReportParams);
+  deferredCustomerDetailParams.set("deferred_view", "customer");
+  const deferredPackageDetailParams = new URLSearchParams(commonReportParams);
+  deferredPackageDetailParams.set("deferred_view", "package");
+
+  const deferredExportParams = new URLSearchParams(commonReportParams);
+  deferredExportParams.set("deferred_view", deferredView);
+  if (deferredCustomerId) deferredExportParams.set("deferred_customer_id", deferredCustomerId);
+  if (deferredPackageId) deferredExportParams.set("deferred_package_id", deferredPackageId);
+  if (deferredKeyword) deferredExportParams.set("deferred_q", deferredKeyword);
+
+  const deferredResetParams = new URLSearchParams(commonReportParams);
+  deferredResetParams.set("deferred_view", deferredView);
 
   return (
     <div className="flex flex-col gap-8">
@@ -333,7 +395,184 @@ export default async function ReportsPage({ searchParams }: Props) {
             <p className={`mt-1 text-xs ${ui.muted}`}>
               {deferredSummary.totalCredits} unconsumed credits · {deferredSummary.customerCount} customers · {deferredSummary.packageCount} package types · {deferredSummary.rowCount} package rows
             </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <DashboardAppLink href={`/dashboard/reports?${deferredCustomerDetailParams.toString()}`} className={ui.btnSecondarySm}>
+                Customer details
+              </DashboardAppLink>
+              <DashboardAppLink href={`/dashboard/reports?${deferredPackageDetailParams.toString()}`} className={ui.btnSecondarySm}>
+                Package details
+              </DashboardAppLink>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <div className={ui.card}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className={`${ui.h2} text-base`}>Deferred drill-down</h2>
+            <p className={`mt-1 text-xs ${ui.muted}`}>
+              View by {deferredView === "package" ? "package" : "customer"}, then drill into the opposite detail and export with the same filters.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <DashboardAppLink href={`/dashboard/reports?${deferredCustomerDetailParams.toString()}`} className={ui.btnSecondarySm}>
+              By customer
+            </DashboardAppLink>
+            <DashboardAppLink href={`/dashboard/reports?${deferredPackageDetailParams.toString()}`} className={ui.btnSecondarySm}>
+              By package
+            </DashboardAppLink>
+            <a href={`/api/reports/deferred/export?${deferredExportParams.toString()}`} className={ui.btnSecondarySm}>
+              Export CSV
+            </a>
+            <a href={`/api/reports/deferred/export?${deferredExportParams.toString()}&format=tsv`} className={ui.btnSecondarySm}>
+              Export TSV
+            </a>
+            <a href={`/api/reports/deferred/export?${deferredExportParams.toString()}&format=xlsx`} className={ui.btnSecondarySm}>
+              Export XLSX
+            </a>
+            <a href={`/api/reports/deferred/export?${deferredExportParams.toString()}&format=xml`} className={ui.btnSecondarySm}>
+              Export XML
+            </a>
+          </div>
+        </div>
+
+        <form method="get" className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
+          {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
+          <input type="hidden" name="date_from" value={dateFrom} />
+          <input type="hidden" name="date_to" value={dateTo} />
+          {source ? <input type="hidden" name="source" value={source} /> : null}
+          {salesChannel ? <input type="hidden" name="sales_channel" value={salesChannel} /> : null}
+          <input type="hidden" name="deferred_view" value={deferredView} />
+
+          <label className="flex min-w-48 flex-col gap-1.5">
+            <span className={ui.label}>Keyword</span>
+            <input name="deferred_q" defaultValue={deferredKeyword} className={ui.input} placeholder="Customer / package / email" />
+          </label>
+
+          <label className="flex min-w-48 flex-col gap-1.5">
+            <span className={ui.label}>Customer</span>
+            <select name="deferred_customer_id" defaultValue={deferredCustomerId} className={ui.select}>
+              <option value="">All</option>
+              {deferredCustomerOptions.map((option) => (
+                <option key={option.id} value={option.id}>{option.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex min-w-48 flex-col gap-1.5">
+            <span className={ui.label}>Package</span>
+            <select name="deferred_package_id" defaultValue={deferredPackageId} className={ui.select}>
+              <option value="">All</option>
+              {deferredPackageOptions.map((option) => (
+                <option key={option.id} value={option.id}>{option.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <button type="submit" className={`${ui.btnPrimarySm} w-full sm:w-auto`}>Apply</button>
+          <a href={`/dashboard/reports?${deferredResetParams.toString()}`} className={`${ui.btnGhost} w-full sm:w-auto`}>Reset</a>
+        </form>
+
+        <div className="mt-4 overflow-x-auto">
+          {deferredView === "customer" ? (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-100 text-left text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
+                  <th className="py-2 pr-4 font-medium">Customer</th>
+                  <th className="py-2 pr-4 font-medium">Packages</th>
+                  <th className="py-2 pr-4 font-medium">Rows</th>
+                  <th className="py-2 pr-4 font-medium">Credits</th>
+                  <th className="py-2 pr-4 font-medium">Deferred value</th>
+                  <th className="py-2 font-medium">Drill</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deferredCustomerRows.map((row) => {
+                  const customerParams = new URLSearchParams(commonReportParams);
+                  customerParams.set("deferred_view", "package");
+                  customerParams.set("deferred_customer_id", row.customer_id);
+                  if (deferredKeyword) customerParams.set("deferred_q", deferredKeyword);
+                  if (deferredPackageId) customerParams.set("deferred_package_id", deferredPackageId);
+
+                  const customerDetailParams = new URLSearchParams();
+                  customerDetailParams.set("studio_id", activeStudioId);
+                  if (locationFilter && locationFilter !== "__unassigned") {
+                    customerDetailParams.set("location_id", locationFilter);
+                  }
+
+                  return (
+                    <tr key={row.customer_id} className="border-b border-stone-100 last:border-b-0 dark:border-stone-800">
+                      <td className="py-2.5 pr-4 text-stone-800 dark:text-stone-200">
+                        <DashboardAppLink href={`/dashboard/clients/${row.customer_id}?${customerDetailParams.toString()}`} className={ui.linkMuted}>
+                          {row.customer_name}
+                        </DashboardAppLink>
+                        {row.customer_email ? <div className={`text-xs ${ui.muted}`}>{row.customer_email}</div> : null}
+                      </td>
+                      <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.package_count}</td>
+                      <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.row_count}</td>
+                      <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.remaining_credits}</td>
+                      <td className="py-2.5 pr-4 tabular-nums font-semibold text-violet-700 dark:text-violet-300">{row.deferred_value.toFixed(2)}</td>
+                      <td className="py-2.5">
+                        <DashboardAppLink href={`/dashboard/reports?${customerParams.toString()}`} className={ui.linkMuted}>
+                          Package details
+                        </DashboardAppLink>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-100 text-left text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
+                  <th className="py-2 pr-4 font-medium">Package</th>
+                  <th className="py-2 pr-4 font-medium">Customers</th>
+                  <th className="py-2 pr-4 font-medium">Rows</th>
+                  <th className="py-2 pr-4 font-medium">Credits</th>
+                  <th className="py-2 pr-4 font-medium">Deferred value</th>
+                  <th className="py-2 font-medium">Drill</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deferredPackageRows.map((row) => {
+                  const packageParams = new URLSearchParams(commonReportParams);
+                  packageParams.set("deferred_view", "customer");
+                  packageParams.set("deferred_package_id", row.package_id);
+                  if (deferredKeyword) packageParams.set("deferred_q", deferredKeyword);
+                  if (deferredCustomerId) packageParams.set("deferred_customer_id", deferredCustomerId);
+
+                  return (
+                    <tr key={row.package_id} className="border-b border-stone-100 last:border-b-0 dark:border-stone-800">
+                      <td className="py-2.5 pr-4 text-stone-800 dark:text-stone-200">
+                        {row.package_name}
+                        <div className={`text-xs ${ui.muted}`}>{row.location_name ?? "Studio-level / unassigned"}</div>
+                      </td>
+                      <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.customer_count}</td>
+                      <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.row_count}</td>
+                      <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.remaining_credits}</td>
+                      <td className="py-2.5 pr-4 tabular-nums font-semibold text-violet-700 dark:text-violet-300">{row.deferred_value.toFixed(2)}</td>
+                      <td className="py-2.5">
+                        <DashboardAppLink href={`/dashboard/reports?${packageParams.toString()}`} className={ui.linkMuted}>
+                          Customer details
+                        </DashboardAppLink>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {deferredRowsFiltered.length > 200 ? (
+            <p className={`mt-3 text-xs ${ui.muted}`}>
+              Showing first 200 grouped rows. Export CSV for full filtered results.
+            </p>
+          ) : null}
+          {!deferredRowsFiltered.length ? (
+            <p className={`mt-3 text-sm ${ui.muted}`}>No deferred rows matched your current filters.</p>
+          ) : null}
         </div>
       </div>
 

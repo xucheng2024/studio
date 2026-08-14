@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { applyExportCap, buildExportCapHeaders, resolveExportCap } from "@/lib/export-cap";
 import { paymentOrderType, paymentSalesChannel } from "@/lib/payment-classification";
 import { buildAccessContext, filterStudioIdsByRoles, hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -88,6 +89,7 @@ export async function GET(req: Request) {
   const to = dateToParam
     ? dayRangeEndExclusiveIso(dateToParam)
     : fallbackTo.toISOString();
+  const { exportCap } = resolveExportCap("csv");
   const keyword = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
   const supabase = await createClient();
@@ -140,7 +142,7 @@ export async function GET(req: Request) {
     )
     .in("studio_id", studioId ? [studioId] : studioIds)
     .order("created_at", { ascending: false })
-    .limit(5000); // Hard cap: export larger datasets via date-range pagination
+    .limit(exportCap + 1); // Keep +1 row for reliable cap detection.
   if (effectiveLocationFilter === "__unassigned") q = q.is("location_id", null);
   else if (effectiveLocationFilter) q = q.eq("location_id", effectiveLocationFilter);
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
@@ -271,7 +273,8 @@ export async function GET(req: Request) {
     "operator_email",
     "recon_note",
   ];
-  const csvRows = rows.map((p) => {
+  const capped = applyExportCap(rows, exportCap);
+  const csvRows = capped.rows.map((p) => {
     const expected = Number(p.amount ?? 0);
     const paid = Number(p.paid_amount ?? expected);
     const operatorEmail = p.verified_by ? (userEmailMap.get(p.verified_by) ?? p.verified_by) : "";
@@ -335,14 +338,12 @@ export async function GET(req: Request) {
       p.recon_note ?? "",
     ];
   });
-  const EXPORT_CAP = 5000;
-  const wasCapped = (payments ?? []).length >= EXPORT_CAP;
   // Warning goes at the END so that the header row always stays on line 1.
   // BI tools and accounting software treat the first row as column names;
   // prepending a comment row would shift all fields by one column.
   // The x-export-capped response header already signals truncation to API callers.
-  const capWarningRow = wasCapped
-    ? [["# WARNING: export capped at 5000 rows — narrow the date range for a complete export"]]
+  const capWarningRow = capped.wasCapped
+    ? [[`# WARNING: export capped at ${capped.exportCap} rows — narrow the date range for a complete export`]]
     : [];
 
   const csv = [headers, ...csvRows, ...capWarningRow].map((r) => r.map(csvEscape).join(",")).join("\n");
@@ -354,8 +355,11 @@ export async function GET(req: Request) {
     headers: {
       "content-type": "text/csv; charset=utf-8",
       "content-disposition": `attachment; filename="payments-${dateLabel}.csv"`,
-      "x-export-row-count": String(rows.length),
-      "x-export-capped": String(wasCapped),
+      ...buildExportCapHeaders({
+        wasCapped: capped.wasCapped,
+        exportCap: capped.exportCap,
+        rowCount: csvRows.length,
+      }),
     },
   });
 }
