@@ -187,3 +187,71 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
   - 不假设第一阶段已包含 Package 扣减。
   - 不假设第一阶段已包含订金/全款支付链路。
   - 不假设 Guest 可匿名自助预约。
+
+## 11. 2026-08-14 Phase 2 实施（Package Credits / 在线订金 / 在线全款）
+
+状态：已实现/待验证（不等于已上线）
+
+### 11.1 本轮新增能力
+
+- 客户自助预约新增支付方式选择：
+  - `free`（兼容 Phase 1）
+  - `package_credit`
+  - `online_deposit`（30%）
+  - `online_full`
+- 新增预约级结算主记录 `salon_appointment_settlements`，支付重试沿用既有 `payments` 事实，不引入第二套支付事实。
+- `required_amount/currency` 仅由服务端 `salon_appointments` 价格快照计算，不信任客户端金额。
+- Package 扣减写入 `client_package_ledger_entries(event_type=consume, source_type=salon_appointment)`，并与预约/结算可追溯关联。
+- 预约取消后 Package 返还通过数据库触发器在同一事务执行：`cancel_return`，避免依赖前端补偿调用。
+- 在线支付仅在可信支付闭环（`complete_pos_hitpay_sale` + payment/source 链路）后落 `paid` 结算状态。
+
+### 11.2 数据与安全设计（新增 migration）
+
+- `supabase/migrations/20260814220000_apt04_phase2_self_booking_settlement.sql`
+  - 新表：`salon_appointment_settlements`
+  - 引用校验：`appointment/location/customer/payment/sale/package/ledger` 全链路一致性
+  - 状态机：`pending_payment -> {deposit_paid|fully_paid|payment_failed|payment_expired|payment_cancelled}`
+  - 终态保护：禁止 terminal 直接跳 `paid`
+  - RPC：
+    - `apt04_upsert_appointment_settlement`
+    - `pkg01_apply_appointment_package_consume`
+    - `pkg01_apply_appointment_cancel_return`
+    - `apt04_mark_settlement_paid`
+    - `apt04_mark_settlement_terminal`
+  - 触发器：
+    - `apt04_on_payment_status_sync_settlement_trg`
+    - `apt04_on_appointment_cancel_return_package_trg`
+
+### 11.3 应用层改动
+
+- `src/lib/salon-appointments-self.ts`
+  - 支持 `settlementOption` 四种路径。
+  - 在线订金/全款由服务端创建 `pos_sales`/`pos_sale_items`/`payments`，再创建 HitPay Payment Request。
+  - 在线支付请求创建失败时，立即取消刚创建的预约（`payment_request_create_failed`），避免长期占槽。
+  - Package 资格规则（本阶段保守）：同 studio + 位置匹配（package.location_id 为 null 或等于预约位置）+ package active + 未过期 + `credits_left > 0`。
+- `src/app/[studioSlug]/appointments/page.tsx`
+  - 新增支付方式选择 UI 与错误反馈。
+  - 新增可用 Package Credits 提示。
+  - Online 路径创建成功后跳转 `/[studioSlug]/checkout/[payment_id]`。
+- `src/app/me/_shared/appointments-page.tsx`
+  - 显示预约结算模式/状态与金额信息。
+- `src/app/api/payment/hitpay/sync/route.ts`
+  - POS 来源且 HitPay paid-like 时，走 `completePosHitpaySale`（可信支付完成链路）。
+
+### 11.4 测试与门禁（本轮实际执行）
+
+- `npm run test:apt04-app`
+- `npm run test:apt04-db`
+- `npm run test:apt02-idempotency-faults`
+- `npm run test:pkg01-db`
+- `npm run test:pos03-db`
+- `npm run test:hitpay-merchant-mode`
+- `npm run lint`
+- `npx tsc --noEmit`
+- `npm run build`
+
+### 11.5 仍待验证 / 未关闭风险
+
+- Deposit 仅表示订金已付，非全额结清；后续仍需在履约/收银页面补“欠款可视化与补收”完整操作链路。
+- 当前无 service 级 package 适用关系模型；本轮已在 UI 与服务端统一保守规则并显式文案提示，后续需补正式 `package-service` 映射表再升级资格判断。
+- 生产真实 HitPay Sandbox 与浏览器点击流证据需按发布流程补齐后，方可从“已实现/待验证”提升。

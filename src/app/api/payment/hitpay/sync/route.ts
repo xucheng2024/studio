@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getHitpayPaymentRequest } from "@/lib/hitpay";
 import { applyHitpayPaymentRequestStatus } from "@/lib/hitpayApplyPaymentRequestStatus";
+import { completePosHitpaySale } from "@/lib/pos-sales";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { requireStaffScope } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: payment, error } = await admin
     .from("payments")
-    .select("id, status, studio_id, location_id, client_id, booking_id, event_booking_id, gateway_payment_id, studios(owner_id, public_slug)")
+    .select("id, status, studio_id, location_id, client_id, booking_id, event_booking_id, gateway_payment_id, source, pos_sale_id, studios(owner_id, public_slug)")
     .eq("id", parsed.data.payment_id)
     .maybeSingle();
 
@@ -104,19 +105,39 @@ export async function POST(req: Request) {
     hitpay: hitpay.payload,
   });
 
-  await applyHitpayPaymentRequestStatus(
-    admin,
-    {
-      id: payment.id,
-      studio_id: payment.studio_id,
-      booking_id: payment.booking_id,
-      event_booking_id: (payment as { event_booking_id?: string | null }).event_booking_id,
-    },
-    studio,
-    hitpay.status,
-    gatewayPayload,
-    providerPaymentId,
-  );
+  const paidLike = hitpay.status === "completed" || hitpay.status === "succeeded" || hitpay.status === "paid";
+  const isPosPayment = (payment as { source?: string | null }).source === "pos_sale"
+    && Boolean((payment as { pos_sale_id?: string | null }).pos_sale_id);
+
+  if (isPosPayment && paidLike) {
+    const result = await completePosHitpaySale({
+      studioId: payment.studio_id,
+      paymentId: payment.id,
+      saleId: (payment as { pos_sale_id?: string | null }).pos_sale_id ?? null,
+      providerEventId: null,
+      providerPaymentId,
+      providerStatus: hitpay.status,
+      gatewayPayload,
+      verifiedBy: studio?.owner_id ?? null,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: "complete_pos_hitpay_sale_failed", detail: `${result.code}:${result.message}` }, { status: 409 });
+    }
+  } else {
+    await applyHitpayPaymentRequestStatus(
+      admin,
+      {
+        id: payment.id,
+        studio_id: payment.studio_id,
+        booking_id: payment.booking_id,
+        event_booking_id: (payment as { event_booking_id?: string | null }).event_booking_id,
+      },
+      studio,
+      hitpay.status,
+      gatewayPayload,
+      providerPaymentId,
+    );
+  }
 
   const { data: refreshed } = await admin.from("payments").select("status").eq("id", payment.id).maybeSingle();
 

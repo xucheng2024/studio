@@ -201,6 +201,25 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
     );
   }
 
+  const appointmentIds = result.payload.appointments.map((row) => row.id);
+  const admin = createAdminClient();
+  const { data: settlementRows } = appointmentIds.length > 0
+    ? await admin
+        .from("salon_appointment_settlements")
+        .select("appointment_id, settlement_mode, status, required_amount, paid_amount, currency, payment_id")
+        .eq("studio_id", studioId)
+        .in("appointment_id", appointmentIds)
+    : { data: [] as Array<{
+        appointment_id: string;
+        settlement_mode: string;
+        status: string;
+        required_amount: number;
+        paid_amount: number;
+        currency: string;
+        payment_id: string | null;
+      }> };
+  const settlementByAppointmentId = new Map((settlementRows ?? []).map((row) => [row.appointment_id, row]));
+
   const myAppointmentsPath = getScopedPath(studioSlug || null, "appointments");
 
   async function cancelAction(formData: FormData) {
@@ -287,7 +306,6 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
 
   const studioLookup = new Map<string, { public_slug: string | null }>();
   {
-    const admin = createAdminClient();
     const { data } = await admin
       .from("studios")
       .select("id, public_slug")
@@ -325,6 +343,7 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
             {result.payload.appointments.map((appointment) => {
               const canReschedule = ["pending", "confirmed"].includes(appointment.status);
               const canCancel = ["pending", "confirmed", "checked_in"].includes(appointment.status);
+              const settlement = settlementByAppointmentId.get(appointment.id);
               return (
                 <li key={appointment.id} className={ui.card}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -338,6 +357,16 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
                       {appointment.status.replaceAll("_", " ")}
                     </span>
                   </div>
+
+                  {settlement ? (
+                    <p className={`mt-2 text-xs ${ui.muted}`}>
+                      Settlement: {settlement.settlement_mode.replaceAll("_", " ")} · {settlement.status.replaceAll("_", " ")}
+                      {settlement.required_amount > 0
+                        ? ` · ${settlement.paid_amount}/${settlement.required_amount} ${settlement.currency}`
+                        : ""}
+                      {settlement.payment_id ? ` · payment ${settlement.payment_id.slice(0, 8)}` : ""}
+                    </p>
+                  ) : null}
 
                   {canReschedule ? (
                     <form action={rescheduleAction} className="mt-3 grid gap-2 sm:grid-cols-4">

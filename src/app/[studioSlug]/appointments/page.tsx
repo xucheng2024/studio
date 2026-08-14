@@ -7,6 +7,7 @@ import {
   getLatestSalonTermsVersion,
   listSelfBookableCatalog,
   listSelfBookableSlots,
+  listSelfEligiblePackageCredits,
   resolveSelfSalonCustomer,
 } from "@/lib/salon-appointments-self";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -40,6 +41,10 @@ function messageFromStatus(ok: string | undefined, error: string | undefined) {
     invalid_request: "Request is invalid. Please refresh and retry.",
     idempotency_in_progress: "A similar request is processing. Try again shortly.",
     idempotency_conflict: "Duplicate request mismatch detected. Please retry.",
+    insufficient_credits: "No eligible package credits are available for this location.",
+    package_not_eligible: "Package credits are not eligible for this appointment.",
+    payment_create_failed: "Could not create online payment request. Please try again.",
+    payment_config_missing: "Studio online payment is not configured.",
   };
   return { tone: "error" as const, text: map[error] ?? `Booking failed (${error}).` };
 }
@@ -109,6 +114,14 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     : null;
 
   const termsVersion = await getLatestSalonTermsVersion({ studioId: studio.id });
+  const packageCredits =
+    selfCustomer.ok && selectedLocationId
+      ? await listSelfEligiblePackageCredits({
+          studioId,
+          userId: user.id,
+          locationId: selectedLocationId,
+        })
+      : null;
   const notice = messageFromStatus(sp.ok, sp.error);
   const availableSlots = slotResult?.ok ? slotResult.payload.slots : [];
   const termsSummary = summarizeTermsSnapshot(termsVersion?.content_snapshot ?? null);
@@ -131,6 +144,12 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || crypto.randomUUID();
     const accepted = String(formData.get("terms_accepted") ?? "") === "on";
     const termsVersionId = String(formData.get("terms_version_id") ?? "").trim();
+    const paymentOptionRaw = String(formData.get("payment_option") ?? "free").trim();
+    const paymentOption = paymentOptionRaw === "package_credit"
+      || paymentOptionRaw === "online_deposit"
+      || paymentOptionRaw === "online_full"
+      ? paymentOptionRaw
+      : "free";
     const resourceIdsRaw = String(formData.get("resource_ids") ?? "").trim();
     const resourceIds = resourceIdsRaw
       .split(",")
@@ -157,6 +176,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
 
     const actionResult = await createSelfAppointment({
       userId: actionUser.id,
+      studioSlug: studioSlug || studio!.public_slug,
       studioId,
       locationId,
       serviceId,
@@ -164,6 +184,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
       startsAtIso: slotStartsAtIso,
       resourceIds,
       termsVersionId,
+      settlementOption: paymentOption,
       idempotencyKey,
     });
 
@@ -172,6 +193,9 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     }
 
     revalidatePath(`/${studioSlug}/me/appointments`);
+    if (actionResult.payload.paymentId) {
+      redirect(`/${studioSlug}/checkout/${actionResult.payload.paymentId}`);
+    }
     redirect(`/${studioSlug}/me/appointments?ok=booked`);
   }
 
@@ -278,6 +302,28 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                             value={`apt04-self-create:${crypto.randomUUID()}`}
                           />
                           <input type="hidden" name="terms_version_id" value={termsVersion.id} />
+
+                          <label className="sm:col-span-2 text-xs font-medium text-stone-700 dark:text-stone-200">
+                            Payment option
+                          </label>
+                          <select name="payment_option" className={`${ui.input} sm:col-span-2`} defaultValue="free" required>
+                            <option value="free">No prepayment (Phase 1 compatible)</option>
+                            <option value="package_credit" disabled={!packageCredits?.ok || !packageCredits.payload.packages.length}>
+                              Use package credits {!packageCredits?.ok || !packageCredits.payload.packages.length ? "(not eligible)" : ""}
+                            </option>
+                            <option value="online_deposit">Online deposit (30%)</option>
+                            <option value="online_full">Online full payment</option>
+                          </select>
+
+                          {packageCredits?.ok && packageCredits.payload.packages.length ? (
+                            <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
+                              Eligible package credits: {packageCredits.payload.packages.map((pkg) => `${pkg.packageName} (${pkg.creditsLeft})`).join(", ")}
+                            </p>
+                          ) : (
+                            <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
+                              Package rule (conservative): same studio + location scope + active package + unexpired + credits &gt; 0.
+                            </p>
+                          )}
 
                           <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
                             <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
