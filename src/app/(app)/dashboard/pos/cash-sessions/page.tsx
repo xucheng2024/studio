@@ -189,7 +189,7 @@ export default async function PosCashSessionsPage({ searchParams }: Props) {
             <input
               type="hidden"
               name="idempotency_key"
-              value={`pos-cash-session-open:${activeStudioId}:${defaultOpenLocationId}:${Date.now()}`}
+              value={`pos-cash-session-open:${activeStudioId}:${defaultOpenLocationId}:${crypto.randomUUID()}`}
             />
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Location</span>

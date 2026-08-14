@@ -41,13 +41,13 @@
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
 | Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
 | Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
-| Phase 2 | PKG-01 Package Ledger | 已实现/待验证 | FND-02、FND-03、FND-04、POS-01 | Ledger、opening balance、POS 发放/退款回冲、deferred value 与 DB 验证已落地；补目标环境 migration、角色矩阵、历史余额对账和 UAT 后再升为已验证 |
-| Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | Cash 原子收款、receipt number 与 DB 验证已落地；补找零/收据业务验收、目标环境 migration 与浏览器 UAT |
-| Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | HitPay 创建、Webhook、主动同步、失败看板及 DB 验证已落地；补真实 Sandbox/目标环境支付、签名重放和异常恢复 UAT |
-| Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | 部分退款回冲、Guest 延迟发放、maker-checker、运营检查与 DB 验证已落地；补目标环境角色/并发/UAT 和告警演练证据 |
+| Phase 2 | PKG-01 Package Ledger | 已实现/待验证 | FND-02、FND-03、FND-04、POS-01 | 目标 migration 已对齐；2 条历史正余额已完成 opening Ledger 回填且只读预检通过。待部署本轮门禁修复，并补专用事务点击流后升为已验证 |
+| Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色/390px 浏览器 Gate 已通过；待专用 UAT fixture 完成现金收款、找零和收据点击流 |
+| Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色浏览器 Gate 已通过；隔离 UAT Studio 缺 Sandbox merchant key/webhook salt，真实支付、签名重放、主动同步与异常恢复仍阻塞 |
+| Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
 | Phase 2 | APT-04 Self Booking | 未开始 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 可先开发登录/实时档期/本人改期取消，最终接入 Package、订金和全款 |
 | Phase 2 | COM-01 Commission | 未开始 | POS-02、POS-03、CRM-02 | 等待依赖 |
-| Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | 先修复全量 ESLint 门禁并补统一 `test:pos04-db` runner，再执行目标环境 migration、门店 UAT；COM-01 完成后补佣金反向事实联合 Gate |
+| Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
 | Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 等待依赖 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
@@ -87,11 +87,11 @@
 
 ## 当前建议领取顺序
 
-1. 先恢复发布门禁：修复 Cash Session 页面 `Date.now()` 导致的 ESLint 失败，补统一 `test:pos04-db` runner，并同步 POS/PKG 任务文档中的 Commit 与验证记录。
-2. 对 Phase 2 已实现链路做一次目标环境联合验收：POS-02 Cash、POS-03 HitPay、POS-04 Refund/Cash Session、PKG-01 Ledger、PKG-02 Approval；保存 migration、角色矩阵、幂等重放、浏览器 UAT 和回滚证据。
-3. 联合验收通过后领取 COM-01，建立唯一佣金事实及退款反向 Entry；这是 POS-04 最终 Gate、Payroll 和 Reporting 的关键路径。
-4. APT-04 保持“先可用后结算”策略：可同步推进登录/档期/本人预约流，最终联调 PKG-01 credits 与 POS-03 订金/全款 Gate。
-5. 在进入 Phase 3 前补齐 Phase 1 证据缺口：`CRM01_E2E_STUDIO_ID` 预检、APT-01/APT-03 的 390px 浏览器证据，并安排已验证任务的生产发布窗口。
+1. Commit、Push 并部署本轮 lint/runner/目标预检变更；部署后重跑 smoke 和只读目标预检。
+2. 为隔离 UAT Studio 配置 HitPay Sandbox merchant key/webhook salt，完成 POS-03 真实支付 Gate；不得使用真实商户生产配置制造测试支付。
+3. 在独立 Staging/UAT Project（或经业务批准的专用 Production fixture）补 Cash/Receipt、Refund/Cash Session、Package Approval 的事务点击流。
+4. 领取 COM-01，建立唯一佣金事实及退款反向 Entry；这是 POS-04 最终 Gate、Payroll 和 Reporting 的关键路径。
+5. APT-04 保持“先可用后结算”策略，并在进入 Phase 3 前补齐 Phase 1 证据缺口。
 
 ## 2026-08-14 状态更新（POS-04 Batch 3）
 
@@ -106,3 +106,10 @@
 - POS-02/POS-03 的核心实现与 DB 验证已通过，原“开发中”状态已校正；真实 HitPay/Cash 浏览器 UAT 与目标环境证据仍未补齐。
 - POS-04 虽已完成三个开发批次，但当前全量 ESLint 因 `dashboard/pos/cash-sessions/page.tsx` 渲染期调用 `Date.now()` 失败，且 `package.json` 缺少统一 `test:pos04-db` 入口，因此从“已验证/待上线”校正为“已实现/待验证”。
 - 本次复核通过：`next build`、`npx tsc --noEmit`、PKG-01 DB、PKG-02 DB、POS-02 DB、POS-03 DB、Exports/APT-03/CRM-01/CRM-02 应用契约测试。PKG-02 首次紧接 PKG-01 执行时遇到临时 Postgres 连接退出，独立重跑通过；不计为产品失败，但后续应让 DB runner 具备可靠的连续执行能力。
+
+## 2026-08-14 POS / Package 联合验收更新
+
+- 已修复 Cash Session render 期 `Date.now()` ESLint 失败，新增 `test:pos04-db`，并统一 POS-02/03/04、PKG-01/02 runner 的 PostgreSQL 最终就绪判断；连续执行稳定通过。
+- 远端 migration 全量对齐；PKG-01 opening balance dry-run 后正式回填 2 条，冲突为 0，回填后目标只读预检通过。
+- Production 浏览器权限矩阵覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor；POS、Cash Session、Package Approval 允许/拒绝符合预期，Owner 390px 回归通过。
+- 真实 HitPay Sandbox 与事务点击流仍按验收报告中的 Gate 保留。完整证据见 [POS / Package 联合验收](./releases/2026-08-14-pos-pkg-joint-acceptance.md)。

@@ -1,6 +1,6 @@
 # POS-04：退款 / 作废 / 日结（Batch 1 + Batch 2 + Batch 3）
 
-状态：已实现/待验证（Batch 1/2/3 已落地；待恢复全量 Lint 门禁并补统一 DB runner）
+状态：已实现/待验证（Batch 1/2/3 已落地；Lint 与统一 DB runner 已恢复，待事务 UAT 与 COM-01 联合 Gate）
 
 负责人：Codex
 
