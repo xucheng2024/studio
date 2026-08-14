@@ -46,7 +46,7 @@
 | Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色浏览器 Gate 已通过；隔离 UAT Studio 缺 Sandbox merchant key/webhook salt，真实支付、签名重放、主动同步与异常恢复仍阻塞 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
 | Phase 2 | APT-04 Self Booking | 未开始 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 可先开发登录/实时档期/本人改期取消，最终接入 Package、订金和全款 |
-| Phase 2 | COM-01 Commission | 已实现/待验证 | POS-02、POS-03、CRM-02 | COM-01 migration、独立 PostgreSQL 15 runner、`test:com01-db`、`lint`、`tsc`、`build` 已通过；待目标 UAT 浏览器点击流与目标环境 migration 验证后可升为“已验证/待上线” |
+| Phase 2 | COM-01 Commission | 已实现/待验证 | POS-02、POS-03、CRM-02 | DB Gate 已闭环：COM-01 migration + 修复 migration、独立 PostgreSQL 15 runner、`test:com01-db`（含 HitPay/Cash 并发与先做后付回归）、本地 Supabase 事务 UAT SQL Gate 均通过；当前仍保持“已实现/待验证”，浏览器点击流证据无效（截图为 Loading/Skeleton，缺少操作断言）需修复后复验 |
 | Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
 | Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 等待依赖 |
@@ -95,9 +95,11 @@
 ## 2026-08-14 状态更新（COM-01）
 
 - COM-01 已实现数据库主链路：佣金规则版本、earned/reversal append-only 分录、walk-in `fulfilled_at` 审计证据、唯一来源与退款检查点去重。
-- 已新增并通过独立 DB runner：`npm run test:com01-db`（覆盖先付后做、先做后付、未完成/未付款不入账、重放幂等、越权拒绝、部分+全额退款反向 Entry）。
+- 已新增并通过独立 DB runner：`npm run test:com01-db`（覆盖先付后做、先做后付、未完成/未付款不入账、重放幂等、越权拒绝、部分+全额退款反向 Entry、HitPay/Cash 并发竞争、无 payment 先 fulfill 后支付回归）。
+- 本地 Supabase 事务 UAT 已通过：四类顺序、退款反向、幂等与越权 SQL Gate 均通过（`RUN_ID=COM01-UAT-LOCAL-20260814-155653`）。
 - 本地代码门禁通过：`npm run lint`、`npx tsc --noEmit`、`npm run build`。
-- COM-01 当前仍标记“已实现/待验证”：尚未在目标 UAT 执行浏览器端角色矩阵与完整业务点击流；未执行 production 数据写入测试。
+- COM-01 DB Gate 结论：已闭环，无新增阻断。
+- COM-01 当前仍标记“已实现/待验证”：浏览器 UAT 点击流证据无效（16 张截图为 Loading/Skeleton，脚本缺少业务点击与结果断言，before/after 非真实时序）；待修复角色登录与页面稳定等待后复验。
 
 ## 2026-08-14 状态更新（POS-04 Batch 3）
 

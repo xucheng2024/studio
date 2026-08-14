@@ -1,6 +1,6 @@
 # COM-01：佣金规则和入账
 
-状态：已实现/待验证（P1/P2 修复已完成）
+状态：已实现/待验证（DB Gate 已闭环，待 UAT）
 
 负责人：Codex
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-14
 
-Commit / Release：`9aab9ef`、本次 P1/P2 修复独立 commit（未 push / 未部署）
+Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`5feac84`（均为本地独立 commit，未 push / 未部署）
 
 ## 1. 目标
 
@@ -115,7 +115,10 @@ Commit / Release：`9aab9ef`、本次 P1/P2 修复独立 commit（未 push / 未
 ### 修改文件
 
 - `supabase/migrations/20260814100000_com01_commission_foundation.sql`
+- `supabase/migrations/20260814110000_com01_fixes_p1_p2.sql`
+- `supabase/migrations/20260814114000_pos03_hitpay_lock_order_align.sql`
 - `scripts/sql/verify_com01_commission.sql`
+- `scripts/sql/verify_com01_concurrency_setup.sql`
 - `scripts/verify-com01-db.sh`
 - `scripts/sql/com01_verify_patch_schema.sql`
 - `scripts/sql/com01_payments_refund_patch.sql`
@@ -145,15 +148,28 @@ Commit / Release：`9aab9ef`、本次 P1/P2 修复独立 commit（未 push / 未
 
 ### 验证结果
 
-- `npm run test:com01-db`：通过（`com01_commission_ok`），含 migration 复跑、双连接并发（付款 vs walk-in fulfill）
+- `npm run test:com01-db`：通过（`com01_commission_ok`），含 migration 复跑、双连接并发（HitPay vs fulfill、Cash vs fulfill）
+- `npm run test:com01-db`：复审复跑再次通过（DB Gate 闭环）
+- 本地 Supabase 事务 UAT：通过（四类顺序、退款反向、幂等重放、越权 SQL Gate 均通过；`RUN_ID=COM01-UAT-LOCAL-20260814-155653`，证据位于 `tmp/com01-uat/COM01-UAT-LOCAL-20260814-155653/`）
+- 浏览器 UAT：未通过（现有 16 张截图为 Loading/Skeleton 页面，脚本未执行业务点击与结果断言，before/after 截图并非真实时序证据）
 - `npm run lint`：通过
 - `npx tsc --noEmit`：通过
 - `npm run build`：通过（Next.js 16.2.4）
+
+### 修复与回归证据（P1/P2）
+
+- 员工/服务一致性闭环：Appointment 与 POS item 强一致校验，拒绝错误员工/服务入账。
+- 锁序统一闭环：统一为 `sale -> payment -> item`，并新增 HitPay 覆盖 migration 做加锁后关联重校验。
+- 规则版本闭环：规则版本唯一与生效区间冲突约束启用，避免同 scope/version 或时间窗歧义。
+- 完成时间闭环：Appointment 规则解析基于 `max(paid_at, completed_at)`，避免预付取旧规则。
+- 安全闭环：`com01_get_appointment_completed_at` 已 revoke public/anon/authenticated，仅 `service_role` 可执行。
+- 先做后付回归闭环：新增“无 payment -> fulfill -> 创建并支付 -> 仅一条 earned”测试场景。
 
 ### 未解决风险
 
 - 规则缺失策略当前为“跳过入账（rule_not_found）但不阻断 POS Paid 主流程”；上线前需确认是否改为强阻断或补偿队列。
 - 本轮未执行生产/目标环境浏览器点击流，仅完成隔离 PostgreSQL 15 runner 与本地门禁。
+- 本地浏览器验收证据当前无效：角色登录与页面稳定等待策略需修复后重跑，才能作为 UAT 证据。
 - 佣金基数当前按 `pos_sale_items.total_amount`（含折扣/税后总额）计算；若业务需改为税前或净额，需在 COM-01.1 明确。
 
 ## 10. 后续任务接口
