@@ -1,6 +1,6 @@
 # POS-04：退款 / 作废 / 日结（Batch 1 + Batch 2 + Batch 3）
 
-状态：已完成（Batch 1/2/3 已落地，进入发布验证）
+状态：已实现/待验证（Batch 1/2/3 已落地；待恢复全量 Lint 门禁并补统一 DB runner）
 
 负责人：Codex
 

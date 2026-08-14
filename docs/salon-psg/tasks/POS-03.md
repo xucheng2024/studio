@@ -1,10 +1,12 @@
 # POS-03：HitPay 在线支付闭环（Batch 1 + Batch 2）
 
-状态：进行中（Batch 2 开发中）
+状态：已实现/待目标环境验证（Batch 1/2 已落地）
 
 负责人：Codex
 
 开始日期：2026-08-13
+
+Commit / Release：`8c402c3`、`1c0704f`；未上线
 
 ## 1. 目标
 

@@ -1,10 +1,14 @@
-# PKG-02：套餐调整审批与部分退款回冲（准备稿）
+# PKG-02：套餐调整审批与部分退款回冲
+
+状态：已实现/待目标环境验证
+
+Commit / Release：`f18bb4c`、`02d4aee`、`9283eb6`、`30f652c`、`bf80d06`、`cf3291f`、`09f9fb1`；未上线
 
 ## 1. 背景与目标
 
 `PKG-01` 已完成最小闭环：Paid 发放 `purchase_grant`，退款时写入 `refund_reversal`。
 
-当前已知缺口：`package` 退款仅支持“整行全退后一次性回冲”，不支持部分退款按比例回冲。
+本任务启动时的已知缺口是：`package` 退款仅支持“整行全退后一次性回冲”，不支持部分退款按比例回冲；该缺口现已由本任务 Migration 与验证脚本关闭。
 
 在现有实现中，`public.pkg01_apply_sale_package_refund_reversals(...)` 有以下硬限制（见 `supabase/migrations/20260814002000_pkg01_pos_package_grant_refund_linkage.sql`）：
 

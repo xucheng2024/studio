@@ -22,7 +22,7 @@
 | FND-01 | 已上线 | 已存在 `employees`、`employee_locations`、迁移冲突表、Studio 一致性约束、唯一用户/Instructor 关联、单一主要门店、RLS/RPC 和 `src/lib/employees.ts` | `522ef18` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。 |
 | FND-02 | 已上线 | 已存在 `salon_customers`、迁移冲突、Merge Audit、Studio 引用校验、Guest Link/Merge RPC、RLS 和 `src/lib/salon-customers.ts` | `6ba056e` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。健康资料仍属于 CRM-01。 |
 | FND-03 | 已上线 | 已存在 `service_locations` Migration 和 `src/lib/service-locations.ts`，包含发布范围、停用、覆盖值、审计及权限入口 | `6c40e3d`，`main` / `origin/main` | Migration 已返回 `service_location_rows_created: 47`。总部默认时长/缓冲由 APT-01 在建立 Salon Availability 契约时补充，不回退 FND-03。 |
-| FND-04 | 已实现/待验证 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | 未提交 | 未 Commit/Push。验证使用独立最小 Postgres 沙盒完成（详见 [FND-04](./tasks/FND-04.md)），因既有 `051_member_profile_notes.sql` 的 `\restrict` 语法及 `auth` Schema 权限问题（与本任务无关）暂无法从空库完整重放历史；`operation_audits` 未做 Schema 变更或回填，仅在任务文件中给出未解决 Legacy 记录的报告查询。 |
+| FND-04 | 已实现/待验证 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | `75caa06`，已进入 `main` | 验证使用独立最小 Postgres 沙盒完成（详见 [FND-04](./tasks/FND-04.md)），因既有 `051_member_profile_notes.sql` 的 `\restrict` 语法及 `auth` Schema 权限问题（与本任务无关）暂无法从空库完整重放历史；`operation_audits` 未做 Schema 变更或回填，仅在任务文件中给出未解决 Legacy 记录的报告查询。 |
 
 详细记录见 [FND-01](./tasks/FND-01.md)、[FND-02](./tasks/FND-02.md)、[FND-03](./tasks/FND-03.md)、[FND-04](./tasks/FND-04.md)、[APT-02](./tasks/APT-02.md)。
 
@@ -41,13 +41,13 @@
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
 | Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
 | Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
-| Phase 2 | PKG-01 Package Ledger | 未开始 | FND-02、FND-03、FND-04、POS-01 | 保留现有 Class Pass、公开购买和余额；迁移 opening balance，补 Salon Service/Location、Ledger、强审计和 deferred value |
-| Phase 2 | POS-02 Cash/Receipt | 进行中（Batch 1 开发中） | POS-01 | 补齐任务文档与实施状态一致的验证证据，完成发布前回归后转为已验证/待上线 |
-| Phase 2 | POS-03 HitPay | 进行中（Batch 2 开发中） | POS-01 | 继续 Batch 2 收口并补齐联合验收（含 Package Paid 发放 Gate） |
-| Phase 2 | PKG-02 Package Approval | 未开始 | PKG-01 | 等待依赖 |
+| Phase 2 | PKG-01 Package Ledger | 已实现/待验证 | FND-02、FND-03、FND-04、POS-01 | Ledger、opening balance、POS 发放/退款回冲、deferred value 与 DB 验证已落地；补目标环境 migration、角色矩阵、历史余额对账和 UAT 后再升为已验证 |
+| Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | Cash 原子收款、receipt number 与 DB 验证已落地；补找零/收据业务验收、目标环境 migration 与浏览器 UAT |
+| Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | HitPay 创建、Webhook、主动同步、失败看板及 DB 验证已落地；补真实 Sandbox/目标环境支付、签名重放和异常恢复 UAT |
+| Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | 部分退款回冲、Guest 延迟发放、maker-checker、运营检查与 DB 验证已落地；补目标环境角色/并发/UAT 和告警演练证据 |
 | Phase 2 | APT-04 Self Booking | 未开始 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 可先开发登录/实时档期/本人改期取消，最终接入 Package、订金和全款 |
 | Phase 2 | COM-01 Commission | 未开始 | POS-02、POS-03、CRM-02 | 等待依赖 |
-| Phase 2 | POS-04 Refund/Void/Close | 已验证/待上线（Batch 1/2/3 已完成） | COM-01、PKG-01 | 进入发布验证：执行目标环境 migration、完成门店 UAT 与上线窗口回归；后续与 COM-01/PKG-01 对齐反向事实 |
+| Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | 先修复全量 ESLint 门禁并补统一 `test:pos04-db` runner，再执行目标环境 migration、门店 UAT；COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
 | Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 等待依赖 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
@@ -87,13 +87,22 @@
 
 ## 当前建议领取顺序
 
-1. 先做 POS-04 发布验证收口：目标环境 migration 执行记录、门店 UAT、回归证据归档（Payments/POS/Cash Session/Runbook）。
-2. 并行补 Phase 1 证据缺口：`CRM01_E2E_STUDIO_ID` 预检、APT-01/APT-03 的 390px 浏览器证据。
-3. 按 Phase 2 主路径推进 PKG-01（当前关键未完成依赖），随后衔接 COM-01、PKG-02。
-4. APT-04 保持“先可用后结算”策略：先推进登录/档期/本人预约流，最终联调 PKG-01 credits 与 POS-03 订金/全款 Gate。
+1. 先恢复发布门禁：修复 Cash Session 页面 `Date.now()` 导致的 ESLint 失败，补统一 `test:pos04-db` runner，并同步 POS/PKG 任务文档中的 Commit 与验证记录。
+2. 对 Phase 2 已实现链路做一次目标环境联合验收：POS-02 Cash、POS-03 HitPay、POS-04 Refund/Cash Session、PKG-01 Ledger、PKG-02 Approval；保存 migration、角色矩阵、幂等重放、浏览器 UAT 和回滚证据。
+3. 联合验收通过后领取 COM-01，建立唯一佣金事实及退款反向 Entry；这是 POS-04 最终 Gate、Payroll 和 Reporting 的关键路径。
+4. APT-04 保持“先可用后结算”策略：可同步推进登录/档期/本人预约流，最终联调 PKG-01 credits 与 POS-03 订金/全款 Gate。
+5. 在进入 Phase 3 前补齐 Phase 1 证据缺口：`CRM01_E2E_STUDIO_ID` 预检、APT-01/APT-03 的 390px 浏览器证据，并安排已验证任务的生产发布窗口。
 
 ## 2026-08-14 状态更新（POS-04 Batch 3）
 
 - POS-04 已完成 Batch 1/2/3 代码与验证闭环，新增 cash session migration、DB 验证脚本、Payments 联动筛选、POS/Payments 顶部班次状态提示与 Runbook SOP。
 - 代码与文档已推送 `main`：`11501b1`、`7e67600`、`ba5498e`。
 - 本文件已同步 POS-02/POS-03/POS-04 真实状态，后续以发布验证结果决定是否升为“已上线”。
+
+## 2026-08-14 计划一致性复核
+
+- `main` 与 `origin/main` 已对齐，工作区复核开始时无未提交改动。
+- PKG-01 与 PKG-02 已有 Migration、应用入口、验证脚本和 Commit，原“未开始”状态属于进度文档滞后，现校正为“已实现/待验证”。
+- POS-02/POS-03 的核心实现与 DB 验证已通过，原“开发中”状态已校正；真实 HitPay/Cash 浏览器 UAT 与目标环境证据仍未补齐。
+- POS-04 虽已完成三个开发批次，但当前全量 ESLint 因 `dashboard/pos/cash-sessions/page.tsx` 渲染期调用 `Date.now()` 失败，且 `package.json` 缺少统一 `test:pos04-db` 入口，因此从“已验证/待上线”校正为“已实现/待验证”。
+- 本次复核通过：`next build`、`npx tsc --noEmit`、PKG-01 DB、PKG-02 DB、POS-02 DB、POS-03 DB、Exports/APT-03/CRM-01/CRM-02 应用契约测试。PKG-02 首次紧接 PKG-01 执行时遇到临时 Postgres 连接退出，独立重跑通过；不计为产品失败，但后续应让 DB runner 具备可靠的连续执行能力。

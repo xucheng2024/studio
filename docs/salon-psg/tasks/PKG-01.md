@@ -1,6 +1,6 @@
 # PKG-01：Package Ledger（opening balance + 事件账本）
 
-状态：进行中（Batch 1/2/3/4/5 已落地，继续扩展）
+状态：已实现/待目标环境验证（Batch 1/2/3/4/5 已落地）
 
 负责人：待分配
 
@@ -8,7 +8,7 @@
 
 完成日期：
 
-Commit / Release：
+Commit / Release：`52ff41a`、`92b2efe`、`e045136`；未上线
 
 ## 1. 目标
 
