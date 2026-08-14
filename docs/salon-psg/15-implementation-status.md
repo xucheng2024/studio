@@ -46,7 +46,7 @@
 | Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色浏览器 Gate 已通过；隔离 UAT Studio 缺 Sandbox merchant key/webhook salt，真实支付、签名重放、主动同步与异常恢复仍阻塞 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
 | Phase 2 | APT-04 Self Booking | 未开始 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 可先开发登录/实时档期/本人改期取消，最终接入 Package、订金和全款 |
-| Phase 2 | COM-01 Commission | 未开始 | POS-02、POS-03、CRM-02 | 等待依赖 |
+| Phase 2 | COM-01 Commission | 已实现/待验证 | POS-02、POS-03、CRM-02 | COM-01 migration、独立 PostgreSQL 15 runner、`test:com01-db`、`lint`、`tsc`、`build` 已通过；待目标 UAT 浏览器点击流与目标环境 migration 验证后可升为“已验证/待上线” |
 | Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
 | Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 等待依赖 |
@@ -89,8 +89,15 @@
 
 1. 为隔离 UAT Studio 配置 HitPay Sandbox merchant key/webhook salt，完成 POS-03 真实支付 Gate；不得使用真实商户生产配置制造测试支付。
 2. 在独立 Staging/UAT Project（或经业务批准的专用 Production fixture）补 Cash/Receipt、Refund/Cash Session、Package Approval 的事务点击流。
-3. 领取 COM-01，建立唯一佣金事实及退款反向 Entry；这是 POS-04 最终 Gate、Payroll 和 Reporting 的关键路径。
+3. 在目标 UAT 环境补 COM-01 浏览器角色与交易点击流（先付后做、先做后付、walk-in fulfill、部分/全额退款反向 Entry）。
 4. APT-04 保持“先可用后结算”策略，并在进入 Phase 3 前补齐 Phase 1 证据缺口。
+
+## 2026-08-14 状态更新（COM-01）
+
+- COM-01 已实现数据库主链路：佣金规则版本、earned/reversal append-only 分录、walk-in `fulfilled_at` 审计证据、唯一来源与退款检查点去重。
+- 已新增并通过独立 DB runner：`npm run test:com01-db`（覆盖先付后做、先做后付、未完成/未付款不入账、重放幂等、越权拒绝、部分+全额退款反向 Entry）。
+- 本地代码门禁通过：`npm run lint`、`npx tsc --noEmit`、`npm run build`。
+- COM-01 当前仍标记“已实现/待验证”：尚未在目标 UAT 执行浏览器端角色矩阵与完整业务点击流；未执行 production 数据写入测试。
 
 ## 2026-08-14 状态更新（POS-04 Batch 3）
 
