@@ -165,6 +165,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   const rawView = asSingleValue(sp.view);
   const quickView = VIEW_VALUES.includes(rawView as QuickView) ? (rawView as QuickView) : "all";
   const keyword = asSingleValue(sp.q).trim();
+  const requestIdFilter = asSingleValue(sp.request_id).trim();
   const backlogOnly = asSingleValue(sp.backlog_only) === "1";
   const backlogHours = Math.min(24 * 30, asPositiveInt(sp.backlog_hours, DEFAULT_BACKLOG_HOURS));
   const now = new Date();
@@ -212,6 +213,10 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   if (keyword) {
     const escaped = keyword.replaceAll("%", "\\%").replaceAll(",", " ");
     requestQuery = requestQuery.or(`reason.ilike.%${escaped}%,rejection_reason.ilike.%${escaped}%`);
+  }
+
+  if (requestIdFilter) {
+    requestQuery = requestQuery.eq("id", requestIdFilter);
   }
 
   const from = (page - 1) * pageSize;
@@ -321,6 +326,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   const baseQueryParams = {
     studio_id: activeStudioId,
     location_id: selectedLocationId ?? undefined,
+    request_id: requestIdFilter || undefined,
     q: keyword || undefined,
     status: statusFilter || undefined,
     sort: sortKey,
@@ -466,6 +472,10 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className={ui.label}>Search</span>
           <input name="q" defaultValue={keyword} className={ui.input} placeholder="Reason / rejection reason" />
+        </label>
+        <label className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className={ui.label}>Request ID</span>
+          <input name="request_id" defaultValue={requestIdFilter} className={ui.input} placeholder="Exact request UUID" />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Status</span>

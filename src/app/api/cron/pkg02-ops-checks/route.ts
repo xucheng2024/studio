@@ -44,6 +44,22 @@ function toNumeric(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function buildRunDetailUrl(params: {
+  runId: string | null;
+  studioId: string | null;
+  locationId: string | null;
+}) {
+  if (!params.runId) return null;
+
+  const query = new URLSearchParams();
+  if (params.studioId) query.set("studio_id", params.studioId);
+  if (params.locationId) query.set("location_id", params.locationId);
+
+  const path = `/dashboard/operations/pkg02-checks/${params.runId}${query.toString() ? `?${query.toString()}` : ""}`;
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || "";
+  return appBaseUrl ? `${appBaseUrl}${path}` : path;
+}
+
 function inChunks<T>(items: T[], chunkSize: number) {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += chunkSize) {
@@ -304,6 +320,12 @@ export async function GET(req: Request) {
     persistReason = error instanceof Error ? error.message : "unknown_persist_error";
   }
 
+  const runDetailUrl = buildRunDetailUrl({
+    runId,
+    studioId,
+    locationId,
+  });
+
   return NextResponse.json({
     ok: true,
     studio_id: studioId,
@@ -314,6 +336,7 @@ export async function GET(req: Request) {
     total_requests_scanned: requests.length,
     run_log: {
       run_id: runId,
+      run_detail_url: runDetailUrl,
       status: persistStatus,
       reason: persistReason,
     },

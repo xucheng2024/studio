@@ -283,6 +283,7 @@ export default async function OperationsPage({ searchParams }: Props) {
                   <th className="py-2 pr-4 font-medium">Reconcile diff</th>
                   <th className="py-2 pr-4 font-medium">Notify</th>
                   <th className="py-2 font-medium">Status</th>
+                  <th className="py-2 font-medium">Details</th>
                 </tr>
               </thead>
               <tbody>
@@ -313,6 +314,14 @@ export default async function OperationsPage({ searchParams }: Props) {
                           ok
                         </span>
                       )}
+                    </td>
+                    <td className="py-2.5">
+                      <DashboardAppLink
+                        href={`/dashboard/operations/pkg02-checks/${row.id}?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+                        className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+                      >
+                        View details
+                      </DashboardAppLink>
                     </td>
                   </tr>
                 ))}
