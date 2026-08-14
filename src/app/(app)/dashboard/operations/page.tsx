@@ -6,6 +6,7 @@ import { OpsBoard } from "@/components/ops/OpsBoard";
 import { localISODate } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import { ClipboardList } from "lucide-react";
@@ -18,6 +19,19 @@ type Props = {
     date_to?: string;
     session_status?: "all" | "scheduled" | "cancelled";
   }>;
+};
+
+type Pkg02OpsCheckRunRow = {
+  id: string;
+  checked_at: string;
+  backlog_threshold_hours: number;
+  has_anomaly: boolean;
+  self_approval_or_apply_count: number;
+  approved_not_applied_backlog_count: number;
+  applied_missing_manual_adjustment_ledger_count: number;
+  manual_adjustment_reconcile_diff_count: number;
+  notify_status: "sent" | "skipped" | "failed";
+  notify_reason: string | null;
 };
 
 export default async function OperationsPage({ searchParams }: Props) {
@@ -102,6 +116,7 @@ export default async function OperationsPage({ searchParams }: Props) {
     );
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const admin = createAdminClient();
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const { data: locations } = await supabase
     .from("locations")
@@ -180,6 +195,33 @@ export default async function OperationsPage({ searchParams }: Props) {
     guestPrice: Number(service.price ?? 0),
   }));
 
+  let opsCheckRunsQuery = admin
+    .from("pkg02_ops_check_runs")
+    .select(
+      "id, checked_at, backlog_threshold_hours, has_anomaly, self_approval_or_apply_count, approved_not_applied_backlog_count, applied_missing_manual_adjustment_ledger_count, manual_adjustment_reconcile_diff_count, notify_status, notify_reason",
+    )
+    .eq("studio_id", activeStudioId)
+    .order("checked_at", { ascending: false })
+    .limit(8);
+
+  if (selectedLocationId) {
+    opsCheckRunsQuery = opsCheckRunsQuery.or(`location_id.eq.${selectedLocationId},location_id.is.null`);
+  }
+
+  const { data: opsCheckRunsRaw } = await opsCheckRunsQuery;
+  const opsCheckRuns = (opsCheckRunsRaw ?? []) as Pkg02OpsCheckRunRow[];
+  const latestOpsRun = opsCheckRuns[0] ?? null;
+  const anomalyRunsCount = opsCheckRuns.filter((row) => row.has_anomaly).length;
+  const latestCheckedAtLabel = latestOpsRun
+    ? new Date(latestOpsRun.checked_at).toLocaleString("en-SG", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
       {studioSuspended ? (
@@ -198,6 +240,89 @@ export default async function OperationsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Bookings</h1>
         <p className={ui.muted}>Daily front desk sales, booking, attendance, and exception handling for classes, events, and services.</p>
       </div>
+      <section className={ui.card}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className={ui.h2}>PKG-02 ops checks</h2>
+            <p className={ui.muted}>Latest cron check trend for maker/checker approval guardrails.</p>
+          </div>
+          <DashboardAppLink
+            href={`/dashboard/packages/approvals?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&backlog_only=1`}
+            className={ui.btnSecondarySm}
+          >
+            Open approval backlog
+          </DashboardAppLink>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+            <p className={`text-xs ${ui.muted}`}>Last checked</p>
+            <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{latestCheckedAtLabel ?? "No run yet"}</p>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+            <p className={`text-xs ${ui.muted}`}>Latest backlog</p>
+            <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
+              {latestOpsRun ? `${latestOpsRun.approved_not_applied_backlog_count} (≥${latestOpsRun.backlog_threshold_hours}h)` : "-"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+            <p className={`text-xs ${ui.muted}`}>Anomaly runs (last {opsCheckRuns.length || 0})</p>
+            <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
+              {opsCheckRuns.length ? `${anomalyRunsCount}/${opsCheckRuns.length}` : "-"}
+            </p>
+          </div>
+        </div>
+        {opsCheckRuns.length ? (
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-100 text-left text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
+                  <th className="py-2 pr-4 font-medium">Checked</th>
+                  <th className="py-2 pr-4 font-medium">Self approval</th>
+                  <th className="py-2 pr-4 font-medium">Approved backlog</th>
+                  <th className="py-2 pr-4 font-medium">Missing ledger</th>
+                  <th className="py-2 pr-4 font-medium">Reconcile diff</th>
+                  <th className="py-2 pr-4 font-medium">Notify</th>
+                  <th className="py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {opsCheckRuns.map((row) => (
+                  <tr key={row.id} className="border-b border-stone-100 last:border-b-0 dark:border-stone-800">
+                    <td className="py-2.5 pr-4 text-stone-700 dark:text-stone-300">
+                      {new Date(row.checked_at).toLocaleString("en-SG", {
+                        month: "short",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums text-stone-700 dark:text-stone-300">{row.self_approval_or_apply_count}</td>
+                    <td className="py-2.5 pr-4 tabular-nums text-stone-700 dark:text-stone-300">
+                      {row.approved_not_applied_backlog_count} (≥{row.backlog_threshold_hours}h)
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums text-stone-700 dark:text-stone-300">{row.applied_missing_manual_adjustment_ledger_count}</td>
+                    <td className="py-2.5 pr-4 tabular-nums text-stone-700 dark:text-stone-300">{row.manual_adjustment_reconcile_diff_count}</td>
+                    <td className="py-2.5 pr-4 text-stone-700 dark:text-stone-300">{row.notify_status}</td>
+                    <td className="py-2.5">
+                      {row.has_anomaly ? (
+                        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-300">
+                          anomaly
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800 dark:border-teal-900/50 dark:bg-teal-950/50 dark:text-teal-300">
+                          ok
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className={`mt-3 text-sm ${ui.muted}`}>No PKG-02 ops run recorded yet. Wait for cron or trigger dry run once.</p>
+        )}
+      </section>
       <div className={`${ui.card} flex flex-wrap gap-3`}>
         <DashboardLocationFilter
           locations={locations ?? []}

@@ -301,6 +301,8 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   const backParams = new URLSearchParams();
   backParams.set("studio_id", activeStudioId);
   if (selectedLocationId) backParams.set("location_id", selectedLocationId);
+  const approvalsBaseParams = new URLSearchParams(backParams);
+  const approvalsBaseHref = `/dashboard/packages/approvals?${approvalsBaseParams.toString()}`;
 
   const statusColors: Record<string, string> = {
     paid: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/60",
@@ -325,6 +327,11 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         <DashboardAppLink href={`/dashboard/clients?${backParams.toString()}`} className={`${ui.btnSecondarySm} mb-3`}>
           ← Customers
         </DashboardAppLink>
+        <div className="mb-3">
+          <DashboardAppLink href={approvalsBaseHref} className={ui.btnSecondarySm}>
+            Package approvals
+          </DashboardAppLink>
+        </div>
         <h1 className={ui.h1}>Package ledger</h1>
         <p className={`mt-1 ${ui.muted}`}>
           {salonCustomer.email ?? clientUser?.email ?? salonCustomer.phone ?? salonCustomer.id}
@@ -438,13 +445,18 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
 
       {/* ── Current packages ────────────────────────────────────── */}
       <section>
-        <h2 className={ui.h2}>Current packages</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={ui.h2}>Current packages</h2>
+        </div>
         <ul className="mt-3 flex flex-col gap-2">
           {(packRows ?? []).map((row) => {
             const packageName =
               (row as { package_name_snapshot?: string | null }).package_name_snapshot?.trim() || "Package";
             const packageCredits = Number((row as { package_credits_snapshot?: number | null }).package_credits_snapshot ?? 0);
             const pct = packageCredits > 0 ? Math.round((row.credits_left / packageCredits) * 100) : null;
+            const adjustmentParams = new URLSearchParams(backParams);
+            adjustmentParams.set("client_package_id", row.id);
+            const adjustmentHref = `/dashboard/packages/approvals?${adjustmentParams.toString()}`;
             return (
               <li key={row.id} className={`${ui.card} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
                 <div>
@@ -466,6 +478,9 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
                     {row.credits_left}
                     <span className={`font-normal ${ui.muted}`}> / {packageCredits || "?"}</span>
                   </span>
+                  <DashboardAppLink href={adjustmentHref} className={ui.btnSecondarySm}>
+                    Adjust via approval
+                  </DashboardAppLink>
                 </div>
               </li>
             );

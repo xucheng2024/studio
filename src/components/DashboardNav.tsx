@@ -98,6 +98,39 @@ function useNavState() {
   return { pathname, keep, pendingHref, setPendingHref };
 }
 
+function usePkgApprovalsOverdueBadge() {
+  const search = useSearchParams();
+  const pathname = usePathname();
+  const [count, setCount] = useState(0);
+
+  const studioId = search.get("studio_id") ?? "";
+  const locationId = search.get("location_id") ?? "";
+
+  useEffect(() => {
+    let mounted = true;
+    const params = new URLSearchParams();
+    if (studioId) params.set("studio_id", studioId);
+    if (locationId) params.set("location_id", locationId);
+
+    void fetch(`/api/dashboard/nav/pkg02-backlog${params.toString() ? `?${params.toString()}` : ""}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json: unknown) => {
+        if (!mounted || !json || typeof json !== "object") return;
+        const parsed = Number((json as { overdueCount?: unknown }).overdueCount ?? 0);
+        setCount(Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0);
+      })
+      .catch(() => {
+        if (mounted) setCount(0);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [studioId, locationId, pathname]);
+
+  return count;
+}
+
 /* ── Desktop sidebar nav ─────────────────────────────────────────── */
 export function DashboardNav({
   role,
@@ -108,6 +141,7 @@ export function DashboardNav({
 }) {
   const visibleLinks = useVisibleLinks(role, superAdminNoStudioMode);
   const { pathname, keep, pendingHref, setPendingHref } = useNavState();
+  const pkgApprovalsOverdueCount = usePkgApprovalsOverdueBadge();
 
   return (
     <nav className="flex flex-col gap-0.5">
@@ -133,6 +167,17 @@ export function DashboardNav({
           >
             <Icon size={15} className="shrink-0" strokeWidth={active ? 2.2 : 1.8} />
             <span>{navigating ? `${l.label}…` : l.label}</span>
+            {l.href === "/dashboard/packages/approvals" && pkgApprovalsOverdueCount > 0 ? (
+              <span
+                className={`ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                  active
+                    ? "bg-white/95 text-teal-700"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200"
+                }`}
+              >
+                {pkgApprovalsOverdueCount > 99 ? "99+" : pkgApprovalsOverdueCount}
+              </span>
+            ) : null}
           </Link>
         );
       })}
@@ -150,6 +195,7 @@ export function MobileBottomNav({
 }) {
   const visibleLinks = prioritizeMobileLinks(useVisibleLinks(role, superAdminNoStudioMode));
   const { pathname, keep, pendingHref, setPendingHref } = useNavState();
+  const pkgApprovalsOverdueCount = usePkgApprovalsOverdueBadge();
 
   return (
     <nav
@@ -168,7 +214,7 @@ export function MobileBottomNav({
             href={href}
             prefetch
             onClick={() => { if (active) return; setPendingHref(pathFromHref(l.href)); }}
-            className={`flex min-w-[4.5rem] flex-none flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-[color,opacity] duration-100 active:opacity-70 ${
+            className={`relative flex min-w-[4.5rem] flex-none flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-[color,opacity] duration-100 active:opacity-70 ${
               active
                 ? "text-teal-600 dark:text-teal-400"
                 : navigating
@@ -181,6 +227,11 @@ export function MobileBottomNav({
               strokeWidth={active ? 2.2 : 1.7}
               className={active ? "text-teal-600 dark:text-teal-400" : ""}
             />
+            {l.href === "/dashboard/packages/approvals" && pkgApprovalsOverdueCount > 0 ? (
+              <span className="absolute right-2 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-amber-100 px-1 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                {pkgApprovalsOverdueCount > 99 ? "99+" : pkgApprovalsOverdueCount}
+              </span>
+            ) : null}
             <span>{navigating ? "…" : l.label}</span>
           </Link>
         );

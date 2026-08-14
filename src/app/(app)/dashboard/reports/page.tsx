@@ -192,6 +192,25 @@ export default async function ReportsPage({ searchParams }: Props) {
     return true;
   });
 
+  const preferredClientPackageByCustomer = new Map<string, string>();
+  const preferredClientPackageByPackage = new Map<string, string>();
+  const bestValueByCustomer = new Map<string, number>();
+  const bestValueByPackage = new Map<string, number>();
+
+  for (const row of deferredRowsFiltered) {
+    const currentCustomerBest = bestValueByCustomer.get(row.customer_id) ?? Number.NEGATIVE_INFINITY;
+    if (row.deferred_value >= currentCustomerBest) {
+      bestValueByCustomer.set(row.customer_id, row.deferred_value);
+      preferredClientPackageByCustomer.set(row.customer_id, row.client_package_id);
+    }
+
+    const currentPackageBest = bestValueByPackage.get(row.package_id) ?? Number.NEGATIVE_INFINITY;
+    if (row.deferred_value >= currentPackageBest) {
+      bestValueByPackage.set(row.package_id, row.deferred_value);
+      preferredClientPackageByPackage.set(row.package_id, row.client_package_id);
+    }
+  }
+
   const deferredCustomerRows = groupDeferredByCustomer(deferredRowsFiltered).slice(0, 200);
   const deferredPackageRows = groupDeferredByPackage(deferredRowsFiltered).slice(0, 200);
 
@@ -224,6 +243,12 @@ export default async function ReportsPage({ searchParams }: Props) {
 
   const deferredResetParams = new URLSearchParams(commonReportParams);
   deferredResetParams.set("deferred_view", deferredView);
+
+  const approvalsBaseParams = new URLSearchParams();
+  approvalsBaseParams.set("studio_id", activeStudioId);
+  if (locationFilter && locationFilter !== "__unassigned") {
+    approvalsBaseParams.set("location_id", locationFilter);
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -502,6 +527,11 @@ export default async function ReportsPage({ searchParams }: Props) {
                     customerDetailParams.set("location_id", locationFilter);
                   }
 
+                  const preferredClientPackageId = preferredClientPackageByCustomer.get(row.customer_id) ?? "";
+                  const approvalsParams = new URLSearchParams(approvalsBaseParams);
+                  if (preferredClientPackageId) approvalsParams.set("client_package_id", preferredClientPackageId);
+                  const approvalsHref = `/dashboard/packages/approvals?${approvalsParams.toString()}`;
+
                   return (
                     <tr key={row.customer_id} className="border-b border-stone-100 last:border-b-0 dark:border-stone-800">
                       <td className="py-2.5 pr-4 text-stone-800 dark:text-stone-200">
@@ -515,9 +545,14 @@ export default async function ReportsPage({ searchParams }: Props) {
                       <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.remaining_credits}</td>
                       <td className="py-2.5 pr-4 tabular-nums font-semibold text-violet-700 dark:text-violet-300">{row.deferred_value.toFixed(2)}</td>
                       <td className="py-2.5">
-                        <DashboardAppLink href={`/dashboard/reports?${customerParams.toString()}`} className={ui.linkMuted}>
-                          Package details
-                        </DashboardAppLink>
+                        <div className="flex flex-col gap-1">
+                          <DashboardAppLink href={`/dashboard/reports?${customerParams.toString()}`} className={ui.linkMuted}>
+                            Package details
+                          </DashboardAppLink>
+                          <DashboardAppLink href={approvalsHref} className={ui.linkMuted}>
+                            Adjust via approval
+                          </DashboardAppLink>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -544,6 +579,11 @@ export default async function ReportsPage({ searchParams }: Props) {
                   if (deferredKeyword) packageParams.set("deferred_q", deferredKeyword);
                   if (deferredCustomerId) packageParams.set("deferred_customer_id", deferredCustomerId);
 
+                  const preferredClientPackageId = preferredClientPackageByPackage.get(row.package_id) ?? "";
+                  const approvalsParams = new URLSearchParams(approvalsBaseParams);
+                  if (preferredClientPackageId) approvalsParams.set("client_package_id", preferredClientPackageId);
+                  const approvalsHref = `/dashboard/packages/approvals?${approvalsParams.toString()}`;
+
                   return (
                     <tr key={row.package_id} className="border-b border-stone-100 last:border-b-0 dark:border-stone-800">
                       <td className="py-2.5 pr-4 text-stone-800 dark:text-stone-200">
@@ -555,9 +595,14 @@ export default async function ReportsPage({ searchParams }: Props) {
                       <td className="py-2.5 pr-4 tabular-nums text-stone-600 dark:text-stone-300">{row.remaining_credits}</td>
                       <td className="py-2.5 pr-4 tabular-nums font-semibold text-violet-700 dark:text-violet-300">{row.deferred_value.toFixed(2)}</td>
                       <td className="py-2.5">
-                        <DashboardAppLink href={`/dashboard/reports?${packageParams.toString()}`} className={ui.linkMuted}>
-                          Customer details
-                        </DashboardAppLink>
+                        <div className="flex flex-col gap-1">
+                          <DashboardAppLink href={`/dashboard/reports?${packageParams.toString()}`} className={ui.linkMuted}>
+                            Customer details
+                          </DashboardAppLink>
+                          <DashboardAppLink href={approvalsHref} className={ui.linkMuted}>
+                            Adjust via approval
+                          </DashboardAppLink>
+                        </div>
                       </td>
                     </tr>
                   );

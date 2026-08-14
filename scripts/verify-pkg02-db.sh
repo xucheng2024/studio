@@ -47,6 +47,7 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814005000_pkg01_
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814006000_pkg02_partial_package_refund_reversal.sql >/tmp/pkg02_batch6.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814007000_pkg02_guest_identity_grant_queue.sql >/tmp/pkg02_batch7.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814008000_pkg02_maker_checker_approval_foundation.sql >/tmp/pkg02_batch8.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814009000_pkg02_ops_check_runs.sql >/tmp/pkg02_batch9.log
 
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pkg01_pos_minimal.sql | tee /tmp/pkg02_verify.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pkg02_partial_refund_reversal.sql | tee -a /tmp/pkg02_verify.log

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/expire-payments",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/pkg02-ops-checks",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

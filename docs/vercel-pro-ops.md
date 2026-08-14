@@ -7,7 +7,7 @@ Use this after enabling Vercel Pro to confirm the deployment is healthier and wo
 1. **Functions region** — Project → Settings → Functions: pick the region closest to your Supabase project (e.g. Singapore for `ap-southeast-1`).
 2. **Fluid Compute** — Enable if available on the project for better Serverless concurrency and cold starts.
 3. **Speed Insights / Web Analytics** — Enable under the project Observability tabs; establish baselines for LCP and TTFB.
-4. **Cron** — After deploy, Project → Settings → Cron Jobs should list `/api/cron/expire-payments` (every 5 minutes). Requires `CRON_SECRET` in Production env.
+4. **Cron** — After deploy, Project → Settings → Cron Jobs should list `/api/cron/expire-payments` (every 5 minutes) and `/api/cron/pkg02-ops-checks` (every 30 minutes). Requires `CRON_SECRET` in Production env.
 5. **Supabase pooler** — In Supabase → Database → Connection string, use the **Transaction** pooler URI for server-side env on Vercel (reduces connection exhaustion on Free tier). Keep direct URL for migrations only.
 
 ## Required env (Production)
@@ -15,6 +15,10 @@ Use this after enabling Vercel Pro to confirm the deployment is healthier and wo
 | Variable | Purpose |
 |----------|---------|
 | `CRON_SECRET` | Random string; Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` |
+| `OPS_ALERT_SLACK_WEBHOOK_URL` | Slack incoming webhook for PKG-02 ops anomaly alerts |
+| `PKG02_OPS_STUDIO_ID` (optional) | Restrict PKG-02 ops checks to one studio |
+| `PKG02_OPS_LOCATION_ID` (optional) | Restrict PKG-02 ops checks to one location (with studio scope) |
+| `PKG02_APPROVED_BACKLOG_ALERT_THRESHOLD` (optional) | Alert threshold for approved-but-not-applied backlog (default `20`) |
 | Existing Supabase vars | Unchanged |
 
 ## Metrics to compare (before vs after, ~1 week)
@@ -28,6 +32,7 @@ Use this after enabling Vercel Pro to confirm the deployment is healthier and wo
   - `/dashboard/*`
   - `/api/operations/queue`
   - `/api/cron/expire-payments`
+  - `/api/cron/pkg02-ops-checks`
 
 ### Supabase
 
@@ -38,6 +43,7 @@ Use this after enabling Vercel Pro to confirm the deployment is healthier and wo
 ## What we changed in code
 
 - **Cron** [`/api/cron/expire-payments`](../src/app/api/cron/expire-payments/route.ts) replaces per-page payment expiry sweep on studio public layout.
+- **Cron** [`/api/cron/pkg02-ops-checks`](../src/app/api/cron/pkg02-ops-checks/route.ts) runs PKG-02 maker/checker guardrail checks, persists results in `public.pkg02_ops_check_runs`, and posts to Slack only when thresholds fail.
 - **Data Cache** — Studio landing + layout meta cached 60s with `revalidateTag('studio-public-{slug}')` on dashboard saves.
 - **RBAC cache** — `revalidateTag('rbac-access-context')` on staff/owner grant mutations.
 
@@ -46,3 +52,4 @@ Use this after enabling Vercel Pro to confirm the deployment is healthier and wo
 1. Edit public profile → studio home updates within ~60s (or immediately after save via tag).
 2. Add/remove staff → dashboard nav/access updates without waiting 30s (after tag revalidation).
 3. Cron: `curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/expire-payments` → `{ "ok": true, "expired": N }`.
+4. PKG-02 ops: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<domain>/api/cron/pkg02-ops-checks?dry_run=1"` → returns check summary/samples without sending Slack.

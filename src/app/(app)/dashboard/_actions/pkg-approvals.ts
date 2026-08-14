@@ -7,6 +7,7 @@ import {
   submitPkg02AdjustmentRequest,
   type PkgApprovalErrorCode,
 } from "@/lib/pkg-approvals";
+import { getPkgApprovalMessage } from "@/lib/pkg-approval-messages";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
 
 export type Pkg02ApprovalActionResult = DashboardFormResult & {
@@ -30,28 +31,7 @@ function parseNumber(raw: FormDataEntryValue | null) {
 }
 
 function mapPkgApprovalMessage(code: PkgApprovalErrorCode, fallback: string) {
-  switch (code) {
-    case "forbidden":
-      return "You do not have permission for this approval step.";
-    case "studio_not_found":
-      return "Studio not found.";
-    case "studio_suspended":
-      return "Studio contract is suspended.";
-    case "not_found":
-      return "Adjustment request not found.";
-    case "invalid_request":
-      return "Invalid approval request. Check fields and status.";
-    case "concurrency_conflict":
-      return "This request was updated by someone else. Refresh and try again.";
-    case "idempotency_conflict":
-      return "Duplicate apply request with different payload detected.";
-    case "idempotency_in_progress":
-      return "An apply request is already in progress. Please retry shortly.";
-    case "idempotency_permanently_failed":
-      return "Previous apply attempt failed permanently. Use a new idempotency key.";
-    default:
-      return fallback;
-  }
+  return getPkgApprovalMessage(code, fallback);
 }
 
 export async function createPkg02AdjustmentRequestAction(

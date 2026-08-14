@@ -10,27 +10,70 @@ import {
   submitPkg02AdjustmentRequestAction,
 } from "@/app/(app)/dashboard/actions";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { PKG_APPROVAL_SELF_ACTION_BLOCKED_MESSAGE } from "@/lib/pkg-approval-messages";
 import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 
 type Props = {
-  searchParams: Promise<{
-    location_id?: string;
-    studio_id?: string;
-    status?: string;
-    q?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 type ApprovalStatus = "draft" | "submitted" | "approved" | "rejected" | "applied";
+type SortKey = "created_desc" | "created_asc" | "updated_desc" | "updated_asc";
+type QuickView = "all" | "my_pending" | "my_initiated";
+type ApprovalLogRow = {
+  id: string;
+  request_id: string;
+  action: string;
+  approval_role: string;
+  actor_id: string | null;
+  actor_role: string | null;
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  created_at: string;
+};
 
 const STATUS_VALUES: ApprovalStatus[] = ["draft", "submitted", "approved", "rejected", "applied"];
+const SORT_VALUES: SortKey[] = ["created_desc", "created_asc", "updated_desc", "updated_asc"];
+const VIEW_VALUES: QuickView[] = ["all", "my_pending", "my_initiated"];
+const PAGE_SIZE_VALUES = [20, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 50;
+const DEFAULT_BACKLOG_HOURS = 24;
+
+const SORT_META: Record<SortKey, { label: string; column: "created_at" | "updated_at"; ascending: boolean }> = {
+  created_desc: { label: "Created (newest)", column: "created_at", ascending: false },
+  created_asc: { label: "Created (oldest)", column: "created_at", ascending: true },
+  updated_desc: { label: "Updated (newest)", column: "updated_at", ascending: false },
+  updated_asc: { label: "Updated (oldest)", column: "updated_at", ascending: true },
+};
 
 function asNested<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
+function asSingleValue(value: string | string[] | undefined): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value[0] ?? "";
+  return "";
+}
+
+function asPositiveInt(value: string | string[] | undefined, fallback: number): number {
+  const parsed = Number.parseInt(asSingleValue(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function hoursDiffFromNow(value: string | null | undefined, now: Date) {
+  if (!value) return null;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return null;
+  const diffMs = now.getTime() - dt.getTime();
+  if (diffMs < 0) return 0;
+  return diffMs / (1000 * 60 * 60);
 }
 
 function statusBadgeClass(status: ApprovalStatus) {
@@ -63,6 +106,14 @@ function formatDateTime(value: string | null | undefined) {
   });
 }
 
+function buildParams(input: Record<string, string | undefined>) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(input)) {
+    if (value) params.set(key, value);
+  }
+  return params;
+}
+
 export default async function PackageApprovalsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -73,12 +124,15 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const studioIdFromQuery = asSingleValue(sp.studio_id) || null;
+  const locationIdFromQuery = asSingleValue(sp.location_id) || null;
+
   const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles(
     {
       userId: user.id,
       email: user.email ?? null,
-      studioId: sp.studio_id ?? null,
-      locationId: sp.location_id ?? null,
+      studioId: studioIdFromQuery,
+      locationId: locationIdFromQuery,
     },
     ["owner", "manager", "frontdesk"],
   );
@@ -102,58 +156,116 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
     .eq("is_active", true)
     .order("name");
 
-  const statusFilter = STATUS_VALUES.includes((sp.status ?? "") as ApprovalStatus)
-    ? (sp.status as ApprovalStatus)
-    : "";
-  const keyword = (sp.q ?? "").trim().toLowerCase();
+  const rawStatusFilter = asSingleValue(sp.status);
+  const statusFilter = STATUS_VALUES.includes(rawStatusFilter as ApprovalStatus) ? (rawStatusFilter as ApprovalStatus) : "";
+  const requestedClientPackageId = asSingleValue(sp.client_package_id).trim();
+  const rawSortKey = asSingleValue(sp.sort);
+  const sortKey = SORT_VALUES.includes(rawSortKey as SortKey) ? (rawSortKey as SortKey) : "created_desc";
+  const sortMeta = SORT_META[sortKey];
+  const rawView = asSingleValue(sp.view);
+  const quickView = VIEW_VALUES.includes(rawView as QuickView) ? (rawView as QuickView) : "all";
+  const keyword = asSingleValue(sp.q).trim();
+  const backlogOnly = asSingleValue(sp.backlog_only) === "1";
+  const backlogHours = Math.min(24 * 30, asPositiveInt(sp.backlog_hours, DEFAULT_BACKLOG_HOURS));
+  const now = new Date();
+  const pageSizeCandidate = asPositiveInt(sp.page_size, DEFAULT_PAGE_SIZE);
+  const pageSize = PAGE_SIZE_VALUES.includes(pageSizeCandidate as (typeof PAGE_SIZE_VALUES)[number])
+    ? pageSizeCandidate
+    : DEFAULT_PAGE_SIZE;
+  const page = asPositiveInt(sp.page, 1);
+
+  const effectiveStatusFilter: ApprovalStatus | "" = backlogOnly
+    ? "approved"
+    : quickView === "my_pending"
+      ? "submitted"
+      : statusFilter;
 
   let requestQuery = admin
     .from("pkg02_adjustment_requests")
     .select(
-      "id, studio_id, location_id, client_package_id, salon_customer_id, package_id, requested_delta_credits, requested_value_delta_amount, currency, reason, status, maker_user_id, maker_actor_role, checker_user_id, checker_actor_role, rejection_reason, submitted_at, approved_at, rejected_at, applied_at, applied_ledger_entry_id, version, created_at, locations(name), packages(name), salon_customers(full_name, email)",
+      "id, studio_id, location_id, client_package_id, salon_customer_id, package_id, requested_delta_credits, requested_value_delta_amount, currency, reason, status, maker_user_id, maker_actor_role, checker_user_id, checker_actor_role, rejection_reason, submitted_at, approved_at, rejected_at, applied_at, applied_ledger_entry_id, version, created_at, updated_at, locations(name), packages(name), salon_customers(full_name, email)",
+      { count: "exact" },
     )
     .eq("studio_id", activeStudioId)
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .order(sortMeta.column, { ascending: sortMeta.ascending })
+    .order("created_at", { ascending: false });
 
   if (selectedLocationId) {
     requestQuery = requestQuery.eq("location_id", selectedLocationId);
   }
-  if (statusFilter) {
-    requestQuery = requestQuery.eq("status", statusFilter);
+
+  if (effectiveStatusFilter) {
+    requestQuery = requestQuery.eq("status", effectiveStatusFilter);
   }
 
-  const { data: requestRows } = await requestQuery;
+  if (backlogOnly) {
+    const cutoffIso = new Date(now.getTime() - backlogHours * 60 * 60 * 1000).toISOString();
+    requestQuery = requestQuery.lte("approved_at", cutoffIso);
+  }
 
-  const approvalRows = (requestRows ?? []).filter((row) => {
-    if (!keyword) return true;
-    const packageRow = asNested<{ name: string | null }>(row.packages as { name: string | null } | { name: string | null }[] | null);
-    const customerRow = asNested<{ full_name: string | null; email: string | null }>(
-      row.salon_customers as
-        | { full_name: string | null; email: string | null }
-        | { full_name: string | null; email: string | null }[]
-        | null,
-    );
-    const haystack = [
-      row.id,
-      row.client_package_id,
-      row.reason,
-      row.rejection_reason,
-      packageRow?.name,
-      customerRow?.full_name,
-      customerRow?.email,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(keyword);
-  });
+  if (quickView === "my_pending") {
+    requestQuery = requestQuery.neq("maker_user_id", user.id);
+  } else if (quickView === "my_initiated") {
+    requestQuery = requestQuery.eq("maker_user_id", user.id);
+  }
+
+  if (keyword) {
+    const escaped = keyword.replaceAll("%", "\\%").replaceAll(",", " ");
+    requestQuery = requestQuery.or(`reason.ilike.%${escaped}%,rejection_reason.ilike.%${escaped}%`);
+  }
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data: requestRows, count } = await requestQuery.range(from, to);
+  const approvalRows = requestRows ?? [];
+
+  let approvedBacklogCount = 0;
+  if (backlogOnly) {
+    approvedBacklogCount = count ?? 0;
+  } else {
+    const cutoffIso = new Date(now.getTime() - backlogHours * 60 * 60 * 1000).toISOString();
+    let backlogCountQuery = admin
+      .from("pkg02_adjustment_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("studio_id", activeStudioId)
+      .eq("status", "approved")
+      .lte("approved_at", cutoffIso);
+    if (selectedLocationId) {
+      backlogCountQuery = backlogCountQuery.eq("location_id", selectedLocationId);
+    }
+    const { count: backlogCount } = await backlogCountQuery;
+    approvedBacklogCount = backlogCount ?? 0;
+  }
+
+  const totalCount = count ?? 0;
+  const totalPages = totalCount > 0 ? Math.ceil(totalCount / pageSize) : 1;
+  const hasPrevPage = page > 1;
+  const hasNextPage = page < totalPages;
+
+  const requestIds = approvalRows.map((row) => row.id);
+  const { data: approvalLogsRaw } = requestIds.length
+    ? await admin
+        .from("pkg02_approval_logs")
+        .select("id, request_id, action, approval_role, actor_id, actor_role, from_status, to_status, note, created_at")
+        .in("request_id", requestIds)
+        .order("created_at", { ascending: true })
+    : { data: [] as const };
+  const approvalLogs = (approvalLogsRaw ?? []) as ApprovalLogRow[];
+
+  const approvalLogsByRequestId = new Map<string, ApprovalLogRow[]>();
+  for (const row of approvalLogs) {
+    const bucket = approvalLogsByRequestId.get(row.request_id) ?? [];
+    bucket.push(row);
+    approvalLogsByRequestId.set(row.request_id, bucket);
+  }
 
   const actorIds = [
     ...new Set(
-      approvalRows
-        .flatMap((row) => [row.maker_user_id, row.checker_user_id])
-        .filter((id): id is string => Boolean(id)),
+      [
+        ...approvalRows.flatMap((row) => [row.maker_user_id, row.checker_user_id]),
+        ...approvalLogs.map((row) => row.actor_id),
+      ].filter((id): id is string => Boolean(id)),
     ),
   ];
 
@@ -174,7 +286,24 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   }
 
   const { data: packageOptionsRaw } = await packageOptionsQuery;
-  const packageOptions = packageOptionsRaw ?? [];
+  let packageOptions = packageOptionsRaw ?? [];
+
+  if (requestedClientPackageId && !packageOptions.some((row) => row.id === requestedClientPackageId)) {
+    const { data: requestedPackageRows } = await admin
+      .from("client_packages")
+      .select("id, client_id, credits_left, package_name_snapshot, created_at, packages!inner(id, name, studio_id, location_id)")
+      .eq("id", requestedClientPackageId)
+      .in("packages.studio_id", [activeStudioId])
+      .limit(1);
+
+    if (requestedPackageRows?.[0]) {
+      packageOptions = [requestedPackageRows[0], ...packageOptions];
+    }
+  }
+
+  const prefilledClientPackageId = requestedClientPackageId && packageOptions.some((row) => row.id === requestedClientPackageId)
+    ? requestedClientPackageId
+    : "";
   const packageClientIds = [...new Set(packageOptions.map((row) => row.client_id).filter((id): id is string => Boolean(id)))];
 
   const [{ data: packageUsers }, { data: packageProfiles }] = await Promise.all([
@@ -189,9 +318,35 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   const packageUserEmailById = new Map((packageUsers ?? []).map((row) => [row.id, row.email ?? "-"]));
   const packageUserNameById = new Map((packageProfiles ?? []).map((row) => [row.id, row.full_name ?? "-"]));
 
-  const backParams = new URLSearchParams();
-  backParams.set("studio_id", activeStudioId);
-  if (selectedLocationId) backParams.set("location_id", selectedLocationId);
+  const baseQueryParams = {
+    studio_id: activeStudioId,
+    location_id: selectedLocationId ?? undefined,
+    q: keyword || undefined,
+    status: statusFilter || undefined,
+    sort: sortKey,
+    view: quickView,
+    page_size: String(pageSize),
+    backlog_only: backlogOnly ? "1" : undefined,
+    backlog_hours: String(backlogHours),
+    client_package_id: prefilledClientPackageId || undefined,
+  };
+
+  const buildApprovalsHref = (overrides: Record<string, string | undefined>) => {
+    const params = buildParams({ ...baseQueryParams, ...overrides });
+    return `/dashboard/packages/approvals${params.toString() ? `?${params.toString()}` : ""}`;
+  };
+
+  const quickAllHref = buildApprovalsHref({ view: "all", status: statusFilter || undefined, page: "1" });
+  const quickMyPendingHref = buildApprovalsHref({ view: "my_pending", status: undefined, page: "1" });
+  const quickMyInitiatedHref = buildApprovalsHref({ view: "my_initiated", page: "1" });
+  const quickApprovedBacklogHref = buildApprovalsHref({ backlog_only: "1", status: undefined, page: "1" });
+  const prevPageHref = buildApprovalsHref({ page: String(page - 1) });
+  const nextPageHref = buildApprovalsHref({ page: String(page + 1) });
+
+  const backParams = buildParams({
+    studio_id: activeStudioId,
+    location_id: selectedLocationId ?? undefined,
+  });
   const backHref = `/dashboard/packages?${backParams.toString()}`;
 
   return (
@@ -208,9 +363,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
 
       <div>
         <h1 className={ui.h1}>Package approvals</h1>
-        <p className={`mt-2 ${ui.lead}`}>
-          Maker-Checker workflow for manual package credit adjustments.
-        </p>
+        <p className={`mt-2 ${ui.lead}`}>Maker-Checker workflow for manual package credit adjustments.</p>
         <div className="mt-3">
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
             Back to packages
@@ -230,7 +383,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
 
             <label className="flex flex-col gap-1.5 lg:col-span-2">
               <span className={ui.label}>Client package</span>
-              <select name="client_package_id" required className={ui.select} defaultValue="">
+              <select name="client_package_id" required className={ui.select} defaultValue={prefilledClientPackageId}>
                 <option value="" disabled>
                   Select a client package
                 </option>
@@ -246,6 +399,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
                   );
                 })}
               </select>
+              {prefilledClientPackageId ? <p className={`text-xs ${ui.muted}`}>Prefilled from package details link.</p> : null}
             </label>
 
             <label className="flex flex-col gap-1.5">
@@ -284,16 +438,38 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
         </div>
       )}
 
-      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-4`}>
+      <div className={`${ui.card} flex flex-wrap gap-2`}>
+        <DashboardAppLink href={quickAllHref} className={quickView === "all" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+          All requests
+        </DashboardAppLink>
+        <DashboardAppLink
+          href={quickMyPendingHref}
+          className={quickView === "my_pending" ? ui.btnPrimarySm : ui.btnSecondarySm}
+        >
+          My pending approvals
+        </DashboardAppLink>
+        <DashboardAppLink
+          href={quickMyInitiatedHref}
+          className={quickView === "my_initiated" ? ui.btnPrimarySm : ui.btnSecondarySm}
+        >
+          My initiated
+        </DashboardAppLink>
+        <DashboardAppLink href={quickApprovedBacklogHref} className={backlogOnly ? ui.btnPrimarySm : ui.btnSecondarySm}>
+          Approved backlog
+        </DashboardAppLink>
+      </div>
+
+      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-6`}>
         <input type="hidden" name="studio_id" value={activeStudioId} />
         <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
+        <input type="hidden" name="view" value={quickView} />
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className={ui.label}>Search</span>
-          <input name="q" defaultValue={sp.q ?? ""} className={ui.input} placeholder="Request ID / package / customer / reason" />
+          <input name="q" defaultValue={keyword} className={ui.input} placeholder="Reason / rejection reason" />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Status</span>
-          <select name="status" className={ui.select} defaultValue={statusFilter}>
+          <select name="status" className={ui.select} defaultValue={statusFilter} disabled={quickView === "my_pending"}>
             <option value="">All</option>
             {STATUS_VALUES.map((status) => (
               <option key={status} value={status}>
@@ -302,12 +478,82 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
             ))}
           </select>
         </label>
-        <div className="flex items-end">
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Sort</span>
+          <select name="sort" className={ui.select} defaultValue={sortKey}>
+            {SORT_VALUES.map((key) => (
+              <option key={key} value={key}>
+                {SORT_META[key].label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Page size</span>
+          <select name="page_size" className={ui.select} defaultValue={String(pageSize)}>
+            {PAGE_SIZE_VALUES.map((value) => (
+              <option key={value} value={String(value)}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Backlog hours</span>
+          <input name="backlog_hours" type="number" min={1} max={720} defaultValue={String(backlogHours)} className={ui.input} />
+        </label>
+        <label className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-700">
+          <input name="backlog_only" type="checkbox" value="1" defaultChecked={backlogOnly} />
+          <span className={`text-sm ${ui.muted}`}>Only approved overdue</span>
+        </label>
+        <div className="flex items-end sm:col-span-6">
           <SubmitButton className={`${ui.btnSecondary} w-full`} pendingText="Filtering...">
             Apply filters
           </SubmitButton>
         </div>
       </form>
+
+      <div className={`${ui.card} flex flex-wrap items-center justify-between gap-2 text-sm`}>
+        <p className={ui.muted}>
+          Showing {(approvalRows.length === 0 ? 0 : from + 1).toLocaleString()}-{Math.min(from + approvalRows.length, totalCount).toLocaleString()} of{" "}
+          {totalCount.toLocaleString()} requests · {sortMeta.label}
+        </p>
+        <div className="flex items-center gap-2">
+          {hasPrevPage ? (
+            <DashboardAppLink href={prevPageHref} className={ui.btnSecondarySm}>
+              Prev
+            </DashboardAppLink>
+          ) : (
+            <span className={`${ui.btnSecondarySm} pointer-events-none opacity-50`}>Prev</span>
+          )}
+          <span className={`text-xs ${ui.muted}`}>
+            Page {page} / {totalPages}
+          </span>
+          {hasNextPage ? (
+            <DashboardAppLink href={nextPageHref} className={ui.btnSecondarySm}>
+              Next
+            </DashboardAppLink>
+          ) : (
+            <span className={`${ui.btnSecondarySm} pointer-events-none opacity-50`}>Next</span>
+          )}
+        </div>
+      </div>
+
+      <div className={`${ui.card} flex flex-wrap items-center justify-between gap-2 text-sm`}>
+        <div>
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Approved backlog monitor</p>
+          <p className={ui.muted}>Approved for ≥ {backlogHours}h and not yet applied.</p>
+        </div>
+        <span
+          className={
+            approvedBacklogCount > 0
+              ? "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-300"
+              : "inline-flex items-center rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-900 dark:border-teal-800/60 dark:bg-teal-950/60 dark:text-teal-100"
+          }
+        >
+          {approvedBacklogCount.toLocaleString()} overdue
+        </span>
+      </div>
 
       {approvalRows.length === 0 ? (
         <div className={ui.emptyState}>
@@ -330,15 +576,24 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
             const showSubmit = status === "draft" && row.maker_user_id === user.id;
             const showCheckerDecision = status === "submitted" && canChecker;
             const showApply = status === "approved" && canChecker;
+            const timelineRows = approvalLogsByRequestId.get(row.id) ?? [];
+            const approvedAgeHours = status === "approved" ? hoursDiffFromNow(row.approved_at, now) : null;
+            const isApprovedBacklog = status === "approved" && approvedAgeHours != null && approvedAgeHours >= backlogHours;
+            const itemClass = isApprovedBacklog
+              ? `${ui.card} space-y-4 border-amber-300 bg-amber-50/30 dark:border-amber-700/70 dark:bg-amber-950/20`
+              : `${ui.card} space-y-4`;
 
             return (
-              <li key={row.id} className={`${ui.card} space-y-4`}>
+              <li key={row.id} className={itemClass}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{packageRow?.name ?? "Package"}</p>
-                    <p className={`text-xs ${ui.muted}`}>
-                      Request {row.id} · Client package {row.client_package_id}
-                    </p>
+                    <p className={`text-xs ${ui.muted}`}>Request {row.id} · Client package {row.client_package_id}</p>
+                    {isApprovedBacklog && approvedAgeHours != null ? (
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                        Backlog alert: approved for {Math.floor(approvedAgeHours)}h (threshold {backlogHours}h)
+                      </p>
+                    ) : null}
                   </div>
                   <span className={statusBadgeClass(status)}>{status}</span>
                 </div>
@@ -347,7 +602,9 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
                   <p>Customer: {customerRow?.full_name ?? customerRow?.email ?? row.salon_customer_id}</p>
                   <p>Location: {locationRow?.name ?? "All"}</p>
                   <p>Delta credits: {row.requested_delta_credits}</p>
-                  <p>Value delta: {row.requested_value_delta_amount ?? "-"} {row.currency}</p>
+                  <p>
+                    Value delta: {row.requested_value_delta_amount ?? "-"} {row.currency}
+                  </p>
                   <p>Maker: {actorEmailById.get(row.maker_user_id) ?? row.maker_user_id}</p>
                   <p>Checker: {row.checker_user_id ? (actorEmailById.get(row.checker_user_id) ?? row.checker_user_id) : "-"}</p>
                   <p>Version: {row.version}</p>
@@ -357,8 +614,28 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
 
                 {row.reason ? <p className={`text-sm ${ui.muted}`}>Reason: {row.reason}</p> : null}
                 {row.rejection_reason ? <p className="text-sm text-red-600 dark:text-red-400">Rejection reason: {row.rejection_reason}</p> : null}
-                {row.applied_ledger_entry_id ? (
-                  <p className={`text-xs ${ui.muted}`}>Ledger entry: {row.applied_ledger_entry_id}</p>
+                {row.applied_ledger_entry_id ? <p className={`text-xs ${ui.muted}`}>Ledger entry: {row.applied_ledger_entry_id}</p> : null}
+
+                {timelineRows.length ? (
+                  <details>
+                    <summary className={`cursor-pointer text-xs ${ui.muted}`}>Approval timeline ({timelineRows.length})</summary>
+                    <ul className="mt-2 space-y-2">
+                      {timelineRows.map((timelineRow) => {
+                        const actor = timelineRow.actor_id ? (actorEmailById.get(timelineRow.actor_id) ?? timelineRow.actor_id) : "system";
+                        return (
+                          <li key={timelineRow.id} className="rounded-lg border border-stone-200/80 p-2 text-xs dark:border-stone-700/80">
+                            <p className="font-medium text-stone-800 dark:text-stone-100">
+                              {timelineRow.action} · {timelineRow.from_status ?? "-"} → {timelineRow.to_status}
+                            </p>
+                            <p className={ui.muted}>
+                              {formatDateTime(timelineRow.created_at)} · {timelineRow.approval_role} · {actor}
+                            </p>
+                            {timelineRow.note ? <p className={`mt-1 ${ui.muted}`}>Note: {timelineRow.note}</p> : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
                 ) : null}
 
                 <div className="grid gap-2 lg:grid-cols-2">
@@ -404,16 +681,8 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
                       <input type="hidden" name="studio_id" value={activeStudioId} />
                       <input type="hidden" name="request_id" value={row.id} />
                       <input type="hidden" name="expected_version" value={String(row.version)} />
-                      <input
-                        type="hidden"
-                        name="idempotency_key"
-                        value={`pkg02-apply:${row.id}:${row.version}:${crypto.randomUUID()}`}
-                      />
-                      <input
-                        type="hidden"
-                        name="correlation_id"
-                        value={`pkg02-dashboard-apply:${row.id}:${row.version}`}
-                      />
+                      <input type="hidden" name="idempotency_key" value={`pkg02-apply:${row.id}:${row.version}:${crypto.randomUUID()}`} />
+                      <input type="hidden" name="correlation_id" value={`pkg02-dashboard-apply:${row.id}:${row.version}`} />
                       <input name="note" className={ui.input} placeholder="Apply note (optional)" />
                       <SubmitButton className={ui.btnPrimarySm} pendingText="Applying..." disabled={isSelfRequest}>
                         Apply to ledger
@@ -423,7 +692,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
                 </div>
 
                 {(showCheckerDecision || showApply) && isSelfRequest ? (
-                  <p className="text-xs text-amber-700 dark:text-amber-300">Self-approval/apply is blocked for maker.</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300">{PKG_APPROVAL_SELF_ACTION_BLOCKED_MESSAGE}</p>
                 ) : null}
               </li>
             );
@@ -433,4 +702,3 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
     </div>
   );
 }
-
