@@ -212,6 +212,9 @@ export default async function OperationsPage({ searchParams }: Props) {
   const opsCheckRuns = (opsCheckRunsRaw ?? []) as Pkg02OpsCheckRunRow[];
   const latestOpsRun = opsCheckRuns[0] ?? null;
   const anomalyRunsCount = opsCheckRuns.filter((row) => row.has_anomaly).length;
+  const notifySentRunsCount = opsCheckRuns.filter((row) => row.notify_status === "sent").length;
+  const notifySkippedRunsCount = opsCheckRuns.filter((row) => row.notify_status === "skipped").length;
+  const notifyFailedRunsCount = opsCheckRuns.filter((row) => row.notify_status === "failed").length;
   const latestCheckedAtLabel = latestOpsRun
     ? new Date(latestOpsRun.checked_at).toLocaleString("en-SG", {
         year: "numeric",
@@ -269,6 +272,20 @@ export default async function OperationsPage({ searchParams }: Props) {
             <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
               {opsCheckRuns.length ? `${anomalyRunsCount}/${opsCheckRuns.length}` : "-"}
             </p>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+            <p className={`text-xs ${ui.muted}`}>Notify sent (last {opsCheckRuns.length || 0})</p>
+            <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{opsCheckRuns.length ? notifySentRunsCount : "-"}</p>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+            <p className={`text-xs ${ui.muted}`}>Notify skipped</p>
+            <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{opsCheckRuns.length ? notifySkippedRunsCount : "-"}</p>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+            <p className={`text-xs ${ui.muted}`}>Notify failed</p>
+            <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{opsCheckRuns.length ? notifyFailedRunsCount : "-"}</p>
           </div>
         </div>
         {opsCheckRuns.length ? (
