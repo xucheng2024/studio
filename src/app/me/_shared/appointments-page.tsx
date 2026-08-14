@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { formatLocalDateTime, toLocalDateTimeInputValue } from "@/lib/date";
+import { studioCheckoutPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import {
   cancelSelfAppointment,
@@ -219,6 +220,14 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
         payment_id: string | null;
       }> };
   const settlementByAppointmentId = new Map((settlementRows ?? []).map((row) => [row.appointment_id, row]));
+  const settlementPaymentIds = (settlementRows ?? []).map((row) => row.payment_id).filter((value): value is string => Boolean(value));
+  const { data: paymentRows } = settlementPaymentIds.length > 0
+    ? await admin
+        .from("payments")
+        .select("id, status, gateway_checkout_url")
+        .in("id", settlementPaymentIds)
+    : { data: [] as Array<{ id: string; status: string; gateway_checkout_url: string | null }> };
+  const paymentById = new Map((paymentRows ?? []).map((row) => [row.id, row]));
 
   const myAppointmentsPath = getScopedPath(studioSlug || null, "appointments");
 
@@ -344,6 +353,17 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
               const canReschedule = ["pending", "confirmed"].includes(appointment.status);
               const canCancel = ["pending", "confirmed", "checked_in"].includes(appointment.status);
               const settlement = settlementByAppointmentId.get(appointment.id);
+              const payment = settlement?.payment_id ? paymentById.get(settlement.payment_id) : null;
+              const isPendingOnlinePayment = Boolean(
+                settlement
+                && settlement.settlement_mode.startsWith("online_")
+                && settlement.status === "pending_payment"
+                && settlement.payment_id
+                && payment?.status === "pending",
+              );
+              const checkoutPath = studioSlug && settlement?.payment_id
+                ? studioCheckoutPath(studioSlug, settlement.payment_id)
+                : null;
               return (
                 <li key={appointment.id} className={ui.card}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -365,6 +385,12 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
                         ? ` · ${settlement.paid_amount}/${settlement.required_amount} ${settlement.currency}`
                         : ""}
                       {settlement.payment_id ? ` · payment ${settlement.payment_id.slice(0, 8)}` : ""}
+                    </p>
+                  ) : null}
+
+                  {isPendingOnlinePayment && checkoutPath ? (
+                    <p className="mt-1 text-xs">
+                      <a href={checkoutPath} className={ui.link}>Continue payment</a>
                     </p>
                   ) : null}
 

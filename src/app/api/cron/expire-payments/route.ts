@@ -19,5 +19,13 @@ export async function GET(req: Request) {
 
   const admin = createAdminClient();
   const expired = await sweepExpiredPendingPayments(admin);
-  return NextResponse.json({ ok: true, expired });
+  const { data: expiredAppointmentsData } = await admin.rpc("expire_pending_salon_appointments", {
+    p_limit: 500,
+  });
+  const expiredAppointments = Number(expiredAppointmentsData ?? 0);
+  return NextResponse.json({
+    ok: true,
+    expiredPayments: expired,
+    expiredAppointments: Number.isFinite(expiredAppointments) ? expiredAppointments : 0,
+  });
 }

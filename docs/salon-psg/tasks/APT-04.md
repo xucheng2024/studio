@@ -221,12 +221,19 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
   - 触发器：
     - `apt04_on_payment_status_sync_settlement_trg`
     - `apt04_on_appointment_cancel_return_package_trg`
+- `supabase/migrations/20260814233000_apt04_phase2_p1_correctness_hotfix.sql`
+  - 新增原子 RPC：
+    - `apt04_finalize_package_settlement`（Package consume + settlement + appointment 状态推进 同事务）
+    - `apt04_prepare_online_settlement`（POS sale/item + payment + settlement 同事务）
+  - `apt04_mark_settlement_paid` 增强：支付确认后推进预约 `pending -> confirmed` 并清空 `expires_at`。
+  - `client_package_ledger_append_only_guard` 放宽为仅允许 `audit_log_id` 从 `null -> 非空` 的单字段回填，保持其余 append-only 约束。
 
 ### 11.3 应用层改动
 
 - `src/lib/salon-appointments-self.ts`
   - 支持 `settlementOption` 四种路径。
-  - 在线订金/全款由服务端创建 `pos_sales`/`pos_sale_items`/`payments`，再创建 HitPay Payment Request。
+  - 自助预约 create 不再依赖 `create_salon_appointment` 内部提前完成幂等；改为外层在 settlement 完成后再 `completeIdempotencyKey`。
+  - 在线订金/全款先走 `apt04_prepare_online_settlement` 原子落库，再创建/复用 HitPay Payment Request。
   - 在线支付请求创建失败时，立即取消刚创建的预约（`payment_request_create_failed`），避免长期占槽。
   - Package 资格规则（本阶段保守）：同 studio + 位置匹配（package.location_id 为 null 或等于预约位置）+ package active + 未过期 + `credits_left > 0`。
 - `src/app/[studioSlug]/appointments/page.tsx`
@@ -235,6 +242,9 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
   - Online 路径创建成功后跳转 `/[studioSlug]/checkout/[payment_id]`。
 - `src/app/me/_shared/appointments-page.tsx`
   - 显示预约结算模式/状态与金额信息。
+  - 对 `pending_payment` 在线支付显示 `Continue payment` 入口，避免首次跳转丢失后无法继续。
+- `src/app/api/cron/expire-payments/route.ts`
+  - 在支付过期清扫后补扫 `expire_pending_salon_appointments`，避免“未支付预约长期占槽”。
 - `src/app/api/payment/hitpay/sync/route.ts`
   - POS 来源且 HitPay paid-like 时，走 `completePosHitpaySale`（可信支付完成链路）。
 
@@ -255,3 +265,12 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
 - Deposit 仅表示订金已付，非全额结清；后续仍需在履约/收银页面补“欠款可视化与补收”完整操作链路。
 - 当前无 service 级 package 适用关系模型；本轮已在 UI 与服务端统一保守规则并显式文案提示，后续需补正式 `package-service` 映射表再升级资格判断。
 - 生产真实 HitPay Sandbox 与浏览器点击流证据需按发布流程补齐后，方可从“已实现/待验证”提升。
+
+### 11.6 2026-08-14 P1 热修复闭环
+
+- 已闭环问题：
+  - 幂等键提前 completed 导致重试返回旧结构结果。
+  - Package consume / online payment facts 与 settlement 非原子。
+  - 支付成功后预约仍保留 `pending + expires_at`，存在误过期风险。
+  - 我的预约页缺少继续支付入口。
+- 新增验证：`scripts/sql/verify_apt04_phase2_settlement.sql`，覆盖 package consume/取消返还、online deposit paid 状态推进、terminal 状态防回写 paid。

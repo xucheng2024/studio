@@ -105,15 +105,16 @@ test("phase2 self booking page exposes payment options and conservative package 
 test("phase2 service flow computes settlement server-side and links payment facts", () => {
   const service = read("src/lib/salon-appointments-self.ts");
 
-  assert.equal(service.includes("computeExpectedOnlineAmount"), true);
-  assert.equal(service.includes("apt04_upsert_appointment_settlement"), true);
-  assert.equal(service.includes("pkg01_apply_appointment_package_consume"), true);
-  assert.equal(service.includes("source: \"pos_sale\""), true);
+  assert.equal(service.includes("apt04_prepare_online_settlement"), true);
+  assert.equal(service.includes("apt04_finalize_package_settlement"), true);
+  assert.equal(service.includes("completeOnSuccess: true"), true);
+  assert.equal(service.includes("completeIdempotencyKey"), true);
   assert.equal(service.includes("payment_request_create_failed"), true);
 });
 
 test("phase2 migration defines settlement state machine and package cancel return trigger", () => {
   const migration = read("supabase/migrations/20260814220000_apt04_phase2_self_booking_settlement.sql");
+  const hotfix = read("supabase/migrations/20260814233000_apt04_phase2_p1_correctness_hotfix.sql");
 
   assert.equal(migration.includes("create table if not exists public.salon_appointment_settlements"), true);
   assert.equal(migration.includes("create or replace function public.apt04_mark_settlement_paid"), true);
@@ -121,4 +122,22 @@ test("phase2 migration defines settlement state machine and package cancel retur
   assert.equal(migration.includes("create or replace function public.pkg01_apply_appointment_cancel_return"), true);
   assert.equal(migration.includes("apt04_on_appointment_cancel_return_package_trg"), true);
   assert.equal(migration.includes("invalid settlement status transition"), true);
+  assert.equal(hotfix.includes("create or replace function public.apt04_prepare_online_settlement"), true);
+  assert.equal(hotfix.includes("create or replace function public.apt04_finalize_package_settlement"), true);
+  assert.equal(hotfix.includes("set status = case when status = 'pending' then 'confirmed' else status end"), true);
+});
+
+test("phase2 my appointments includes continue payment entry", () => {
+  const page = read("src/app/me/_shared/appointments-page.tsx");
+
+  assert.equal(page.includes("Continue payment"), true);
+  assert.equal(page.includes("studioCheckoutPath"), true);
+  assert.equal(page.includes("settlement.status === \"pending_payment\""), true);
+});
+
+test("payment cron also sweeps pending salon appointments", () => {
+  const route = read("src/app/api/cron/expire-payments/route.ts");
+
+  assert.equal(route.includes('admin.rpc("expire_pending_salon_appointments"'), true);
+  assert.equal(route.includes("expiredAppointments"), true);
 });

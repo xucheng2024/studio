@@ -1,6 +1,6 @@
 import "server-only";
 
-import { hashIdempotencyRequest, claimIdempotencyKey, failIdempotencyKey, type IdempotencyClaimResult } from "@/lib/idempotency";
+import { completeIdempotencyKey, hashIdempotencyRequest, claimIdempotencyKey, failIdempotencyKey, type IdempotencyClaimResult } from "@/lib/idempotency";
 import { createHitpayPaymentRequest } from "@/lib/hitpay";
 import { localISODate, parseDatetimeLocalAsSgt } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -103,6 +103,13 @@ function mapRpcError(error: { code?: string; message?: string } | null): {
   message: string;
 } {
   const message = error?.message ?? "Appointment mutation failed.";
+  if (/insufficient[_\s-]*credits?/i.test(message)) {
+    return { code: "insufficient_credits", message };
+  }
+  if (/package.*(eligible|ownership|mismatch|not found|not active|expired)/i.test(message)) {
+    return { code: "package_not_eligible", message };
+  }
+
   if (!error?.code) {
     if (/overlap|conflict|exclude/i.test(message)) {
       return { code: "slot_conflict", message };
@@ -193,6 +200,7 @@ async function withSelfAppointmentIdempotency<TPayload>(params: {
   operationScope: string;
   idempotencyKey: string;
   requestPayload: unknown;
+  completeOnSuccess?: boolean;
   run: (params: { idempotencyRecordId: string; claimToken: string }) => Promise<AppointmentMutationResult<TPayload>>;
 }): Promise<AppointmentMutationResult<TPayload>> {
   const requestHash = hashIdempotencyRequest(params.requestPayload);
@@ -210,6 +218,14 @@ async function withSelfAppointmentIdempotency<TPayload>(params: {
       idempotencyRecordId: parsedClaim.claimId,
       claimToken: parsedClaim.claimToken,
     });
+    if (result.ok && params.completeOnSuccess) {
+      await completeIdempotencyKey({
+        recordId: parsedClaim.claimId,
+        claimToken: parsedClaim.claimToken,
+        resultSnapshot: result.payload,
+      });
+    }
+
     if (!result.ok) {
       await failIdempotencyKey({
         recordId: parsedClaim.claimId,
@@ -779,114 +795,56 @@ export async function listSelfEligiblePackageCredits(params: {
   return { ok: true, payload: { packages } };
 }
 
-function computeExpectedOnlineAmount(params: {
-  servicePriceAmount: number;
-  settlementOption: SelfSettlementOption;
-}) {
-  if (params.settlementOption === "online_full") {
-    return Math.round(Math.max(params.servicePriceAmount, 0) * 100) / 100;
-  }
-  const base = Math.round(Math.max(params.servicePriceAmount, 0) * 100) / 100;
-  if (base <= 0) return 0;
-  const deposit = Math.round(base * 0.3 * 100) / 100;
-  return Math.max(1, deposit);
-}
-
 async function createSelfAppointmentOnlinePayment(params: {
   userId: string;
   studioId: string;
   studioSlug: string;
   appointmentId: string;
-  salonCustomerId: string;
-  locationId: string;
-  serviceId: string;
-  employeeId: string;
-  serviceTitleSnapshot: string;
-  servicePriceSnapshot: number;
-  serviceCurrencySnapshot: string;
   settlementOption: "online_deposit" | "online_full";
 }) {
   const admin = createAdminClient();
-  const expectedAmount = computeExpectedOnlineAmount({
-    servicePriceAmount: Number(params.servicePriceSnapshot ?? 0),
-    settlementOption: params.settlementOption,
+  const { data: prepared, error: preparedError } = await admin.rpc("apt04_prepare_online_settlement", {
+    p_actor_id: params.userId,
+    p_studio_id: params.studioId,
+    p_appointment_id: params.appointmentId,
+    p_settlement_mode: params.settlementOption,
   });
+  if (preparedError) throw preparedError;
 
-  const nowIso = new Date().toISOString();
-  const expiresAtIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-  const { data: sale, error: saleError } = await admin
-    .from("pos_sales")
-    .insert({
-      studio_id: params.studioId,
-      location_id: params.locationId,
-      salon_customer_id: params.salonCustomerId,
-      cashier_user_id: null,
-      status: "pending_payment",
-      currency: params.serviceCurrencySnapshot,
-      subtotal_amount: expectedAmount,
-      discount_amount: 0,
-      tax_amount: 0,
-      total_amount: expectedAmount,
-      note: `APT-04 self booking ${params.appointmentId}`,
-      locked_at: nowIso,
-      submitted_at: nowIso,
-      created_by: params.userId,
-      updated_by: params.userId,
-    })
-    .select("id")
-    .single<{ id: string }>();
-  if (saleError || !sale?.id) {
-    throw new Error(saleError?.message ?? "sale_create_failed");
+  const preparedPayload = (prepared ?? {}) as {
+    ok?: boolean;
+    payment_id?: string;
+    pos_sale_id?: string;
+    expected_amount?: number;
+    required_amount?: number;
+    currency?: string;
+    expires_at?: string | null;
+    checkout_url?: string | null;
+    reference_code?: string | null;
+  };
+  if (!preparedPayload.ok || !preparedPayload.payment_id || !preparedPayload.pos_sale_id) {
+    throw new Error("payment_create_failed");
   }
 
-  const { error: itemError } = await admin.from("pos_sale_items").insert({
-    sale_id: sale.id,
-    studio_id: params.studioId,
-    location_id: params.locationId,
-    line_number: 1,
-    item_type: "service",
-    service_id: params.serviceId,
-    package_id: null,
-    product_id: null,
-    salon_appointment_id: params.appointmentId,
-    employee_id: params.employeeId,
-    item_name_snapshot: params.serviceTitleSnapshot,
-    item_currency_snapshot: params.serviceCurrencySnapshot,
-    quantity: 1,
-    unit_price_amount: expectedAmount,
-    subtotal_amount: expectedAmount,
-    discount_amount: 0,
-    tax_amount: 0,
-    total_amount: expectedAmount,
-  });
-  if (itemError) throw new Error(itemError.message);
+  const paymentId = preparedPayload.payment_id;
+  const posSaleId = preparedPayload.pos_sale_id;
+  const expectedAmount = Math.round(Math.max(Number(preparedPayload.expected_amount ?? 0), 0) * 100) / 100;
+  const requiredAmount = Math.round(Math.max(Number(preparedPayload.required_amount ?? 0), 0) * 100) / 100;
+  const currency = (preparedPayload.currency ?? "SGD").toUpperCase();
+  const expiresAtIso = preparedPayload.expires_at ?? new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const existingCheckoutUrl = preparedPayload.checkout_url?.trim() ?? "";
+  const referenceCode = (preparedPayload.reference_code ?? `APT-${params.appointmentId.replaceAll("-", "").slice(0, 20).toUpperCase()}`).trim();
 
-  const referenceCode = `APT-${params.appointmentId.replaceAll("-", "").slice(0, 20).toUpperCase()}`;
-  const { data: payment, error: paymentError } = await admin
-    .from("payments")
-    .insert({
-      studio_id: params.studioId,
-      location_id: params.locationId,
-      pos_sale_id: sale.id,
-      client_id: params.userId,
-      amount: expectedAmount,
-      currency: params.serviceCurrencySnapshot,
-      payment_method: "hitpay",
-      sales_channel: "online",
-      source: "pos_sale",
-      status: "pending",
-      reference_code: referenceCode,
-      type: "single",
-      remaining_uses: 0,
-      service_id: params.serviceId,
-      service_title_snapshot: params.serviceTitleSnapshot,
-      expires_at: expiresAtIso,
-    })
-    .select("id")
-    .single<{ id: string }>();
-  if (paymentError || !payment?.id) {
-    throw new Error(paymentError?.message ?? "payment_create_failed");
+  if (existingCheckoutUrl) {
+    return {
+      posSaleId,
+      paymentId,
+      checkoutUrl: existingCheckoutUrl,
+      expectedAmount,
+      requiredAmount,
+      currency,
+      expiresAtIso,
+    };
   }
 
   const { data: secrets, error: secretError } = await admin
@@ -900,12 +858,12 @@ async function createSelfAppointmentOnlinePayment(params: {
 
   const appBase = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
   if (!appBase) throw new Error("payment_config_missing");
-  const returnUrl = `${appBase}/${params.studioSlug}/checkout/${payment.id}`;
+  const returnUrl = `${appBase}/${params.studioSlug}/checkout/${paymentId}`;
 
   const request = await createHitpayPaymentRequest({
     apiKey,
     amount: expectedAmount.toFixed(2),
-    currency: params.serviceCurrencySnapshot,
+    currency,
     reference_number: referenceCode,
     redirect_url: returnUrl,
     purpose: `Appointment ${params.appointmentId.slice(0, 8)}`,
@@ -918,16 +876,17 @@ async function createSelfAppointmentOnlinePayment(params: {
       gateway_checkout_url: request.checkoutUrl,
       gateway_status: request.providerStatus,
     })
-    .eq("id", payment.id)
+    .eq("id", paymentId)
     .eq("status", "pending");
   if (paymentPatchError) throw paymentPatchError;
 
   return {
-    posSaleId: sale.id,
-    paymentId: payment.id,
+    posSaleId,
+    paymentId,
     checkoutUrl: request.checkoutUrl,
     expectedAmount,
-    currency: params.serviceCurrencySnapshot,
+    requiredAmount,
+    currency,
     expiresAtIso,
   };
 }
@@ -962,7 +921,7 @@ export async function createSelfAppointment(params: {
     operationScope: "salon_appointment:create",
     idempotencyKey: params.idempotencyKey,
     requestPayload: params,
-    run: async ({ idempotencyRecordId, claimToken }) => {
+    run: async ({ idempotencyRecordId }) => {
       const admin = createAdminClient();
       const nowIso = new Date().toISOString();
       const { data, error } = await admin.rpc("create_salon_appointment", {
@@ -980,8 +939,6 @@ export async function createSelfAppointment(params: {
         p_terms_acceptance_channel: "self_booking_web",
         p_terms_acceptance_method: "checkbox",
         p_terms_recorded_by: params.userId,
-        p_idempotency_key_id: idempotencyRecordId,
-        p_idempotency_claim_token: claimToken,
       });
       if (error) {
         const mapped = mapRpcError(error);
@@ -1014,97 +971,44 @@ export async function createSelfAppointment(params: {
       const servicePrice = Math.round(Math.max(Number(appointmentSnapshot.service_price_snapshot ?? 0), 0) * 100) / 100;
       const serviceCurrency = (appointmentSnapshot.service_currency_snapshot || "SGD").toUpperCase();
 
-      if (params.settlementOption === "package_credit") {
-        const consume = await admin.rpc("pkg01_apply_appointment_package_consume", {
-          p_studio_id: params.studioId,
-          p_appointment_id: payload.appointment_id,
-          p_actor_id: params.userId,
-          p_actor_role: "customer",
-          p_idempotency_key_id: idempotencyRecordId,
-          p_correlation_id: `apt04:${payload.appointment_id}:package_consume`,
-        });
-        if (consume.error) {
-          const mapped = mapRpcError(consume.error);
-          return { ok: false, ...mapped };
+      try {
+        if (params.settlementOption === "package_credit") {
+          const finalize = await admin.rpc("apt04_finalize_package_settlement", {
+            p_studio_id: params.studioId,
+            p_appointment_id: payload.appointment_id,
+            p_actor_id: params.userId,
+            p_idempotency_key_id: idempotencyRecordId,
+          });
+          if (finalize.error) {
+            throw finalize.error;
+          }
+
+          const finalizePayload = (finalize.data ?? {}) as { ok?: boolean; appointment_status?: string };
+          if (!finalizePayload.ok) {
+            throw new Error("package_not_eligible");
+          }
+
+          return {
+            ok: true,
+            payload: {
+              appointmentId: payload.appointment_id,
+              status: finalizePayload.appointment_status ?? "confirmed",
+              startsAt: payload.starts_at,
+              endsAt: payload.ends_at,
+              settlementStatus: "package_consumed",
+              paymentId: null,
+            },
+          };
         }
 
-        const consumePayload = (consume.data ?? {}) as {
-          ok?: boolean;
-          client_package_id?: string;
-          ledger_entry_id?: string;
-        };
-        if (!consumePayload.ok || !consumePayload.client_package_id || !consumePayload.ledger_entry_id) {
-          return { ok: false, code: "package_not_eligible", message: "Package consume failed." };
-        }
-
-        const settlement = await admin.rpc("apt04_upsert_appointment_settlement", {
-          p_actor_id: params.userId,
-          p_studio_id: params.studioId,
-          p_appointment_id: payload.appointment_id,
-          p_settlement_mode: "package_credit",
-          p_required_amount: servicePrice,
-          p_currency: serviceCurrency,
-          p_client_package_id: consumePayload.client_package_id,
-          p_consume_ledger_entry_id: consumePayload.ledger_entry_id,
-          p_metadata: {
-            eligibility_rule: "conservative_studio_location_expiry_balance",
-            service_level_mapping: "not_configured_phase2",
-          },
-        });
-        if (settlement.error) {
-          const mapped = mapRpcError(settlement.error);
-          return { ok: false, ...mapped };
-        }
-
-        return {
-          ok: true,
-          payload: {
-            appointmentId: payload.appointment_id,
-            status: payload.status,
-            startsAt: payload.starts_at,
-            endsAt: payload.ends_at,
-            settlementStatus: "package_consumed",
-            paymentId: null,
-          },
-        };
-      }
-
-      if (params.settlementOption === "online_deposit" || params.settlementOption === "online_full") {
-        try {
+        if (params.settlementOption === "online_deposit" || params.settlementOption === "online_full") {
           const online = await createSelfAppointmentOnlinePayment({
             userId: params.userId,
             studioId: params.studioId,
             studioSlug: params.studioSlug,
             appointmentId: payload.appointment_id,
-            salonCustomerId: appointmentSnapshot.salon_customer_id,
-            locationId: appointmentSnapshot.location_id,
-            serviceId: appointmentSnapshot.service_id,
-            employeeId: appointmentSnapshot.employee_id,
-            serviceTitleSnapshot: appointmentSnapshot.service_title_snapshot,
-            servicePriceSnapshot: servicePrice,
-            serviceCurrencySnapshot: serviceCurrency,
             settlementOption: params.settlementOption,
           });
-
-          const settlement = await admin.rpc("apt04_upsert_appointment_settlement", {
-            p_actor_id: params.userId,
-            p_studio_id: params.studioId,
-            p_appointment_id: payload.appointment_id,
-            p_settlement_mode: params.settlementOption,
-            p_required_amount: servicePrice,
-            p_currency: serviceCurrency,
-            p_payment_id: online.paymentId,
-            p_pos_sale_id: online.posSaleId,
-            p_expires_at: online.expiresAtIso,
-            p_metadata: {
-              expected_payment_amount: online.expectedAmount,
-              eligibility_rule: "server_price_snapshot",
-            },
-          });
-          if (settlement.error) {
-            const mapped = mapRpcError(settlement.error);
-            return { ok: false, ...mapped };
-          }
 
           return {
             ok: true,
@@ -1117,50 +1021,64 @@ export async function createSelfAppointment(params: {
               paymentId: online.paymentId,
             },
           };
-        } catch (onlineError) {
-          await admin.rpc("cancel_salon_appointment", {
-            p_actor_id: params.userId,
-            p_actor_role: "customer",
-            p_studio_id: params.studioId,
-            p_appointment_id: payload.appointment_id,
-            p_reason: "payment_request_create_failed",
-          });
-          const msg = onlineError instanceof Error ? onlineError.message : "payment_create_failed";
-          if (msg.includes("payment_config_missing")) {
-            return { ok: false, code: "payment_config_missing", message: "Online payment is not configured for this studio." };
-          }
-          return { ok: false, code: "payment_create_failed", message: msg };
         }
-      }
 
-      const settlement = await admin.rpc("apt04_upsert_appointment_settlement", {
-        p_actor_id: params.userId,
-        p_studio_id: params.studioId,
-        p_appointment_id: payload.appointment_id,
-        p_settlement_mode: "free",
-        p_required_amount: servicePrice,
-        p_currency: serviceCurrency,
-        p_metadata: {
-          eligibility_rule: "phase1_compatible_no_payment",
-        },
-      });
-      if (settlement.error) {
-        const mapped = mapRpcError(settlement.error);
-        return { ok: false, ...mapped };
-      }
+        const settlement = await admin.rpc("apt04_upsert_appointment_settlement", {
+          p_actor_id: params.userId,
+          p_studio_id: params.studioId,
+          p_appointment_id: payload.appointment_id,
+          p_settlement_mode: "free",
+          p_required_amount: servicePrice,
+          p_currency: serviceCurrency,
+          p_metadata: {
+            eligibility_rule: "phase1_compatible_no_payment",
+          },
+        });
+        if (settlement.error) {
+          throw settlement.error;
+        }
 
-      return {
-        ok: true,
-        payload: {
-          appointmentId: payload.appointment_id,
-          status: payload.status,
-          startsAt: payload.starts_at,
-          endsAt: payload.ends_at,
-          settlementStatus: "no_payment_required",
-          paymentId: null,
-        },
-      };
+        return {
+          ok: true,
+          payload: {
+            appointmentId: payload.appointment_id,
+            status: payload.status,
+            startsAt: payload.starts_at,
+            endsAt: payload.ends_at,
+            settlementStatus: "no_payment_required",
+            paymentId: null,
+          },
+        };
+      } catch (onlineError) {
+        await admin.rpc("cancel_salon_appointment", {
+          p_actor_id: params.userId,
+          p_actor_role: "customer",
+          p_studio_id: params.studioId,
+          p_appointment_id: payload.appointment_id,
+          p_reason: "payment_request_create_failed",
+        });
+        if (onlineError && typeof onlineError === "object" && "code" in onlineError) {
+          const mapped = mapRpcError(onlineError as { code?: string; message?: string });
+          if (mapped.code === "insufficient_credits") {
+            return { ok: false, code: "insufficient_credits", message: mapped.message };
+          }
+          if (mapped.code === "forbidden") {
+            return { ok: false, code: "package_not_eligible", message: mapped.message };
+          }
+          return { ok: false, ...mapped };
+        }
+
+        const msg = onlineError instanceof Error ? onlineError.message : "payment_create_failed";
+        if (msg.includes("payment_config_missing")) {
+          return { ok: false, code: "payment_config_missing", message: "Online payment is not configured for this studio." };
+        }
+        if (msg.includes("package_not_eligible")) {
+          return { ok: false, code: "package_not_eligible", message: "Selected package credits are not eligible." };
+        }
+        return { ok: false, code: "payment_create_failed", message: msg };
+      }
     },
+    completeOnSuccess: true,
   });
 }
 

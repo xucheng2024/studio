@@ -125,6 +125,8 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814002000_pkg01_
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814193000_apt04_customer_self_booking_actor.sql >/tmp/apt04_m3.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814203000_apt04_align_studio_service_title.sql >/tmp/apt04_m4.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814220000_apt04_phase2_self_booking_settlement.sql >/tmp/apt04_m5.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814233000_apt04_phase2_p1_correctness_hotfix.sql >/tmp/apt04_m6.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_apt04_self_booking.sql | tee /tmp/apt04_verify.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_apt04_phase2_settlement.sql | tee /tmp/apt04_phase2_verify.log
 
 echo "verify-apt04-db: ok"

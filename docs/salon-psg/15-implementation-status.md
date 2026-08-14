@@ -45,7 +45,7 @@
 | Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色/390px 浏览器 Gate 已通过；待专用 UAT fixture 完成现金收款、找零和收据点击流 |
 | Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | Merchant Key-only 改造已发布，真实 Sandbox 支付、webhook、佣金 earned 与全额退款冲销已通过；主动同步与异常恢复的完整专项 Gate 仍归 POS-03 后续收口 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
-| Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 2） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已接入 Package Credits、在线订金与在线全款；新增预约级 settlement 主记录、Package consume/cancel_return Ledger 链路、支付链路校验与状态机保护。`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:pkg01-db`、`test:pos03-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过。真实生产支付点击流与发布证据待补，不标记“已上线”。 |
+| Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 2） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已接入 Package Credits、在线订金与在线全款；新增预约级 settlement 主记录、Package consume/cancel_return Ledger 链路、支付链路校验与状态机保护。已补 2026-08-14 P1 热修复：幂等完成时机后移、Package/online 事实原子化、paid 后预约推进并清空 expires_at、继续支付入口与预约过期补扫。`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:pkg01-db`、`test:pos03-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过。真实生产支付点击流与发布证据待补，不标记“已上线”。 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
