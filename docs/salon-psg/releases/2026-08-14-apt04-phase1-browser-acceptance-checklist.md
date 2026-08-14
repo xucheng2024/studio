@@ -36,8 +36,8 @@ test "${APT04_ENV_CLASSIFICATION:-}" = "uat" || {
 ## 2. 执行准备
 
 - `RUN_ID`：`APT04-UAT-YYYYMMDD-HHMM`。
-- 浏览器：`Chrome`、`Safari`（或 `Edge`）。
-- 设备：桌面（>=1280）+ 移动端 390px（DevTools Device 模拟可接受）。
+- 浏览器：真实安装的 `Chrome`、`Safari`，并在可用时补跑 `Firefox` / `Edge`；必须记录准确版本。
+- 设备：桌面（>=1280）+ 真实 390px 设备或系统级设备模拟器。DevTools viewport 仅可作为预检，不能单独关闭真实环境 Gate。
 - 账号：
   - Customer-A（Studio-S1 绑定客户）
   - Customer-B（Studio-S2 绑定客户）
@@ -171,4 +171,3 @@ mkdir -p "tmp/apt04-uat/${RUN_ID}/screenshots"
 2. 再第二浏览器复跑关键 Gate（B03/B06/B08/B10）。
 3. 最后切 390px 跑 B11/B12。
 4. 汇总模板并给出“可验收/不可验收”结论。
-

@@ -69,12 +69,29 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
   const notice = getFeedbackMessage(feedback);
 
   if (!studioId) {
+    const admin = createAdminClient();
     const activeStudioSlug = await getActiveMemberStudioSlugFromCookie();
     if (activeStudioSlug) {
-      redirect(`/${activeStudioSlug}/me/appointments`);
+      const { data: activeStudio } = await admin
+        .from("studios")
+        .select("id")
+        .eq("public_slug", activeStudioSlug)
+        .maybeSingle<{ id: string }>();
+      if (activeStudio?.id) {
+        const { data: activeCustomer } = await admin
+          .from("salon_customers")
+          .select("id")
+          .eq("studio_id", activeStudio.id)
+          .eq("user_id", user.id)
+          .is("merged_into_id", null)
+          .eq("status", "active")
+          .maybeSingle<{ id: string }>();
+        if (activeCustomer?.id) {
+          redirect(`/${activeStudioSlug}/me/appointments`);
+        }
+      }
     }
 
-    const admin = createAdminClient();
     const { data: customerRows, error: customerError } = await admin
       .from("salon_customers")
       .select("id, studio_id")

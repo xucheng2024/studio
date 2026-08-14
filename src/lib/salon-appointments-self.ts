@@ -295,11 +295,11 @@ export async function listSelfBookableCatalog(params: { studioId: string }) {
     admin.from("locations").select("id, name").eq("studio_id", params.studioId).eq("is_active", true).order("name"),
     admin
       .from("studio_services")
-      .select("id, name, is_active, default_duration_minutes, default_prep_minutes, default_buffer_minutes")
+      .select("id, title, is_active, default_duration_minutes, default_prep_minutes, default_buffer_minutes")
       .eq("studio_id", params.studioId)
       .eq("is_active", true)
       .order("sort_order")
-      .order("name"),
+      .order("title"),
     admin
       .from("service_locations")
       .select("service_id, location_id")
@@ -322,7 +322,7 @@ export async function listSelfBookableCatalog(params: { studioId: string }) {
   const services: SelfBookableService[] = (serviceRes.data ?? [])
     .map((service) => ({
       id: service.id,
-      name: service.name,
+      name: service.title,
       locationIds: Array.from(new Set(serviceToLocations.get(service.id) ?? [])),
       defaultDurationMinutes: Number(service.default_duration_minutes ?? 60),
       defaultPrepMinutes: Number(service.default_prep_minutes ?? 0),
@@ -445,7 +445,7 @@ export async function listSelfBookableSlots(params: {
       .eq("is_active", true),
     admin
       .from("employees")
-      .select("id, display_name, is_active, employment_status")
+      .select("id, display_name, employment_status")
       .eq("studio_id", params.studioId),
     admin
       .from("employee_working_hours")
@@ -524,7 +524,7 @@ export async function listSelfBookableSlots(params: {
 
   const targetEmployeeIds = new Set(employeeRows.map((row) => row.id));
   const activeEmployees = employeeRows.filter(
-    (employee) => employee.is_active && ["active", "probation"].includes(String(employee.employment_status ?? "active").toLowerCase()),
+    (employee) => String(employee.employment_status ?? "active").toLowerCase() === "active",
   );
   const workingIntervals = buildIntervalsByEmployee(workingHoursRes.data ?? [], dateYmd);
 

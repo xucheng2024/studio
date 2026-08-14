@@ -275,7 +275,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                           <input
                             type="hidden"
                             name="idempotency_key"
-                            value={`apt04-self-create:${selfCustomer.salonCustomerId}:${selectedServiceId}:${selectedLocationId}:${slot.employeeId}:${slot.startsAtIso}`}
+                            value={`apt04-self-create:${crypto.randomUUID()}`}
                           />
                           <input type="hidden" name="terms_version_id" value={termsVersion.id} />
 

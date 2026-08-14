@@ -20,7 +20,7 @@ export function StudioMemberTabs({ studioSlug }: { studioSlug: string }) {
   return (
     <nav
       aria-label="Member navigation"
-      className="sticky top-0 z-20 -mx-4 border-b border-stone-200/80 bg-white/92 px-4 py-3 backdrop-blur dark:border-stone-800 dark:bg-stone-950/88 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+      className="sticky top-0 z-20 border-b border-stone-200/80 bg-white/92 px-4 py-3 backdrop-blur dark:border-stone-800 dark:bg-stone-950/88 sm:px-6 lg:px-8"
     >
       <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto pb-1">
         <Link

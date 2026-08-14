@@ -38,6 +38,7 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/apt02_minimal_pre_schema.sql 
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260811145810_apt01_service_availability_resources.sql >/tmp/apt04_m1.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260811170339_apt02_salon_appointment_atomic_foundation.sql >/tmp/apt04_m2.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814193000_apt04_customer_self_booking_actor.sql >/tmp/apt04_m3.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814203000_apt04_align_studio_service_title.sql >/tmp/apt04_m4.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_apt04_self_booking.sql | tee /tmp/apt04_verify.log
 
 echo "verify-apt04-db: ok"

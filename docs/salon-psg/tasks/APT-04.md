@@ -176,6 +176,8 @@ Commit / Release：（待提交）
 
 结论：当前仍保持“已实现/待验证（Phase 1）”，在完成 390px 与多浏览器真实环境验收前，不标记“可验收/已上线”。
 
+隔离 UAT 已执行：`RUN_ID=APT04-UAT-LOCAL-20260814-2350`。真实 Chrome 完整链路、Firefox/WebKit 关键链路及 390px viewport 预检通过；证据见 `docs/salon-psg/releases/2026-08-14-apt04-phase1-uat-evidence.md`。真实 Safari 与真实 390px 设备/系统模拟器仍待人工补证。
+
 没有实际命令输出或测试证据时，不勾选对应项目。
 
 ## 10. 后续任务接口
