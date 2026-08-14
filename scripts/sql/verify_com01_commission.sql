@@ -19,6 +19,8 @@ declare
 
   v_appt_paid_first uuid := 'd1000000-0000-0000-0000-000000000501';
   v_appt_completed_first uuid := 'd1000000-0000-0000-0000-000000000502';
+  v_appt_rule_timing uuid := 'd1000000-0000-0000-0000-000000000503';
+  v_appt_mismatch uuid := 'd1000000-0000-0000-0000-000000000504';
 
   v_sale_paid_first jsonb;
   v_sale_completed_first jsonb;
@@ -30,6 +32,8 @@ declare
   v_item_walkin_owner_id uuid;
   v_item_walkin_manager_id uuid;
   v_item_unfinished_id uuid;
+  v_item_rule_timing_id uuid;
+  v_item_mismatch_id uuid;
 
   v_payment_id uuid;
   v_result jsonb;
@@ -38,6 +42,8 @@ declare
   v_forbidden boolean := false;
   v_cross_studio_blocked boolean := false;
   v_role_denied boolean := false;
+  v_overlap_blocked boolean := false;
+  v_dup_version_blocked boolean := false;
 begin
   insert into public.users (id, email) values
     (v_owner_id, 'com01-owner@example.com'),
@@ -741,6 +747,267 @@ begin
 
   if v_sum <> -10.00 then
     raise exception 'reversal sum should equal -earned amount (-10.00), got %', v_sum;
+  end if;
+
+  -- Rule conflict guards: overlap and duplicate scope/version must be rejected.
+  begin
+    insert into public.employee_service_commission_rules (
+      studio_id, location_id, employee_id, service_id,
+      commission_type, percent_rate, currency, rule_version,
+      effective_from, effective_until, created_by
+    ) values (
+      v_studio_id, null, null, v_service_id,
+      'percent', 12, 'SGD', 99,
+      now() - interval '30 minutes', now() + interval '30 minutes', v_owner_id
+    );
+  exception
+    when sqlstate '23P01' then
+      v_overlap_blocked := true;
+  end;
+
+  if not v_overlap_blocked then
+    raise exception 'expected overlapping active commission rules to be rejected';
+  end if;
+
+  begin
+    insert into public.employee_service_commission_rules (
+      studio_id, location_id, employee_id, service_id,
+      commission_type, percent_rate, currency, rule_version,
+      effective_from, effective_until, created_by
+    ) values (
+      v_studio_id, null, null, v_service_id,
+      'percent', 15, 'SGD', 1,
+      now() + interval '1 day', now() + interval '2 day', v_owner_id
+    );
+  exception
+    when sqlstate '23505' then
+      v_dup_version_blocked := true;
+  end;
+
+  if not v_dup_version_blocked then
+    raise exception 'expected duplicate scope/version commission rules to be rejected';
+  end if;
+
+  -- Rule timing: pay first (old paid_at), complete later -> should pick later (new) rule.
+  insert into public.employee_service_commission_rules (
+    studio_id, location_id, employee_id, service_id,
+    commission_type, percent_rate, currency, rule_version,
+    effective_from, effective_until, created_by
+  ) values (
+    v_studio_id, v_location_l1, v_employee_id, v_service_id,
+    'percent', 20, 'SGD', 2,
+    now() - interval '10 minutes', null, v_owner_id
+  );
+
+  insert into public.salon_appointments (
+    id, studio_id, location_id, salon_customer_id, service_id, employee_id,
+    status, starts_at, ends_at, occupied_from, occupied_until,
+    service_title_snapshot, service_price_snapshot, service_currency_snapshot,
+    service_duration_snapshot_minutes, prep_snapshot_minutes, buffer_snapshot_minutes,
+    employee_name_snapshot, location_name_snapshot, created_by, updated_by
+  ) values (
+    v_appt_rule_timing,
+    v_studio_id,
+    v_location_l1,
+    v_customer_id,
+    v_service_id,
+    v_employee_id,
+    'in_progress',
+    now() + interval '7 hour',
+    now() + interval '8 hour',
+    now() + interval '6 hour 50 minute',
+    now() + interval '8 hour 10 minute',
+    'COM01 Service', 100, 'SGD', 60, 10, 10,
+    'COM01 Employee', 'COM01-L1', v_owner_id, v_owner_id
+  ) on conflict (id) do nothing;
+
+  v_result := public.create_pos_sale_draft(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_location_id := v_location_l1,
+    p_salon_customer_id := v_customer_id,
+    p_note := 'COM01 rule timing',
+    p_idempotency_key := 'com01-rule-time-create',
+    p_request_hash := encode(digest('com01-rule-time-create', 'sha256'), 'hex')
+  );
+
+  v_result := public.upsert_pos_sale_item(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := (v_result->>'sale_id')::uuid,
+    p_item_id := null,
+    p_line_number := 1,
+    p_item_type := 'service',
+    p_service_id := v_service_id,
+    p_product_id := null,
+    p_package_id := null,
+    p_salon_appointment_id := v_appt_rule_timing,
+    p_employee_id := v_employee_id,
+    p_item_name_snapshot := 'COM01 Service',
+    p_item_currency_snapshot := 'SGD',
+    p_quantity := 1,
+    p_unit_price_amount := 100,
+    p_discount_amount := 0,
+    p_tax_amount := 0,
+    p_idempotency_key := 'com01-rule-time-item',
+    p_request_hash := encode(digest('com01-rule-time-item', 'sha256'), 'hex')
+  );
+  v_item_rule_timing_id := (v_result->>'item_id')::uuid;
+
+  perform public.lock_pos_sale(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := (v_result->>'sale_id')::uuid,
+    p_idempotency_key := 'com01-rule-time-lock',
+    p_request_hash := encode(digest('com01-rule-time-lock', 'sha256'), 'hex')
+  );
+
+  insert into public.payments (
+    studio_id, location_id, pos_sale_id, amount, currency, payment_method, sales_channel, source, status, reference_code, type, remaining_uses
+  ) values (
+    v_studio_id, v_location_l1, (v_result->>'sale_id')::uuid, 100, 'SGD', 'hitpay', 'frontdesk', 'pos_sale', 'pending', 'COM01-RULE-TIME', 'single', 0
+  ) returning id into v_payment_id;
+
+  perform public.complete_pos_hitpay_sale(
+    p_studio_id := v_studio_id,
+    p_payment_id := v_payment_id,
+    p_sale_id := (v_result->>'sale_id')::uuid,
+    p_provider_event_id := null,
+    p_gateway_payment_id := 'hp-com01-rule-time',
+    p_gateway_status := 'succeeded',
+    p_gateway_payload := '{}',
+    p_verified_by := v_owner_id
+  );
+
+  update public.payments
+  set paid_at = now() - interval '2 hour'
+  where id = v_payment_id;
+
+  update public.pos_sales
+  set paid_at = now() - interval '2 hour'
+  where id = (select sale_id from public.pos_sale_items where id = v_item_rule_timing_id);
+
+  perform public.transition_salon_appointment_status(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_actor_employee_id := null,
+    p_studio_id := v_studio_id,
+    p_appointment_id := v_appt_rule_timing,
+    p_to_status := 'completed'
+  );
+
+  if (
+    select rule_version
+    from public.service_commission_entries
+    where pos_sale_item_id = v_item_rule_timing_id and entry_type = 'earned'
+    limit 1
+  ) <> 2 then
+    raise exception 'appointment pay-first should resolve newer rule version by completed_at';
+  end if;
+
+  -- Appointment mismatch: item employee/service differs from appointment -> no earned entry.
+  insert into public.salon_appointments (
+    id, studio_id, location_id, salon_customer_id, service_id, employee_id,
+    status, starts_at, ends_at, occupied_from, occupied_until,
+    service_title_snapshot, service_price_snapshot, service_currency_snapshot,
+    service_duration_snapshot_minutes, prep_snapshot_minutes, buffer_snapshot_minutes,
+    employee_name_snapshot, location_name_snapshot, created_by, updated_by
+  ) values (
+    v_appt_mismatch,
+    v_studio_id,
+    v_location_l1,
+    v_customer_id,
+    v_service_id,
+    v_instructor_employee_id,
+    'in_progress',
+    now() + interval '9 hour',
+    now() + interval '10 hour',
+    now() + interval '8 hour 50 minute',
+    now() + interval '10 hour 10 minute',
+    'COM01 Service', 100, 'SGD', 60, 10, 10,
+    'COM01 Instructor Employee', 'COM01-L1', v_owner_id, v_owner_id
+  ) on conflict (id) do nothing;
+
+  v_result := public.create_pos_sale_draft(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_location_id := v_location_l1,
+    p_salon_customer_id := v_customer_id,
+    p_note := 'COM01 appointment mismatch',
+    p_idempotency_key := 'com01-mismatch-create',
+    p_request_hash := encode(digest('com01-mismatch-create', 'sha256'), 'hex')
+  );
+
+  v_result := public.upsert_pos_sale_item(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := (v_result->>'sale_id')::uuid,
+    p_item_id := null,
+    p_line_number := 1,
+    p_item_type := 'service',
+    p_service_id := v_service_id,
+    p_product_id := null,
+    p_package_id := null,
+    p_salon_appointment_id := v_appt_mismatch,
+    p_employee_id := v_employee_id,
+    p_item_name_snapshot := 'COM01 Service',
+    p_item_currency_snapshot := 'SGD',
+    p_quantity := 1,
+    p_unit_price_amount := 100,
+    p_discount_amount := 0,
+    p_tax_amount := 0,
+    p_idempotency_key := 'com01-mismatch-item',
+    p_request_hash := encode(digest('com01-mismatch-item', 'sha256'), 'hex')
+  );
+  v_item_mismatch_id := (v_result->>'item_id')::uuid;
+
+  perform public.lock_pos_sale(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio_id,
+    p_sale_id := (v_result->>'sale_id')::uuid,
+    p_idempotency_key := 'com01-mismatch-lock',
+    p_request_hash := encode(digest('com01-mismatch-lock', 'sha256'), 'hex')
+  );
+
+  insert into public.payments (
+    studio_id, location_id, pos_sale_id, amount, currency, payment_method, sales_channel, source, status, reference_code, type, remaining_uses
+  ) values (
+    v_studio_id, v_location_l1, (v_result->>'sale_id')::uuid, 100, 'SGD', 'hitpay', 'frontdesk', 'pos_sale', 'pending', 'COM01-MISMATCH', 'single', 0
+  ) returning id into v_payment_id;
+
+  perform public.complete_pos_hitpay_sale(
+    p_studio_id := v_studio_id,
+    p_payment_id := v_payment_id,
+    p_sale_id := (v_result->>'sale_id')::uuid,
+    p_provider_event_id := null,
+    p_gateway_payment_id := 'hp-com01-mismatch',
+    p_gateway_status := 'succeeded',
+    p_gateway_payload := '{}',
+    p_verified_by := v_owner_id
+  );
+
+  perform public.transition_salon_appointment_status(
+    p_actor_id := v_owner_id,
+    p_actor_role := 'owner',
+    p_actor_employee_id := null,
+    p_studio_id := v_studio_id,
+    p_appointment_id := v_appt_mismatch,
+    p_to_status := 'completed'
+  );
+
+  select count(*)::integer into v_count
+  from public.service_commission_entries
+  where pos_sale_item_id = v_item_mismatch_id
+    and entry_type = 'earned';
+
+  if v_count <> 0 then
+    raise exception 'appointment/item mismatch should not produce earned entry, got %', v_count;
   end if;
 
   -- Ensure earned entry snapshot fields are complete.

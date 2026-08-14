@@ -1,6 +1,6 @@
 # COM-01：佣金规则和入账
 
-状态：已实现/待验证
+状态：已实现/待验证（P1/P2 修复已完成）
 
 负责人：Codex
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-14
 
-Commit / Release：待本地独立 commit（未 push / 未部署）
+Commit / Release：`9aab9ef`、本次 P1/P2 修复独立 commit（未 push / 未部署）
 
 ## 1. 目标
 
@@ -145,7 +145,7 @@ Commit / Release：待本地独立 commit（未 push / 未部署）
 
 ### 验证结果
 
-- `npm run test:com01-db`：通过（`com01_commission_ok`）
+- `npm run test:com01-db`：通过（`com01_commission_ok`），含 migration 复跑、双连接并发（付款 vs walk-in fulfill）
 - `npm run lint`：通过
 - `npx tsc --noEmit`：通过
 - `npm run build`：通过（Next.js 16.2.4）
