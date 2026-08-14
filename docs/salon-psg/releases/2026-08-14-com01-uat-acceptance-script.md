@@ -2,16 +2,25 @@
 
 > 适用范围：COM-01 Commission。仅用于**隔离 UAT 环境**，不得在 Production 造财务测试数据。
 
-## 当前执行结论（Production 共库保护）
+## 0. 执行结果（2026-08-14）
 
-当前开发数据库就是 Production 数据库，因此本文件目前是**待执行脚本**，不是对当前环境的执行授权。
+- 结论：通过。COM-01 生产 Migration/应用已发布，交易 UAT 在隔离本地 Supabase 与 HitPay Sandbox 完成，未在 Production 创建测试财务交易。
+- `RUN_ID`：`COM01-UAT-LOCAL-V2-20260814-182536`
+- 场景：Appointment 先付后做/先做后付、Walk-in 先做后付、Cash/HitPay、部分+全额退款、幂等重放、跨 Location 拒绝。
+- 角色：Owner、Manager、Frontdesk 允许；Instructor 拒绝；Frontdesk 跨 Location 拒绝。
+- 浏览器证据：`tmp/com01-uat/COM01-UAT-LOCAL-V2-20260814-182536/screenshots/`，共 10 张非 Loading/Skeleton 截图；`index.json` 记录 URL、页面文本与账务断言。
+- DB 证据：`tmp/com01-uat/COM01-UAT-LOCAL-V2-20260814-182536/db-evidence-20260814-183230.txt`；4 个应计项目各 1 条 earned，退款项目以 `-3/-7` 反向 Entry 归零。
+- 证据边界：先后顺序由 SQL UAT/DB 断言证明；浏览器截图证明角色权限与交易最终状态，不宣称为逐步点击录屏。
 
-- 当前允许：本地 Docker DB Gate、代码/文档审查，以及显式确认后的 Production 只读查询。
-- 当前禁止：应用 migration、创建测试 Sale/Appointment/Payment、Cash/HitPay 测试付款、fulfill、退款、幂等重放和跨门店写入测试。
-- 当前状态：COM-01 保持“已实现/待验证”；在隔离 UAT Supabase + UAT Web 就绪前，不执行第 1.3 节和第 4 节。
-- 解锁条件：新建隔离 UAT Project，配置专用测试账号与 HitPay Sandbox；不得复制 Production merchant secret 后直接制造测试支付。
+## 环境保护结论（Production 共库）
 
-## 0. 通过标准（必须全部满足）
+开发数据库就是 Production 数据库，因此本文件不授权在该共库创建测试交易。本轮已用本机 Docker Supabase 建立隔离 UAT 环境并完成执行。
+
+- 允许：本地 Docker DB Gate、隔离本地 UAT、代码/文档审查，以及显式确认后的 Production 只读查询。
+- 禁止：在 Production 创建测试 Sale/Appointment/Payment，或执行 Cash/HitPay 测试付款、fulfill、退款、幂等重放和跨门店写入测试。
+- 当前状态：COM-01 已上线；生产发布与隔离 UAT 证据分开保留。
+
+## 0.1 通过标准（必须全部满足）
 
 - 角色矩阵：Owner/Manager/Frontdesk 允许，Instructor 拒绝（含跨门店拒绝）。
 - Appointment：先付后做、先做后付均仅产生 1 条 `earned`。
@@ -39,7 +48,7 @@
 
 ### 1.3 迁移应用（UAT）
 
-> **硬停条件：** `COM01_DB_CLASSIFICATION` 不是精确值 `uat` 时，不得执行本节。当前环境为 Production，本节禁止执行。
+> **硬停条件：** `COM01_DB_CLASSIFICATION` 不是精确值 `uat` 时，不得执行本节。本轮仅在本机 Docker Supabase 执行，Production 仍禁止执行 UAT fixture。
 
 在未来的**隔离目标 UAT**按顺序应用（已在仓库中）：
 

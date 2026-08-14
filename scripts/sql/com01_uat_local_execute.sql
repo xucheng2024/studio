@@ -6,11 +6,11 @@ do $$
 declare
   v_run_id text := current_setting('app.run_id');
 
-  v_studio_id uuid := 'd1000000-0000-0000-0000-000000000001';
-  v_other_studio_id uuid := 'd2000000-0000-0000-0000-000000000001';
-  v_location_l1 uuid := 'd1000000-0000-0000-0000-000000000011';
-  v_location_l2 uuid := 'd1000000-0000-0000-0000-000000000012';
-  v_other_location_id uuid := 'd2000000-0000-0000-0000-000000000011';
+  v_studio_id uuid := 'e1000000-0000-4000-8000-000000000001';
+  v_other_studio_id uuid := 'e2000000-0000-4000-8000-000000000001';
+  v_location_l1 uuid := 'e1000000-0000-4000-8000-000000000011';
+  v_location_l2 uuid := 'e1000000-0000-4000-8000-000000000012';
+  v_other_location_id uuid := 'e2000000-0000-4000-8000-000000000011';
 
   v_owner_id uuid := 'd1000000-0000-0000-0000-000000000101';
   v_manager_id uuid := 'd1000000-0000-0000-0000-000000000102';
@@ -19,13 +19,13 @@ declare
   v_instructor_user_id uuid := 'd1000000-0000-0000-0000-000000000105';
   v_other_owner_id uuid := 'd2000000-0000-0000-0000-000000000101';
 
-  v_employee_id uuid := 'd1000000-0000-0000-0000-000000000201';
-  v_instructor_employee_id uuid := 'd1000000-0000-0000-0000-000000000202';
-  v_customer_id uuid := 'd1000000-0000-0000-0000-000000000301';
-  v_service_id uuid := 'd1000000-0000-0000-0000-000000000401';
+  v_employee_id uuid := 'e1000000-0000-4000-8000-000000000201';
+  v_instructor_employee_id uuid := 'e1000000-0000-4000-8000-000000000202';
+  v_customer_id uuid := 'e1000000-0000-4000-8000-000000000301';
+  v_service_id uuid := 'e1000000-0000-4000-8000-000000000401';
 
-  v_appt_paid_first uuid := 'd1000000-0000-0000-0000-000000000501';
-  v_appt_complete_first uuid := 'd1000000-0000-0000-0000-000000000502';
+  v_appt_paid_first uuid := 'e1000000-0000-4000-8000-000000000501';
+  v_appt_complete_first uuid := 'e1000000-0000-4000-8000-000000000502';
 
   v_sale jsonb;
   v_item jsonb;
@@ -59,8 +59,8 @@ begin
     role = excluded.role;
 
   insert into public.studios (id, name, public_slug, owner_id, contract_status) values
-    (v_studio_id, 'COM01 UAT Studio', 'com01-uat-studio', v_owner_id, 'active'),
-    (v_other_studio_id, 'COM01 UAT Other Studio', 'com01-uat-other-studio', v_other_owner_id, 'active')
+    (v_studio_id, 'COM01 UAT Studio V2', 'com01-uat-v2-studio', v_owner_id, 'active'),
+    (v_other_studio_id, 'COM01 UAT Other Studio V2', 'com01-uat-v2-other-studio', v_other_owner_id, 'active')
   on conflict (id) do update set
     name = excluded.name,
     public_slug = excluded.public_slug,
@@ -77,10 +77,10 @@ begin
     is_active = excluded.is_active;
 
   insert into public.staff_memberships (id, user_id, studio_id, location_id, role, is_active) values
-    ('d1000000-0000-0000-0000-000000001001'::uuid, v_manager_id, v_studio_id, null, 'manager', true),
-    ('d1000000-0000-0000-0000-000000001002'::uuid, v_frontdesk_l1_id, v_studio_id, v_location_l1, 'frontdesk', true),
-    ('d1000000-0000-0000-0000-000000001003'::uuid, v_frontdesk_l2_id, v_studio_id, v_location_l2, 'frontdesk', true),
-    ('d1000000-0000-0000-0000-000000001004'::uuid, v_instructor_user_id, v_studio_id, v_location_l1, 'instructor', true)
+    ('e1000000-0000-4000-8000-000000001001'::uuid, v_manager_id, v_studio_id, null, 'manager', true),
+    ('e1000000-0000-4000-8000-000000001002'::uuid, v_frontdesk_l1_id, v_studio_id, v_location_l1, 'frontdesk', true),
+    ('e1000000-0000-4000-8000-000000001003'::uuid, v_frontdesk_l2_id, v_studio_id, v_location_l2, 'frontdesk', true),
+    ('e1000000-0000-4000-8000-000000001004'::uuid, v_instructor_user_id, v_studio_id, v_location_l1, 'instructor', true)
   on conflict (id) do update set
     user_id = excluded.user_id,
     studio_id = excluded.studio_id,
@@ -122,9 +122,9 @@ begin
     employment_status = excluded.employment_status;
 
   insert into public.employee_locations (id, employee_id, location_id, studio_id, is_primary, is_active) values
-    ('d1000000-0000-0000-0000-000000002001'::uuid, v_employee_id, v_location_l1, v_studio_id, true, true),
-    ('d1000000-0000-0000-0000-000000002002'::uuid, v_employee_id, v_location_l2, v_studio_id, false, true),
-    ('d1000000-0000-0000-0000-000000002003'::uuid, v_instructor_employee_id, v_location_l1, v_studio_id, true, true)
+    ('e1000000-0000-4000-8000-000000002001'::uuid, v_employee_id, v_location_l1, v_studio_id, true, true),
+    ('e1000000-0000-4000-8000-000000002002'::uuid, v_employee_id, v_location_l2, v_studio_id, false, true),
+    ('e1000000-0000-4000-8000-000000002003'::uuid, v_instructor_employee_id, v_location_l1, v_studio_id, true, true)
   on conflict (id) do update set
     employee_id = excluded.employee_id,
     location_id = excluded.location_id,
@@ -133,8 +133,8 @@ begin
     is_active = excluded.is_active;
 
   insert into public.service_employees (id, studio_id, service_id, employee_id, is_active) values
-    ('d1000000-0000-0000-0000-000000003001'::uuid, v_studio_id, v_service_id, v_employee_id, true),
-    ('d1000000-0000-0000-0000-000000003002'::uuid, v_studio_id, v_service_id, v_instructor_employee_id, true)
+    ('e1000000-0000-4000-8000-000000003001'::uuid, v_studio_id, v_service_id, v_employee_id, true),
+    ('e1000000-0000-4000-8000-000000003002'::uuid, v_studio_id, v_service_id, v_instructor_employee_id, true)
   on conflict (id) do update set
     studio_id = excluded.studio_id,
     service_id = excluded.service_id,
@@ -156,7 +156,7 @@ begin
     commission_type, percent_rate, currency, rule_version, effective_from, created_by, is_active
   )
   values (
-    'd1000000-0000-0000-0000-000000004001'::uuid,
+    'e1000000-0000-4000-8000-000000004001'::uuid,
     v_studio_id, null, null, v_service_id,
     'percent', 10, 'SGD', 1, now() - interval '1 day', v_owner_id, true
   )

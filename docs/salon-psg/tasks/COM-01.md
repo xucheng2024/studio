@@ -1,6 +1,6 @@
 # COM-01：佣金规则和入账
 
-状态：已实现/待验证（DB Gate 已闭环，待 UAT）
+状态：已上线（生产 Migration/应用已发布，隔离本地 UAT 已通过）
 
 负责人：Codex
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-14
 
-Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`5feac84`（均为本地独立 commit，未 push / 未部署）
+Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`5feac84`、`6eb44d5`、`9cd774c`、`48c9ca4`（已 push `origin/main`；COM-01 Migration 已应用至生产，应用已由 Vercel 发布）
 
 ## 1. 目标
 
@@ -122,6 +122,10 @@ Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`
 - `scripts/verify-com01-db.sh`
 - `scripts/sql/com01_verify_patch_schema.sql`
 - `scripts/sql/com01_payments_refund_patch.sql`
+- `scripts/sql/com01_uat_local_execute.sql`
+- `scripts/sql/com01_uat_evidence_pack.sql`
+- `scripts/collect-com01-uat-evidence.sh`
+- `scripts/verify-com01-uat-browser-local.mjs`
 - `package.json`
 - `docs/salon-psg/tasks/COM-01.md`
 - `docs/salon-psg/15-implementation-status.md`
@@ -150,8 +154,10 @@ Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`
 
 - `npm run test:com01-db`：通过（`com01_commission_ok`），含 migration 复跑、双连接并发（HitPay vs fulfill、Cash vs fulfill）
 - `npm run test:com01-db`：复审复跑再次通过（DB Gate 闭环）
-- 本地 Supabase 事务 UAT：通过（四类顺序、退款反向、幂等重放、越权 SQL Gate 均通过；`RUN_ID=COM01-UAT-LOCAL-20260814-155653`，证据位于 `tmp/com01-uat/COM01-UAT-LOCAL-20260814-155653/`）
-- 浏览器 UAT：未通过（现有 16 张截图为 Loading/Skeleton 页面，脚本未执行业务点击与结果断言，before/after 截图并非真实时序证据）
+- 隔离本地 Supabase UAT：通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；覆盖 Appointment 先付后做/先做后付、Walk-in 先付后做/先做后付、Cash/HitPay 付款事实、部分+全额退款反向、幂等重放和跨门店拒绝。
+- 浏览器 UAT 证据：通过；Owner/Manager/Frontdesk 允许、Instructor 拒绝、跨 Location 拒绝与各交易最终状态均有页面断言，共 10 张非 Loading/Skeleton 截图。截图位于 `tmp/com01-uat/COM01-UAT-LOCAL-V2-20260814-182536/screenshots/`，断言清单见同目录 `index.json`。
+- DB 只读证据：`tmp/com01-uat/COM01-UAT-LOCAL-V2-20260814-182536/db-evidence-20260814-183230.txt`；4 个应计项目均仅 1 条 earned，退款场景按 `-3/-7` 追加反向 Entry 后净额为 0。
+- 真实 HitPay Sandbox 链路：商户 Key-only 支付请求、webhook、earned 入账及全额退款冲销已验证；不依赖 Platform Key。
 - `npm run lint`：通过
 - `npx tsc --noEmit`：通过
 - `npm run build`：通过（Next.js 16.2.4）
@@ -168,8 +174,8 @@ Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`
 ### 未解决风险
 
 - 规则缺失策略当前为“跳过入账（rule_not_found）但不阻断 POS Paid 主流程”；上线前需确认是否改为强阻断或补偿队列。
-- 本轮未执行生产/目标环境浏览器点击流，仅完成隔离 PostgreSQL 15 runner 与本地门禁。
-- 本地浏览器验收证据当前无效：角色登录与页面稳定等待策略需修复后重跑，才能作为 UAT 证据。
+- 未在 Production 创建测试财务交易；生产发布证据与交易 UAT 证据分离保留，交易 UAT 在隔离本地 Supabase/HitPay Sandbox 完成。
+- 浏览器证据验证的是 SQL UAT 执行后的真实最终页面与权限结果；事务先后顺序由 SQL/DB 证据断言，不宣称为浏览器逐步点击时序录屏。
 - 佣金基数当前按 `pos_sale_items.total_amount`（含折扣/税后总额）计算；若业务需改为税前或净额，需在 COM-01.1 明确。
 
 ## 10. 后续任务接口
@@ -182,7 +188,4 @@ Commit / Release：`9aab9ef`、`429b545`、`8337d27`、`c105799`、`cd5e9d6`、`
   - 不假设已有 Payroll 手工调整能力
   - 不假设报表层可直接改写佣金分录
 
-下一步建议：
-
-1. 在目标 UAT 环境执行 COM-01 浏览器角色与真实点击流验收（不在 Production 造测试财务数据）。
-2. 与业务确认“规则缺失处理”和“佣金计算基数”后再推进 PAY-01。
+下一步建议：继续 APT-04 Self Booking；PAY-01 启动前另行确认“规则缺失处理”和“佣金计算基数”。
