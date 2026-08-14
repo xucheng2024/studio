@@ -57,6 +57,7 @@ export default async function PackagesPage({ searchParams }: Props) {
   if (selectedStudioId) backParams.set("studio_id", selectedStudioId);
   if (selectedLocationId) backParams.set("location_id", selectedLocationId);
   const backHref = `/dashboard/schedule${backParams.toString() ? `?${backParams.toString()}` : ""}`;
+  const approvalsHref = `/dashboard/packages/approvals${backParams.toString() ? `?${backParams.toString()}` : ""}`;
 
   const locsForStudio = (locationRows ?? []).filter((l) => l.studio_id === studioId);
 
@@ -80,9 +81,14 @@ export default async function PackagesPage({ searchParams }: Props) {
           New packages are live once saved. Copy a package link to sell it directly, or remove it from sales later to stop new purchases.
         </p>
         <div className="mt-3">
-          <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-            Back to sessions
-          </DashboardAppLink>
+          <div className="flex flex-wrap gap-2">
+            <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
+              Back to sessions
+            </DashboardAppLink>
+            <DashboardAppLink href={approvalsHref} className={ui.btnSecondarySm}>
+              Package approvals
+            </DashboardAppLink>
+          </div>
         </div>
         {canEdit ? (
           <details className={`chevron ${ui.card} mt-5 w-full max-w-xl`} id="create-package">

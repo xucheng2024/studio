@@ -34,6 +34,7 @@ const links: NavLink[] = [
   { href: "/dashboard/member-zone",label: "Member zone",icon: Film },
   { href: "/dashboard/shop",       label: "Shop",       icon: ShoppingBag },
   { href: "/dashboard/packages",   label: "Packages",   icon: Package },
+  { href: "/dashboard/packages/approvals", label: "Package Approvals", icon: Package },
   { href: "/dashboard/memberships",label: "Memberships",icon: Repeat },
   { href: "/dashboard/clients",    label: "Customers",  icon: Users },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
@@ -43,7 +44,7 @@ const links: NavLink[] = [
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor", string[]> = {
   owner:     links.map((l) => l.href),
   manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients"],
+  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/packages/approvals", "/dashboard/memberships", "/dashboard/clients"],
   instructor: ["/dashboard/appointments"],
 };
 
@@ -65,6 +66,7 @@ function prioritizeMobileLinks(visibleLinks: NavLink[]) {
     ["/dashboard/settings", 2],
     ["/dashboard/schedule", 3],
     ["/dashboard/clients", 4],
+    ["/dashboard/packages/approvals", 4],
   ]);
 
   return [...visibleLinks].sort((a, b) => {
