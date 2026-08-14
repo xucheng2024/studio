@@ -74,7 +74,7 @@ export function HitpaySettingsForm({
     <form action={formAction} className={`${ui.card} grid gap-4`}>
       <input type="hidden" name="studio_id" value={studioId} />
       <div>
-        <h2 className={ui.h2}>Sub-merchant setup</h2>
+        <h2 className={ui.h2}>HitPay merchant setup</h2>
         <p className={`mt-2 text-sm ${ui.muted}`}>
           Complete this section with details from the studio HitPay merchant account. Leave existing secret fields
           blank when you only want to update the business name or enable switch.
@@ -82,7 +82,7 @@ export function HitpaySettingsForm({
         <ul className={`mt-3 list-disc space-y-1 pl-5 text-sm ${ui.muted}`}>
           <li>Use the merchant API key from this studio HitPay account.</li>
           <li>Use the webhook salt configured for the same HitPay merchant.</li>
-          <li>Enable HitPay only after the business name, API key, webhook salt, and platform key are ready.</li>
+          <li>Enable HitPay only after the business name, API key, and webhook salt are ready.</li>
         </ul>
       </div>
       <label className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
@@ -130,7 +130,7 @@ export function HitpaySettingsForm({
           placeholder={hasWebhookSalt ? "Leave blank to keep current salt, or enter new salt to rotate" : "Enter your HitPay webhook salt"}
           className={ui.input}
         />
-        <span className={`text-xs ${ui.muted}`}>This should match the webhook endpoint salt configured for this sub-merchant in HitPay.</span>
+        <span className={`text-xs ${ui.muted}`}>This should match the webhook endpoint salt configured for this merchant in HitPay.</span>
       </label>
 
       {state ? (

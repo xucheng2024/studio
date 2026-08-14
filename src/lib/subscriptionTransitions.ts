@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   cancelHitpayRecurringBilling,
-  isHitpayPlatformMerchantKeyConflict,
   refundHitpayPayment,
 } from "@/lib/hitpay";
 import { isMembershipEnded } from "@/lib/membership-subscription";
@@ -36,6 +35,10 @@ type LatestSubscriptionPayment = {
   paid_at?: string | null;
   created_at?: string | null;
 };
+
+type MembershipCancelResult =
+  | { ok: false; status: number; error: string; error_detail?: string | null }
+  | { ok: true; mode: string; current_period_end?: string | null };
 
 export function getTodayInSingapore() {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -360,7 +363,7 @@ export async function cancelMembershipSubscription(
     now?: Date;
     allowRemoteCancelFallback?: boolean;
   },
-) {
+): Promise<MembershipCancelResult> {
   const now = input.now ?? new Date();
   const nowIso = now.toISOString();
   let recurringCancelFallback = false;
@@ -386,10 +389,9 @@ export async function cancelMembershipSubscription(
       const pendingUncharged =
         String(input.subscription.status ?? "").toLowerCase() === "scheduled" &&
         !input.subscription.last_charge_at;
-      const platformKeyConflict = isHitpayPlatformMerchantKeyConflict(message);
       const allowLocalWithoutRemoteCancel =
         input.allowRemoteCancelFallback === true &&
-        (pendingUncharged || (platformKeyConflict && input.trialDays > 0));
+        pendingUncharged;
 
       if (allowLocalWithoutRemoteCancel) {
         recurringCancelFallback = true;
@@ -398,11 +400,7 @@ export async function cancelMembershipSubscription(
           ok: false as const,
           status: 409,
           error: message,
-          error_detail: platformKeyConflict
-            ? input.actorKind === "member"
-              ? "HitPay platform mode requires different values for env HITPAY_PLATFORM_API_KEY (platform) and the studio merchant API key. They must not be identical. Fix keys or cancel the subscription in the HitPay dashboard."
-              : null
-            : null,
+          error_detail: null,
         };
       }
     }
@@ -455,16 +453,11 @@ export async function cancelMembershipSubscription(
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : "hitpay_refund_failed";
-        const platformKeyConflict = isHitpayPlatformMerchantKeyConflict(message);
         return {
           ok: false as const,
           status: 409,
           error: message,
-          error_detail: platformKeyConflict
-            ? input.actorKind === "member"
-              ? "HitPay refund rejected: platform and merchant API keys must differ (see env HITPAY_PLATFORM_API_KEY vs studio merchant key). Fix keys or process refund in HitPay dashboard."
-              : null
-            : null,
+          error_detail: null,
         };
       }
 

@@ -9,8 +9,6 @@ export type PaymentErrorResponse = {
   status: number;
 };
 
-const HITPAY_PLATFORM_KEY = process.env.HITPAY_PLATFORM_API_KEY?.trim() || "";
-
 export function getHitpayConfigIssue(input: HitpayConfigIssueInput): PaymentErrorResponse | null {
   if (!input.hitpayEnabled) {
     return {
@@ -26,13 +24,6 @@ export function getHitpayConfigIssue(input: HitpayConfigIssueInput): PaymentErro
       status: 409,
     };
   }
-  if (!HITPAY_PLATFORM_KEY) {
-    return {
-      error: "hitpay_platform_key_missing",
-      error_detail: "Server env `HITPAY_PLATFORM_API_KEY` is missing.",
-      status: 500,
-    };
-  }
   return null;
 }
 
@@ -42,14 +33,13 @@ export function normalizeHitpayError(message: string): PaymentErrorResponse {
     return { error: "hitpay_create_failed", status: 502 };
   }
   if (
-    code === "hitpay_platform_key_missing" ||
     code === "hitpay_merchant_key_missing" ||
     code === "hitpay_disabled_for_studio" ||
     code === "hitpay_not_configured"
   ) {
     return {
       error: code,
-      status: code === "hitpay_platform_key_missing" ? 500 : 409,
+      status: 409,
     };
   }
   if (code === "hitpay_invalid_response") {
@@ -93,9 +83,7 @@ export function paymentErrorMessage(error: string, detail?: string) {
                     ? "HitPay is disabled for this studio."
                     : error === "hitpay_merchant_key_missing"
                       ? "Studio HitPay API key is missing."
-                      : error === "hitpay_platform_key_missing"
-                        ? "Platform HitPay key is missing on the server."
-                        : error === "hitpay_not_configured"
+                      : error === "hitpay_not_configured"
                           ? "HitPay is not fully configured."
                           : error === "hitpay_invalid_response"
                             ? "HitPay returned an invalid response."

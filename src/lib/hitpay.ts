@@ -1,7 +1,6 @@
 import crypto from "crypto";
 
 const HITPAY_API_BASE = process.env.HITPAY_API_BASE_URL?.trim() || "https://api.hit-pay.com";
-const HITPAY_PLATFORM_KEY = process.env.HITPAY_PLATFORM_API_KEY?.trim() || null;
 
 type HitpayPaymentRequest = {
   apiKey: string;
@@ -85,29 +84,25 @@ type HitpayRecurringBillingResponse = {
 
 const REF_PREFIX = "STU";
 
-function getHitpayPlatformHeaders(apiKey: string) {
+function getHitpayErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== "object" || !("message" in payload)) return fallback;
+  const raw = String((payload as { message?: unknown }).message ?? "").trim();
+  if (!raw) return fallback;
+  const sanitized = raw
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return sanitized ? sanitized.slice(0, 500) : fallback;
+}
+
+function getHitpayMerchantHeaders(apiKey: string) {
   const merchantKey = apiKey.trim();
   if (!merchantKey) throw new Error("hitpay_merchant_key_missing");
-  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
 
   return {
     "X-BUSINESS-API-KEY": merchantKey,
-    "X-PLATFORM-KEY": HITPAY_PLATFORM_KEY,
     "X-Requested-With": "XMLHttpRequest",
   };
-}
-
-/**
- * HitPay platform mode requires distinct Platform and Business API keys; identical keys yield HTTP errors with this wording.
- * Some endpoints may still succeed in sandbox while DELETE/recurring-cancel surfaces the error.
- */
-export function isHitpayPlatformMerchantKeyConflict(message: string): boolean {
-  const m = String(message ?? "").toLowerCase();
-  return (
-    m.includes("same business") ||
-    m.includes("cannot be the same") ||
-    m.includes("platform cannot")
-  );
 }
 
 export function generatePaymentReference() {
@@ -125,7 +120,6 @@ export function generatePaymentReference() {
 export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("hitpay_merchant_key_missing");
-  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
 
   const body = new URLSearchParams();
   body.set("amount", input.amount);
@@ -139,7 +133,7 @@ export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
   const res = await fetch(`${HITPAY_API_BASE.replace(/\/$/, "")}/v1/payment-requests`, {
     method: "POST",
     headers: {
-      ...getHitpayPlatformHeaders(apiKey),
+      ...getHitpayMerchantHeaders(apiKey),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: body.toString(),
@@ -148,7 +142,7 @@ export async function createHitpayPaymentRequest(input: HitpayPaymentRequest) {
 
   const payload = (await res.json().catch(() => ({}))) as HitpayPaymentResponse & { message?: string };
   if (!res.ok) {
-    throw new Error(payload?.message || "hitpay_create_failed");
+    throw new Error(getHitpayErrorMessage(payload, "hitpay_create_failed"));
   }
 
   const checkoutUrl = payload.url || payload.payment_request_url;
@@ -175,12 +169,11 @@ export function verifyHitpayWebhookSignature(rawBody: string, signature: string 
 export async function createHitpayRecurringBilling(input: HitpayRecurringBillingRequest) {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("hitpay_merchant_key_missing");
-  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
 
   const res = await fetch(`${HITPAY_API_BASE.replace(/\/$/, "")}/v1/recurring-billing`, {
     method: "POST",
     headers: {
-      ...getHitpayPlatformHeaders(apiKey),
+      ...getHitpayMerchantHeaders(apiKey),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -208,7 +201,7 @@ export async function createHitpayRecurringBilling(input: HitpayRecurringBilling
 
   const payload = (await res.json().catch(() => ({}))) as HitpayRecurringBillingResponse & { message?: string };
   if (!res.ok) {
-    throw new Error(String(payload?.message ?? "hitpay_recurring_create_failed"));
+    throw new Error(getHitpayErrorMessage(payload, "hitpay_recurring_create_failed"));
   }
   if (!payload.id || !payload.url) {
     throw new Error("hitpay_invalid_response");
@@ -233,7 +226,6 @@ export async function getHitpayRecurringBilling(input: {
 }) {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("hitpay_merchant_key_missing");
-  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
   const reference = input.reference.trim();
   if (!reference) throw new Error("hitpay_reference_missing");
 
@@ -259,21 +251,17 @@ export async function getHitpayRecurringBilling(input: {
     const res = await fetch(url, {
       method: "GET",
       headers: {
-        ...getHitpayPlatformHeaders(apiKey),
+        ...getHitpayMerchantHeaders(apiKey),
         Accept: "application/json",
       },
       cache: "no-store",
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const message =
-        payload && typeof payload === "object" && "message" in payload
-          ? String((payload as { message?: string }).message ?? "").trim()
-          : "";
       failedLookups.push({
         status,
         httpStatus: res.status,
-        message: message || "hitpay_recurring_lookup_failed",
+        message: getHitpayErrorMessage(payload, "hitpay_recurring_lookup_failed"),
       });
       continue;
     }
@@ -294,8 +282,7 @@ export async function getHitpayRecurringBilling(input: {
       !(failure.status === "cancelled" && (failure.httpStatus === 400 || failure.httpStatus === 422)),
   );
   if (actionableFailure || (!hadSuccessfulLookup && failedLookups.length > 0)) {
-    const failure = actionableFailure ?? failedLookups[0];
-    throw new Error(failure?.message ?? "hitpay_recurring_lookup_failed");
+    throw new Error((actionableFailure ?? failedLookups[0])?.message ?? "hitpay_recurring_lookup_failed");
   }
   throw new Error("hitpay_recurring_not_found");
 }
@@ -303,7 +290,6 @@ export async function getHitpayRecurringBilling(input: {
 export async function cancelHitpayRecurringBilling(input: { apiKey: string; recurringBillingId: string }) {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("hitpay_merchant_key_missing");
-  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
   if (!input.recurringBillingId) throw new Error("hitpay_recurring_id_missing");
 
   const res = await fetch(
@@ -311,7 +297,7 @@ export async function cancelHitpayRecurringBilling(input: { apiKey: string; recu
     {
       method: "DELETE",
       headers: {
-        ...getHitpayPlatformHeaders(apiKey),
+        ...getHitpayMerchantHeaders(apiKey),
       },
       cache: "no-store",
     },
@@ -319,7 +305,7 @@ export async function cancelHitpayRecurringBilling(input: { apiKey: string; recu
 
   const payload = (await res.json().catch(() => ({}))) as HitpayRecurringBillingResponse & { message?: string };
   if (!res.ok) {
-    throw new Error(String(payload?.message ?? "hitpay_recurring_cancel_failed"));
+    throw new Error(getHitpayErrorMessage(payload, "hitpay_recurring_cancel_failed"));
   }
 
   return {
@@ -336,14 +322,13 @@ export async function refundHitpayPayment(input: {
 }): Promise<HitpayRefundResponse> {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("hitpay_merchant_key_missing");
-  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
   if (!input.paymentId) throw new Error("hitpay_payment_id_missing");
   if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("invalid_refund_amount");
 
   const res = await fetch(`${HITPAY_API_BASE.replace(/\/$/, "")}/v1/refund`, {
     method: "POST",
     headers: {
-      ...getHitpayPlatformHeaders(apiKey),
+      ...getHitpayMerchantHeaders(apiKey),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -355,8 +340,7 @@ export async function refundHitpayPayment(input: {
 
   const payload = (await res.json().catch(() => ({}))) as HitpayRefundResponse;
   if (!res.ok) {
-    const rawMessage = String(payload?.message ?? "hitpay_refund_failed");
-    throw new Error(rawMessage);
+    throw new Error(getHitpayErrorMessage(payload, "hitpay_refund_failed"));
   }
 
   return payload;
@@ -379,7 +363,6 @@ export async function getHitpayPaymentRequest(input: { apiKey: string; requestId
 }> {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("hitpay_merchant_key_missing");
-  if (!HITPAY_PLATFORM_KEY) throw new Error("hitpay_platform_key_missing");
   const rid = input.requestId.trim();
   if (!rid) throw new Error("hitpay_request_id_missing");
 
@@ -388,7 +371,7 @@ export async function getHitpayPaymentRequest(input: { apiKey: string; requestId
     {
       method: "GET",
       headers: {
-        ...getHitpayPlatformHeaders(apiKey),
+        ...getHitpayMerchantHeaders(apiKey),
         Accept: "application/json",
       },
       cache: "no-store",
@@ -397,7 +380,7 @@ export async function getHitpayPaymentRequest(input: { apiKey: string; requestId
 
   const payload = (await res.json().catch(() => ({}))) as HitpayGetPaymentRequestResponse;
   if (!res.ok) {
-    throw new Error(String(payload?.message ?? "hitpay_get_payment_failed"));
+    throw new Error(getHitpayErrorMessage(payload, "hitpay_get_payment_failed"));
   }
 
   let status = String(payload.status ?? "").trim().toLowerCase();

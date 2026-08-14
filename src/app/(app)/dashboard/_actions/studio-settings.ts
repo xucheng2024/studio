@@ -318,16 +318,6 @@ export async function updateStudioHitpaySettings(
   const hasApiKey = Boolean(nextApiKey);
   const hasWebhookSalt = Boolean(nextWebhookSalt);
 
-  if (enabled && !process.env.HITPAY_PLATFORM_API_KEY?.trim()) {
-    return {
-      ok: false,
-      message: "Platform HitPay key is missing on the server. Add HITPAY_PLATFORM_API_KEY before enabling this studio.",
-      enabled: false,
-      hasBusinessName,
-      hasApiKey,
-      hasWebhookSalt,
-    };
-  }
   if (enabled && !hasBusinessName) {
     return {
       ok: false,

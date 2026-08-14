@@ -27,6 +27,7 @@
     "test:crm02-app": "node --experimental-strip-types --test scripts/tests/crm02-treatment-access-contract.test.ts",
     "test:reports-deferred-export": "node --experimental-strip-types --test scripts/tests/reports-deferred-export-contract.test.ts",
     "test:payments-export-contract": "node --experimental-strip-types --test scripts/tests/payments-export-contract.test.ts",
+    "test:hitpay-merchant-mode": "node --experimental-strip-types --test scripts/tests/hitpay-merchant-mode.test.ts",
     "test:exports-contract": "npm run test:reports-deferred-export && npm run test:payments-export-contract",
     "test:crm02-db": "bash scripts/verify-crm02-db.sh",
     "test:pos01-db": "bash scripts/verify-pos01-db.sh",
