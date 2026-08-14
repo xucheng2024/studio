@@ -146,6 +146,11 @@ Commit / Release：（待提交）
 - 移动端（390px）与多浏览器真实账号手工验收证据仍待上线窗口补档。
 - 第一阶段按范围冻结，未接入 Package credits / deposit / full payment。
 
+### 验收执行模板
+
+- 浏览器验收清单与证据模板：
+  - `docs/salon-psg/releases/2026-08-14-apt04-phase1-browser-acceptance-checklist.md`
+
 ### 2026-08-14 复核修复（P1/P2）
 
 - 已修复 Server Action 运行时重新认证：`/{studioSlug}/appointments`、`/me/appointments` 的创建/改期/取消 Action 均改为执行时 `auth.getUser()`，不再使用渲染时身份快照。

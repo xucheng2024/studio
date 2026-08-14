@@ -144,3 +144,4 @@
   - 档期边界计算纳入 prep/buffer，避免展示提交即失败的首末档。
 - 本轮复核门禁通过：`test:apt04-app`、`test:apt04-db`、`test:apt03`、`test:apt02-idempotency-faults`、`test:pos03-db`、`test:pkg01-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build`。
 - 结论维持不变：APT-04 仍为“已实现/待验证（Phase 1）”，未完成 390px 与多浏览器真实环境验收前不升为“可验收/已上线”。
+- 已补 APT-04 浏览器验收执行资产：`docs/salon-psg/releases/2026-08-14-apt04-phase1-browser-acceptance-checklist.md`（含 390px + 多浏览器清单与证据模板），可直接用于 Phase 1 最终验收留档。
