@@ -26,6 +26,18 @@ type Props = {
   }>;
 };
 
+type DeferredValueSummaryRow = {
+  studio_id: string;
+  location_id: string | null;
+  as_of: string;
+  currency: string;
+  customer_count: number;
+  package_count: number;
+  row_count: number;
+  total_remaining_credits: number;
+  total_deferred_value: number;
+};
+
 function monthBounds() {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -116,6 +128,40 @@ export default async function ReportsPage({ searchParams }: Props) {
   const summary = computeRevenueSummary(revenuePayments);
   const byType = revenueByOrderType(revenuePayments);
   const byDay = revenueByDayAndOrderType(revenuePayments);
+
+  const deferredLocationFilter = locationFilter === "__unassigned" ? null : locationFilter;
+  const { data: deferredSummaryRaw } = await admin.rpc("get_pkg01_deferred_value_summary", {
+    p_studio_id: activeStudioId,
+    p_location_id: deferredLocationFilter,
+    p_customer_id: null,
+    p_package_id: null,
+    p_as_of: new Date().toISOString(),
+    p_refresh_conflicts: false,
+    p_actor_id: user.id,
+  });
+  const deferredSummaryRows = (deferredSummaryRaw ?? []) as DeferredValueSummaryRow[];
+  const deferredSummary = deferredSummaryRows.reduce(
+    (acc, row) => {
+      acc.customerCount += Number(row.customer_count ?? 0);
+      acc.packageCount += Number(row.package_count ?? 0);
+      acc.rowCount += Number(row.row_count ?? 0);
+      acc.totalCredits += Number(row.total_remaining_credits ?? 0);
+      acc.totalValue += Number(row.total_deferred_value ?? 0);
+      return acc;
+    },
+    {
+      customerCount: 0,
+      packageCount: 0,
+      rowCount: 0,
+      totalCredits: 0,
+      totalValue: 0,
+    },
+  );
+  const deferredCurrency = deferredSummaryRows.length === 1
+    ? deferredSummaryRows[0].currency
+    : deferredSummaryRows.length > 1
+      ? "MIXED"
+      : "SGD";
 
   return (
     <div className="flex flex-col gap-8">
@@ -269,6 +315,23 @@ export default async function ReportsPage({ searchParams }: Props) {
             <p className={`text-xs font-medium ${ui.muted}`}>Net revenue</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-stone-900 dark:text-stone-100 sm:text-2xl">
               ${summary.net.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className={`${ui.statCard} flex items-center gap-4`}>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+            <Package size={18} />
+          </span>
+          <div>
+            <p className={`text-xs font-medium ${ui.muted}`}>Deferred value</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-violet-800 dark:text-violet-200 sm:text-2xl">
+              {deferredCurrency} {deferredSummary.totalValue.toFixed(2)}
+            </p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>
+              {deferredSummary.totalCredits} unconsumed credits · {deferredSummary.customerCount} customers · {deferredSummary.packageCount} package types · {deferredSummary.rowCount} package rows
             </p>
           </div>
         </div>
