@@ -40,6 +40,7 @@
     "verify:pkg02-ops": "bash scripts/ops-pkg02-approval-checks.sh",
     "verify:pos-pkg-target": "node scripts/verify-pos-pkg-target.mjs",
     "verify:pos-pkg-browser": "node scripts/verify-pos-pkg-browser.mjs",
+    "collect:com01-uat-evidence": "bash scripts/collect-com01-uat-evidence.sh",
     "backfill:pkg01-opening": "node scripts/backfill-pkg01-opening-balance.mjs",
     "test:crm02-browser": "node scripts/verify-crm02-playwright.mjs",
     "verify:crm01-preflight": "node scripts/verify-crm01-production-preflight.mjs",
