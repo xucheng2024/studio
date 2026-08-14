@@ -129,8 +129,11 @@ export async function GET(req: Request) {
     rows: bodyRows,
   });
   const filename = `reports-deferred-${deferredView}-${localISODate()}.${format}`;
+  const responseBody = typeof payload.body === "string"
+    ? payload.body
+    : new Blob([new Uint8Array(Array.from(payload.body))]);
 
-  return new NextResponse(payload.body, {
+  return new NextResponse(responseBody, {
     headers: {
       "content-type": payload.contentType,
       "content-disposition": `attachment; filename=\"${filename}\"`,

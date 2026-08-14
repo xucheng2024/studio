@@ -4,6 +4,13 @@ import test from "node:test";
 import { applyExportCap, buildExportCapHeaders, resolveExportCap } from "../../src/lib/export-cap.ts";
 import { buildDeferredExportPayload } from "../../src/lib/reports-deferred-export.ts";
 
+function asStringBody(body: string | Uint8Array): string {
+  if (typeof body !== "string") {
+    throw new TypeError("Expected textual payload body");
+  }
+  return body;
+}
+
 test("Deferred export payload: CSV uses comma delimiter + content-type", async () => {
   const payload = await buildDeferredExportPayload({
     format: "csv",
@@ -12,7 +19,7 @@ test("Deferred export payload: CSV uses comma delimiter + content-type", async (
   });
 
   assert.equal(payload.contentType, "text/csv; charset=utf-8");
-  assert.match(payload.body, /^customer_name,deferred_value\nAlex,12.30$/);
+  assert.match(asStringBody(payload.body), /^customer_name,deferred_value\nAlex,12.30$/);
 });
 
 test("Deferred export payload: TSV uses tab delimiter + content-type", async () => {
@@ -23,7 +30,7 @@ test("Deferred export payload: TSV uses tab delimiter + content-type", async () 
   });
 
   assert.equal(payload.contentType, "text/tab-separated-values; charset=utf-8");
-  assert.match(payload.body, /^customer_name\tdeferred_value\nAlex\t12.30$/);
+  assert.match(asStringBody(payload.body), /^customer_name\tdeferred_value\nAlex\t12.30$/);
 });
 
 test("Deferred export payload: delimiter-specific escaping stays valid", async () => {
@@ -32,14 +39,14 @@ test("Deferred export payload: delimiter-specific escaping stays valid", async (
     headers: ["name", "note"],
     rows: [["Alex", "contains,comma"]],
   });
-  assert.match(csvPayload.body, /"contains,comma"/);
+  assert.match(asStringBody(csvPayload.body), /"contains,comma"/);
 
   const tsvPayload = await buildDeferredExportPayload({
     format: "tsv",
     headers: ["name", "note"],
     rows: [["Alex", "contains\ttab"]],
   });
-  assert.match(tsvPayload.body, /"contains\ttab"/);
+  assert.match(asStringBody(tsvPayload.body), /"contains\ttab"/);
 });
 
 test("Deferred export payload: XML emits xml content-type + root nodes", async () => {
@@ -50,9 +57,9 @@ test("Deferred export payload: XML emits xml content-type + root nodes", async (
   });
 
   assert.equal(payload.contentType, "application/xml; charset=utf-8");
-  assert.match(payload.body, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
-  assert.match(payload.body, /<deferred_export>/);
-  assert.match(payload.body, /<cell name="customer_name">Alex<\/cell>/);
+  assert.match(asStringBody(payload.body), /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
+  assert.match(asStringBody(payload.body), /<deferred_export>/);
+  assert.match(asStringBody(payload.body), /<cell name="customer_name">Alex<\/cell>/);
 });
 
 test("Deferred export payload: XLSX emits binary content-type", async () => {
