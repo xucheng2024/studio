@@ -53,3 +53,28 @@ Use this after enabling Vercel Pro to confirm the deployment is healthier and wo
 2. Add/remove staff → dashboard nav/access updates without waiting 30s (after tag revalidation).
 3. Cron: `curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/expire-payments` → `{ "ok": true, "expired": N }`.
 4. PKG-02 ops: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<domain>/api/cron/pkg02-ops-checks?dry_run=1"` → returns check summary/samples without sending Slack.
+
+## PKG-02 anomaly alert drill (with rollback)
+
+Use this drill to verify end-to-end alert delivery (`notify_status=sent`) and ensure Slack text includes `run_detail` URL.
+
+1. **Prepare one temporary anomaly row** in `pkg02_adjustment_requests` under a test studio scope.
+   - Set `status=approved`, valid `submitted_at` + `approved_at`, and add a unique reason tag (for example `ops-alert-drill-<timestamp>`).
+   - Keep this drill row isolated and easy to clean up.
+2. **Run cron with a strict threshold** (avoid `0` because `pkg02_ops_check_runs.backlog_threshold_hours` must be `> 0`).
+   - Example: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<domain>/api/cron/pkg02-ops-checks?studio_id=<test_studio_id>&backlog_threshold=1"`
+3. **Verify API response**
+   - `run_log.run_id` is present
+   - `run_log.run_detail_url` is present
+   - `notify.status` is `sent`
+   - `approved_not_applied_backlog.result` is `fail`
+4. **Verify Slack payload**
+   - Alert contains a `run_detail` line with the exact detail URL
+   - URL opens `/dashboard/operations/pkg02-checks/<run_id>` in the same scope
+5. **Verify persisted run row** in `pkg02_ops_check_runs`
+   - `notify_status=sent`
+   - `notify_reason is null`
+6. **Rollback drill data**
+   - Delete temporary `pkg02_adjustment_requests` rows by the unique reason tag.
+   - Delete temporary `pkg02_ops_check_runs` rows created by the drill run id(s).
+   - Confirm normal cron results return to baseline.
