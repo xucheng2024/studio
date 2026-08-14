@@ -180,10 +180,19 @@ async function withSelfAppointmentIdempotency<TPayload>(params: {
   if (!("continue" in parsedClaim)) return parsedClaim as AppointmentMutationResult<TPayload>;
 
   try {
-    return await params.run({
+    const result = await params.run({
       idempotencyRecordId: parsedClaim.claimId,
       claimToken: parsedClaim.claimToken,
     });
+    if (!result.ok) {
+      await failIdempotencyKey({
+        recordId: parsedClaim.claimId,
+        claimToken: parsedClaim.claimToken,
+        errorSummary: result.message.slice(0, 500),
+        retryable: true,
+      });
+    }
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected appointment mutation error.";
     await failIdempotencyKey({
@@ -567,9 +576,13 @@ export async function listSelfBookableSlots(params: {
   const slots: SelfBookableSlot[] = [];
 
   for (const interval of locationIntervals) {
+    const earliestStartSecond = interval.startSecond + timing.prepMinutes * 60;
+    const latestStartSecond = interval.endSecond - (timing.durationMinutes + timing.bufferMinutes) * 60;
+    if (latestStartSecond < earliestStartSecond) continue;
+
     for (
-      let slotStartSecond = interval.startSecond;
-      slotStartSecond + (timing.durationMinutes * 60) <= interval.endSecond;
+      let slotStartSecond = earliestStartSecond;
+      slotStartSecond <= latestStartSecond;
       slotStartSecond += SLOT_STEP_MINUTES * 60
     ) {
       const startHour = Math.floor(slotStartSecond / 3600);
@@ -581,12 +594,13 @@ export async function listSelfBookableSlots(params: {
       const endsAtMs = startsAtMs + timing.durationMinutes * 60_000;
       const occupiedFromMs = startsAtMs - timing.prepMinutes * 60_000;
       const occupiedUntilMs = endsAtMs + timing.bufferMinutes * 60_000;
+      const occupiedStartSecond = slotStartSecond - timing.prepMinutes * 60;
       const occupiedEndSecond = slotStartSecond + (timing.durationMinutes + timing.bufferMinutes) * 60;
 
       for (const employee of activeEmployees) {
         const employeeIntervals = workingIntervals.get(employee.id) ?? [];
         const exception = employeeExceptions.get(employee.id) ?? { unavailable: [], available: [] };
-        const withinWorking = isWithinIntervals(slotStartSecond - timing.prepMinutes * 60, occupiedEndSecond, employeeIntervals);
+        const withinWorking = isWithinIntervals(occupiedStartSecond, occupiedEndSecond, employeeIntervals);
         const availableByException = isCoveredByAvailableException(exception.available, occupiedFromMs, occupiedUntilMs);
         if (intersectsUnavailable(exception.unavailable, occupiedFromMs, occupiedUntilMs)) continue;
         if (!withinWorking && !availableByException) continue;

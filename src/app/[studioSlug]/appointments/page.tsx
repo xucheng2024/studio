@@ -43,6 +43,26 @@ function messageFromStatus(ok: string | undefined, error: string | undefined) {
   return { tone: "error" as const, text: map[error] ?? `Booking failed (${error}).` };
 }
 
+function summarizeTermsSnapshot(snapshot: unknown) {
+  if (typeof snapshot === "string") return snapshot.trim();
+  if (!snapshot || typeof snapshot !== "object") return "";
+  const row = snapshot as Record<string, unknown>;
+  const textCandidate = [
+    row.content,
+    row.text,
+    row.body,
+    row.summary,
+    row.markdown,
+    row.html,
+  ].find((value) => typeof value === "string" && String(value).trim().length > 0);
+  if (typeof textCandidate === "string") return textCandidate.trim();
+  try {
+    return JSON.stringify(snapshot, null, 2);
+  } catch {
+    return "";
+  }
+}
+
 export default async function StudioAppointmentsBookingPage({ params, searchParams }: Props) {
   const { studioSlug: rawStudioSlug } = await params;
   const sp = await searchParams;
@@ -69,7 +89,6 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   if (!studio?.id) redirect("/");
 
   const selfCustomer = await resolveSelfSalonCustomer({ studioId: studio.id, userId: user.id });
-  const userId = user.id;
   const studioId = studio.id;
   const catalog = await listSelfBookableCatalog({ studioId: studio.id });
   const selectedLocationId = String(sp.location_id ?? "").trim();
@@ -91,9 +110,18 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const termsVersion = await getLatestSalonTermsVersion({ studioId: studio.id });
   const notice = messageFromStatus(sp.ok, sp.error);
   const availableSlots = slotResult?.ok ? slotResult.payload.slots : [];
+  const termsSummary = summarizeTermsSnapshot(termsVersion?.content_snapshot ?? null);
 
   async function bookAppointmentAction(formData: FormData) {
     "use server";
+    const actionSupabase = await createClient();
+    const {
+      data: { user: actionUser },
+    } = await actionSupabase.auth.getUser();
+    if (!actionUser) {
+      redirect(`/${studioSlug}/auth?next=${encodeURIComponent(`/${studioSlug}/appointments`)}`);
+    }
+
     const slotStartsAtIso = String(formData.get("slot_starts_at") ?? "").trim();
     const slotEmployeeId = String(formData.get("slot_employee_id") ?? "").trim();
     const serviceId = String(formData.get("service_id") ?? "").trim();
@@ -122,7 +150,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     }
 
     const actionResult = await createSelfAppointment({
-      userId,
+      userId: actionUser.id,
       studioId,
       locationId,
       serviceId,
@@ -196,6 +224,21 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
             <section className={ui.card}>
               <h2 className={ui.h3}>Available slots</h2>
               <p className={`mt-1 text-sm ${ui.muted}`}>Real-time availability is checked again during submit to prevent concurrency conflicts.</p>
+
+              {termsVersion?.id ? (
+                <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900/40">
+                  <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
+                    Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}
+                  </p>
+                  {termsSummary ? (
+                    <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-stone-700 dark:text-stone-300">
+                      {termsSummary}
+                    </pre>
+                  ) : (
+                    <p className={`mt-2 text-xs ${ui.muted}`}>No content snapshot is available for this version.</p>
+                  )}
+                </div>
+              ) : null}
 
               {!canResolveSlots ? (
                 <p className={`mt-4 text-sm ${ui.muted}`}>Select a valid location and service to load slots.</p>

@@ -146,6 +146,31 @@ Commit / Release：（待提交）
 - 移动端（390px）与多浏览器真实账号手工验收证据仍待上线窗口补档。
 - 第一阶段按范围冻结，未接入 Package credits / deposit / full payment。
 
+### 2026-08-14 复核修复（P1/P2）
+
+- 已修复 Server Action 运行时重新认证：`/{studioSlug}/appointments`、`/me/appointments` 的创建/改期/取消 Action 均改为执行时 `auth.getUser()`，不再使用渲染时身份快照。
+- 已修复幂等失败释放：`withSelfAppointmentIdempotency` 在 RPC 返回业务失败（`result.ok=false`）时也会 `failIdempotencyKey` 释放 claim，避免持续 `idempotency_in_progress`。
+- 已修复改期 key 冲突：改期 idempotency key 默认包含 `appointmentId + parsed.toISOString()`，失败后改选时间不会复用冲突 hash。
+- 已补 `/me/appointments` 能力：无 studio 上下文时聚合展示本人跨 Studio 预约；存在 active studio cookie 时重定向至对应 studio 页面。
+- 已补改期/取消结果反馈：`ok/error` search params 透传并在页面显示成功/失败提示。
+- 已补 T&C 展示：在预约页展示当前 Terms 版本与 `content_snapshot` 摘要（同时保留勾选接受证据字段）。
+- 已修复档期边界：可约时段生成将 prep/buffer 纳入 Location 营业边界计算，避免展示“提交必失败”边界时段。
+
+本轮复核执行：
+
+- `npm run test:apt04-app`
+- `npm run test:apt04-db`
+- `npm run test:apt03`
+- `npm run test:apt02-idempotency-faults`
+- `npm run test:pos03-db`
+- `npm run test:pkg01-db`
+- `npm run test:hitpay-merchant-mode`
+- `npm run lint`
+- `npx tsc --noEmit`
+- `npm run build`
+
+结论：当前仍保持“已实现/待验证（Phase 1）”，在完成 390px 与多浏览器真实环境验收前，不标记“可验收/已上线”。
+
 没有实际命令输出或测试证据时，不勾选对应项目。
 
 ## 10. 后续任务接口

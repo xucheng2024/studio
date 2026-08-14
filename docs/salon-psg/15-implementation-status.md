@@ -45,7 +45,7 @@
 | Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色/390px 浏览器 Gate 已通过；待专用 UAT fixture 完成现金收款、找零和收据点击流 |
 | Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | Merchant Key-only 改造已发布，真实 Sandbox 支付、webhook、佣金 earned 与全额退款冲销已通过；主动同步与异常恢复的完整专项 Gate 仍归 POS-03 后续收口 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
-| Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 1） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已完成登录客户实时档期、本人预约/查看/改期/取消、T&C 接受证据和 customer actor DB guard；`test:apt04-app`、`test:apt04-db`、`test:apt02-*`、`test:apt03`、`test:crm01-*`、`lint`、`tsc`、`build` 通过，待补 390px/多浏览器真实环境验收与第二阶段支付/Package 接入 |
+| Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 1） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已完成登录客户实时档期、本人预约/查看/改期/取消、T&C 接受证据和 customer actor DB guard；并已闭环复核问题（Action 运行时重认证、幂等失败释放、改期 key、`/me/appointments` 聚合、反馈提示、营业边界 prep/buffer）；`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:apt03`、`test:pos03-db`、`test:pkg01-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过，待补 390px/多浏览器真实环境验收与第二阶段支付/Package 接入 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
@@ -132,3 +132,15 @@
 - 相关回归与门禁已通过：`test:apt02-db-foundation`、`test:apt02-concurrency`、`test:apt02-idempotency-faults`、`test:apt03`、`test:crm01-app`、`test:crm01-static`、`test:crm01-db`、`lint`、`tsc`、`build`。
 - 为消除 Docker PostgreSQL 启动竞态，已统一加固 `verify-apt02-*` 与 `verify-crm01-db` 的数据库最终就绪判定（双 ready 日志 + SQL ping）。
 - 待补 Gate：390px 移动端与多浏览器真实环境手工验收；Package/订金/全款接入保持第二阶段范围。
+
+## 2026-08-14 状态更新（APT-04 Phase 1 复核修复）
+
+- 针对复核发现的 6 项问题已完成修复：
+  - Server Actions 执行时重认证当前会话身份，不再复用渲染时 user 快照。
+  - 幂等 claim 在 RPC 业务失败时也会释放，避免 `idempotency_in_progress` 卡死。
+  - 改期默认 idempotency key 包含新时间，失败后改选时间不触发 hash 冲突。
+  - `/me/appointments` 支持跨 Studio 聚合查看，并在有 active studio 时可重定向到对应管理页。
+  - 改期/取消后的 `ok/error` 结果可见，页面不再“静默刷新”。
+  - 档期边界计算纳入 prep/buffer，避免展示提交即失败的首末档。
+- 本轮复核门禁通过：`test:apt04-app`、`test:apt04-db`、`test:apt03`、`test:apt02-idempotency-faults`、`test:pos03-db`、`test:pkg01-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build`。
+- 结论维持不变：APT-04 仍为“已实现/待验证（Phase 1）”，未完成 390px 与多浏览器真实环境验收前不升为“可验收/已上线”。
