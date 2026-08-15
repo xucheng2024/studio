@@ -80,6 +80,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - For browser/UAT work, use the `$uat-browser` skill and read `uat.flows.json` before searching for test commands.
 - Treat `uat.flows.json` as discovery only: inspect the selected verifier's target, writes, auth, and server lifecycle before execution.
-- For APT-04 appointment paths, prefer `npm run test:local-uat`; it runs against Docker-backed local Supabase and cleans up its local Next server.
 - Do not modify `uat.flows.json` during an ordinary UAT run. Sync it only when the task explicitly creates, updates, or maintains UAT routing.
 - Do not run remote or data-writing UAT flows without explicit task authority. Never use a production fallback.
