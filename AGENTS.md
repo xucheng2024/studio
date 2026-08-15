@@ -79,6 +79,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Project UAT Routing
 
 - For browser/UAT work, use the `$uat-browser` skill when it is available. If `uat.flows.json` exists, read it before searching for test commands.
+- When adding or replacing a local UAT wrapper, identity fixture, or verifier, update that flow's `paths` in `uat.flows.json` and confirm the selector resolves the wrapper path before execution.
 - Treat a selected `uat.flows.json` flow as discovery only: inspect its verifier's target, writes, auth, and server lifecycle before execution.
 - Do not modify `uat.flows.json` during an ordinary UAT run. Sync it only when the task explicitly creates, updates, or maintains UAT routing.
 - Do not run remote or data-writing UAT flows without explicit task authority. Never use a production fallback.

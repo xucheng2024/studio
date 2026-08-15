@@ -8,6 +8,9 @@
         "src/app/(app)/me/appointments/**",
         "src/lib/salon-appointments.ts",
         "src/lib/salon-appointments-self.ts",
+        "scripts/run-local-uat.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "scripts/tests/local-supabase-uat.test.mjs",
         "scripts/verify-apt04-uat-local.mjs"
       ],
       "command": [
@@ -20,13 +23,21 @@
       "id": "com01-commission-local",
       "paths": [
         "scripts/verify-com01-uat-browser-local.mjs",
+        "scripts/sql/com01_uat_local_execute.sql",
+        "scripts/run-com01-uat-local.mjs",
+        "scripts/fixtures/com01-local-identities.mjs",
+        "scripts/lib/com01-local-auth.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "scripts/tests/com01-local-auth-fixture.test.mjs",
+        "scripts/tests/local-supabase-uat.test.mjs",
         "scripts/collect-com01-uat-evidence.sh",
         "supabase/migrations/20260814100000_com01_commission_foundation.sql",
         "supabase/migrations/20260814110000_com01_fixes_p1_p2.sql"
       ],
       "command": [
-        "node",
-        "scripts/verify-com01-uat-browser-local.mjs"
+        "npm",
+        "run",
+        "test:com01-uat-local"
       ]
     },
     {

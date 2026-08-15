@@ -47,7 +47,7 @@
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
 | Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 2） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已接入 Package Credits、在线订金与在线全款；新增预约级 settlement 主记录、Package consume/cancel_return Ledger 链路、支付链路校验与状态机保护。已补 2026-08-14 P1 热修复：幂等完成时机后移、Package/online 事实原子化、paid 后预约推进并清空 expires_at、继续支付入口与预约过期补扫。`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:pkg01-db`、`test:pos03-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过。真实生产支付点击流与发布证据待补，不标记“已上线”。 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
-| Phase 2 | POS-04 Refund/Void/Close | 已实现/待验证（Batch 1/2/3 已完成） | COM-01、PKG-01 | ESLint 与统一 `test:pos04-db` 已恢复，目标 migration、角色/390px Gate 通过；待专用退款/日结点击流，COM-01 完成后补佣金反向事实联合 Gate |
+| Phase 2 | POS-04 Refund/Void/Close | 已验证/待上线（Batch 1/2/3 已完成） | COM-01、PKG-01 | 2026-08-16 已在隔离 Docker/Postgres 重跑 `test:pos04-db`（部分退款、现金班次、RPC 幂等均通过）；隔离本地 COM-01 浏览器 UAT 已真实提交全额退款与关班表单，并核验佣金反向分录、现金差异、审计和最终页面。浏览器 UAT 不会隐式回退生产；Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。待发布窗口及目标环境发布证据。 |
 | Phase 3 | MKT-01 Audience/Email | 未开始 | FND-02、CRM-01、POS-04 | 等待依赖 |
 | Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 等待依赖 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |

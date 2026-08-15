@@ -183,3 +183,20 @@
   - Payments 页面已补 `cash_session_id / unassigned_cash` 筛选与异常提示卡
   - POS / Payments 顶部已补“当前门店 open cash session 状态”提示
   - POS Runbook 已更新“开班 → 收款 → 关班 → 差异处理”SOP
+
+## 9. 2026-08-16 验证与 UAT 目标门禁
+
+- 已在隔离 Docker/Postgres 环境重跑 `npm run test:pos04-db`，通过：
+  - `pos04_partial_refund_ok`
+  - `pos04_cash_sessions_ok`
+- 已将 `scripts/verify-pos-pkg-browser.mjs` 改为不再隐式回退到生产站点：
+  - 必须显式提供 `POS_PKG_BASE_URL`。
+  - 非 `localhost` / `127.0.0.1` 的目标还必须明确设置 `POS_PKG_ALLOW_REMOTE_UAT=1`。
+  - 因此常规本地开发或验证不会意外触发生产浏览器 UAT。
+- 已新增 `test:pos-pkg-browser-guard`，覆盖缺失目标与未授权远端目标拒绝；并已运行 ESLint 与 `git diff --check`，通过。
+- 已扩展隔离 `verify-com01-uat-browser-local.mjs`，并通过新的 `$uat-browser` flow runner 完成完整本地 UAT（报告：`tmp/uat-browser/com01-commission-local-clicks-20260816-v8/flow-report.json`）：
+  - SQL fixture 仅准备已付款、已履约、未退款的现金销售；浏览器以 Owner 身份提交全额退款表单。
+  - UAT 在点击后核验 Sale/Item/Payment 退款事实、原 Cash Session 关联、COM-01 earned + `refund_reversal` 净额归零，以及 `pos_sale_items_refunded` 审计。
+  - 浏览器随后在同一 Cash Session 提交关班；UAT 核验 `opening_float=200`、`cash_in=200`、`cash_out=100`、`expected_cash=300`、`counted_cash=305`、`cash_over_short=5`、关班人/时间与 `pos_cash_session_closed` 审计，并断言最终页面金额。
+  - 所有目标均为 loopback 本地 Supabase/Next；运行器完成后自动清理临时服务，没有远端或生产回退。
+- 退款/日结浏览器事务点击流与 COM-01 佣金反向事实联合 Gate 已关闭，任务升为“已验证/待上线”。`Void` 未在本轮新增浏览器点击证据，继续由既有 DB/action Gate 覆盖；不得将其表述为本轮浏览器覆盖。

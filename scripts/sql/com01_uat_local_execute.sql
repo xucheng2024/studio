@@ -12,12 +12,12 @@ declare
   v_location_l2 uuid := 'e1000000-0000-4000-8000-000000000012';
   v_other_location_id uuid := 'e2000000-0000-4000-8000-000000000011';
 
-  v_owner_id uuid := 'd1000000-0000-0000-0000-000000000101';
-  v_manager_id uuid := 'd1000000-0000-0000-0000-000000000102';
-  v_frontdesk_l1_id uuid := 'd1000000-0000-0000-0000-000000000103';
-  v_frontdesk_l2_id uuid := 'd1000000-0000-0000-0000-000000000104';
-  v_instructor_user_id uuid := 'd1000000-0000-0000-0000-000000000105';
-  v_other_owner_id uuid := 'd2000000-0000-0000-0000-000000000101';
+  v_owner_id uuid := 'd1000000-0000-4000-8000-000000000101';
+  v_manager_id uuid := 'd1000000-0000-4000-8000-000000000102';
+  v_frontdesk_l1_id uuid := 'd1000000-0000-4000-8000-000000000103';
+  v_frontdesk_l2_id uuid := 'd1000000-0000-4000-8000-000000000104';
+  v_instructor_user_id uuid := 'd1000000-0000-4000-8000-000000000105';
+  v_other_owner_id uuid := 'd2000000-0000-4000-8000-000000000101';
 
   v_employee_id uuid := 'e1000000-0000-4000-8000-000000000201';
   v_instructor_employee_id uuid := 'e1000000-0000-4000-8000-000000000202';
@@ -34,25 +34,48 @@ declare
   v_payment_id uuid;
   v_count integer;
   v_result jsonb;
+  v_open_cash_session record;
   v_forbidden boolean := false;
   v_role_denied boolean := false;
 begin
+  if exists (
+    select 1
+    from (values
+      (v_owner_id, 'com01-local-owner@example.com'),
+      (v_manager_id, 'com01-local-manager@example.com'),
+      (v_frontdesk_l1_id, 'com01-local-frontdesk-l1@example.com'),
+      (v_frontdesk_l2_id, 'com01-local-frontdesk-l2@example.com'),
+      (v_instructor_user_id, 'com01-local-instructor@example.com'),
+      (v_other_owner_id, 'com01-local-other-owner@example.com')
+    ) as expected(id, email)
+    where not exists (
+      select 1 from auth.users au
+      where au.id = expected.id and lower(au.email) = expected.email
+    )
+    or exists (
+      select 1 from auth.users au
+      where lower(au.email) = expected.email and au.id <> expected.id
+    )
+  ) then
+    raise exception 'COM-01 local fixture requires the fixed Auth UUID/email identities to be provisioned first';
+  end if;
+
   insert into public.users (id, email) values
-    (v_owner_id, 'com01-owner@example.com'),
-    (v_manager_id, 'com01-manager@example.com'),
-    (v_frontdesk_l1_id, 'com01-frontdesk-l1@example.com'),
-    (v_frontdesk_l2_id, 'com01-frontdesk-l2@example.com'),
-    (v_instructor_user_id, 'com01-instructor@example.com'),
-    (v_other_owner_id, 'com01-other-owner@example.com')
+    (v_owner_id, 'com01-local-owner@example.com'),
+    (v_manager_id, 'com01-local-manager@example.com'),
+    (v_frontdesk_l1_id, 'com01-local-frontdesk-l1@example.com'),
+    (v_frontdesk_l2_id, 'com01-local-frontdesk-l2@example.com'),
+    (v_instructor_user_id, 'com01-local-instructor@example.com'),
+    (v_other_owner_id, 'com01-local-other-owner@example.com')
   on conflict (id) do update set email = excluded.email;
 
   insert into public.user_profiles (id, email, full_name, role) values
-    (v_owner_id, 'com01-owner@example.com', 'COM01 Owner', 'member'),
-    (v_manager_id, 'com01-manager@example.com', 'COM01 Manager', 'member'),
-    (v_frontdesk_l1_id, 'com01-frontdesk-l1@example.com', 'COM01 Frontdesk L1', 'member'),
-    (v_frontdesk_l2_id, 'com01-frontdesk-l2@example.com', 'COM01 Frontdesk L2', 'member'),
-    (v_instructor_user_id, 'com01-instructor@example.com', 'COM01 Instructor', 'member'),
-    (v_other_owner_id, 'com01-other-owner@example.com', 'COM01 Other Owner', 'member')
+    (v_owner_id, 'com01-local-owner@example.com', 'COM01 Owner', 'member'),
+    (v_manager_id, 'com01-local-manager@example.com', 'COM01 Manager', 'member'),
+    (v_frontdesk_l1_id, 'com01-local-frontdesk-l1@example.com', 'COM01 Frontdesk L1', 'member'),
+    (v_frontdesk_l2_id, 'com01-local-frontdesk-l2@example.com', 'COM01 Frontdesk L2', 'member'),
+    (v_instructor_user_id, 'com01-local-instructor@example.com', 'COM01 Instructor', 'member'),
+    (v_other_owner_id, 'com01-local-other-owner@example.com', 'COM01 Other Owner', 'member')
   on conflict (id) do update set
     email = excluded.email,
     full_name = excluded.full_name,
@@ -202,13 +225,35 @@ begin
     updated_by = excluded.updated_by,
     updated_at = now();
 
+  for v_open_cash_session in
+    select id, expected_cash, notes
+    from public.pos_cash_sessions
+    where studio_id = v_studio_id
+      and location_id = v_location_l1
+      and status = 'open'
+  loop
+    if coalesce(v_open_cash_session.notes, '') not like 'COM01%UAT%' then
+      raise exception 'COM-01 local fixture refuses to close a non-fixture cash session %', v_open_cash_session.id;
+    end if;
+    perform public.close_pos_cash_session(
+      p_actor_id := v_owner_id,
+      p_actor_role := 'owner',
+      p_studio_id := v_studio_id,
+      p_session_id := v_open_cash_session.id,
+      p_counted_cash := v_open_cash_session.expected_cash,
+      p_notes := v_run_id || ' closes prior COM01 fixture cash session',
+      p_idempotency_key := lower(v_run_id) || '-cash-session-close-' || v_open_cash_session.id,
+      p_request_hash := encode(digest(lower(v_run_id) || '-cash-session-close-' || v_open_cash_session.id, 'sha256'), 'hex')
+    );
+  end loop;
+
   perform public.open_pos_cash_session(
     p_actor_id := v_owner_id,
     p_actor_role := 'owner',
     p_studio_id := v_studio_id,
     p_location_id := v_location_l1,
     p_opening_float := 200,
-    p_notes := v_run_id || ' cash session open',
+    p_notes := 'COM01 UAT ' || v_run_id || ' cash session open',
     p_idempotency_key := lower(v_run_id) || '-cash-session-open-l1',
     p_request_hash := encode(digest(lower(v_run_id) || '-cash-session-open-l1', 'sha256'), 'hex')
   );
@@ -469,28 +514,9 @@ begin
     raise exception 'S3 expected exactly one earned, got %', v_count;
   end if;
 
-  -- Refund partial + full on S3 item
-  perform public.refund_pos_sale_items(
-    p_actor_id := v_owner_id,
-    p_actor_role := 'owner',
-    p_studio_id := v_studio_id,
-    p_sale_id := v_sale_id,
-    p_items := jsonb_build_array(jsonb_build_object('item_id', v_item_id, 'refund_amount', 30)),
-    p_reason := 'uat partial refund',
-    p_idempotency_key := lower(v_run_id) || '-refund-partial',
-    p_request_hash := encode(digest(lower(v_run_id) || '-refund-partial', 'sha256'), 'hex')
-  );
-
-  perform public.refund_pos_sale_items(
-    p_actor_id := v_owner_id,
-    p_actor_role := 'owner',
-    p_studio_id := v_studio_id,
-    p_sale_id := v_sale_id,
-    p_items := jsonb_build_array(jsonb_build_object('item_id', v_item_id, 'refund_amount', 70)),
-    p_reason := 'uat full refund',
-    p_idempotency_key := lower(v_run_id) || '-refund-full',
-    p_request_hash := encode(digest(lower(v_run_id) || '-refund-full', 'sha256'), 'hex')
-  );
+  -- S3 deliberately remains paid and fulfilled. The local browser UAT performs
+  -- its full refund through the dashboard form, so the click, commission
+  -- reversal, and cash-session close form one joined transaction scenario.
 
   -- S4 Walk-in fulfill first then HitPay pay
   v_sale := public.create_pos_sale_draft(

@@ -1,10 +1,19 @@
-/** Read-only production browser UAT for POS/Package role and mobile gates. */
+/** Read-only browser UAT for POS/Package role and mobile gates. */
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
 
-const BASE_URL = process.env.POS_PKG_BASE_URL || "https://www.sgmystudio.com";
+const BASE_URL = process.env.POS_PKG_BASE_URL?.replace(/\/$/, "");
+if (!BASE_URL) {
+  throw new Error("POS_PKG_BASE_URL is required; refusing an implicit production UAT target");
+}
+
+const targetUrl = new URL(BASE_URL);
+const isLoopbackTarget = targetUrl.hostname === "127.0.0.1" || targetUrl.hostname === "localhost";
+if (!isLoopbackTarget && process.env.POS_PKG_ALLOW_REMOTE_UAT !== "1") {
+  throw new Error("Set POS_PKG_ALLOW_REMOTE_UAT=1 to run this read-only UAT against an explicitly authorized remote target");
+}
 
 function loadEnv(file) {
   if (!fs.existsSync(file)) return {};
