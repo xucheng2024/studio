@@ -74,6 +74,23 @@ npm run lint
 npm run test:revenue
 ```
 
+## Local UAT
+
+Run the isolated APT-04 browser UAT against Docker-backed local Supabase:
+
+```bash
+npm run test:local-uat
+```
+
+The script injects local Supabase credentials only into its child processes, starts Next.js on port `3104`, waits for it, runs Chrome by default, then stops that server. It does not write local credentials to an env file. Pass `--engines` or `--port` after `--` when needed.
+
+`uat.flows.json` maps changed project paths to existing UAT commands. It is a selection aid only: it never executes a command or authorizes tests that write data.
+
+```bash
+python3 /Users/mac/.codex-azure/skills/uat-browser/scripts/select_flow.py \
+  --cwd "$PWD" --changed-path 'src/app/(app)/dashboard/clients/page.tsx'
+```
+
 ## HitPay setup
 
 1. Configure per-studio HitPay settings from dashboard payment settings.
