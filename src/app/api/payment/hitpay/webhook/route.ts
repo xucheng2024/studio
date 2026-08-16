@@ -451,21 +451,29 @@ export async function POST(req: Request) {
   const claimId = String(claim.id ?? "").trim();
   const claimToken = String(claim.claimToken ?? "").trim();
   if (!claimId || !claimToken) {
+    await recordHitpayWebhookFailure({
+      code: "provider_event_claim_failed",
+      detail: `claim_incomplete:${JSON.stringify(claim)}`,
+      studioId: payment.studio_id,
+      locationId: payment.location_id ?? null,
+      paymentId: payment.id,
+      providerEventId,
+      providerPaymentId,
+      referenceCode,
+      eventObject: eventObject || null,
+      eventType: eventType || null,
+      payloadHash,
+      safePayload: {
+        provider_id: providerId,
+        provider_status: providerStatus,
+      },
+    });
     return NextResponse.json({ error: "provider_event_claim_incomplete" }, { status: 409 });
   }
   const isPosPayment = Boolean(payment.pos_sale_id) && payment.source === "pos_sale";
 
   try {
     if (isPosPayment && isPaidLikeStatus(providerStatus)) {
-      await admin
-        .from("payments")
-        .update({
-          gateway_status: providerStatus || null,
-          gateway_payload: rawBody,
-          gateway_refund_payment_id: providerPaymentId,
-        })
-        .eq("id", payment.id);
-
       const result = await completePosHitpaySale({
         studioId: payment.studio_id,
         paymentId: payment.id,
@@ -490,17 +498,25 @@ export async function POST(req: Request) {
       );
     }
 
-    await admin.rpc("complete_provider_event", {
+    const { data: completion, error: completionError } = await admin.rpc("complete_provider_event", {
       p_id: claimId,
       p_claim_token: claimToken,
       p_studio_id: payment.studio_id,
       p_location_id: payment.location_id ?? null,
     });
+    if (completionError || !(completion as { ok?: boolean } | null)?.ok) {
+      throw new Error(`complete_provider_event_failed:${completionError?.message ?? JSON.stringify(completion ?? null)}`);
+    }
   } catch (error) {
     const summary = error instanceof Error ? error.message : "hitpay_webhook_failed";
-    if (summary.includes("complete_pos_hitpay_sale_failed")) {
+    const failureCode = summary.includes("complete_pos_hitpay_sale_failed")
+      ? "complete_pos_hitpay_sale_failed"
+      : summary.includes("complete_provider_event_failed")
+        ? "provider_event_claim_failed"
+        : null;
+    if (failureCode) {
       await recordHitpayWebhookFailure({
-        code: "complete_pos_hitpay_sale_failed",
+        code: failureCode,
         detail: summary,
         studioId: payment.studio_id,
         locationId: payment.location_id ?? null,

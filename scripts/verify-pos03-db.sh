@@ -43,6 +43,9 @@ psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/pos01_e2e_payments_stub.sql >
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813033000_pos01_payment_link_and_source.sql >/tmp/pos03_pos01_batch6.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813050000_pos02_cash_receipt_number.sql >/tmp/pos03_pos02_batch2.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813103000_pos03_hitpay_complete_rpc.sql >/tmp/pos03_migration_batch1.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260813121000_pos03_batch2_hitpay_webhook_failures.sql >/tmp/pos03_migration_batch2.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260814114000_pos03_hitpay_lock_order_align.sql >/tmp/pos03_lock_order.log
+psql "${DB_URL}" -v ON_ERROR_STOP=1 -f supabase/migrations/20260817120000_pos03_hitpay_recovery_hardening.sql >/tmp/pos03_recovery_hardening.log
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f scripts/sql/verify_pos03_hitpay_webhook.sql | tee /tmp/pos03_verify.log
 
 echo "verify-pos03-db: ok"

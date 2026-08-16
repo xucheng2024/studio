@@ -24,6 +24,9 @@ declare
   v_verified_at timestamptz;
   v_verified_by uuid;
   v_receipt_number text;
+  v_gateway_status text;
+  v_gateway_payload text;
+  v_gateway_refund_payment_id text;
   v_audit_count integer;
   v_audit_count_after_replay integer;
 begin
@@ -155,8 +158,10 @@ begin
   from public.pos_sales s
   where s.id = v_sale_id;
 
-  select p.status, p.payment_method, p.verified_at, p.verified_by
-    into v_payment_status, v_payment_method, v_verified_at, v_verified_by
+  select p.status, p.payment_method, p.verified_at, p.verified_by,
+         p.gateway_status, p.gateway_payload, p.gateway_refund_payment_id
+    into v_payment_status, v_payment_method, v_verified_at, v_verified_by,
+         v_gateway_status, v_gateway_payload, v_gateway_refund_payment_id
   from public.payments p
   where p.id = v_payment_id;
 
@@ -170,6 +175,13 @@ begin
 
   if v_payment_method <> 'hitpay' then
     raise exception 'POS-03 verify payment_method should be hitpay, got %', v_payment_method;
+  end if;
+
+  if v_gateway_status <> 'completed'
+     or v_gateway_payload <> '{event:payment_request.paid}'
+     or v_gateway_refund_payment_id <> format('hp-chg-%s', left(v_nonce, 10)) then
+    raise exception 'POS-03 verify gateway evidence was not persisted atomically: %, %, %',
+      v_gateway_status, v_gateway_payload, v_gateway_refund_payment_id;
   end if;
 
   if v_receipt_number is null then
@@ -207,6 +219,17 @@ begin
     raise exception 'POS-03 verify replay id mismatch: %', v_complete_2;
   end if;
 
+  select p.gateway_status, p.gateway_payload, p.gateway_refund_payment_id
+    into v_gateway_status, v_gateway_payload, v_gateway_refund_payment_id
+  from public.payments p
+  where p.id = v_payment_id;
+
+  if v_gateway_status <> 'completed'
+     or v_gateway_payload <> '{event:payment_request.paid}'
+     or v_gateway_refund_payment_id <> format('hp-chg-%s', left(v_nonce, 10)) then
+    raise exception 'POS-03 verify paid replay must not overwrite gateway evidence';
+  end if;
+
   select count(*)::integer
     into v_audit_count_after_replay
   from public.strong_audit_logs l
@@ -216,6 +239,32 @@ begin
 
   if v_audit_count_after_replay <> 1 then
     raise exception 'POS-03 verify replay should not add audit rows, got %', v_audit_count_after_replay;
+  end if;
+end;
+$$;
+
+do $$
+declare
+  v_rls boolean;
+begin
+  select c.relrowsecurity
+    into v_rls
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname = 'hitpay_webhook_failures';
+
+  if v_rls is not true then
+    raise exception 'POS-03 webhook failure table must have RLS enabled';
+  end if;
+
+  if has_table_privilege('anon', 'public.hitpay_webhook_failures', 'select')
+     or has_table_privilege('authenticated', 'public.hitpay_webhook_failures', 'insert') then
+    raise exception 'POS-03 webhook failure table must not be accessible to anon/authenticated';
+  end if;
+
+  if not has_table_privilege('service_role', 'public.hitpay_webhook_failures', 'select,insert') then
+    raise exception 'POS-03 webhook failure table must be writable by service_role';
   end if;
 end;
 $$;

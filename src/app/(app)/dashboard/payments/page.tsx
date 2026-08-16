@@ -48,6 +48,10 @@ function isoDateDaysAgo(days: number) {
   return localISODate(d);
 }
 
+function isoHoursAgo(hours: number) {
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+}
+
 function primaryItemLabel(input: {
   source: string | null;
   bookingId?: string | null;
@@ -268,7 +272,9 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   else if (locationFilter) unassignedPosCashQuery = unassignedPosCashQuery.eq("location_id", locationFilter);
   const { count: unassignedPosCashCount } = await unassignedPosCashQuery;
 
-  const webhookWindowStart = dayRangeStartIso(isoDateDaysAgo(1)) ?? "";
+  // This is an operations window, not a calendar-day filter: keep it to the
+  // preceding 24 hours regardless of when the page is opened.
+  const webhookWindowStart = isoHoursAgo(24);
   let webhookFailuresQuery = admin
     .from("hitpay_webhook_failures")
     .select("id, location_id, payment_id, error_code, error_detail, event_type, provider_event_id, provider_payment_id, occurred_at")
@@ -293,10 +299,19 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     occurred_at: string;
   };
   const webhookFailures = (webhookFailuresRaw ?? []) as WebhookFailureRow[];
-  const webhookFailureCounts = new Map<string, number>(HITPAY_WEBHOOK_FAILURE_CODES.map((code) => [code, 0]));
-  for (const row of webhookFailures) {
-    if (!webhookFailureCounts.has(row.error_code)) continue;
-    webhookFailureCounts.set(row.error_code, (webhookFailureCounts.get(row.error_code) ?? 0) + 1);
+  const webhookFailureCounts = new Map<string, number>();
+  for (const code of HITPAY_WEBHOOK_FAILURE_CODES) {
+    let countQuery = admin
+      .from("hitpay_webhook_failures")
+      .select("id", { count: "exact", head: true })
+      .eq("provider", "hitpay")
+      .eq("studio_id", activeStudioId)
+      .eq("error_code", code)
+      .gte("occurred_at", webhookWindowStart);
+    if (locationFilter === "__unassigned") countQuery = countQuery.is("location_id", null);
+    else if (locationFilter) countQuery = countQuery.eq("location_id", locationFilter);
+    const { count } = await countQuery;
+    webhookFailureCounts.set(code, count ?? 0);
   }
 
   let posFailuresQuery = admin

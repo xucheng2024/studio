@@ -26,6 +26,7 @@
     "test:apt05-db": "bash scripts/verify-apt05-db.sh",
     "test:apt05-cron": "bash scripts/verify-apt05-cron.sh",
     "test:apt05": "npm run test:apt05-app && npm run test:apt05-db && npm run test:apt05-cron",
+    "test:pos03-app": "node --experimental-strip-types --test scripts/tests/pos03-hitpay-recovery-contract.test.ts",
     "test:crm01-app": "node --experimental-strip-types --test scripts/tests/crm01-sensitive-access-contract.test.ts",
     "test:crm01-static": "node scripts/verify-crm01-static-gates.mjs",
     "test:crm01-db": "bash scripts/verify-crm01-db.sh",

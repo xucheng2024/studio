@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-function run(env: NodeJS.ProcessEnv) {
+function run(env: Partial<NodeJS.ProcessEnv>) {
   return spawnSync("node", ["scripts/verify-pos-pkg-browser.mjs"], {
     cwd: process.cwd(),
     encoding: "utf8",

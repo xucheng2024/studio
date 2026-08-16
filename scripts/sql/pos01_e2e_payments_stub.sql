@@ -32,6 +32,10 @@ create table if not exists public.payments (
       'service_purchase'::text
     ])),
   reference_code text,
+  gateway_payment_id text,
+  gateway_status text,
+  gateway_payload text,
+  gateway_refund_payment_id text,
   paid_at timestamptz,
   verified_at timestamptz,
   verified_by uuid references public.users(id) on delete set null,
@@ -40,4 +44,3 @@ create table if not exists public.payments (
 
 create index if not exists idx_payments_studio_created
   on public.payments (studio_id, created_at desc);
-
