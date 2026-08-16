@@ -31,6 +31,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Local code-analysis cache (and SQLite WAL sidecars)
+analysis.sqlite3*
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
