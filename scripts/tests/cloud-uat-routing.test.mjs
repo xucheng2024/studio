@@ -7,6 +7,7 @@ const flows = [
   { id: "com01-commission-local", paths: ["scripts/verify-com01-uat-browser-local.mjs"] },
   { id: "crm02-clients-local", paths: ["src/app/(app)/dashboard/clients/**"] },
   { id: "mkt01-marketing-local", paths: ["src/lib/marketing.ts"] },
+  { id: "pos02-cash-receipt-local", paths: ["scripts/verify-pos02-browser-local.mjs"] },
   { id: "pos-packages-local", paths: ["src/lib/pos-sales.ts"] },
 ];
 
@@ -20,7 +21,14 @@ test("routes a feature change to its smallest cloud UAT flow", () => {
 test("routes shared local UAT infrastructure to every isolated flow", () => {
   const result = routeCloudUatChanges(["supabase/migrations/20260818000000_change.sql"], flows);
   assert.equal(result.dispatch, "all");
-  assert.equal(result.fastMatrix.include.length, 5);
+  assert.equal(result.fastMatrix.include.length, 6);
+});
+
+test("routes POS-02 cash/receipt changes to the dedicated cloud UAT flow", () => {
+  const result = routeCloudUatChanges(["scripts/verify-pos02-browser-local.mjs"], flows);
+  assert.deepEqual(result.flows, ["pos02-cash-receipt-local"]);
+  assert.equal(result.dispatch, "pos02-cash-receipt-local");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "pos02-cash-receipt-local", script: "test:local-uat-safety" }]);
 });
 
 test("does not spend a fast-check job on unrelated files", () => {

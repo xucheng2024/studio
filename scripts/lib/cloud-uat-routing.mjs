@@ -12,6 +12,7 @@ const FAST_SCRIPTS = {
   "com01-commission-local": "test:local-uat-safety",
   "crm02-clients-local": "test:crm02-app",
   "mkt01-marketing-local": "test:mkt02-marketing-contract",
+  "pos02-cash-receipt-local": "test:local-uat-safety",
   "pos-packages-local": "test:pos-pkg-browser-guard",
 };
 

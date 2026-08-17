@@ -164,6 +164,52 @@
       }
     },
     {
+      "id": "pos02-cash-receipt-local",
+      "paths": [
+        "src/app/(app)/dashboard/pos/[saleId]/page.tsx",
+        "src/app/(app)/dashboard/_actions/pos-sales.ts",
+        "src/lib/pos-sales.ts",
+        "src/lib/pos-sales-read.ts",
+        "scripts/run-pos02-uat-local.mjs",
+        "scripts/verify-pos02-browser-local.mjs",
+        "scripts/sql/pos02_uat_local_execute.sql",
+        "scripts/fixtures/pos-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "supabase/migrations/20260813043000_pos02_cash_complete_rpc.sql",
+        "supabase/migrations/20260813050000_pos02_cash_receipt_number.sql"
+      ],
+      "command": [
+        "npm",
+        "run",
+        "test:pos02-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/pos02-uat"],
+        "index": "tmp/pos02-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "pos-packages-local",
       "paths": [
         "src/app/(app)/dashboard/pos/**",

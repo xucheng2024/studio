@@ -13,11 +13,20 @@ Use `$uat-browser` for generic cloud-hosted routing, caching, batching, concurre
 
 For a normal Studio change, run the changed-path selector first and keep Docker UAT explicit. Use `all` for parallel feedback and `all-batched` only after preserving the audited fixture order in `scripts/run-github-hosted-uat.mjs`.
 
+### Docker execution fail-over
+
+Studio's first-release Docker UAT path is **GitHub Actions Free cloud UAT**, not a developer laptop.
+
+1. Prefer `gh workflow run "Free cloud UAT" -f flow=<flow-id>` (or the Actions UI) for any flow that declares Docker/Supabase lifecycle.
+2. Local `$uat-browser` `run_flow.py` is optional when the workstation already has Docker and local Supabase.
+3. If `run_flow.py` fails with missing `docker`, unavailable Docker daemon, or equivalent local-environment requirements, **do not treat that as product failure**. Switch immediately to Free cloud UAT for the selected flow. Do not ask the user to install Docker first unless they explicitly want a local runner.
+4. When adding a new isolated browser flow, wire it into all of: `uat.flows.json`, `scripts/lib/cloud-uat-routing.mjs` (`FAST_SCRIPTS`), `scripts/run-github-hosted-uat.mjs` (`batchedFlowIds`), `.github/workflows/free-cloud-uat.yml` (options + `all` matrix), and release-gate flow lists when applicable. A flow that exists only in `uat.flows.json` is not cloud-executable.
+
 ## Select a flow
 
 - Read `uat.flows.json` before choosing a command. Treat the selected flow as discovery: inspect its verifier, fixture writes, authentication, and server lifecycle before running it.
-- Run existing flows through `run_flow.py` from `$uat-browser`; preserve its evidence directory and contract validation.
-- Do not edit `uat.flows.json` for an ordinary UAT run. Update it only when adding or maintaining a flow, and include every wrapper/verifier path.
+- Run existing flows through `run_flow.py` from `$uat-browser` only when local Docker is available; otherwise use Free cloud UAT. Preserve evidence-directory and contract validation on either path.
+- Do not edit `uat.flows.json` for an ordinary UAT run. Update it only when adding or maintaining a flow, and include every wrapper/verifier path plus the cloud catalog wiring above.
 
 ## Use local fixtures safely
 
@@ -38,7 +47,7 @@ Use this sequence when a change spans a Supabase migration or RPC state machine 
 
 1. Select the closest existing transaction-scoped database verifier for the changed feature. Inspect its target, writes, and cleanup; require a loopback database plus `BEGIN`/`ROLLBACK` or deterministic fixture cleanup.
 2. Run the database verifier first to check state transitions, idempotency, concurrency claims, retries, and webhook/event effects relevant to the change.
-3. Select the matching `uat.flows.json` entry and run it through `$uat-browser` for the user-visible result, authorization path, database observation, and mobile layout.
+3. Select the matching `uat.flows.json` entry and run it through Free cloud UAT (preferred) or local `$uat-browser` when Docker is available.
 4. Report database and browser outcomes separately. Neither result substitutes for the other, and browser cleanup must still complete after a passing run.
 
 Do not use hand-selected migration line ranges or partial migration replay as final proof. Use a focused transaction verifier for behavior and the non-destructive migration replay check for migration ordering. If either database or browser coverage is missing, report the gap; add a verifier or flow only when the task authorizes test maintenance.

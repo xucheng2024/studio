@@ -13,6 +13,7 @@ on:
           - com01-commission-local
           - crm02-clients-local
           - mkt01-marketing-local
+          - pos02-cash-receipt-local
           - pos-packages-local
           - all
           - all-batched
@@ -24,14 +25,14 @@ jobs:
   isolated-uat:
     strategy:
       fail-fast: false
-      max-parallel: 5
+      max-parallel: 6
       matrix:
-        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt04-appointments-local","com01-commission-local","crm02-clients-local","mkt01-marketing-local","pos-packages-local"]' || inputs.flow == 'all-batched' && '["all-batched"]' || format('["{0}"]', inputs.flow)) }}
+        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt04-appointments-local","com01-commission-local","crm02-clients-local","mkt01-marketing-local","pos02-cash-receipt-local","pos-packages-local"]' || inputs.flow == 'all-batched' && '["all-batched"]' || format('["{0}"]', inputs.flow)) }}
     concurrency:
       group: free-cloud-uat-${{ github.ref }}-${{ matrix.flow }}
       cancel-in-progress: true
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.flow == 'all-batched' && 25 || 15 }}
+    timeout-minutes: ${{ inputs.flow == 'all-batched' && 30 || 15 }}
     steps:
       - name: Check out reviewed repository code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

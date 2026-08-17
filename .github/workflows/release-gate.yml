@@ -104,6 +104,7 @@ jobs:
             com01-commission-local
             crm02-clients-local
             mkt01-marketing-local
+            pos02-cash-receipt-local
             pos-packages-local
           )
           for flow in "${flows[@]}"; do

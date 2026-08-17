@@ -1,6 +1,6 @@
 # POS-02：现金收款闭环（Batch 1 + Batch 2）
 
-状态：已实现/待目标环境验证（Batch 1/2 已落地）
+状态：已实现/待专用本地 UAT 执行（Batch 1/2 已落地）
 
 负责人：Codex
 
@@ -42,3 +42,11 @@ Commit / Release：`0d66116`、`05d877d`；未上线
 - 同 idempotency key 重放不重复写入、不重复审计
 - 非授权角色或跨门店/跨工作室请求被拒绝
 - `npm run test:pos02-db` 与 `npx tsc --noEmit` 通过
+
+## 5. 本地浏览器 UAT
+
+- 专用 flow：`pos02-cash-receipt-local`（`uat.flows.json`）。
+- 首选执行：GitHub Actions **Free cloud UAT**，选择 `pos02-cash-receipt-local`（runner 自带 Docker 并启动本地 Supabase）。
+- 本机有 Docker 时也可经 `$uat-browser` 的 `run_flow.py` 跑同一 flow；本机缺 Docker 时不要当作任务失败，改走 Free cloud UAT。
+- 覆盖：390px 现金班次开启、现金收款、`pos_sales`/`payments` 原子 paid 结果、receipt number 页面展示，以及 Instructor POS 拒绝访问。
+- 不把找零或 PDF/可点击收据作为本项通过条件：当前 POS-02 UI 和任务范围均未实现这些能力。
