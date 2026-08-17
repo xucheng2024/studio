@@ -49,7 +49,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install --yes postgresql-client
           fi
-          npm ci
+          npm ci --prefer-offline --no-audit --fund=false
 
       - name: Restore Chromium browser cache
         id: playwright-cache
@@ -78,7 +78,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .cache/github-uat/supabase-images.tar
-          key: ${{ runner.os }}-x64-supabase-${{ hashFiles('package-lock.json', 'supabase/config.toml', '.github/workflows/free-cloud-uat.yml') }}
+          key: ${{ runner.os }}-x64-supabase-${{ hashFiles('package-lock.json', 'supabase/config.toml') }}
 
       - name: Load cached Supabase images
         if: steps.supabase-cache.outputs.cache-hit == 'true'
@@ -104,4 +104,4 @@ jobs:
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .cache/github-uat/supabase-images.tar
-          key: ${{ runner.os }}-x64-supabase-${{ hashFiles('package-lock.json', 'supabase/config.toml', '.github/workflows/free-cloud-uat.yml') }}
+          key: ${{ runner.os }}-x64-supabase-${{ hashFiles('package-lock.json', 'supabase/config.toml') }}

@@ -14,7 +14,7 @@ Why it is the default:
 
 The workflow reuses only immutable dependencies: npm download data, the Playwright Chromium binary, and a tar archive of the exact Supabase Docker images selected by the lockfile and workflow. Database volumes, Auth users, fixtures, screenshots, and reports are never cached. GitHub runs also skip Studio, Realtime, Storage, image proxy, mail testing, Edge Runtime, analytics, metadata, and pooler containers because the declared flows require only Postgres, Auth, API gateway, and PostgREST.
 
-The first run for a new lockfile or workflow revision is intentionally cold and creates the browser and image caches. Later runs restore them. Changing the dependency lockfile, Supabase configuration, or workflow invalidates the relevant cache automatically; GitHub may also evict old caches under its repository cache limit.
+The first run for a new lockfile or Supabase configuration revision is intentionally cold and creates the browser and image caches. Later runs restore them. Changing the dependency lockfile or Supabase configuration invalidates the relevant cache automatically; ordinary workflow scheduling changes do not. GitHub may still evict old caches under its repository cache limit.
 
 For a few hours of active development, run only the flow affected by the latest change. A newer run for the same branch and flow automatically cancels its older in-progress run, so stale checks do not form a queue. Different flows can run concurrently; selecting **all** fans out to all five. Parallel runs reduce wall-clock time but consume roughly the same GitHub Actions minutes as running the flows one after another.
 
