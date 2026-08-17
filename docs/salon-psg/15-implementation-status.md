@@ -43,7 +43,7 @@
 | Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
 | Phase 2 | PKG-01 Package Ledger | 已实现/待验证 | FND-02、FND-03、FND-04、POS-01 | 目标 migration 已对齐；2 条历史正余额已完成 opening Ledger 回填且只读预检通过。待部署本轮门禁修复，并补专用事务点击流后升为已验证 |
 | Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色/390px 浏览器 Gate 已通过；待专用 UAT fixture 完成现金收款、找零和收据点击流 |
-| Phase 2 | POS-03 HitPay | 已实现/待验证 | POS-01 | Merchant Key-only 改造已发布，真实 Sandbox 支付、webhook、佣金 earned 与全额退款冲销已通过；主动同步与异常恢复的完整专项 Gate 仍归 POS-03 后续收口 |
+| Phase 2 | POS-03 HitPay | 已实现/待目标环境验证 | POS-01 | Merchant Key-only 改造已发布；2026-08-17 已将 Batch 2 异常恢复加固 Migration 应用到 Studio 远端，并通过隔离 `test:pos03-db`、`test:pos03-app`、`test:hitpay-merchant-mode`、TypeScript 与定向 ESLint。真实 Sandbox 主动同步、异常恢复和 webhook 重试证据仍待补齐。 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
 | Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 2） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已接入 Package Credits、在线订金与在线全款；新增预约级 settlement 主记录、Package consume/cancel_return Ledger 链路、支付链路校验与状态机保护。已补 2026-08-14 P1 热修复：幂等完成时机后移、Package/online 事实原子化、paid 后预约推进并清空 expires_at、继续支付入口与预约过期补扫。`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:pkg01-db`、`test:pos03-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过。真实生产支付点击流与发布证据待补，不标记“已上线”。 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
@@ -87,9 +87,9 @@
 
 ## 当前建议领取顺序
 
-1. 继续 APT-04 Self Booking，保持“先可用后结算”策略。
-2. 补 Cash/Receipt、Refund/Cash Session、Package Approval 的专用事务点击流。
-3. 完成 POS-03 主动同步与异常恢复专项 Gate，并在进入 Phase 3 前补齐 Phase 1 证据缺口。
+1. 补 Cash/Receipt、Refund/Cash Session、Package Approval 的专用事务点击流。
+2. 在目标 Sandbox 完成 POS-03 主动同步、异常恢复及 webhook 重试专项 Gate；不在 Production 造支付测试数据。
+3. 在进入 Phase 3 前补齐 Phase 1 证据缺口，并完成 POS-04 发布窗口/目标环境证据。
 
 ## 2026-08-14 状态更新（COM-01）
 
@@ -146,3 +146,10 @@
 - 验收决策更新：业务方接受真实 Safari 与真实 390px 设备未补证的剩余风险，APT-04 Phase 1 升为“可验收”，但不标记“已上线”。
 - 已补 APT-04 浏览器验收执行资产：`docs/salon-psg/releases/2026-08-14-apt04-phase1-browser-acceptance-checklist.md`（含 390px + 多浏览器清单与证据模板），可直接用于 Phase 1 最终验收留档。
 - 隔离 UAT `APT04-UAT-LOCAL-20260814-2350` 已通过真实 Chrome 完整链路、Firefox/WebKit 关键链路与 390px viewport 预检，并关闭真实 schema/幂等重订/active Studio/移动端溢出问题；未补的真实 Safari 与真实 390px 设备证据记录为已接受风险，不阻断 Phase 1 验收。
+
+## 2026-08-17 远端 Migration 对齐（APT-04 / POS-03）
+
+- 已在链接的 Studio Supabase 项目应用 5 个此前待迁移版本：`20260814193000`、`20260814203000`、`20260814220000`、`20260814233000` 与 `20260817120000`。
+- `supabase migration list` 已确认上述版本的本地与远端记录一致。
+- `20260817120000_pos03_hitpay_recovery_hardening.sql` 已启用 HitPay webhook 异常记录的 RLS/服务端最小权限，并收紧主动同步、webhook 及 provider-event 完成失败的恢复语义。
+- 本轮未对 Production 创建支付、退款或预约测试数据；远端 Migration 对齐不等同于 POS-03 的真实 Sandbox 恢复验收或完整应用发布证据。

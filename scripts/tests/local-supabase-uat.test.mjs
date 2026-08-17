@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateLocalSupabaseStatus, waitForLocalDatabaseState } from "../lib/local-supabase-uat.mjs";
+import { isAppReadyStatus, validateLocalSupabaseStatus, waitForLocalDatabaseState } from "../lib/local-supabase-uat.mjs";
 
 const validStatus = {
   API_URL: "http://127.0.0.1:54321",
@@ -21,6 +21,13 @@ test("accepts complete loopback local Supabase status", () => {
 test("rejects incomplete or non-loopback status", () => {
   assert.throws(() => validateLocalSupabaseStatus({ ...validStatus, DB_URL: undefined }), /missing DB_URL/);
   assert.throws(() => validateLocalSupabaseStatus({ ...validStatus, API_URL: "https://example.com" }), /non-local Supabase API URL/);
+});
+
+test("treats only successful or redirect responses as app readiness", () => {
+  assert.equal(isAppReadyStatus(200), true);
+  assert.equal(isAppReadyStatus(307), true);
+  assert.equal(isAppReadyStatus(404), false);
+  assert.equal(isAppReadyStatus(500), false);
 });
 
 test("waits for local database state without a fixed test sleep", async () => {

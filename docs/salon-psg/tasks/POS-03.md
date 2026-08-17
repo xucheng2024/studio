@@ -1,6 +1,6 @@
 # POS-03：HitPay 在线支付闭环（Batch 1 + Batch 2）
 
-状态：已实现/待目标环境验证（Batch 1/2 已落地）
+状态：已实现/待目标环境验证（Batch 1/2 已落地；2026-08-17 远端 Migration 已对齐）
 
 负责人：Codex
 
@@ -54,3 +54,10 @@ Commit / Release：`8c402c3`、`1c0704f`；未上线
 - Payments 页面新增 `HitPay webhook exceptions (24h)` 看板（统计 + 最近失败事件）
 - 新增前台/运营可直接使用的 SOP 页面：
   - `/dashboard/payments/runbook`
+
+## 6. 2026-08-17 远端 Migration 与恢复加固
+
+- Studio 远端已应用 `20260817120000_pos03_hitpay_recovery_hardening.sql`，并与本地 migration history 对齐。
+- 异常记录表已启用 RLS，仅允许 service role 读写；主动同步与 webhook 使用同一 POS 完成事务保存网关证据，已付重放不得覆盖既有事实。
+- 本地验证已通过：`test:pos03-db`、`test:pos03-app`、`test:hitpay-merchant-mode`、`npx tsc --noEmit`、定向 ESLint。
+- 仍需在目标 Sandbox 留存主动同步、provider-event 完成失败后的重试、以及 webhook 异常恢复证据；不得以 Production 测试数据替代。

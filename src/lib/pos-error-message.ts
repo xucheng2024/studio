@@ -63,6 +63,12 @@ export function mapPosMutationMessage(code: PosMutationErrorCode, rawMessage?: s
     if (/no open cash session for location/i.test(message)) {
       return "No open cash session for this location. Open a cash session before collecting cash.";
     }
+    if (/no open cash session for cash refund/i.test(message)) {
+      return "Open a cash session for this location before issuing a cash refund.";
+    }
+    if (/insufficient expected cash in open cash session/i.test(message)) {
+      return "The open cash session does not contain enough expected cash for this refund.";
+    }
     if (/already has open cash session/i.test(message)) {
       return "This location already has an open cash session.";
     }
