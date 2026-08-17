@@ -111,6 +111,8 @@ export type RefundPosSaleItemsPayload = {
   item_count: number;
   payment_id: string | null;
   payment_status: string | null;
+  cash_refund_movement_id?: string | null;
+  cash_refund_session_id?: string | null;
   already_completed: boolean;
 };
 
