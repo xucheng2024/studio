@@ -16,6 +16,7 @@ import {
   ReceiptText,
   CreditCard,
   BarChart2,
+  Mail,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const links: NavLink[] = [
   { href: "/dashboard/packages/approvals", label: "Package Approvals", icon: Package },
   { href: "/dashboard/memberships",label: "Memberships",icon: Repeat },
   { href: "/dashboard/clients",    label: "Customers",  icon: Users },
+  { href: "/dashboard/marketing",  label: "Marketing",  icon: Mail },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },
 ];

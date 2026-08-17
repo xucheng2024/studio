@@ -35,6 +35,26 @@ async function sendEmail(params: {
   }
 }
 
+export async function sendMarketingTestEmail(params: {
+  to: string;
+  subject: string;
+  body: string;
+  imageUrl?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}) {
+  const image = params.imageUrl ? `<p><img src="${escHtml(params.imageUrl)}" alt="" style="max-width:100%;height:auto" /></p>` : "";
+  const cta = params.ctaLabel && params.ctaUrl
+    ? `<p><a href="${escHtml(params.ctaUrl)}">${escHtml(params.ctaLabel)}</a></p>`
+    : "";
+  return sendEmail({
+    to: params.to,
+    subject: `[TEST] ${params.subject}`,
+    text: `${params.body}\n\nThis is a test email; it was not sent to a campaign recipient.`,
+    html: `<p>${escHtml(params.body).replaceAll("\n", "<br />")}</p>${image}${cta}<p><small>This is a test email; it was not sent to a campaign recipient.</small></p>`,
+  });
+}
+
 export async function sendBookingConfirmation(params: {
   to: string;
   sessionTitle: string;

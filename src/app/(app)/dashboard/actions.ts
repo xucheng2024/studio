@@ -37,6 +37,8 @@ export {
 export type { SessionPanelResult } from "./_actions/sessions";
 export type { DashboardFormResult } from "./_actions/shared";
 
+export { createMarketingCampaignAction, sendMarketingTestEmailAction } from "./_actions/marketing";
+
 export {
   cancelSalonAppointmentAction,
   createSalonAppointmentAction,
