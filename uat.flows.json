@@ -78,6 +78,34 @@
       }
     },
     {
+      "id": "mkt01-marketing-local",
+      "paths": [
+        "src/app/(app)/dashboard/marketing/**",
+        "src/app/(app)/dashboard/_actions/marketing.ts",
+        "src/app/api/marketing/unsubscribe/route.ts",
+        "src/lib/marketing.ts",
+        "scripts/run-mkt01-uat-local.mjs",
+        "scripts/verify-mkt01-browser-local.mjs",
+        "scripts/sql/mkt01_uat_local_execute.sql",
+        "scripts/fixtures/mkt01-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "supabase/migrations/20260817140000_mkt01_marketing_audience_campaign_foundation.sql",
+        "supabase/migrations/20260817140100_mkt01_marketing_cross_scope_constraints.sql"
+      ],
+      "command": ["npm", "run", "test:mkt01-uat-local"],
+      "target": { "policy": "command_local" },
+      "data_access": { "policy": "local_only" },
+      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/mkt01-uat"],
+        "index": "tmp/mkt01-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "pos-packages-local",
       "paths": [
         "src/app/(app)/dashboard/pos/**",

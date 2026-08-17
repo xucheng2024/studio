@@ -52,6 +52,7 @@
     "backfill:pkg01-opening": "node scripts/backfill-pkg01-opening-balance.mjs",
     "test:crm02-browser": "node scripts/verify-crm02-playwright.mjs",
     "test:crm02-uat-local": "node scripts/run-crm02-uat-local.mjs",
+    "test:mkt01-uat-local": "node scripts/run-mkt01-uat-local.mjs",
     "test:pos-pkg-uat-local": "node scripts/run-pos-pkg-uat-local.mjs",
     "test:local-uat-safety": "node --test scripts/tests/local-uat-safety.test.mjs scripts/tests/com01-local-auth-fixture.test.mjs",
     "verify:crm01-preflight": "node scripts/verify-crm01-production-preflight.mjs",

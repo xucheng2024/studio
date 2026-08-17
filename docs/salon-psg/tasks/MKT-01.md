@@ -1,6 +1,6 @@
 # MKT-01：分组和 Email 内容
 
-状态：完成
+状态：已验证/待上线
 
 负责人：Codex
 
@@ -58,12 +58,13 @@
 
 ### 验证结果
 
-- 通过：针对修改文件的 ESLint、`npx tsc --noEmit`、`git diff --check`。
+- 通过：针对修改文件的 ESLint、`npx tsc --noEmit`、`git diff --check`、隔离本地 `mkt01-marketing-local` UAT。
+- UAT 覆盖：Consent/Suppression 过滤、Recipient Snapshot、匿名一键退订、Instructor 拒绝及 390px 无横向溢出。
 - `npx supabase db lint --local` 仍报告既有预约/套餐函数错误；本次 migration 没有产生新 lint 项。
 
 ### 未解决风险
 
-- 现有 `uat.flows.json` 没有覆盖 Marketing 页面，故没有执行不匹配的浏览器 flow；MKT-02 应新增本地营销 UAT 后覆盖派送前检查。
+- MKT-02 仍需在真实派送前再次验证 Consent/Suppression，并覆盖 Resend webhook、重试与分批发送。
 
 ## 10. 后续任务接口
 
