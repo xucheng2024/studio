@@ -1,12 +1,12 @@
 # POS-02：现金收款闭环（Batch 1 + Batch 2）
 
-状态：已实现/待专用本地 UAT 执行（Batch 1/2 已落地）
+状态：已验证/待上线（Batch 1/2；专用 Free cloud UAT 已通过）
 
 负责人：Codex
 
 开始日期：2026-08-13
 
-Commit / Release：`0d66116`、`05d877d`；未上线
+Commit / Release：`0d66116`、`05d877d`、`74b079a`、`ab5b817`；未上线
 
 ## 1. 目标
 
@@ -50,3 +50,9 @@ Commit / Release：`0d66116`、`05d877d`；未上线
 - 本机有 Docker 时也可经 `$uat-browser` 的 `run_flow.py` 跑同一 flow；本机缺 Docker 时不要当作任务失败，改走 Free cloud UAT。
 - 覆盖：390px 现金班次开启、现金收款、`pos_sales`/`payments` 原子 paid 结果、receipt number 页面展示，以及 Instructor POS 拒绝访问。
 - 不把找零或 PDF/可点击收据作为本项通过条件：当前 POS-02 UI 和任务范围均未实现这些能力。
+
+## 6. 收口证据（2026-08-17）
+
+- Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32002949749
+- 日志标记：`pos02_local_uat_ok`；runner 摘要：`{"status":"passed","flows":["pos02-cash-receipt-local"],"runner":"github-hosted"}`
+- Batch 1/2 专用浏览器 UAT 已收口；找零 UI 与 PDF/可点击收据仍不在本批范围，不升“已上线”（待发布窗口）。

@@ -42,7 +42,7 @@
 | Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
 | Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
 | Phase 2 | PKG-01 Package Ledger | 已实现/待验证 | FND-02、FND-03、FND-04、POS-01 | 目标 migration 已对齐；2 条历史正余额已完成 opening Ledger 回填且只读预检通过。待部署本轮门禁修复，并补专用事务点击流后升为已验证 |
-| Phase 2 | POS-02 Cash/Receipt | 已实现/待验证 | POS-01 | DB Gate、目标 migration、角色/390px 浏览器 Gate 已通过；已新增 `pos02-cash-receipt-local` 并接入 Free cloud UAT / changed-path 路由。覆盖现金收款、原子 paid 结果、receipt number 展示和越权拒绝；待在 GitHub Actions 跑通该 flow。找零及 PDF/可点击收据尚未实现，不能作为本项已通过证据。 |
+| Phase 2 | POS-02 Cash/Receipt | 已验证/待上线 | POS-01 | DB Gate、目标 migration 与 Batch 1/2 专用 Free cloud UAT 已通过（`pos02-cash-receipt-local`，run `32002949749`，`pos02_local_uat_ok`）。覆盖现金班次开启、现金收款、Sale/Payment 原子 paid、receipt number 展示、Instructor 越权拒绝与 390px。找零 UI 与 PDF/可点击收据仍不在 Batch 1/2 范围；待发布窗口后升“已上线”。 |
 | Phase 2 | POS-03 HitPay | 已实现/待目标环境验证 | POS-01 | Merchant Key-only 改造已发布；2026-08-17 已将 Batch 2 异常恢复加固 Migration 应用到 Studio 远端，并通过隔离 `test:pos03-db`、`test:pos03-app`、`test:hitpay-merchant-mode`、TypeScript 与定向 ESLint。真实 Sandbox 主动同步、异常恢复和 webhook 重试证据仍待补齐。 |
 | Phase 2 | PKG-02 Package Approval | 已实现/待验证 | PKG-01 | DB Gate、目标 migration、maker/checker 角色矩阵、390px 与目标只读异常检查通过；待专用 UAT fixture 完成申请/批准/拒绝/并发点击流 |
 | Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 2） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已接入 Package Credits、在线订金与在线全款；新增预约级 settlement 主记录、Package consume/cancel_return Ledger 链路、支付链路校验与状态机保护。已补 2026-08-14 P1 热修复：幂等完成时机后移、Package/online 事实原子化、paid 后预约推进并清空 expires_at、继续支付入口与预约过期补扫。`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:pkg01-db`、`test:pos03-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过。真实生产支付点击流与发布证据待补，不标记“已上线”。 |
@@ -87,9 +87,15 @@
 
 ## 当前建议领取顺序
 
-1. 补 Cash/Receipt、Refund/Cash Session、Package Approval 的专用事务点击流。
+1. 补 Package Approval 的专用事务点击流；Refund/Cash Session 浏览器证据可复用 POS-04 / `pos-packages-local` 已有覆盖，按缺口补齐即可。
 2. 在目标 Sandbox 完成 POS-03 主动同步、异常恢复及 webhook 重试专项 Gate；不在 Production 造支付测试数据。
-3. 在进入 Phase 3 前补齐 Phase 1 证据缺口，并完成 POS-04 发布窗口/目标环境证据。
+3. 在进入 Phase 3 前补齐 Phase 1 证据缺口，并完成 POS-02/POS-04 发布窗口/目标环境证据。
+
+## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
+
+- 已新增并接入 `pos02-cash-receipt-local`（fixture、浏览器 verifier、Free cloud UAT / changed-path / release-gate 目录）。
+- GitHub Actions Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32002949749（`pos02_local_uat_ok`）。
+- POS-02 Batch 1/2 升为“已验证/待上线”；找零 UI 与 PDF/可点击收据仍明确不在本批范围。
 
 ## 2026-08-14 状态更新（COM-01）
 
