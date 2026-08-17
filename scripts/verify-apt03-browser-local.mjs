@@ -37,8 +37,24 @@ async function login(identity) {
   return { context, page: await context.newPage() };
 }
 
-async function waitForToast(page, message) {
-  await page.getByText(message, { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+async function waitForStatus(appointmentId, status, label) {
+  return waitForLocalDatabaseState(async () => {
+    const { data, error } = await admin.from("salon_appointments").select("status").eq("id", appointmentId).single();
+    if (error) throw error;
+    return data;
+  }, (row) => row?.status === status, label);
+}
+
+async function transitionOnCard(page, card, buttonName, expectedStatus, appointmentId) {
+  await card.getByRole("button", { name: buttonName, exact: true }).click();
+  try {
+    await waitForStatus(appointmentId, expectedStatus, buttonName);
+  } catch (error) {
+    const toasts = await page.locator("[data-sonner-toast]").allInnerTexts().catch(() => []);
+    const { data } = await admin.from("salon_appointments").select("status").eq("id", appointmentId).maybeSingle();
+    console.log("apt03 transition failed", { buttonName, expectedStatus, dbStatus: data?.status, toasts });
+    throw error;
+  }
 }
 
 try {
@@ -53,7 +69,7 @@ try {
   await createForm.locator('select[name="employee_id"]').selectOption({ label: "APT-03 instructor" });
   await createForm.locator('input[name="starts_at"]').fill(slotLocal);
   await createForm.getByRole("button", { name: "Create appointment" }).click();
-  await waitForToast(owner.page, "Appointment created.");
+  await owner.page.getByText("Appointment created.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
 
   const created = await waitForLocalDatabaseState(async () => {
     const { data, error } = await admin
@@ -69,29 +85,15 @@ try {
   }, (row) => row?.status === "pending", "owner created pending appointment");
 
   await owner.page.reload({ waitUntil: "domcontentloaded" });
+  await owner.page.getByRole("heading", { name: "Appointments" }).waitFor({ state: "visible", timeout: 30_000 });
   const card = owner.page.locator("article").filter({ hasText: "APT-03 L1 customer" });
-  await card.getByRole("button", { name: "Confirm" }).click();
-  await waitForToast(owner.page, "Appointment moved to confirmed.");
-  await waitForLocalDatabaseState(async () => {
-    const { data, error } = await admin.from("salon_appointments").select("status").eq("id", created.id).single();
-    if (error) throw error;
-    return data;
-  }, (row) => row?.status === "confirmed", "confirmed");
-
+  await transitionOnCard(owner.page, card, "Confirm", "confirmed", created.id);
   await owner.page.reload({ waitUntil: "domcontentloaded" });
-  await card.getByRole("button", { name: "Check-in" }).click();
-  await waitForToast(owner.page, "Appointment moved to checked in.");
+  await transitionOnCard(owner.page, card, "Check-in", "checked_in", created.id);
   await owner.page.reload({ waitUntil: "domcontentloaded" });
-  await card.getByRole("button", { name: "Start" }).click();
-  await waitForToast(owner.page, "Appointment moved to in progress.");
+  await transitionOnCard(owner.page, card, "Start", "in_progress", created.id);
   await owner.page.reload({ waitUntil: "domcontentloaded" });
-  await card.getByRole("button", { name: "Complete" }).click();
-  await waitForToast(owner.page, "Appointment moved to completed.");
-  await waitForLocalDatabaseState(async () => {
-    const { data, error } = await admin.from("salon_appointments").select("status").eq("id", created.id).single();
-    if (error) throw error;
-    return data;
-  }, (row) => row?.status === "completed", "completed");
+  await transitionOnCard(owner.page, card, "Complete", "completed", created.id);
   await owner.context.close();
 
   const instructor = await login(APT_LOCAL_IDENTITIES.instructor);
