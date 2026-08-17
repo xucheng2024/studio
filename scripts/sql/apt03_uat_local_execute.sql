@@ -102,10 +102,14 @@ begin
     (v_customer_l2, v_studio, null, 'APT-03 L2 customer', null, 'active', 'frontdesk', v_l2);
 
   v_created := public.create_salon_appointment(
-    v_owner, 'owner',
-    v_studio, v_l2, v_customer_l2, v_service, v_employee_l2,
-    timestamptz '2026-08-19 02:00:00+00',
-    null, null, null, null, null, null, null, null, null, null, null
+    p_actor_id := v_owner,
+    p_actor_role := 'owner',
+    p_studio_id := v_studio,
+    p_location_id := v_l2,
+    p_salon_customer_id := v_customer_l2,
+    p_service_id := v_service,
+    p_employee_id := v_employee_l2,
+    p_starts_at := timestamptz '2026-08-19 02:00:00+00'
   );
   if coalesce((v_created->>'ok')::boolean, false) is not true then
     raise exception 'APT-03 L2 fixture appointment failed: %', v_created;

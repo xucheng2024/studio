@@ -52,6 +52,7 @@ try {
 
   await owner.page.goto(`${baseUrl}/dashboard/services${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "services mobile overflow");
+  await owner.page.getByRole("heading", { name: "APT-01 local service" }).click();
   await owner.page.getByLabel("Duration (mins)").fill("45");
   await owner.page.getByRole("button", { name: "Save appointment defaults" }).click();
   await waitForToast(owner.page, "Availability defaults saved.");
