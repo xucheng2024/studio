@@ -26,7 +26,7 @@ const manifest = JSON.parse(fs.readFileSync("uat.flows.json", "utf8"));
 const result = routeCloudUatChanges(paths, manifest.flows ?? []);
 const output = process.env.GITHUB_OUTPUT;
 if (output && !runFast) {
-  fs.appendFileSync(output, `fast_matrix=${JSON.stringify(result.fastMatrix)}\nhas_fast=${result.flows.length > 0}\n`);
+  fs.appendFileSync(output, `fast_matrix=${JSON.stringify(result.fastMatrix)}\nhas_fast=${result.fastMatrix.include.length > 0}\n`);
 }
 if (process.env.GITHUB_STEP_SUMMARY && !runFast) {
   const recommendation = result.dispatch ? `Run **Free cloud UAT** with \`${result.dispatch}\` when browser/database verification is needed.` : "No declared Docker UAT flow matches this change.";

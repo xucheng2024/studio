@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { routeCloudUatChanges } from "../lib/cloud-uat-routing.mjs";
+import { CATALOG_FAST_SCRIPT, CLOUD_UAT_FLOW_ORDER, routeCloudUatChanges } from "../lib/cloud-uat-routing.mjs";
 
 const flows = [
   { id: "apt01-availability-local", paths: ["scripts/verify-apt01-browser-local.mjs"] },
@@ -24,7 +24,14 @@ test("routes a feature change to its smallest cloud UAT flow", () => {
 test("routes shared local UAT infrastructure to every isolated flow", () => {
   const result = routeCloudUatChanges(["supabase/migrations/20260818000000_change.sql"], flows);
   assert.equal(result.dispatch, "all");
-  assert.equal(result.fastMatrix.include.length, 9);
+  assert.equal(result.fastMatrix.include.length, CLOUD_UAT_FLOW_ORDER.length);
+});
+
+test("routes catalog-only changes to the catalog sync check", () => {
+  const result = routeCloudUatChanges([".github/workflows/free-cloud-uat.yml"], flows);
+  assert.equal(result.dispatch, null);
+  assert.equal(result.reason, "cloud_uat_catalog");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "cloud-uat-catalog", script: CATALOG_FAST_SCRIPT }]);
 });
 
 test("routes APT-01 availability changes to the dedicated cloud UAT flow", () => {
@@ -53,6 +60,13 @@ test("routes POS-03 HitPay sandbox changes to the dedicated cloud UAT flow", () 
   assert.deepEqual(result.flows, ["pos03-hitpay-sandbox-local"]);
   assert.equal(result.dispatch, "pos03-hitpay-sandbox-local");
   assert.deepEqual(result.fastMatrix.include, [{ flow: "pos03-hitpay-sandbox-local", script: "test:hitpay-merchant-mode" }]);
+});
+
+test("prepends the catalog sync check when a feature and catalog file both change", () => {
+  const result = routeCloudUatChanges(["src/app/(app)/dashboard/clients/page.tsx", "uat.flows.json"], flows);
+  assert.equal(result.dispatch, "crm02-clients-local");
+  assert.deepEqual(result.fastMatrix.include[0], { flow: "cloud-uat-catalog", script: CATALOG_FAST_SCRIPT });
+  assert.deepEqual(result.fastMatrix.include[1], { flow: "crm02-clients-local", script: "test:crm02-app" });
 });
 
 test("does not spend a fast-check job on unrelated files", () => {

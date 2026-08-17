@@ -82,7 +82,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - For Studio-local browser UAT or local migration-reset verification, read `skills/studio-local-uat/SKILL.md` first.
 - For browser/UAT work, use the `$uat-browser` skill when it is available. If `uat.flows.json` exists, read it before searching for test commands.
 - Docker-backed browser UAT defaults to GitHub Actions **Free cloud UAT**. Local `$uat-browser` `run_flow.py` is optional when Docker is already available; if local Docker is missing, switch to Free cloud UAT instead of treating it as a blocker.
-- When adding or replacing a local UAT wrapper, identity fixture, or verifier, update that flow's `paths` in `uat.flows.json`, wire the flow into Free cloud UAT catalogs (`cloud-uat-routing.mjs`, `run-github-hosted-uat.mjs`, `free-cloud-uat.yml`), and confirm the selector resolves the wrapper path before execution.
+- When adding or replacing a local UAT wrapper, identity fixture, or verifier, update that flow's `paths` in `uat.flows.json`, add it to `FAST_SCRIPTS`, run `npm run test:cloud-uat-options`, and align Free cloud UAT / release-gate lists until the catalog check passes.
 - Treat a selected `uat.flows.json` flow as discovery only: inspect its verifier's target, writes, auth, and server lifecycle before execution.
 - Do not modify `uat.flows.json` during an ordinary UAT run. Sync it only when the task explicitly creates, updates, or maintains UAT routing.
 - Do not run remote or data-writing UAT flows without explicit task authority. Never use a production fallback.

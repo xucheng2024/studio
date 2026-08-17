@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { CLOUD_UAT_FLOW_ORDER } from "./lib/cloud-uat-routing.mjs";
 
 const args = process.argv.slice(2);
 const flowIndex = args.indexOf("--flow");
@@ -14,18 +15,7 @@ if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true") {
 }
 
 const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), "uat.flows.json"), "utf8"));
-const batchedFlowIds = [
-  "apt01-availability-local",
-  "apt03-calendar-local",
-  "apt04-appointments-local",
-  "com01-commission-local",
-  "crm02-clients-local",
-  "mkt01-marketing-local",
-  "pos02-cash-receipt-local",
-  "pos03-hitpay-sandbox-local",
-  "pos-packages-local",
-];
-const flowIds = requestedFlow === "all-batched" ? batchedFlowIds : [requestedFlow];
+const flowIds = requestedFlow === "all-batched" ? CLOUD_UAT_FLOW_ORDER : [requestedFlow];
 const flows = flowIds.map((flowId) => {
   const flow = manifest.flows?.find((candidate) => candidate.id === flowId);
   if (!flow) throw new Error(`Unknown UAT flow: ${flowId}`);
