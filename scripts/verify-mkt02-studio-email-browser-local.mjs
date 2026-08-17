@@ -41,28 +41,28 @@ function signResendWebhook(id, timestamp, payload) {
   return `v1,${signature}`;
 }
 
-async function postWebhook(studioPath, { body, headers = {}, id } = {}) {
+async function postWebhook(studioPath, { body, headers = {}, id, timestamp } = {}) {
   const payload = body ?? JSON.stringify({
     type: "email.delivered",
     created_at: new Date().toISOString(),
     data: { email_id: providerEmailId, to: ["mkt02-webhook@example.test"] },
   });
   const svixId = id ?? `mkt02-svix-${runId}`;
-  const timestamp = String(Math.floor(Date.now() / 1000));
+  const svixTimestamp = timestamp ?? String(Math.floor(Date.now() / 1000));
   const response = await fetch(`${baseUrl}${studioPath}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "svix-id": svixId,
-      "svix-timestamp": timestamp,
-      "svix-signature": signResendWebhook(svixId, timestamp, payload),
+      "svix-timestamp": svixTimestamp,
+      "svix-signature": signResendWebhook(svixId, svixTimestamp, payload),
       ...headers,
     },
     body: payload,
   });
   const text = await response.text();
   console.log("[mkt02-studio-email-uat] webhook", studioPath, response.status);
-  return { status: response.status, text };
+  return { status: response.status, text, payload, id: svixId, timestamp: svixTimestamp };
 }
 
 async function login(identity) {
@@ -133,9 +133,13 @@ try {
   }, (row) => row?.dispatch_status === "delivered", "webhook delivered status");
   assert.equal(recipient.dispatch_status, "delivered");
 
-  const replay = await postWebhook(`/api/webhooks/resend/${studioId}`);
+  const replay = await postWebhook(`/api/webhooks/resend/${studioId}`, {
+    body: delivered.payload,
+    id: delivered.id,
+    timestamp: delivered.timestamp,
+  });
   assert.equal(replay.status, 200, "webhook replay is idempotent");
-  const foreign = await postWebhook(`/api/webhooks/resend/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee`);
+  const foreign = await postWebhook(`/api/webhooks/resend/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee`, { id: `mkt02-svix-foreign-${runId}` });
   assert.equal(foreign.status, 401, "unknown studio webhook is rejected");
 
   fs.mkdirSync(evidenceDir, { recursive: true });
