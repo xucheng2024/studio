@@ -20,14 +20,14 @@ Studio's first-release Docker UAT path is **GitHub Actions Free cloud UAT**, not
 1. Prefer `gh workflow run "Free cloud UAT" -f flow=<flow-id>` (or the Actions UI) for any flow that declares Docker/Supabase lifecycle.
 2. Local `$uat-browser` `run_flow.py` is optional when the workstation already has Docker and local Supabase.
 3. If `run_flow.py` fails with missing `docker`, unavailable Docker daemon, or equivalent local-environment requirements, **do not treat that as product failure**. Switch immediately to Free cloud UAT for the selected flow. Do not ask the user to install Docker first unless they explicitly want a local runner.
-4. When adding a new isolated browser flow, add it to `uat.flows.json` and `FAST_SCRIPTS` in `scripts/lib/cloud-uat-routing.mjs`, then run `npm run test:cloud-uat-options`. That check is the catalog source of truth: batched GitHub UAT reads `CLOUD_UAT_FLOW_ORDER`, and Free cloud UAT / release-gate lists must match it. A flow that exists only in `uat.flows.json` is not cloud-executable.
+4. When adding a new isolated browser flow, run `node scripts/scaffold-isolated-uat-flow.mjs --id <slug>-local --after <existing-flow-id> --fast-script <existing-npm-script> --write`. It wires `uat.flows.json`, `FAST_SCRIPTS`, Free cloud UAT, release-gate, the routing test catalog, and fixture stubs. Fill the generated verifier assertions, then run `npm run test:cloud-uat-options`. That check is the catalog source of truth: batched GitHub UAT reads `CLOUD_UAT_FLOW_ORDER`, and Free cloud UAT / release-gate lists must match it. A flow that exists only in `uat.flows.json` is not cloud-executable.
 5. After that flow passes and the task is closed, read `$workflow-saver` once and screen in silence. Repeated fixture/runner/catalog wiring across flows is valid evidence. Do not skip this screen because validation already passed.
 
 ## Select a flow
 
 - Read `uat.flows.json` before choosing a command. Treat the selected flow as discovery: inspect its verifier, fixture writes, authentication, and server lifecycle before running it.
 - Run existing flows through `run_flow.py` from `$uat-browser` only when local Docker is available; otherwise use Free cloud UAT. Preserve evidence-directory and contract validation on either path.
-- Do not edit `uat.flows.json` for an ordinary UAT run. Update it only when adding or maintaining a flow, and include every wrapper/verifier path plus the cloud catalog wiring above.
+- Do not edit `uat.flows.json` for an ordinary UAT run. To add a flow, use `scripts/scaffold-isolated-uat-flow.mjs` and include every wrapper/verifier path plus the cloud catalog wiring above.
 
 ## Use local fixtures safely
 

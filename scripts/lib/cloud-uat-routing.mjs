@@ -31,6 +31,8 @@ export const CATALOG_PATH_PREFIXES = Object.freeze([
   "scripts/tests/cloud-uat-catalog.test.mjs",
   "scripts/tests/cloud-uat-options.test.mjs",
   "scripts/tests/cloud-uat-routing.test.mjs",
+  "scripts/scaffold-isolated-uat-flow.mjs",
+  "scripts/tests/scaffold-isolated-uat-flow.test.mjs",
   ".github/workflows/free-cloud-uat.yml",
   ".github/workflows/release-gate.yml",
 ]);
