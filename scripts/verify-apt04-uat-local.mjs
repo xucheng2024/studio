@@ -368,6 +368,9 @@ async function runBrowser(name, launcher, email, full = false) {
 if (requestedEngines.has("chrome")) {
   await runBrowser("chrome", () => chromium.launch({ channel: "chrome", headless: true }), userEmails.a, true);
 }
+if (requestedEngines.has("chromium")) {
+  await runBrowser("chromium", () => chromium.launch({ headless: true }), userEmails.a, true);
+}
 if (requestedEngines.has("firefox")) {
   await runBrowser("firefox", () => firefox.launch({ headless: true }), userEmails.firefox);
 }

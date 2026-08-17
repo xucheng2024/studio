@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "default_provider": "github-actions",
+  "providers": [
+    {
+      "id": "github-actions",
+      "name": "GitHub Actions",
+      "recommended": true,
+      "best_for": "Run an occasional isolated UAT flow without maintaining a server.",
+      "reason": "The repository is already on GitHub, and every run receives a fresh x64 Ubuntu runner with Docker.",
+      "free_tier": "Standard runners are free for public repositories; private repositories use the account's included monthly minutes.",
+      "limitations": [
+        "Private-repository standard runners currently provide 8 GB RAM and 14 GB SSD, so run one flow at a time.",
+        "The runner is destroyed after the job and cannot retain a failed Docker environment for interactive diagnosis."
+      ],
+      "setup": {
+        "workflow": ".github/workflows/free-cloud-uat.yml",
+        "url": "https://docs.github.com/actions"
+      }
+    }
+  ]
+}

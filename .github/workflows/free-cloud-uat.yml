@@ -1,0 +1,102 @@
+name: Free cloud UAT
+
+on:
+  workflow_dispatch:
+    inputs:
+      flow:
+        description: "One isolated local-only UAT flow to run"
+        required: true
+        default: apt04-appointments-local
+        type: choice
+        options:
+          - apt04-appointments-local
+          - com01-commission-local
+          - crm02-clients-local
+          - mkt01-marketing-local
+          - pos-packages-local
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-cloud-uat-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  isolated-uat:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out reviewed repository code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project dependencies
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --yes postgresql-client
+          fi
+          npm ci
+
+      - name: Restore Chromium browser cache
+        id: playwright-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-x64-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Save Chromium browser cache
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-x64-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Restore Supabase image cache
+        id: supabase-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .cache/github-uat/supabase-images.tar
+          key: ${{ runner.os }}-x64-supabase-${{ hashFiles('package-lock.json', 'supabase/config.toml', '.github/workflows/free-cloud-uat.yml') }}
+
+      - name: Load cached Supabase images
+        if: steps.supabase-cache.outputs.cache-hit == 'true'
+        run: node scripts/cache-github-uat-images.mjs restore
+
+      - name: Run isolated Docker-backed UAT
+        env:
+          SELECTED_FLOW: ${{ inputs.flow }}
+          UAT_SUPABASE_EXCLUDE: realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+        run: node scripts/run-github-hosted-uat.mjs --flow "$SELECTED_FLOW"
+
+      - name: Export Supabase images for cache
+        id: supabase-cache-export
+        if: always() && steps.supabase-cache.outputs.cache-hit != 'true'
+        run: |
+          node scripts/cache-github-uat-images.mjs save
+          if [[ -f .cache/github-uat/supabase-images.tar ]]; then
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save Supabase image cache
+        if: always() && steps.supabase-cache.outputs.cache-hit != 'true' && steps.supabase-cache-export.outputs.created == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .cache/github-uat/supabase-images.tar
+          key: ${{ runner.os }}-x64-supabase-${{ hashFiles('package-lock.json', 'supabase/config.toml', '.github/workflows/free-cloud-uat.yml') }}

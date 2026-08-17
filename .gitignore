@@ -13,6 +13,7 @@
 # testing
 /coverage
 /tmp/
+/.cache/
 
 # next.js
 /.next/

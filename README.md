@@ -86,6 +86,14 @@ The script injects local Supabase credentials only into its child processes, sta
 
 `uat.flows.json` maps changed project paths to existing UAT commands. It is a selection aid only: it never executes a command or authorizes tests that write data.
 
+To run without local Docker, view the first-release free cloud recommendation:
+
+```bash
+npm run uat:cloud-options
+```
+
+GitHub Actions is the only first-release recommendation. See [Free cloud UAT](docs/free-cloud-uat.md) for the reasons and limits.
+
 ```bash
 python3 /Users/mac/.codex-azure/skills/uat-browser/scripts/select_flow.py \
   --cwd "$PWD" --changed-path 'src/app/(app)/dashboard/clients/page.tsx'

@@ -9,6 +9,7 @@
         "src/lib/salon-appointments.ts",
         "src/lib/salon-appointments-self.ts",
         "scripts/run-local-uat.mjs",
+        "scripts/manage-cloud-vm-uat-environment.mjs",
         "scripts/lib/local-supabase-uat.mjs",
         "scripts/tests/local-supabase-uat.test.mjs",
         "scripts/verify-apt04-uat-local.mjs"
@@ -16,13 +17,29 @@
       "command": [
         "npm",
         "run",
-        "test:local-uat"
+        "test:local-uat",
+        "--",
+        "--flow",
+        "apt04",
+        "--engines",
+        "chromium"
       ],
       "target": {
         "policy": "command_local"
       },
       "data_access": {
         "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
       }
     },
     {
@@ -31,6 +48,7 @@
         "scripts/verify-com01-uat-browser-local.mjs",
         "scripts/sql/com01_uat_local_execute.sql",
         "scripts/run-com01-uat-local.mjs",
+        "scripts/manage-cloud-vm-uat-environment.mjs",
         "scripts/fixtures/com01-local-identities.mjs",
         "scripts/lib/com01-local-auth.mjs",
         "scripts/lib/local-supabase-uat.mjs",
@@ -50,6 +68,17 @@
       },
       "data_access": {
         "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
       }
     },
     {
@@ -58,6 +87,7 @@
         "src/app/(app)/dashboard/clients/**",
         "scripts/verify-crm02-browser-local.mjs",
         "scripts/run-crm02-uat-local.mjs",
+        "scripts/manage-cloud-vm-uat-environment.mjs",
         "scripts/sql/crm02_uat_local_execute.sql",
         "scripts/fixtures/crm02-local-identities.mjs",
         "scripts/lib/local-fixture-auth.mjs",
@@ -75,6 +105,17 @@
       },
       "data_access": {
         "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
       }
     },
     {
@@ -93,6 +134,7 @@
         "scripts/tests/mkt02-marketing-contract.test.ts",
         "scripts/sql/verify_mkt02_dispatch.sql",
         "scripts/run-mkt01-uat-local.mjs",
+        "scripts/manage-cloud-vm-uat-environment.mjs",
         "scripts/verify-mkt01-browser-local.mjs",
         "scripts/sql/mkt01_uat_local_execute.sql",
         "scripts/fixtures/mkt01-local-identities.mjs",
@@ -107,6 +149,13 @@
       "target": { "policy": "command_local" },
       "data_access": { "policy": "local_only" },
       "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
+      },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
         "directories": ["tmp/mkt01-uat"],
@@ -125,6 +174,7 @@
         "src/lib/pos-sales-read.ts",
         "scripts/verify-pos-pkg-browser-local.mjs",
         "scripts/run-pos-pkg-uat-local.mjs",
+        "scripts/manage-cloud-vm-uat-environment.mjs",
         "scripts/sql/pos_uat_local_execute.sql",
         "scripts/fixtures/pos-local-identities.mjs",
         "scripts/lib/local-fixture-auth.mjs",
@@ -146,6 +196,13 @@
       "requirements": {
         "commands": ["node", "npm", "npx", "psql"],
         "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",

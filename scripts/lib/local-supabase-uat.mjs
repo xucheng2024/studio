@@ -20,7 +20,7 @@ export function validateLocalSupabaseStatus(status) {
 export function readLocalSupabaseStatus() {
   let raw;
   try {
-    raw = execFileSync("npx", ["supabase", "status", "--output", "json"], {
+    raw = execFileSync("npx", ["--no-install", "supabase", "status", "--output", "json"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
