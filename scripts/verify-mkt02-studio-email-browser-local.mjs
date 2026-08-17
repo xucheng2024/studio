@@ -93,7 +93,8 @@ try {
   await owner.page.getByRole("heading", { name: "Email settings" }).waitFor({ state: "visible", timeout: 30_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "email settings mobile overflow");
   const form = owner.page.locator("form").filter({ hasText: "Resend studio setup" });
-  await form.locator('input[name="resend_enabled"]').check();
+  const enabledToggle = form.locator('input[name="resend_enabled"]');
+  await enabledToggle.check({ force: true });
   await form.getByRole("button", { name: "Save settings" }).click();
   await owner.page.getByText("A verified From address is required before enabling Resend for this studio.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   console.log("[mkt02-studio-email-uat] enable without from address rejected");
@@ -101,7 +102,7 @@ try {
   await form.locator('input[name="resend_from_email"]').fill(fromEmail);
   await form.locator('input[name="resend_api_key"]').fill(apiKey);
   await form.locator('input[name="resend_webhook_secret"]').fill(webhookSecret);
-  await form.locator('input[name="resend_enabled"]').check();
+  await enabledToggle.check({ force: true });
   await form.getByRole("button", { name: "Save settings" }).click();
   await owner.page.getByText("Resend settings saved. This studio can send campaigns, appointment mail, and invoices.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   const pageText = await owner.page.locator("body").innerText();
