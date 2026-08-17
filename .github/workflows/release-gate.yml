@@ -110,6 +110,7 @@ jobs:
             com01-commission-local
             crm02-clients-local
             mkt01-marketing-local
+            mkt02-studio-email-local
             pos02-cash-receipt-local
             pos03-hitpay-sandbox-local
             pkg01-package-ledger-local

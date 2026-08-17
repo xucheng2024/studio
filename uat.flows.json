@@ -279,6 +279,40 @@
       }
     },
     {
+      "id": "mkt02-studio-email-local",
+      "paths": [
+        "src/app/(app)/dashboard/settings/email/**",
+        "src/components/dashboard/ResendSettingsForm.tsx",
+        "src/lib/studio-email.ts",
+        "src/app/api/webhooks/resend/[studioId]/**",
+        "scripts/run-mkt02-studio-email-uat-local.mjs",
+        "scripts/verify-mkt02-studio-email-browser-local.mjs",
+        "scripts/sql/mkt02_studio_email_uat_local_execute.sql",
+        "scripts/fixtures/mkt02-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "supabase/migrations/20260818001000_studio_email_secrets.sql"
+      ],
+      "command": ["npm", "run", "test:mkt02-studio-email-uat-local"],
+      "target": { "policy": "command_local" },
+      "data_access": { "policy": "local_only" },
+      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/mkt02-studio-email-uat"],
+        "index": "tmp/mkt02-studio-email-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "pos02-cash-receipt-local",
       "paths": [
         "src/app/(app)/dashboard/pos/[saleId]/page.tsx",

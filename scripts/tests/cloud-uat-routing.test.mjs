@@ -10,6 +10,7 @@ const flows = [
   { id: "com01-commission-local", paths: ["scripts/verify-com01-uat-browser-local.mjs"] },
   { id: "crm02-clients-local", paths: ["src/app/(app)/dashboard/clients/**"] },
   { id: "mkt01-marketing-local", paths: ["src/lib/marketing.ts"] },
+  { id: "mkt02-studio-email-local", paths: ["scripts/verify-mkt02-studio-email-browser-local.mjs"] },
   { id: "pos02-cash-receipt-local", paths: ["scripts/verify-pos02-browser-local.mjs"] },
   { id: "pos03-hitpay-sandbox-local", paths: ["scripts/verify-pos03-browser-local.mjs"] },
   { id: "pkg01-package-ledger-local", paths: ["scripts/verify-pkg01-browser-local.mjs"] },
@@ -55,6 +56,13 @@ test("routes APT-04 settlement sandbox changes to the dedicated cloud UAT flow",
   assert.deepEqual(result.flows, ["apt04-settlement-sandbox-local"]);
   assert.equal(result.dispatch, "apt04-settlement-sandbox-local");
   assert.deepEqual(result.fastMatrix.include, [{ flow: "apt04-settlement-sandbox-local", script: "test:apt04-app" }]);
+});
+
+test("routes MKT-02 studio email changes to the dedicated cloud UAT flow", () => {
+  const result = routeCloudUatChanges(["scripts/verify-mkt02-studio-email-browser-local.mjs"], flows);
+  assert.deepEqual(result.flows, ["mkt02-studio-email-local"]);
+  assert.equal(result.dispatch, "mkt02-studio-email-local");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "mkt02-studio-email-local", script: "test:mkt02-marketing-contract" }]);
 });
 
 test("routes POS-02 cash/receipt changes to the dedicated cloud UAT flow", () => {
