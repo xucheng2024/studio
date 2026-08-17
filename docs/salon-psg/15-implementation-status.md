@@ -49,7 +49,7 @@
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已验证/待上线（Batch 1/2/3 已完成） | COM-01、PKG-01 | 2026-08-16 已在隔离 Docker/Postgres 重跑 `test:pos04-db`（部分退款、现金班次、RPC 幂等均通过）；隔离本地 COM-01 浏览器 UAT 已真实提交全额退款与关班表单，并核验佣金反向分录、现金差异、审计和最终页面。浏览器 UAT 不会隐式回退生产；Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。待发布窗口及目标环境发布证据。 |
 | Phase 3 | MKT-01 Audience/Email | 已验证/待上线 | FND-02、CRM-01、POS-04 | 已发布 Consent/Suppression、Audience Snapshot、固定 Email Builder、测试邮件和一键退订；专用隔离本地 UAT 已通过 |
-| Phase 3 | MKT-02 Dispatch/Report | 已实现/待验证 | MKT-01、FND-04 | per-studio Resend 已落地（Email settings、`studio_email_secrets`、`/api/webhooks/resend/{studio_id}`，禁止平台 key 回退）。待应用 migration，并由该 Studio 自己的 key 做目标环境送达证据 |
+| Phase 3 | MKT-02 Dispatch/Report | 已实现/待验证 | MKT-01、FND-04 | per-studio Resend 已上 `main`（`26b7ab7`）。远端已应用 `20260817150000` 与 `20260818001000`；Vercel 已加平台 `RESEND_WEBHOOK_SECRET`。下一步：Owner 在 Email settings 启用该 Studio 自己的 Resend，用受控地址做送达/Webhook 证据。不升“已验证/待上线” |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
 | Phase 3 | PAY-02 Payroll Run | 未开始 | PAY-01 | 等待依赖 |
 | Phase 3 | PAY-03 Payslip/Reports | 未开始 | PAY-02 | 等待依赖 |
@@ -88,7 +88,7 @@
 ## 当前建议领取顺序
 
 1. Phase 1 浏览器证据缺口（APT-01 / APT-03）已用隔离 Free cloud UAT 收口。进入 Phase 3 前仍需生产发布窗口，才能把 APT-02/04/05、CRM-01、POS-02/03、PKG-01/02、POS-04 等“已验证/待上线”升为“已上线”。
-2. 下一开发项：应用 `studio_email_secrets` migration，Owner 在 Email settings 填入该 Studio 自己的 Resend，再用该 key 做 MKT-02 目标环境证据。支付相关验证只用 HitPay Sandbox。
+2. 下一操作项：Owner 在 Settings → Email settings 填入并启用该 Studio 自己的 Resend，把 webhook 指到 `/api/webhooks/resend/{studio_id}`，再用受控测试地址做 MKT-02 送达证据。支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -199,3 +199,13 @@
 - 平台 `RESEND_*` 只用于平台自己的邮件，禁止作为未配置 Studio 的静默回退。
 - MKT-02 从“已实现/待目标环境验证”改回“已实现/待验证”；先落地 Studio Email 设置与 `/api/webhooks/resend/{studio_id}`，再用该 Studio 自己的 key 做送达证据。
 - 预约通知（APT-05）同样使用该 Studio 密钥；未配置则失败并显示 email provider not configured。
+
+## 2026-08-18 状态更新（per-studio Resend 落地）
+
+- 代码已推送 `main`：`26b7ab7`。Owner 可在 `/dashboard/settings/email` 配置该 Studio 的 Resend API key、From 地址和 webhook secret。
+- 营销 Campaign、预约通知和发票使用该 Studio 密钥；未配置返回 `email_provider_not_configured`，不回退平台 `RESEND_*`。
+- Webhook 为 `/api/webhooks/resend/{studio_id}`；旧 `/api/webhooks/resend` 返回 410。
+- 已链接 Supabase 已应用 `20260817150000_mkt02_campaign_dispatch_reporting.sql` 与 `20260818001000_studio_email_secrets.sql`。
+- Vercel Production/Preview 已增加平台 `RESEND_WEBHOOK_SECRET`（仅平台邮件；租户密钥仍在 Email settings）。
+- 契约测试通过：`test:mkt02-marketing-contract`、`test:apt05-app`。
+- MKT-02 保持“已实现/待验证”。未做真实客户群发；待该 Studio 自己的受控送达/Webhook 证据后才升“已验证/待上线”。

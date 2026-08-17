@@ -1,6 +1,6 @@
 # MKT-02：调度、Webhook 和报告
 
-状态：已实现/待验证（缺 per-studio Resend）
+状态：已实现/待验证（per-studio Resend 已上线代码，缺目标环境送达证据）
 
 负责人：Codex
 
@@ -15,7 +15,7 @@
 - `mkt02_schedule_campaign` 在排队时及首次派送前再次检查最新 Consent、Suppression 和 Email 格式。
 - `mkt02_claim_dispatch_batch` 使用数据库锁、Claim Token、稳定 Batch ID 和 Resend Idempotency Key 防止重复 Cron 发送；已知失败按指数退避重试，最多五次。
 - `/api/cron/dispatch-campaigns` 每五分钟处理最多 50 位收件人；每位收件人使用独立 To、退订和点击 Token。
-- `/api/webhooks/resend` 使用原始请求体验证 Svix 签名，并复用 FND-04 `provider_events` 去重；Delivered、Failed、Bounced、Complained、Suppressed 和 Clicked 写入历史事件。当前仍用平台 `RESEND_WEBHOOK_SECRET`，与 per-studio 需求不符，待改。
+- `/api/webhooks/resend/[studioId]` 使用该 Studio 的 webhook secret 验证原始请求体，并复用 FND-04 `provider_events` 去重；Delivered、Failed、Bounced、Complained、Suppressed 和 Clicked 写入历史事件。旧 `/api/webhooks/resend` 返回 410。
 - Hard Bounce、Complaint 和 Provider Suppression 自动加入 Studio Email Suppression。
 - `/r/c/[token]` 记录唯一 CTA 点击后只重定向到 `NEXT_PUBLIC_APP_URL` 或 `MARKETING_CTA_ALLOWED_HOSTS` 明确允许的 HTTPS 域名，Token 不包含客户资料。
 - Campaign 报告展示快照、排除、Attempted、Submitted、Delivered、Failed、Bounced、Complained、Unique Clicked、Unsubscribed、成功率和点击率；失败收件人可由 Owner/Manager 手动重试。
@@ -29,13 +29,12 @@
 
 ## 剩余工作（per-studio Resend）
 
-代码已改为 Studio BYOK：Owner 在 `/dashboard/settings/email` 配置 API key / From / webhook secret；Campaign、预约通知和发票读取该 Studio 密钥；未配置返回 `email_provider_not_configured`，不回退平台 `RESEND_*`。Webhook 为 `/api/webhooks/resend/[studioId]`。
+代码已上 `main`（`26b7ab7`）：Owner 在 `/dashboard/settings/email` 配置 API key / From / webhook secret；Campaign、预约通知和发票读取该 Studio 密钥；未配置返回 `email_provider_not_configured`，不回退平台 `RESEND_*`。Webhook 为 `/api/webhooks/resend/[studioId]`。
 
-仍待：
+远端 migration 与 Vercel 平台 `RESEND_WEBHOOK_SECRET` 已完成。仍待：
 
-- 应用 migration `20260818001000_studio_email_secrets.sql`。
 - 演示 Studio Owner 保存自己的 Resend 凭证并启用。
-- 隔离 UAT / 目标环境用该 Studio 自己的 key，不把平台 Production key 写入 fixture。
+- 用该 Studio 自己的 key 做受控送达 / Webhook / Bounce / 点击报告证据。
 
 ## 目标环境待办
 
