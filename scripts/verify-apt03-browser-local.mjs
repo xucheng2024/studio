@@ -105,9 +105,9 @@ try {
 
   const frontdesk = await login(APT_LOCAL_IDENTITIES.frontdesk);
   await frontdesk.page.goto(`${baseUrl}/dashboard/appointments?studio_id=${studioId}&location_id=${locationL2Id}&date=${slotDate}&view=day`, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  assert.equal(await frontdesk.page.getByText("APT-03 L2 customer").count(), 0, "frontdesk cannot read L2 appointment");
+  assert.equal(await frontdesk.page.locator("article").filter({ hasText: "APT-03 L2 customer" }).count(), 0, "frontdesk cannot read L2 appointment");
   await frontdesk.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  await frontdesk.page.getByText("APT-03 L1 customer", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  await frontdesk.page.locator("article").filter({ hasText: "APT-03 L1 customer" }).waitFor({ state: "visible", timeout: 30_000 });
   await frontdesk.context.close();
 
   fs.mkdirSync(evidenceDir, { recursive: true });
