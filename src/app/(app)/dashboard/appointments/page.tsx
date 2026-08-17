@@ -354,10 +354,10 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
   const [servicesResult, customersResult, allEmployeesResult, ownEmployeeResult] = await Promise.all([
     admin
       .from("studio_services")
-      .select("id, name")
+      .select("id, title")
       .eq("studio_id", activeStudioId)
       .eq("is_active", true)
-      .order("name"),
+      .order("title"),
     canManage
       ? admin
           .from("salon_customers")
@@ -383,7 +383,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
       .maybeSingle<{ id: string; display_name: string }>(),
   ]);
 
-  const services = (servicesResult.data ?? []).map((service) => ({ id: service.id, name: service.name ?? "Unnamed" }));
+  const services = (servicesResult.data ?? []).map((service) => ({ id: service.id, name: service.title ?? "Unnamed" }));
   const customers = (customersResult.data ?? []).map((customer) => ({ id: customer.id, full_name: customer.full_name ?? "Unnamed" }));
   const employees = canManage
     ? (allEmployeesResult.data ?? []).map((employee) => ({ id: employee.id, display_name: employee.display_name ?? "Unnamed" }))
