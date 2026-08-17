@@ -55,7 +55,6 @@
     "test:mkt01-uat-local": "node scripts/run-mkt01-uat-local.mjs",
     "test:mkt02-marketing-contract": "node --experimental-strip-types --test scripts/tests/mkt02-marketing-contract.test.ts",
     "test:mkt02": "node scripts/verify-mkt02-local.mjs",
-    "test:pos02-uat-local": "node scripts/run-pos02-uat-local.mjs",
     "test:pos-pkg-uat-local": "node scripts/run-pos-pkg-uat-local.mjs",
     "test:uat-cloud-vm": "node scripts/run-cloud-vm-uat.mjs",
     "test:uat-github": "node scripts/run-github-hosted-uat.mjs",
@@ -76,7 +75,8 @@
     "seed:dr-truman": "node scripts/seed-dr-truman.mjs",
     "verify:dr-truman": "node scripts/verify-dr-truman-public.mjs",
     "test:com01-db": "bash scripts/verify-com01-db.sh",
-    "test:com01-uat-local": "node scripts/run-com01-uat-local.mjs"
+    "test:com01-uat-local": "node scripts/run-com01-uat-local.mjs",
+    "test:pos02-uat-local": "node scripts/run-pos02-uat-local.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -106,22 +106,5 @@
     "supabase": "^2.114.0",
     "tailwindcss": "^4",
     "typescript": "^5"
-  },
-  "description": "Studio is a booking and operations app for gyms and class-based studios. It includes a public booking flow, dashboard management, check-in, payments, and reporting.",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/xucheng2024/studio.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/xucheng2024/studio/issues"
-  },
-  "homepage": "https://github.com/xucheng2024/studio#readme"
+  }
 }
