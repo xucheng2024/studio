@@ -1,0 +1,14 @@
+{
+  "name": "studio-release-vercel-cli",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "vercel": "59.1.3"
+  },
+  "overrides": {
+    "tar": "7.5.22"
+  }
+}

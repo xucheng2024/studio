@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "profiles": {
+    "studio-uat": {
+      "executor": "prepared_host",
+      "os": "ubuntu-24.04",
+      "architecture": "x64",
+      "node_major": 22,
+      "commands": ["git", "node", "docker"],
+      "docker_compose": true,
+      "co_located": true,
+      "failure_retention": "live_host",
+      "dedicated": true,
+      "labels": ["self-hosted", "linux", "x64", "studio-uat"]
+    }
+  }
+}
