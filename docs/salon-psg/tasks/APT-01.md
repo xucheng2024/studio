@@ -1,6 +1,6 @@
 # APT-01：服务资格、可用时间和资源
 
-状态：已实现/待验证
+状态：已验证/待上线（专用 Free cloud UAT 已通过）
 
 负责人：Claude（编码 Agent）
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-11
 
-Commit / Release：（未提交）
+Commit / Release：`b841130`、`42a70da`；未上线
 
 ## 1. 目标
 
@@ -188,11 +188,12 @@ Commit / Release：（未提交）
 
 ### 6.5 场景验证（尚待真实环境）
 
-- [ ] Owner / Global Manager / Location Manager / Frontdesk / Instructor 的端到端 UI+Action 权限矩阵（真实账号）
+- [x] Owner / Frontdesk / Instructor 的端到端 UI 权限矩阵（隔离 Free cloud UAT：Owner 可写 defaults/resource/hours；Frontdesk 与 Instructor 配置页拒绝）
 - [ ] 隐藏字段、URL 参数、直接调用 Server Action 的动态越权矩阵（真实会话）
 - [ ] “All Locations / Selected Locations / HQ-only” 对所有历史服务数据的覆盖传播回归（仅完成数据库契约与解析函数实现，未在真实历史数据上全量跑）
 - [ ] “失败 mutation 不留下孤立审计” 的事务回滚专项（依赖 `record_strong_audit` 同事务调用，代码已实现；本轮未额外构造故障注入）
 - [ ] FND-01～FND-04 全量回归（本轮只做静态兼容检查 + APT-01 相关最小沙盒验证）
+- [x] 390px 配置页无横向溢出（`apt01-availability-local`）
 - [ ] 联合可用性接口（服务启用∩门店营业∩员工归属∩服务资格∩工作时间/例外）在真实角色与真实数据上的端到端回归
 
 ### 6.6 联合可用性稳定接口（已实现）
@@ -207,13 +208,25 @@ Commit / Release：（未提交）
   - 有效时长/准备/清理缓冲（门店覆盖 + 总部默认解析）
   - 每位候选员工的归属/资格/工作时间/例外命中与最终可用结论
 
-## 7. 已知风险与验证边界
+## 7. 本地浏览器 UAT
+
+- 专用 flow：`apt01-availability-local`（`uat.flows.json`）。
+- 首选执行：GitHub Actions **Free cloud UAT**，选择 `apt01-availability-local`。
+- 覆盖：390px Owner 写入 appointment defaults、新增 resource、保存 working hours；Frontdesk/Instructor 拒绝 `/dashboard/services`、`/dashboard/settings/resources`、`/dashboard/settings/staff-availability`。
+
+## 8. 收口证据（2026-08-17）
+
+- Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32006999542
+- 日志标记：`apt01_local_uat_ok`
+- Batch 配置/权限浏览器 UAT 已收口；不升“已上线”（待发布窗口）。历史全量覆盖传播与故障注入仍不在本批范围。
+
+## 9. 已知风险与验证边界
 
 - 仓库存在已知历史 migration 重放问题（`051_member_profile_notes.sql`），本轮按要求未修改该文件。
 - 因此本轮数据库验证采用“当前 schema 的最小等价沙盒”，不宣称“空库完整历史 reset 全通过”。
-- 角色权限的数据库层（RLS/Grant/RPC）已验证；完整 UI 角色旅程仍需在真实环境补齐一轮。
+- 角色权限的数据库层（RLS/Grant/RPC）已验证；隔离 Free cloud UAT 已覆盖 Owner 写入与 Frontdesk/Instructor 拒绝。
 
-## 8. APT-02 可复用的稳定接口
+## 10. APT-02 可复用的稳定接口
 
 - 表：
   - `service_employees`

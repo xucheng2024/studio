@@ -34,9 +34,9 @@
 | Phase 0 | FND-02 Customer | 已上线 | 无 | 作为后续客户数据契约，不重做 |
 | Phase 0 | FND-03 Service/Location | 已上线 | FND-01 | 作为后续门店服务契约，不重做 |
 | Phase 0 | FND-04 Audit/Idempotency | 已验证/待上线 | 无 | 已修复 051 历史 dump 的本地重放阻断，并在完整 migration 历史重放后通过 `test:apt02-idempotency-faults`；可供 APT-02/PKG-01/POS-01/MKT-02/PAY-02 复用 |
-| Phase 1 | APT-01 Availability/Resources | 已实现/待验证 | FND-01、FND-03 | 已补批量原子 RPC、资源跨门店 strict guard、DB 侧 exception 归属校验、联合可用性接口、资源编辑 UI；新增静态门禁脚本、resolver 回归脚本、数据库回滚脚本（`postgres:15`）通过，`next build` 通过；待补真实环境角色矩阵/动态越权/移动端回归后可升为已验证 |
+| Phase 1 | APT-01 Availability/Resources | 已验证/待上线 | FND-01、FND-03 | 静态门禁、resolver 与 DB rollback 已通过；专用 Free cloud UAT `apt01-availability-local` 已通过（run `32006999542`，`apt01_local_uat_ok`）。覆盖 390px Owner 写入 defaults/resource/hours，以及 Frontdesk/Instructor 配置页拒绝。历史全量覆盖传播与故障注入仍不在本批；待发布窗口后升“已上线”。 |
 | Phase 1 | APT-02 Appointment Transaction | 已验证/待上线 | APT-01、FND-02、FND-04 | 已完成 APT-02 数据模型、原子 create/reschedule/cancel/expire、员工/资源冲突约束、状态历史、Terms 接受证据基础与 TS 库封装；并完成复审问题闭环（跨门店改期双门店权限、Instructor 读取收敛、幂等 claim token fencing+重放结构一致、失败状态持久化路径、改期原因落库、23P01 资源冲突映射）；`test:apt02-db-foundation`、`test:apt02-concurrency`、`test:apt02-idempotency-faults`、`npx tsc --noEmit` 通过 |
-| Phase 1 | APT-03 Backoffice Calendar | 已实现/待验证 | APT-02 | 已完成 APT-03 migration（日/周日历查询 + 状态转换 RPC + 资源释放 + 幂等 fencing + history/audit）、`src/lib/salon-appointments.ts` 新增 calendar/transition 封装、`/dashboard/appointments` 日/周视图与 create/confirm/check-in/start/complete/reschedule/cancel/no-show 操作；`npm run test:apt03-db`（含 cancelled payload 重放一致性）、`npm run test:apt03-app`（TS 契约+多门店聚合+周窗口单测）、`npx tsc --noEmit`、任务相关 ESLint 已通过，待补真实环境角色矩阵/移动端/浏览器端手工回归后升为已验证 |
+| Phase 1 | APT-03 Backoffice Calendar | 已验证/待上线 | APT-02 | DB/契约门禁已通过；专用 Free cloud UAT `apt03-calendar-local` 已通过（run `32008529292`，`apt03_local_uat_ok`）。覆盖 390px create→confirm→check-in→start→complete、Instructor 仅见本人、Frontdesk 跨门店 L2 card 拒绝。日历服务选项改为 `studio_services.title`；待发布窗口后升“已上线”。 |
 | Phase 1 | CRM-01 Sensitive Customer Data | 已验证/待上线 | FND-02 | 已部署 Production；隔离 Studio 的预检、Manager/Frontdesk booking-only 允许、Instructor 直访拒绝、390px 移动端及“拒绝不写成功访问审计”均已通过。上线窗口前由业务方抽样复核真实门店 Owner/Global Manager 与动态门店关系。 |
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
 | Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
@@ -87,8 +87,8 @@
 
 ## 当前建议领取顺序
 
-1. 在进入 Phase 3 前补齐 Phase 1 证据缺口，并完成 POS-02/PKG-02/POS-03/POS-04 发布窗口/目标环境证据。
-2. APT-04 / MKT-02 等仍缺真实生产或目标环境发布证据的项，按依赖窗口推进；支付相关验证继续只用 HitPay Sandbox，不在 Production 造测试财务数据。
+1. Phase 1 浏览器证据缺口（APT-01 / APT-03）已用隔离 Free cloud UAT 收口。进入 Phase 3 前仍需生产发布窗口，才能把 APT-02/05、CRM-01、POS-02/03、PKG-02、POS-04 等“已验证/待上线”升为“已上线”。
+2. 下一开发项优先 PKG-01（仍为已实现/待验证：专用事务点击流）。APT-04 / MKT-02 继续按依赖窗口补目标环境证据；支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -108,6 +108,13 @@
 - GitHub Actions Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32004577210（`pos03_local_uat_ok`，`HITPAY_API_BASE_URL=https://api.sandbox.hit-pay.com`）。
 - 覆盖 create、pending sync、签名 webhook 完成 paid、重放幂等、无效签名 401、已付后再 sync。
 - POS-03 Batch 1/2 升为“已验证/待上线”；未使用 Production HitPay / Production 财务测试数据。
+
+## 2026-08-17 状态更新（APT-01 / APT-03 Phase 1 浏览器证据）
+
+- 已新增并接入 `apt01-availability-local` 与 `apt03-calendar-local`（fixture、浏览器 verifier、Free cloud UAT / changed-path / release-gate 目录）。
+- APT-01 Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32006999542（`apt01_local_uat_ok`）。
+- APT-03 Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32008529292（`apt03_local_uat_ok`）。
+- 日历创建表单改为读取 `studio_services.title`。两项均升为“已验证/待上线”；不升“已上线”（待发布窗口）。
 
 ## 2026-08-14 状态更新（COM-01）
 

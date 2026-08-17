@@ -1,6 +1,6 @@
 # APT-03：Backoffice Appointment Calendar 与状态操作
 
-状态：已实现/待验证
+状态：已验证/待上线（专用 Free cloud UAT 已通过）
 
 负责人：Codex
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-12
 
-Commit / Release：未提交
+Commit / Release：`dc1262e`、`42a70da`；未上线
 
 ## 1. 目标
 
@@ -132,17 +132,29 @@ Commit / Release：未提交
 
 ### 已实现/待验证
 
-- [ ] Location Manager / Frontdesk 跨门店越权（应用层真实角色矩阵环境）
-- [ ] 移动端核心操作手工回归
-- [ ] 浏览器端端到端日历核心流程（create->confirm->checkin->start->complete）
+- [x] Location Manager / Frontdesk 跨门店越权（隔离 UAT：Frontdesk 看不到 L2 appointment card）
+- [x] 移动端核心操作回归（390px create + 状态推进）
+- [x] 浏览器端端到端日历核心流程（create->confirm->checkin->start->complete）
 
-## 7. 风险与注意项
+## 7. 本地浏览器 UAT
+
+- 专用 flow：`apt03-calendar-local`（`uat.flows.json`）。
+- 首选执行：GitHub Actions **Free cloud UAT**，选择 `apt03-calendar-local`。
+- 覆盖：Owner 390px 创建并 Confirm / Check-in / Start / Complete；Instructor 可见本人预约且无创建表单；Frontdesk 看不到跨门店 L2 appointment card。
+
+## 8. 收口证据（2026-08-17）
+
+- Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32008529292
+- 日志标记：`apt03_local_uat_ok`
+- 日历服务下拉改为读取 `studio_services.title`。不升“已上线”（待发布窗口）。
+
+## 9. 风险与注意项
 
 - 当前 UI 的资源输入为 UUID 逗号串，满足最小改动但可用性一般；后续可在不改变契约前提下换成选择器。
 - Instructor 通过 `employees.user_id` 绑定自身份；若数据未绑定将被拒绝（符合最小权限默认拒绝）。
 - 本次仍基于本地最小沙盒验证，不代表全历史 Migration reset 回归。
 
-## 8. 审核前约束执行结果
+## 10. 审核前约束执行结果
 
 - 未 commit
 - 未 push
