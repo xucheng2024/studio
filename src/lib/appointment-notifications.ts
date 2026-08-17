@@ -287,6 +287,7 @@ async function sendOneAppointmentEmailJob(job: AppointmentNotificationQueueRow) 
 
   const eventType = job.event_type as AppointmentEmailEventType;
   const sent = await sendAppointmentNotificationEmail({
+    studioId: job.studio_id,
     to: job.recipient_email,
     eventType,
     studioName: context.studioName,
@@ -299,7 +300,7 @@ async function sendOneAppointmentEmailJob(job: AppointmentNotificationQueueRow) 
   if (sent.skipped) {
     return {
       ok: false as const,
-      retryable: Boolean(sent.error),
+      retryable: Boolean(sent.error) && sent.error !== "email_provider_not_configured",
       error: sent.error ?? "email_provider_not_configured",
     };
   }

@@ -59,8 +59,8 @@ export async function sendMarketingTestEmailAction(
   if (imageUrl && !imageUrl.startsWith("https://")) return err("Image URL must use https://.");
   const { ctx, studio } = await requireStudio(studioId);
   if (!studio || !ctx.memberships.some((m) => m.studio_id === studioId && (m.role === "owner" || m.role === "manager"))) return err("You do not have marketing access for this studio.");
-  const result = await sendMarketingTestEmail({ to, subject, body, imageUrl, ctaLabel, ctaUrl });
-  if (result.skipped) return err(result.error ? "Test email could not be sent." : "Email is not configured in this environment.");
+  const result = await sendMarketingTestEmail({ studioId, to, subject, body, imageUrl, ctaLabel, ctaUrl });
+  if (result.skipped) return err(result.error === "email_provider_not_configured" ? "Email is not configured for this studio. Add this studio Resend key in Email settings." : "Test email could not be sent.");
   return ok(`Test email sent to ${to}.`);
 }
 

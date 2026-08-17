@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     }
     if (code === "invoice_email_not_configured") {
       return NextResponse.json(
-        { error: code, error_detail: "RESEND_API_KEY/RESEND_FROM_EMAIL missing" },
+        { error: code, error_detail: "This studio has not enabled its own Resend account." },
         { status: 503 },
       );
     }

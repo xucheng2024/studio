@@ -14,9 +14,9 @@
 - 多门店基础功能
 - 服务管理
 - 客户名单
-- HitPay 和现金收款
+- HitPay 和现金收款（每个 Studio 配置自己的 HitPay merchant key）
 - 发票和退款
-- Email 服务
+- Email 发送能力（每个 Studio 配置自己的 Resend；平台不代付商户额度）
 - 操作记录
 - Supabase 实时数据
 
@@ -49,6 +49,7 @@ Q16、Q17 和 Q18 的最新回复、产品决定及证据保存要求见 [已确
 
 - 现有课程 Session 保留，但不用于 Salon Appointment 演示。
 - PSG Core Edition 只完成完整 Email E-Marketing；已确认 Q16 的 SMS / E-Marketing 是 OR，SMS 和 WhatsApp 本次都不做。
+- 每个 Studio 使用自己的 Resend 账号发送商户邮件（营销、预约通知、发票），模式与 HitPay merchant key 相同；平台 `RESEND_*` 不得作为未配置 Studio 的回退。
 - Payroll 第一版自行实现基础功能，IRAS AIS 本次回答 No。
 - Loyalty、完整 Inventory、Mobile App 和 AI 本次不申报为 Yes。
 - 已确认 Q16 可使用 Email E-Marketing，Q17 可使用自建 Payroll，Q18 回答 No 不影响 Q17；确认记录和截图应作为申请证据保存。

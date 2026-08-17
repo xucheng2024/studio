@@ -17,11 +17,21 @@ test("MKT-02 dispatch uses durable claims and a stable Resend idempotency key", 
 });
 
 test("MKT-02 Resend webhook verifies the raw body before provider-event dedup", () => {
-  const webhook = read("src/app/api/webhooks/resend/route.ts");
+  const webhook = read("src/app/api/webhooks/resend/[studioId]/route.ts");
   assert.ok(webhook.indexOf("await request.text()") < webhook.indexOf("verifyResendWebhook(rawBody"));
   assert.ok(webhook.indexOf("verifyResendWebhook(rawBody") < webhook.indexOf("claimProviderEvent({"));
   assert.match(webhook, /invalid_signature/);
   assert.match(webhook, /hashProviderPayload\(rawBody\)/);
+  assert.match(webhook, /getStudioResendSecrets\(studioId\)/);
+  assert.match(webhook, /recipient\.studio_id !== studioId/);
+});
+
+test("MKT-02 dispatch uses the studio Resend account and does not fall back to platform keys", () => {
+  const dispatch = read("src/lib/marketing-dispatch.ts");
+  assert.match(dispatch, /getStudioResendSendConfig\(studioId\)/);
+  assert.doesNotMatch(dispatch, /process\.env\.RESEND_API_KEY/);
+  assert.doesNotMatch(dispatch, /process\.env\.RESEND_FROM_EMAIL/);
+  assert.doesNotMatch(dispatch, /process\.env\.RESEND_WEBHOOK_SECRET/);
 });
 
 test("MKT-02 evidence tables remain server-only and clicks reject unsafe redirects", () => {
@@ -60,4 +70,14 @@ test("MKT-02 does not manually retry unreconciled provider outcomes", () => {
   const dispatch = read("src/lib/marketing-dispatch.ts");
   assert.match(migration, /last_error is distinct from 'dispatch outcome could not be reconciled'/);
   assert.match(dispatch, /dispatch_failure_update_rejected/);
+});
+
+test("studio email secrets are service-role only with RLS and no client policies", () => {
+  const schema = read("supabase/migrations/20260818001000_studio_email_secrets.sql");
+  assert.match(schema, /create table if not exists public\.studio_email_secrets/);
+  assert.match(schema, /alter table public\.studio_email_secrets enable row level security/);
+  assert.match(schema, /revoke all on table public\.studio_email_secrets from public/);
+  assert.match(schema, /grant all on table public\.studio_email_secrets to service_role/);
+  assert.doesNotMatch(schema, /create policy/i);
+  assert.match(schema, /add column if not exists resend_enabled boolean not null default false/);
 });

@@ -64,7 +64,7 @@
 
 ### 未解决风险
 
-- MKT-02 仍需在真实派送前再次验证 Consent/Suppression，并覆盖 Resend webhook、重试与分批发送。
+- MKT-02 仍需在真实派送前再次验证 Consent/Suppression，并覆盖该 Studio 自己的 Resend webhook、重试与分批发送。
 
 ## 10. 后续任务接口
 

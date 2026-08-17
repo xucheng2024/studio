@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Users, MapPin, ShieldCheck, HelpCircle, Globe, CalendarDays, BriefcaseBusiness,
+  Building2, CreditCard, Mail, Users, MapPin, ShieldCheck, HelpCircle, Globe, CalendarDays, BriefcaseBusiness,
   type LucideIcon,
 } from "lucide-react";
 
@@ -138,6 +138,13 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           icon={CreditCard}
           title="Payment settings"
           desc="Enter studio HitPay credentials, check platform readiness, and enable checkout"
+        />
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/email", selectedStudioId)}
+          icon={Mail}
+          title="Email settings"
+          desc="Enter this studio Resend API key, From address, and webhook secret"
         />
         {isStudioOwner ? (
           <SettingCard

@@ -18,7 +18,7 @@
 | Q13 收据和付款记录 | ✅ 基本满足 | Yes | 现有 Payment、编号、PDF Invoice 和退款可复用；完成 POS 后提供多项目 Receipt、Refund Receipt/Credit Note、门店/员工/付款方式和审计。 |
 | Q14 数字支付 | ✅ 基本满足 | Yes | 使用现有 HitPay 和 Cash；申请材料只列出生产环境真实启用并可现场完成的 HitPay 支付方式，保留 Webhook、同步及退款证据。 |
 | Q15 POS | 🟡 部分满足 | Yes | 复用现有 Payment、HitPay、Invoice、Service/Shop/Package 购买基础，完成 `POS-01` 至 `POS-04`：客户、多服务/商品/套餐购物车、员工、折扣、Cash/HitPay、收据、退款/作废、库存与 Package 联动、门店归属和日结。申报为 in-house POS。 |
-| Q16 SMS / E-Marketing | ⚠️ 已实现/待目标环境验证 | Yes（路径已确认） | `MKT-01`、`MKT-02` 已实现 VIP/常客/长期未到店、Email Builder、图片/CTA、Email 立即或预约发送、Resend Webhook、重试、成功率、点击率和退订；待真实 Resend 送达证据。SMS、WhatsApp 不做。 |
+| Q16 SMS / E-Marketing | ⚠️ 已实现/待验证 | Yes（路径已确认） | `MKT-01`、`MKT-02` 已实现 VIP/常客/长期未到店、Email Builder、图片/CTA、Email 立即或预约发送、Resend Webhook、重试、成功率、点击率和退订。每个 Studio 使用自己的 Resend 账号；待 per-studio 配置落地及该 Studio 的真实送达证据。SMS、WhatsApp 不做。 |
 | Q17 HR Management | ❌ 尚未开发 | Yes（自建已确认） | 已确认可使用 in-house Payroll。完成 `FND-01`、`COM-01`、`PAY-01` 至 `PAY-03`：员工档案、自助更新、佣金、Payroll、报告、MOM Itemised Payslip 和法定规则版本，并由专业人士验证计算。 |
 | Q18 IRAS AIS | ⚪ 本次不做 | No | 已确认 Q18 回答 No 不影响 Q17。不得宣称在 IRAS Supporting Payroll Software Vendors 名单中。 |
 | Q19 Leave / Attendance / Roster | ⚪ 本次不做 | No | 员工工作时间只用于 Appointment Availability，不描述成完整 Roster、Attendance 或 Leave Management。 |

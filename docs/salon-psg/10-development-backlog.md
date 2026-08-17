@@ -87,11 +87,11 @@
 
 ### MKT-01 分组和 Email 内容
 
-依赖：FND-02、CRM-01、POS-04。实现 VIP/常客/长期未到店分组、收件人快照、固定模块编辑器、Resend 独立发送和一键退订。
+依赖：FND-02、CRM-01、POS-04。实现 VIP/常客/长期未到店分组、收件人快照、固定模块编辑器、该 Studio 自己的 Resend 测试发送和一键退订。
 
 ### MKT-02 调度、Webhook 和报告
 
-依赖：MKT-01、FND-04。实现分批 Cron、Resend Webhook、Delivery/Suppression、签名点击链接和成功率/点击率报告。
+依赖：MKT-01、FND-04。实现分批 Cron、每个 Studio 自己的 Resend Webhook、Delivery/Suppression、签名点击链接和成功率/点击率报告。平台不代付商户发送额度。
 
 ### PAY-01 员工薪资档案和规则版本
 

@@ -2,6 +2,7 @@ import "server-only";
 
 import { Resend, type WebhookEventPayload } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getStudioResendSendConfig } from "@/lib/studio-email";
 
 type DispatchRow = {
   recipient_id: string;
@@ -35,7 +36,7 @@ function appBaseUrl() {
   return vercelHost ? `https://${vercelHost}` : "";
 }
 
-function buildCampaignEmail(row: DispatchRow, baseUrl: string) {
+function buildCampaignEmail(row: DispatchRow, baseUrl: string, fromEmail: string) {
   const unsubscribeUrl = `${baseUrl}/api/marketing/unsubscribe?token=${row.unsubscribe_token}`;
   const clickUrl = row.cta_label && row.click_token ? `${baseUrl}/r/c/${row.click_token}` : null;
   const greeting = row.full_name_snapshot?.trim() ? `Hi ${row.full_name_snapshot.trim()},` : "Hi,";
@@ -46,7 +47,7 @@ function buildCampaignEmail(row: DispatchRow, baseUrl: string) {
     ? `<p><a href="${escHtml(clickUrl)}" style="display:inline-block;padding:12px 18px;background:#1c1917;color:#fff;text-decoration:none;border-radius:8px">${escHtml(row.cta_label)}</a></p>`
     : "";
   return {
-    from: process.env.RESEND_FROM_EMAIL!,
+    from: fromEmail,
     to: [row.email_snapshot],
     subject: row.subject,
     text: `${greeting}\n\n${row.body}${clickUrl && row.cta_label ? `\n\n${row.cta_label}: ${clickUrl}` : ""}\n\nUnsubscribe: ${unsubscribeUrl}`,
@@ -95,11 +96,11 @@ export async function processMarketingCampaignBatch(batchSize = 50) {
 
   const recipientIds = rows.map((row) => row.recipient_id);
   const claimToken = rows[0].claim_token;
-  const key = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.RESEND_FROM_EMAIL?.trim();
+  const studioId = rows[0].studio_id;
   const baseUrl = appBaseUrl();
-  if (!key || !from || !baseUrl) {
-    const missing = [!key && "RESEND_API_KEY", !from && "RESEND_FROM_EMAIL", !baseUrl && "NEXT_PUBLIC_APP_URL"].filter(Boolean).join(",");
+  const config = await getStudioResendSendConfig(studioId);
+  if (!config || !baseUrl) {
+    const missing = [!config && "studio_resend", !baseUrl && "NEXT_PUBLIC_APP_URL"].filter(Boolean).join(",");
     await failDispatchBatch(admin, {
       recipientIds,
       claimToken,
@@ -110,9 +111,9 @@ export async function processMarketingCampaignBatch(batchSize = 50) {
   }
 
   try {
-    const resend = new Resend(key);
+    const resend = new Resend(config.apiKey);
     const response = await resend.batch.send(
-      rows.map((row) => buildCampaignEmail(row, baseUrl)),
+      rows.map((row) => buildCampaignEmail(row, baseUrl, config.fromEmail)),
       { idempotencyKey: `mkt02/${rows[0].dispatch_batch_id}` },
     );
     if (response.error || !response.data) {
@@ -142,14 +143,18 @@ export async function processMarketingCampaignBatch(batchSize = 50) {
   }
 }
 
-export function verifyResendWebhook(rawBody: string, headers: Headers): WebhookEventPayload {
-  const secret = process.env.RESEND_WEBHOOK_SECRET?.trim();
+export function verifyResendWebhook(
+  rawBody: string,
+  headers: Headers,
+  config: { apiKey: string; webhookSecret: string },
+): WebhookEventPayload {
+  const secret = config.webhookSecret.trim();
   if (!secret) throw new Error("resend_webhook_not_configured");
   const id = headers.get("svix-id");
   const timestamp = headers.get("svix-timestamp");
   const signature = headers.get("svix-signature");
   if (!id || !timestamp || !signature) throw new Error("missing_resend_webhook_headers");
-  return new Resend(process.env.RESEND_API_KEY).webhooks.verify({
+  return new Resend(config.apiKey).webhooks.verify({
     payload: rawBody,
     headers: { id, timestamp, signature },
     webhookSecret: secret,

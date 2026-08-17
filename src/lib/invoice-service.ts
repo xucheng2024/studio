@@ -18,6 +18,7 @@ export async function sendPaymentInvoice(paymentId: string) {
   }
   const pdfBuffer = await renderInvoicePdf(payload);
   const mailResult = await sendInvoiceNotice({
+    studioId: payment.studio_id,
     to: toEmail,
     studioName: payload.studioName,
     studioEmail: payload.studioEmail,
@@ -31,7 +32,7 @@ export async function sendPaymentInvoice(paymentId: string) {
     pdfBase64: Buffer.from(pdfBuffer).toString("base64"),
   });
   if (mailResult.skipped) {
-    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    if (mailResult.error === "email_provider_not_configured") {
       throw new Error("invoice_email_not_configured");
     }
     throw new Error(mailResult.error ? `invoice_send_failed:${mailResult.error}` : "invoice_send_failed");

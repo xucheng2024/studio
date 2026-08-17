@@ -23,6 +23,7 @@
 - Service 总部主档只使用 `studio_services`；门店可用性只使用 FND-03 的 `service_locations`。
 - 实际 Appointment、POS、Payment、Treatment、Commission 必须保存 `studio_id` 和有效 `location_id`，并保存必要快照。
 - 关键资金、余额、状态、佣金和 Payroll 写入必须原子、幂等并有不可抵赖审计。
+- HitPay 与 Resend 均为 Studio BYOK：租户付款和商户邮件使用该 Studio 自己的密钥；平台环境变量不得作为未配置 Studio 的静默回退。
 
 ## 3. Phase 0：共同基础
 
@@ -98,9 +99,9 @@
 ### APT-05 Appointment Email
 
 - 依赖：APT-03。
-- 必做：确认、提醒、变更、取消 Email，模板、时区、幂等队列/Cron、失败重试和发送证据。
-- 非目标：SMS、WhatsApp Campaign、Marketing Email。
-- Gate：重复 Cron 不重复发送；取消/改期后的旧提醒不会发送。
+- 必做：确认、提醒、变更、取消 Email，模板、时区、幂等队列/Cron、失败重试和发送证据；使用该 Studio 自己的 Resend 密钥，未配置则失败并显示 email provider not configured。
+- 非目标：SMS、WhatsApp Campaign、Marketing Email、平台代付租户邮件额度。
+- Gate：重复 Cron 不重复发送；取消/改期后的旧提醒不会发送；未配置 Studio 不得回退平台 `RESEND_*`。
 - 依赖契约冻结（2026-08-12）：APT-03 状态机、资源释放和幂等重放结果已完成收口；APT-05 仅消费既有事务结果，不重定义状态转换。
 
 ### Phase 1 Gate
@@ -191,9 +192,9 @@
 ### MKT-02 调度、Webhook、报告
 
 - 依赖：MKT-01、FND-04。
-- 必做：立即/预约发送、分批 Cron、Resend ID/Webhook、Delivery/Bounce/Complaint、签名点击、重试、成功率和点击率。
-- 非目标：Open Rate 作为核心指标、多渠道计费。
-- Gate：重复调度/Webhook 幂等；退订立即生效；Location Manager 不能营销其他门店客户。
+- 必做：立即/预约发送、分批 Cron、每个 Studio 自己的 Resend 账号（API key / From / webhook secret）、Resend ID/Webhook、Delivery/Bounce/Complaint、签名点击、重试、成功率和点击率。未配置的 Studio 不得回退平台 `RESEND_*`。
+- 非目标：Open Rate 作为核心指标、多渠道计费、平台代付租户邮件额度。
+- Gate：重复调度/Webhook 幂等；退订立即生效；Location Manager 不能营销其他门店客户；Webhook 验签绑定该 Studio 密钥。
 
 ### PAY-01 薪资档案和规则版本
 
@@ -218,7 +219,7 @@
 
 ### Phase 3 Gate
 
-- Q16 完整 Email E-Marketing 可演示，不依赖 SMS。
+- Q16 完整 Email E-Marketing 可演示，不依赖 SMS；演示 Studio 使用自己的 Resend 账号，平台不代付发送额度。
 - Q17 自建 Payroll 可生成经过专业复核的 Payslip 和报告；Q18 保持 No。
 - 预计工作：约 5–8 工程师周，外部 Payroll 复核等待时间另计。
 

@@ -30,6 +30,7 @@
 ## 2. 当前技术架构约定
 
 - 当前项目使用 Next.js 16 App Router、React 19、Supabase、Resend 和 HitPay。
+- HitPay 与 Resend 均为 Studio BYOK：每个 Studio 配置并使用自己的 merchant/API 密钥。平台环境变量不得作为未配置 Studio 的静默回退去发送该租户的付款或邮件。
 - Next.js 16 与旧版本存在差异；修改路由、缓存、Server Action 或 Route Handler 前先阅读仓库 `node_modules/next/dist/docs/` 中对应文档。
 - 页面默认使用 Server Component；只有交互状态需要 Client Component。
 - 后台已登录页面的普通修改优先沿用现有 Server Action 模式。

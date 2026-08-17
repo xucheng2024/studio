@@ -18,8 +18,8 @@ All studio catalog pricing and HitPay charges are **SGD only**.
 - React 19 + TypeScript
 - Supabase (Auth, Postgres, RLS, RPC)
 - Tailwind CSS v4
-- HitPay integration
-- Optional Resend email support
+- HitPay integration (per-studio merchant keys)
+- Resend email (per-studio API keys for tenant mail; platform `RESEND_*` is not a tenant fallback)
 
 ## Project structure
 
@@ -46,7 +46,7 @@ Required:
 
 Optional (if used by your environment):
 
-- `RESEND_API_KEY`
+- `RESEND_API_KEY` (platform-owned mail only, e.g. contact form; studio campaigns/notifications use dashboard Email settings)
 - `SUPER_ADMIN_EMAILS`
 - `HITPAY_API_BASE_URL`
 

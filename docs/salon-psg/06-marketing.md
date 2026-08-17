@@ -2,7 +2,7 @@
 
 新增一个最小但可以完整演示的 Email Campaign 模块，提供客户分组、富文本内容、立即或预约发送、送达及点击报告和客户退订。
 
-已取得回复确认 Q16 的 SMS / E-Marketing 是 **OR**。因此 PSG Core Edition 只实现完整 Email E-Marketing，复用 Resend；SMS、MMS 和 WhatsApp Campaign 均不进入本次报价、开发、测试或演示。现有网站 Click-to-Chat 可以继续作为非 Campaign 附加功能保留。
+已取得回复确认 Q16 的 SMS / E-Marketing 是 **OR**。因此 PSG Core Edition 只实现完整 Email E-Marketing，每个 Studio 使用自己的 Resend 账号（与 HitPay merchant key 相同的 BYOK 模式）；SMS、MMS 和 WhatsApp Campaign 均不进入本次报价、开发、测试或演示。现有网站 Click-to-Chat 可以继续作为非 Campaign 附加功能保留。
 
 ## 6.1 结合现有代码的改造原则
 
@@ -10,7 +10,7 @@
 
 - `salon_customers` 和客户消费、预约、疗程记录：用于筛选 VIP、常客和长期未到店客户。
 - `salon_customer_consents`：使用第 3 节设计的 Email Marketing 同意记录，在发送前检查。
-- `src/lib/email.ts` 和现有 Resend 配置：继续作为 Email 发送基础。
+- `src/lib/email.ts`：继续作为邮件发送封装，但商户邮件必须读取该 Studio 的 Resend 密钥，不能使用平台共享 `RESEND_API_KEY`。
 - `locations` 和员工门店权限：用于限定可以查看和选择的客户范围。
 - 现有网站、服务、套餐及 Appointment 页面：作为 Campaign 预约按钮的目标页面。
 - 现有 Vercel Cron 模式：增加预约 Campaign 的分批发送任务。
@@ -28,7 +28,7 @@
 
 ## 6.2 PSG 渠道选择结论
 
-已取得的回复为：Q16 是 OR，完整 E-Marketing 可以在没有 SMS 的情况下满足本题。因此本次范围固定为 Email-only：Resend 发送、客户分组、标题/文字/图片、预约或套餐 CTA、立即/预约发送、成功率、点击率和退订。
+已取得的回复为：Q16 是 OR，完整 E-Marketing 可以在没有 SMS 的情况下满足本题。因此本次范围固定为 Email-only：每个 Studio 使用自己的 Resend 发送、客户分组、标题/文字/图片、预约或套餐 CTA、立即/预约发送、成功率、点击率和退订。
 
 申请材料应保存回复截图、回复人身份、日期及上下文，并确保报价、合同和演示均不把 SMS 或 WhatsApp 写入 PSG Core Edition。若 Vendor Management Portal 后续修改题目，应以提交时最新版本重新核对。
 
@@ -98,23 +98,26 @@ Campaign 状态：
 2. 向指定测试 Email 发送测试内容。
 3. 选择立即发送，或按 Asia/Singapore 时间预约发送。
 4. 发送前生成收件人快照，并再次排除无有效同意、已退订、无联系方式和受抑制客户。
-5. 后台任务分批锁定待发送记录并调用 Resend。
+5. 后台任务分批锁定待发送记录，并用该 Studio 自己的 Resend 密钥发送。未配置则停止，不调用平台 key。
 6. 保存服务商 Message ID、提交结果和尝试次数。
 7. Webhook 更新 Delivered、Failed、Bounced 或其他状态。
 8. 达到最大重试次数后停止自动重试，并在报告中显示原因。
 
 现有 Vercel Cron 仅处理过期 Payment。新增 `/api/cron/dispatch-campaigns`，每分钟或每五分钟取得到期 Campaign，并以小批量发送，避免一次群发超过 Serverless 执行时间。数据库必须使用锁定和幂等键，Cron 重复运行不能重复发送同一收件人。
 
-## 6.6 Email：继续使用 Resend
+## 6.6 Email：每个 Studio 配置自己的 Resend
 
-保留 `RESEND_API_KEY` 和已验证 From Domain，但新增独立 `CampaignEmailProvider`：
+计费和发信身份按租户隔离，模式与 HitPay merchant key 相同，平台不代付商户发送额度。
 
-- 批量发送时保存 Resend Email ID。
-- 使用 Resend Batch API 分批提交，不把全部客户放在同一个 To / CC / BCC 中。
+- Owner 在该 Studio 设置中配置并启用：Resend API key、已验证 From 地址、Webhook Signing Secret。
+- 密钥只保存在服务端 Secret 表（`studio_email_secrets` 或等价的 `marketing_provider_settings`），不写入普通表、浏览器或审计明文。
+- 该 Studio 的营销 Campaign、预约通知、发票等商户邮件必须用该 Studio 的密钥和 From 地址发送。
+- 平台环境变量 `RESEND_API_KEY` / `RESEND_FROM_EMAIL` / `RESEND_WEBHOOK_SECRET` 只用于平台自己的邮件（例如网站联系表单）。禁止作为未配置 Studio 的静默回退。
+- Studio 未配置或未启用时：Campaign 不能进入 `sending`；事务通知保持 pending/failed，并显示 email provider not configured，不调用平台 key。
+- 新增独立 `CampaignEmailProvider`：批量发送时保存该 Studio 的 Resend Email ID；使用 Batch API 分批提交，不把全部客户放在同一个 To / CC / BCC 中。
 - 每位客户获得独立邮件和独立退订、点击 Token，不能暴露其他客户地址。
-- 新增带签名验证的 `/api/webhooks/resend`。
-- 接收 Sent、Delivered、Bounced、Complained、Failed 和 Clicked 等事件。
-- Hard Bounce 或 Complaint 自动加入 Email Suppression List。
+- Webhook URL 按 Studio 区分，例如 `/api/webhooks/resend/{studio_id}`。该 Studio 在自己的 Resend 控制台粘贴此 URL，订阅 Sent、Delivered、Bounced、Complained、Failed、Clicked 和 Suppressed。验签只用该 Studio 的 webhook secret。
+- Hard Bounce 或 Complaint 自动加入该 Studio 的 Email Suppression List。
 - 发送失败按明确规则重试，配置错误或永久失败不无限重试。
 
 现有预约、付款和发票邮件继续使用事务邮件流程，不受客户 Marketing 退订影响；营销 Campaign 必须走新的 Consent 和 Suppression 检查。
@@ -168,7 +171,7 @@ Email Open Rate 可以作为辅助数据，但不能作为核心成功标准，�
 - `marketing_campaign_events`：Submitted、Delivered、Failed、Bounced、Complained、Clicked 和 Unsubscribed 事件。
 - `marketing_links`：原始目标、签名 Token、Campaign 和点击统计。
 - `marketing_suppressions`：按 Studio、客户、联系方式和渠道保存退订、Bounce、Complaint 或管理员阻止原因。
-- `marketing_provider_settings`：每个 Studio 的 Resend Email 配置状态；密钥只保存服务器端 Secret，不写入普通表或浏览器。
+- `marketing_provider_settings` / `studio_email_secrets`：每个 Studio 的 Resend 启用状态、From 地址和服务器端密钥（API key、webhook secret）；密钥不写入普通表或浏览器。未启用的 Studio 不得发送商户邮件。
 
 收件人和事件属于历史业务证据，Campaign 完成后不能因客户资料更新而覆盖。删除客户请求需要按数据保留政策进行匿名化或删除处理，同时保留必要的财务和合规记录。
 
@@ -181,6 +184,7 @@ Email Open Rate 可以作为辅助数据，但不能作为核心成功标准，�
 - `/dashboard/marketing/campaigns/new`：内容编辑、预览、测试和发送。
 - `/dashboard/marketing/campaigns/[campaignId]`：收件人、发送结果、点击和退订报告。
 - `/dashboard/marketing/suppressions`：退订及失败地址管理。
+- `/dashboard/settings/email`：Owner 配置该 Studio 自己的 Resend API key、From 地址和 webhook secret（交互对齐 HitPay merchant setup）。
 
 新增接口：
 
@@ -188,7 +192,7 @@ Email Open Rate 可以作为辅助数据，但不能作为核心成功标准，�
 - `/api/marketing/campaigns/[id]/test`：发送测试内容。
 - `/api/marketing/campaigns/[id]/schedule`：确认名单和立即/预约发送。
 - `/api/cron/dispatch-campaigns`：分批发送到期 Campaign。
-- `/api/webhooks/resend`：接收并验证 Resend 事件。
+- `/api/webhooks/resend/[studioId]`：接收并验证该 Studio 自己的 Resend 事件。
 - `/api/marketing/unsubscribe`：处理带签名 Token 的退订。
 - `/r/c/[token]`：记录点击并安全重定向。
 
@@ -228,6 +232,8 @@ Email Open Rate 可以作为辅助数据，但不能作为核心成功标准，�
 - Email 可以显示标题、文字、图片和预约按钮。
 - 立即发送和 Asia/Singapore 预约发送均正常。
 - 重复 Cron 不会向同一 Campaign Recipient 重复发送。
+- 未配置 Resend 的 Studio 不能发送 Campaign，也不会回退平台 `RESEND_*`。
+- 使用其他 Studio 的 webhook secret 验签失败，不会更新本 Studio 报告。
 - Resend Webhook 签名无效时不会更新报告。
 - Delivered、Failed、Bounced、Unique Clicked 和 Unsubscribed 报表正确。
 - 点击链接不会泄露客户资料，也不能重定向到未授权网站。

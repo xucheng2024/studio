@@ -5,6 +5,7 @@ async function sendEmail(params: {
   subject: string;
   text: string;
   html?: string;
+  studioId?: string;
   attachments?: Array<{
     filename: string;
     content: string;
@@ -12,9 +13,16 @@ async function sendEmail(params: {
     encoding: "base64";
   }>;
 }): Promise<{ skipped: boolean; error?: string }> {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!key || !from) return { skipped: true };
+  let key = process.env.RESEND_API_KEY;
+  let from = process.env.RESEND_FROM_EMAIL;
+  if (params.studioId) {
+    const { getStudioResendSendConfig } = await import("./studio-email");
+    const config = await getStudioResendSendConfig(params.studioId);
+    if (!config) return { skipped: true, error: "email_provider_not_configured" };
+    key = config.apiKey;
+    from = config.fromEmail;
+  }
+  if (!key || !from) return { skipped: true, error: params.studioId ? "email_provider_not_configured" : undefined };
   const resend = new Resend(key);
   try {
     await resend.emails.send({
@@ -36,6 +44,7 @@ async function sendEmail(params: {
 }
 
 export async function sendMarketingTestEmail(params: {
+  studioId: string;
   to: string;
   subject: string;
   body: string;
@@ -48,6 +57,7 @@ export async function sendMarketingTestEmail(params: {
     ? `<p><a href="${escHtml(params.ctaUrl)}">${escHtml(params.ctaLabel)}</a></p>`
     : "";
   return sendEmail({
+    studioId: params.studioId,
     to: params.to,
     subject: `[TEST] ${params.subject}`,
     text: `${params.body}\n\nThis is a test email; it was not sent to a campaign recipient.`,
@@ -168,6 +178,7 @@ export function buildAppointmentNotificationEmailContent(params: {
 }
 
 export async function sendAppointmentNotificationEmail(params: {
+  studioId: string;
   to: string;
   eventType: AppointmentEmailEventType;
   studioName: string;
@@ -179,6 +190,7 @@ export async function sendAppointmentNotificationEmail(params: {
   const content = buildAppointmentNotificationEmailContent(params);
 
   return sendEmail({
+    studioId: params.studioId,
     to: params.to,
     subject: content.subject,
     text: content.text,
@@ -223,6 +235,7 @@ export async function sendBookingOutcomeNotice(params: {
 }
 
 export async function sendInvoiceNotice(params: {
+  studioId: string;
   to: string;
   studioName: string;
   studioEmail?: string | null;
@@ -321,6 +334,7 @@ export async function sendInvoiceNotice(params: {
 </html>`;
 
   return sendEmail({
+    studioId: params.studioId,
     to: params.to,
     subject: `Invoice ${params.invoiceNumber} from ${params.studioName}`,
     text: [

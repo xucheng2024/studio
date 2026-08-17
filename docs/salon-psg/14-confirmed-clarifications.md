@@ -14,6 +14,7 @@
 
 - Q16 按 SMS 或 E-Marketing 二选一理解。
 - PSG Core Edition 只实现完整 Email E-Marketing，并继续使用 Resend。
+- 每个 Studio 配置并付费自己的 Resend 账号（API key、From 域名、Webhook）；平台不代付商户发送额度，也不得用平台 key 作为未配置 Studio 的回退。
 - 必须完成客户分组、Campaign 内容、图片及预约 CTA、立即或预约发送、送达及点击报告、退订和营销同意控制。
 - SMS、MMS、WhatsApp Campaign、短信额度和短信计费不进入本次开发、报价、合同或演示。
 

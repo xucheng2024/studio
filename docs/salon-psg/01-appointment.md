@@ -158,7 +158,7 @@ Completed 后应自动：
 - 员工或资源变更通知
 - 可选的爽约后跟进通知
 
-Owner 可以设置提醒提前时间，例如预约前 24 小时和 2 小时。第一版使用现有 Resend 发送 Email；SMS 不属于本次 PSG Core Edition。
+Owner 可以设置提醒提前时间，例如预约前 24 小时和 2 小时。第一版使用该 Studio 自己配置的 Resend 发送 Email；未配置时通知失败并显示 email provider not configured，不得回退平台 key。SMS 不属于本次 PSG Core Edition。
 
 通知任务必须具备：
 

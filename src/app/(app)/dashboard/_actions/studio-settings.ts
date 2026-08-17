@@ -174,6 +174,15 @@ export type HitpaySettingsResult = {
   hasWebhookSalt: boolean;
 };
 
+export type EmailSettingsResult = {
+  ok: boolean;
+  message: string;
+  enabled: boolean;
+  hasFromEmail: boolean;
+  hasApiKey: boolean;
+  hasWebhookSecret: boolean;
+};
+
 export async function updateStudioCustomDomain(
   _prevState: CustomDomainFormResult | null,
   formData: FormData,
@@ -389,6 +398,120 @@ export async function updateStudioHitpaySettings(
     hasBusinessName,
     hasApiKey,
     hasWebhookSalt,
+  };
+}
+
+export async function updateStudioEmailSettings(
+  _prevState: EmailSettingsResult | null,
+  formData: FormData,
+): Promise<EmailSettingsResult> {
+  const studioId = String(formData.get("studio_id") ?? "");
+  const { studio, ctx } = await requireStudio(studioId || undefined);
+  if (!studio) {
+    return {
+      ok: false,
+      message: "Studio not found.",
+      enabled: false,
+      hasFromEmail: false,
+      hasApiKey: false,
+      hasWebhookSecret: false,
+    };
+  }
+  if (!hasStudioRole(ctx, studio.id, ["owner"])) {
+    return {
+      ok: false,
+      message: "Only owners can update email settings.",
+      enabled: false,
+      hasFromEmail: false,
+      hasApiKey: false,
+      hasWebhookSecret: false,
+    };
+  }
+
+  const enabled = formData.get("resend_enabled") === "on";
+  const fromEmailInput = String(formData.get("resend_from_email") ?? "").trim();
+  const apiKeyInput = String(formData.get("resend_api_key") ?? "").trim();
+  const webhookSecretInput = String(formData.get("resend_webhook_secret") ?? "").trim();
+  const admin = createAdminClient();
+  const { data: existingSecrets } = await admin
+    .from("studio_email_secrets")
+    .select("resend_api_key, resend_from_email, resend_webhook_secret")
+    .eq("studio_id", studio.id)
+    .maybeSingle();
+  const nextFromEmail = fromEmailInput || existingSecrets?.resend_from_email || null;
+  const nextApiKey = apiKeyInput || existingSecrets?.resend_api_key || null;
+  const nextWebhookSecret = webhookSecretInput || existingSecrets?.resend_webhook_secret || null;
+  const hasFromEmail = Boolean(nextFromEmail?.includes("@"));
+  const hasApiKey = Boolean(nextApiKey);
+  const hasWebhookSecret = Boolean(nextWebhookSecret);
+
+  if (enabled && !hasFromEmail) {
+    return {
+      ok: false,
+      message: "A verified From address is required before enabling Resend for this studio.",
+      enabled: false,
+      hasFromEmail,
+      hasApiKey,
+      hasWebhookSecret,
+    };
+  }
+  if (enabled && (!hasApiKey || !hasWebhookSecret)) {
+    return {
+      ok: false,
+      message: "API key and webhook signing secret are both required before enabling Resend.",
+      enabled: false,
+      hasFromEmail,
+      hasApiKey,
+      hasWebhookSecret,
+    };
+  }
+
+  const { error } = await admin
+    .from("studios")
+    .update({ resend_enabled: enabled })
+    .eq("id", studio.id);
+  if (error) {
+    console.error(error.message);
+    return {
+      ok: false,
+      message: "Could not save email settings.",
+      enabled,
+      hasFromEmail,
+      hasApiKey,
+      hasWebhookSecret,
+    };
+  }
+  const { error: secretError } = await admin
+    .from("studio_email_secrets")
+    .upsert({
+      studio_id: studio.id,
+      resend_api_key: nextApiKey,
+      resend_from_email: nextFromEmail,
+      resend_webhook_secret: nextWebhookSecret,
+      updated_at: new Date().toISOString(),
+    });
+  if (secretError) {
+    console.error(secretError.message);
+    return {
+      ok: false,
+      message: "Could not save Resend credentials.",
+      enabled,
+      hasFromEmail,
+      hasApiKey,
+      hasWebhookSecret,
+    };
+  }
+
+  revalidateDashboardSettings("email");
+  return {
+    ok: true,
+    message: enabled
+      ? "Resend settings saved. This studio can send campaigns, appointment mail, and invoices."
+      : "Resend settings saved.",
+    enabled,
+    hasFromEmail,
+    hasApiKey,
+    hasWebhookSecret,
   };
 }
 

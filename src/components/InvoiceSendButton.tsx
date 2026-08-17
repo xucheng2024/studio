@@ -12,7 +12,7 @@ function invoiceSendErrorMessage(code: string | undefined) {
   if (code === "invoice_requires_paid_status") return "Only paid records can send invoices.";
   if (code === "invoice_voided") return "This invoice is voided and cannot be sent.";
   if (code === "invoice_recipient_not_found") return "No recipient email found for this payment.";
-  if (code === "invoice_email_not_configured") return "Email is not configured on server (Resend).";
+  if (code === "invoice_email_not_configured") return "Email is not configured for this studio (Resend).";
   if (code === "invoice_send_failed") return "Email provider failed to send. Please try again.";
   return "Failed to send invoice";
 }

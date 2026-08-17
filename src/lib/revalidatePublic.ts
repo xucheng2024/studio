@@ -24,6 +24,7 @@ export type DashboardSettingsSection =
   | "faqs"
   | "booking"
   | "payments"
+  | "email"
   | "locations"
   | "staff-invites"
   | "staff-availability"
@@ -132,6 +133,8 @@ function dashboardSettingsPaths(section: DashboardSettingsSection) {
       return ["/dashboard/settings", "/dashboard/settings/booking"];
     case "payments":
       return ["/dashboard/settings/payments"];
+    case "email":
+      return ["/dashboard/settings/email"];
     case "locations":
       return ["/dashboard/settings", "/dashboard/settings/locations", "/dashboard/schedule", "/dashboard/frontdesk", "/dashboard/operations"];
     case "staff-invites":

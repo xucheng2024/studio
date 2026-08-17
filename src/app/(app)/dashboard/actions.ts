@@ -10,10 +10,11 @@ export {
   updateStudioContractSettings,
   updateStudioCustomDomain,
   updateStudioHitpaySettings,
+  updateStudioEmailSettings,
   updateStudioPublicBranding,
   updateStudioPublicProfile,
 } from "./_actions/studio-settings";
-export type { BookingSettingsResult, CustomDomainFormResult, HitpaySettingsResult } from "./_actions/studio-settings";
+export type { BookingSettingsResult, CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult } from "./_actions/studio-settings";
 
 export {
   updateServiceAvailabilityDefaultsAction,

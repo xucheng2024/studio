@@ -52,7 +52,7 @@
 1. 保存 Q16 为 OR、Q17 接受自建 Payroll 且 Q18 No 不影响 Q17 的回复截图、身份、日期和完整上下文
 2. 确认 PWA 是否会被视为 Mobile App；如未确认，本次填 No
 3. 确认现有 Membership、Shop 和 Member Zone 能否作为非资助附加模块保留
-4. 确认最终 PSG Core Edition 包含的模块和报价：Q16 仅 Email E-Marketing，不含 SMS/WhatsApp
+4. 确认最终 PSG Core Edition 包含的模块和报价：Q16 仅 Email E-Marketing，不含 SMS/WhatsApp；商户邮件按 Studio 自有 Resend 账号计费
 5. 确认申请主体是 Product Principal 还是 Reseller，并选择 Q31 或 Q34 路径
 6. 提前联系合资格第三方取得 VA/PT 范围、报价和排期，最终测试必须在主要功能稳定后进行
 7. 规划 Cyber Essentials for ICT Vendors 或认可的等效认证，避免 Annual Review 时不符合要求
@@ -73,7 +73,7 @@
 2. 在保留现有 Class Pass、公开购买和历史余额的前提下，完成套餐 Ledger、Salon Service/Location、调整审批和审计
 3. 完成 Cash/HitPay、收据，并让客户自助预约支持 Package Credits、订金或全额付款
 4. 完成员工佣金规则、退款/作废、套餐和佣金反向记录及日结
-5. 完成营销 Campaign
+5. 完成营销 Campaign（每个 Studio 配置自己的 Resend；未配置不得发送）
 6. 完成自建 Payroll、工资单和法定项目计算
 
 ### 第四阶段：报表和申请材料
