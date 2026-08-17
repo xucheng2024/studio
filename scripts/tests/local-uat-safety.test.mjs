@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { APT_LOCAL_IDENTITY_LIST } from "../fixtures/apt-local-identities.mjs";
 import { CRM02_LOCAL_IDENTITY_LIST } from "../fixtures/crm02-local-identities.mjs";
 import { POS_LOCAL_IDENTITY_LIST } from "../fixtures/pos-local-identities.mjs";
 import { assertLocalUatTargets } from "../lib/local-uat-safety.mjs";
@@ -11,11 +12,18 @@ test("local UAT rejects a remote app, API, or database target", () => {
   for (const key of Object.keys(local)) assert.throws(() => assertLocalUatTargets({ ...local, [key]: "https://example.com" }), /non-local/);
 });
 
-test("CRM and POS fixtures have disjoint local Auth identities", () => {
+test("CRM, POS, and APT fixtures have disjoint local Auth identities", () => {
   const crm = new Set(CRM02_LOCAL_IDENTITY_LIST.flatMap((identity) => [identity.id, identity.email]));
+  const pos = new Set(POS_LOCAL_IDENTITY_LIST.flatMap((identity) => [identity.id, identity.email]));
   for (const identity of POS_LOCAL_IDENTITY_LIST) {
     assert.ok(!crm.has(identity.id));
     assert.ok(!crm.has(identity.email));
+  }
+  for (const identity of APT_LOCAL_IDENTITY_LIST) {
+    assert.ok(!crm.has(identity.id));
+    assert.ok(!crm.has(identity.email));
+    assert.ok(!pos.has(identity.id));
+    assert.ok(!pos.has(identity.email));
   }
 });
 

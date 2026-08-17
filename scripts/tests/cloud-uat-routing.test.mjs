@@ -3,6 +3,8 @@ import test from "node:test";
 import { routeCloudUatChanges } from "../lib/cloud-uat-routing.mjs";
 
 const flows = [
+  { id: "apt01-availability-local", paths: ["scripts/verify-apt01-browser-local.mjs"] },
+  { id: "apt03-calendar-local", paths: ["scripts/verify-apt03-browser-local.mjs"] },
   { id: "apt04-appointments-local", paths: ["src/app/[studioSlug]/appointments/**"] },
   { id: "com01-commission-local", paths: ["scripts/verify-com01-uat-browser-local.mjs"] },
   { id: "crm02-clients-local", paths: ["src/app/(app)/dashboard/clients/**"] },
@@ -22,7 +24,21 @@ test("routes a feature change to its smallest cloud UAT flow", () => {
 test("routes shared local UAT infrastructure to every isolated flow", () => {
   const result = routeCloudUatChanges(["supabase/migrations/20260818000000_change.sql"], flows);
   assert.equal(result.dispatch, "all");
-  assert.equal(result.fastMatrix.include.length, 7);
+  assert.equal(result.fastMatrix.include.length, 9);
+});
+
+test("routes APT-01 availability changes to the dedicated cloud UAT flow", () => {
+  const result = routeCloudUatChanges(["scripts/verify-apt01-browser-local.mjs"], flows);
+  assert.deepEqual(result.flows, ["apt01-availability-local"]);
+  assert.equal(result.dispatch, "apt01-availability-local");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "apt01-availability-local", script: "test:apt01-static-gates" }]);
+});
+
+test("routes APT-03 calendar changes to the dedicated cloud UAT flow", () => {
+  const result = routeCloudUatChanges(["scripts/verify-apt03-browser-local.mjs"], flows);
+  assert.deepEqual(result.flows, ["apt03-calendar-local"]);
+  assert.equal(result.dispatch, "apt03-calendar-local");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "apt03-calendar-local", script: "test:apt03-app" }]);
 });
 
 test("routes POS-02 cash/receipt changes to the dedicated cloud UAT flow", () => {

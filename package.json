@@ -17,6 +17,8 @@
     "test:apt03-db": "bash scripts/verify-apt03-db.sh",
     "test:apt03-app": "node --experimental-strip-types --test scripts/tests/apt03-calendar-contract.test.ts",
     "test:apt03": "npm run test:apt03-app && npm run test:apt03-db",
+    "test:apt01-uat-local": "node scripts/run-apt01-uat-local.mjs",
+    "test:apt03-uat-local": "node scripts/run-apt03-uat-local.mjs",
     "test:apt04-app": "node --experimental-strip-types --test scripts/tests/apt04-self-booking-contract.test.ts",
     "test:apt04-db": "bash scripts/verify-apt04-db.sh",
     "test:apt04": "npm run test:apt04-app && npm run test:apt04-db",

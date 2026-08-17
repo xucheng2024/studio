@@ -15,6 +15,8 @@ if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true") {
 
 const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), "uat.flows.json"), "utf8"));
 const batchedFlowIds = [
+  "apt01-availability-local",
+  "apt03-calendar-local",
   "apt04-appointments-local",
   "com01-commission-local",
   "crm02-clients-local",

@@ -103,6 +103,8 @@ jobs:
           HITPAY_API_BASE_URL: https://api.sandbox.hit-pay.com
         run: |
           flows=(
+            apt01-availability-local
+            apt03-calendar-local
             apt04-appointments-local
             com01-commission-local
             crm02-clients-local
