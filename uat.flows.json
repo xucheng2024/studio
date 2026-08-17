@@ -54,7 +54,7 @@
       ]
     },
     {
-      "id": "pos-packages-browser",
+      "id": "pos-packages-local",
       "paths": [
         "src/app/(app)/dashboard/pos/**",
         "src/app/(app)/dashboard/packages/**",
@@ -62,13 +62,40 @@
         "src/app/api/dashboard/packages/**",
         "src/lib/pos-sales.ts",
         "src/lib/pos-sales-read.ts",
-        "scripts/verify-pos-pkg-browser.mjs"
+        "scripts/verify-pos-pkg-browser-local.mjs",
+        "scripts/run-pos-pkg-uat-local.mjs",
+        "scripts/sql/pos_uat_local_execute.sql",
+        "scripts/fixtures/pos-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
       ],
       "command": [
         "npm",
         "run",
-        "verify:pos-pkg-browser"
-      ]
+        "test:pos-pkg-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/pos-pkg-uat"],
+        "index": "tmp/pos-pkg-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      },
+      "concurrency": {
+        "participants": 2,
+        "isolation_keys": ["identity", "fixture_ids"],
+        "barrier": "script_managed"
+      }
     },
     {
       "id": "collect-com01-uat-evidence",

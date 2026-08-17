@@ -59,24 +59,29 @@ export async function waitForLocalDatabaseState(read, isReady, label, { timeoutM
   throw new Error(`Timed out waiting for ${label}`);
 }
 
-function waitForApp(baseUrl) {
+export function isAppReadyStatus(statusCode) {
+  return Boolean(statusCode && statusCode >= 200 && statusCode < 400);
+}
+
+function waitForApp(url) {
   return new Promise((resolve) => {
-    const request = http.get(baseUrl, (response) => {
+    const request = http.get(url, (response) => {
       response.resume();
-      resolve(Boolean(response.statusCode && response.statusCode < 500));
+      resolve(isAppReadyStatus(response.statusCode));
     });
     request.on("error", () => resolve(false));
     request.setTimeout(1000, () => request.destroy());
   });
 }
 
-export async function runLocalNextUat({ port, env, command }) {
+export async function runLocalNextUat({ port, env, command, readyPath = "/" }) {
   const baseUrl = `http://127.0.0.1:${port}`;
+  const readyUrl = new URL(readyPath, baseUrl);
   const app = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", String(port)], { env, stdio: "inherit" });
   try {
     for (let attempt = 0; attempt < 60; attempt += 1) {
-      if (await waitForApp(baseUrl)) break;
-      if (attempt === 59) throw new Error(`Local app did not become ready on port ${port}`);
+      if (await waitForApp(readyUrl)) break;
+      if (attempt === 59) throw new Error(`Local app did not become ready at ${readyUrl.pathname} on port ${port}`);
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
     const test = spawn(command[0], command.slice(1), { env, stdio: "inherit" });
