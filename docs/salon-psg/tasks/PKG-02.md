@@ -1,6 +1,6 @@
 # PKG-02：套餐调整审批与部分退款回冲
 
-状态：已实现/待目标环境验证
+状态：已验证/待上线（专用 Free cloud UAT 已通过）
 
 Commit / Release：`f18bb4c`、`02d4aee`、`9283eb6`、`30f652c`、`bf80d06`、`cf3291f`、`09f9fb1`；未上线
 
@@ -175,3 +175,9 @@ uq_client_package_ledger_source_event
   - 入参：`studio_id`、`location_id`、`deferred_view`、`deferred_customer_id`、`deferred_package_id`、`deferred_q`、`format(csv|tsv|xlsx|xml)`
   - 套餐视图导出新增 `location_name`（同时保留 `location_id` 供 BI 关联）
   - 导出上限保护：`XLSX/XML` 上限 `2000` source rows（CSV/TSV 为 `5000`）；超限时响应头返回 `x-export-capped=true` 与 `x-export-warning`
+
+## 13. Package Approval UAT 收口（2026-08-17）
+
+- Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32003377267
+- 已通过既有专用 `pos-packages-local` flow 覆盖 390px 前台创建 draft、提交、双 checker 并发批准、只产生一条批准转换、审批后写入 Ledger、拒绝路径，以及 Instructor POS 拒绝访问。
+- 日志标记：`pos_pkg_local_uat_ok`；runner 摘要：`{"status":"passed","flows":["pos-packages-local"],"runner":"github-hosted"}`。
