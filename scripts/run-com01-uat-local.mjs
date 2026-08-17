@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { ensureCom01LocalAuthIdentities } from "./lib/com01-local-auth.mjs";
+import { assertLocalUatTargets } from "./lib/local-uat-safety.mjs";
 import { localSupabaseEnvironment, readLocalSupabaseStatus, runLocalNextUat } from "./lib/local-supabase-uat.mjs";
 
 const port = Number(process.env.COM01_UAT_PORT || "3101");
@@ -11,6 +12,7 @@ if (!Number.isInteger(port) || port < 1024 || port > 65535) {
 
 const runId = process.env.COM01_UAT_RUN_ID || `local-${Date.now()}`;
 const status = readLocalSupabaseStatus();
+assertLocalUatTargets({ baseUrl: `http://127.0.0.1:${port}`, supabaseUrl: status.API_URL, databaseUrl: status.DB_URL });
 const env = localSupabaseEnvironment(status, {
   COM01_UAT_BASE_URL: `http://127.0.0.1:${port}`,
   COM01_UAT_RUN_ID: runId,

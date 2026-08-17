@@ -17,7 +17,13 @@
         "npm",
         "run",
         "test:local-uat"
-      ]
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      }
     },
     {
       "id": "com01-commission-local",
@@ -38,20 +44,38 @@
         "npm",
         "run",
         "test:com01-uat-local"
-      ]
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      }
     },
     {
-      "id": "crm02-clients-browser",
+      "id": "crm02-clients-local",
       "paths": [
         "src/app/(app)/dashboard/clients/**",
-        "scripts/verify-crm02-playwright.mjs",
-        "scripts/fixtures/crm02-playwright-accounts.json"
+        "scripts/verify-crm02-browser-local.mjs",
+        "scripts/run-crm02-uat-local.mjs",
+        "scripts/sql/crm02_uat_local_execute.sql",
+        "scripts/fixtures/crm02-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "scripts/tests/local-uat-safety.test.mjs"
       ],
       "command": [
         "npm",
         "run",
-        "test:crm02-browser"
-      ]
+        "test:crm02-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      }
     },
     {
       "id": "pos-packages-local",
@@ -69,6 +93,7 @@
         "scripts/lib/local-fixture-auth.mjs",
         "scripts/lib/local-uat-safety.mjs",
         "scripts/lib/local-supabase-uat.mjs",
+        "scripts/tests/local-uat-safety.test.mjs"
       ],
       "command": [
         "npm",
@@ -106,7 +131,13 @@
         "npm",
         "run",
         "collect:com01-uat-evidence"
-      ]
+      ],
+      "target": {
+        "policy": "none"
+      },
+      "data_access": {
+        "policy": "remote_readonly"
+      }
     },
     {
       "id": "test-pos01-e2e",
@@ -117,7 +148,13 @@
         "npm",
         "run",
         "test:pos01-e2e"
-      ]
+      ],
+      "target": {
+        "policy": "none"
+      },
+      "data_access": {
+        "policy": "local_only"
+      }
     }
   ]
 }

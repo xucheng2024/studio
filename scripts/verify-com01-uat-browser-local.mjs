@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
 import { COM01_LOCAL_IDENTITIES, COM01_LOCAL_IDENTITY_LIST, normalizeEmail } from "./fixtures/com01-local-identities.mjs";
 import { waitForLocalDatabaseState } from "./lib/local-supabase-uat.mjs";
+import { createLocalSessionCookies } from "./lib/local-uat-safety.mjs";
 
 const RUN_ID = process.env.COM01_UAT_RUN_ID;
 if (!RUN_ID) throw new Error("COM01_UAT_RUN_ID is required");
@@ -43,36 +43,13 @@ fs.mkdirSync(outDir, { recursive: true });
 const evidence = [];
 
 async function authCookies(email) {
-  const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email: email.email });
-  if (linkError) throw linkError;
-
-  const anon = createClient(SUPABASE_URL, ANON_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
+  return createLocalSessionCookies({
+    supabaseUrl: SUPABASE_URL,
+    anonKey: ANON_KEY,
+    serviceRoleKey: SERVICE_ROLE_KEY,
+    identity: email,
+    baseUrl: BASE_URL,
   });
-  const { data: verified, error: verifyError } = await anon.auth.verifyOtp({
-    token_hash: link.properties.hashed_token,
-    type: "magiclink",
-  });
-  if (verifyError) throw verifyError;
-  if (!verified.session) throw new Error(`No local auth session for ${email.email}`);
-  assert.equal(verified.user?.id, email.id, `Auth UUID mismatch for ${email.email}`);
-  assert.equal(normalizeEmail(verified.user?.email), normalizeEmail(email.email), `Auth email mismatch for ${email.email}`);
-
-  let encodedCookies = [];
-  const server = createServerClient(SUPABASE_URL, ANON_KEY, {
-    cookies: {
-      getAll: () => [],
-      setAll: (values) => {
-        encodedCookies = values;
-      },
-    },
-  });
-  const { error: sessionError } = await server.auth.setSession({
-    access_token: verified.session.access_token,
-    refresh_token: verified.session.refresh_token,
-  });
-  if (sessionError) throw sessionError;
-  return encodedCookies.map(({ name, value }) => ({ name, value, url: BASE_URL }));
 }
 
 async function login(browser, email) {
