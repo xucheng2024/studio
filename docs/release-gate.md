@@ -60,7 +60,7 @@ Creating an environment name from a workflow does not create protection rules. A
 - Keep Preview/Production Supabase projects and variables deliberately scoped.
 - Turn off automatic assignment of production domains for unattended Git production deployments, so a push cannot bypass this gate.
 - Enable Protection Bypass for Automation when deployment protection is active and copy its value only to the `release-candidate` GitHub Environment.
-- The repository pins its release-only Vercel CLI under `tools/vercel-cli`. Its dependency tree is isolated from application dependencies, and the vulnerable transitive `tar` version from the upstream CLI package is overridden to a patched release.
+- The repository pins Vercel's native CLI under `tools/vercel-cli`, avoiding the Node CLI's large builder dependency tree. Release jobs install it with lifecycle scripts disabled, require the locked Linux x64 binary and exact native CLI version, and fail on high-or-higher `npm audit` findings. The native binary itself is an official prebuilt artifact, so its security posture is reviewed through the pinned version and npm lockfile integrity rather than JavaScript dependency audit output.
 
 Vercel references:
 

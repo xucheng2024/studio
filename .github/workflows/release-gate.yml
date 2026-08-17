@@ -15,6 +15,9 @@ concurrency:
   group: studio-release-gate
   cancel-in-progress: false
 
+env:
+  VERCEL_CLI: tools/vercel-cli/node_modules/@vercel/vc-native-linux-x64/bin/vercel
+
 jobs:
   validate-commit:
     runs-on: ubuntu-latest
@@ -176,8 +179,20 @@ jobs:
       - name: Install application and pinned Vercel CLI dependencies
         run: |
           npm ci
-          npm ci --prefix tools/vercel-cli
-          npm audit --prefix tools/vercel-cli --audit-level=critical
+          npm ci --ignore-scripts --prefix tools/vercel-cli
+          if [[ "$(uname -s)-$(uname -m)" != "Linux-x86_64" ]]; then
+            echo "::error::Release candidate requires the pinned Linux x64 Vercel CLI."
+            exit 1
+          fi
+          if [[ ! -x "$VERCEL_CLI" ]]; then
+            echo "::error::Pinned Vercel CLI binary is missing or not executable."
+            exit 1
+          fi
+          if ! "$VERCEL_CLI" --version 2>&1 | grep -Fq "Vercel CLI 59.1.3 (native)"; then
+            echo "::error::Pinned Vercel CLI version verification failed."
+            exit 1
+          fi
+          npm audit --prefix tools/vercel-cli --audit-level=high
 
       - name: Pull production configuration and build candidate
         env:
@@ -191,9 +206,8 @@ jobs:
               exit 1
             fi
           done
-          vercel_cli="tools/vercel-cli/node_modules/.bin/vercel"
-          "$vercel_cli" pull --yes --environment=production --token "$VERCEL_TOKEN" --no-color
-          "$vercel_cli" build --prod --token "$VERCEL_TOKEN" --no-color
+          "$VERCEL_CLI" pull --yes --environment=production --token "$VERCEL_TOKEN" --no-color
+          "$VERCEL_CLI" build --prod --token "$VERCEL_TOKEN" --no-color
 
       - name: Deploy staged production candidate without assigning domains
         id: deploy
@@ -202,14 +216,13 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          vercel_cli="tools/vercel-cli/node_modules/.bin/vercel"
-          deployment_url="$("$vercel_cli" deploy --prebuilt --prod --skip-domain --yes --token "$VERCEL_TOKEN" --no-color)"
+          deployment_url="$("$VERCEL_CLI" deploy --prebuilt --prod --skip-domain --yes --token "$VERCEL_TOKEN" --no-color)"
           if [[ ! "$deployment_url" =~ ^https://[a-zA-Z0-9.-]+\.vercel\.app$ ]]; then
             echo "::error::Vercel returned an invalid staged deployment URL."
             exit 1
           fi
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
-          "$vercel_cli" inspect "$deployment_url" --token "$VERCEL_TOKEN" --no-color
+          "$VERCEL_CLI" inspect "$deployment_url" --token "$VERCEL_TOKEN" --no-color
 
       - name: Install Chromium for candidate smoke test
         run: npx playwright install --with-deps chromium
@@ -253,7 +266,21 @@ jobs:
           cache-dependency-path: tools/vercel-cli/package-lock.json
 
       - name: Install pinned Vercel CLI
-        run: npm ci --prefix tools/vercel-cli
+        run: |
+          npm ci --ignore-scripts --prefix tools/vercel-cli
+          if [[ "$(uname -s)-$(uname -m)" != "Linux-x86_64" ]]; then
+            echo "::error::Production promotion requires the pinned Linux x64 Vercel CLI."
+            exit 1
+          fi
+          if [[ ! -x "$VERCEL_CLI" ]]; then
+            echo "::error::Pinned Vercel CLI binary is missing or not executable."
+            exit 1
+          fi
+          if ! "$VERCEL_CLI" --version 2>&1 | grep -Fq "Vercel CLI 59.1.3 (native)"; then
+            echo "::error::Pinned Vercel CLI version verification failed."
+            exit 1
+          fi
+          npm audit --prefix tools/vercel-cli --audit-level=high
 
       - name: Promote approved candidate to production
         env:
@@ -273,11 +300,10 @@ jobs:
             echo "::error::Refusing to promote an invalid candidate URL."
             exit 1
           fi
-          vercel_cli="tools/vercel-cli/node_modules/.bin/vercel"
-          "$vercel_cli" pull --yes --environment=production --token "$VERCEL_TOKEN" --no-color
-          "$vercel_cli" inspect "$CANDIDATE_URL" --token "$VERCEL_TOKEN" --no-color
-          "$vercel_cli" promote "$CANDIDATE_URL" --yes --timeout=5m --token "$VERCEL_TOKEN" --no-color
-          "$vercel_cli" promote status --token "$VERCEL_TOKEN" --no-color
+          "$VERCEL_CLI" pull --yes --environment=production --token "$VERCEL_TOKEN" --no-color
+          "$VERCEL_CLI" inspect "$CANDIDATE_URL" --token "$VERCEL_TOKEN" --no-color
+          "$VERCEL_CLI" promote "$CANDIDATE_URL" --yes --timeout=5m --token "$VERCEL_TOKEN" --no-color
+          "$VERCEL_CLI" promote status --token "$VERCEL_TOKEN" --no-color
           {
             echo "## Production promotion complete"
             echo "- Commit: \`$RELEASE_COMMIT_SHA\`"
