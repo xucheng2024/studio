@@ -45,7 +45,7 @@
 | Phase 2 | POS-02 Cash/Receipt | 已验证/待上线 | POS-01 | DB Gate、目标 migration 与 Batch 1/2 专用 Free cloud UAT 已通过（`pos02-cash-receipt-local`，run `32002949749`，`pos02_local_uat_ok`）。覆盖现金班次开启、现金收款、Sale/Payment 原子 paid、receipt number 展示、Instructor 越权拒绝与 390px。找零 UI 与 PDF/可点击收据仍不在 Batch 1/2 范围；待发布窗口后升“已上线”。 |
 | Phase 2 | POS-03 HitPay | 已验证/待上线 | POS-01 | Merchant Key-only 与 Batch 2 恢复加固已落地；专用 Free cloud UAT `pos03-hitpay-sandbox-local` 已通过（run `32004577210`，`pos03_local_uat_ok`，Sandbox `api.sandbox.hit-pay.com`）。覆盖 create、pending sync、签名 webhook paid、重放幂等、无效签名 401、已付后再 sync。未在 Production 造支付数据；待发布窗口后升“已上线”。 |
 | Phase 2 | PKG-02 Package Approval | 已验证/待上线 | PKG-01 | DB Gate、目标 migration 与 `pos-packages-local` Free cloud UAT 已通过（run `32003377267`，`pos_pkg_local_uat_ok`）。覆盖 390px draft/submit、并发 checker 批准单一转换、Ledger apply、拒绝路径与 Instructor 拒绝访问；待发布窗口后升“已上线”。 |
-| Phase 2 | APT-04 Self Booking | 已实现/待验证（Phase 2） | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | 已接入 Package Credits、在线订金与在线全款；新增预约级 settlement 主记录、Package consume/cancel_return Ledger 链路、支付链路校验与状态机保护。已补 2026-08-14 P1 热修复：幂等完成时机后移、Package/online 事实原子化、paid 后预约推进并清空 expires_at、继续支付入口与预约过期补扫。`test:apt04-app`、`test:apt04-db`、`test:apt02-idempotency-faults`、`test:pkg01-db`、`test:pos03-db`、`test:hitpay-merchant-mode`、`lint`、`tsc`、`build` 通过。真实生产支付点击流与发布证据待补，不标记“已上线”。 |
+| Phase 2 | APT-04 Self Booking | 已验证/待上线 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | Phase 1 隔离 UAT 已通过。Phase 2 Package Credits / 在线订金专用 Free cloud UAT `apt04-settlement-sandbox-local` 已通过（run `32032684540`，`apt04_settlement_local_uat_ok`，Sandbox `api.sandbox.hit-pay.com`）。覆盖 390px 自助预约、package consume、cancel_return、deposit checkout、Continue payment、签名 webhook `deposit_paid` 与重放幂等。`online_full` 仍由 `test:apt04-db` 覆盖。未在 Production 造支付数据；待发布窗口后升“已上线”。 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已验证/待上线（Batch 1/2/3 已完成） | COM-01、PKG-01 | 2026-08-16 已在隔离 Docker/Postgres 重跑 `test:pos04-db`（部分退款、现金班次、RPC 幂等均通过）；隔离本地 COM-01 浏览器 UAT 已真实提交全额退款与关班表单，并核验佣金反向分录、现金差异、审计和最终页面。浏览器 UAT 不会隐式回退生产；Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。待发布窗口及目标环境发布证据。 |
 | Phase 3 | MKT-01 Audience/Email | 已验证/待上线 | FND-02、CRM-01、POS-04 | 已发布 Consent/Suppression、Audience Snapshot、固定 Email Builder、测试邮件和一键退订；专用隔离本地 UAT 已通过 |
@@ -87,8 +87,8 @@
 
 ## 当前建议领取顺序
 
-1. Phase 1 浏览器证据缺口（APT-01 / APT-03）已用隔离 Free cloud UAT 收口。进入 Phase 3 前仍需生产发布窗口，才能把 APT-02/05、CRM-01、POS-02/03、PKG-01/02、POS-04 等“已验证/待上线”升为“已上线”。
-2. 下一开发项优先 APT-04 / MKT-02 目标环境证据。支付相关验证只用 HitPay Sandbox。
+1. Phase 1 浏览器证据缺口（APT-01 / APT-03）已用隔离 Free cloud UAT 收口。进入 Phase 3 前仍需生产发布窗口，才能把 APT-02/04/05、CRM-01、POS-02/03、PKG-01/02、POS-04 等“已验证/待上线”升为“已上线”。
+2. 下一开发项优先 MKT-02 目标环境证据。支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -185,3 +185,10 @@
 - `supabase migration list` 已确认上述版本的本地与远端记录一致。
 - `20260817120000_pos03_hitpay_recovery_hardening.sql` 已启用 HitPay webhook 异常记录的 RLS/服务端最小权限，并收紧主动同步、webhook 及 provider-event 完成失败的恢复语义。
 - 本轮未对 Production 创建支付、退款或预约测试数据；远端 Migration 对齐不等同于 POS-03 的真实 Sandbox 恢复验收或完整应用发布证据。
+
+## 2026-08-17 状态更新（APT-04 Phase 2 settlement UAT）
+
+- 已新增并接入 `apt04-settlement-sandbox-local`（fixture、浏览器 verifier、Free cloud UAT / changed-path / release-gate 目录；复用 `POS03_HITPAY_*`）。
+- GitHub Actions Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32032684540（`apt04_settlement_local_uat_ok`，Sandbox `api.sandbox.hit-pay.com`）。
+- 覆盖 390px 自助预约、package credit consume、cancel_return、online deposit checkout、Continue payment、签名 webhook `deposit_paid` 与重放幂等。
+- APT-04 Phase 2 升为“已验证/待上线”；未使用 Production HitPay / Production 预约支付测试数据；不升“已上线”（待发布窗口）。

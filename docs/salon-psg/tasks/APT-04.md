@@ -1,6 +1,6 @@
 # APT-04：客户自助预约（Phase 1）
 
-状态：可验收（Phase 1）
+状态：已验证/待上线（Phase 1 可验收；Phase 2 专用 Free cloud Sandbox UAT 已通过）
 
 负责人：Codex（编码 Agent）
 
@@ -190,7 +190,7 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
 
 ## 11. 2026-08-14 Phase 2 实施（Package Credits / 在线订金 / 在线全款）
 
-状态：已实现/待验证（不等于已上线）
+状态：已验证/待上线（不等于已上线）
 
 ### 11.1 本轮新增能力
 
@@ -264,7 +264,7 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
 
 - Deposit 仅表示订金已付，非全额结清；后续仍需在履约/收银页面补“欠款可视化与补收”完整操作链路。
 - 当前无 service 级 package 适用关系模型；本轮已在 UI 与服务端统一保守规则并显式文案提示，后续需补正式 `package-service` 映射表再升级资格判断。
-- 生产真实 HitPay Sandbox 与浏览器点击流证据需按发布流程补齐后，方可从“已实现/待验证”提升。
+- `online_full` 仍由 `test:apt04-db` 覆盖，本轮浏览器 UAT 只跑一条 HitPay Sandbox 订金路径。
 
 ### 11.6 2026-08-14 P1 热修复闭环
 
@@ -274,3 +274,12 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
   - 支付成功后预约仍保留 `pending + expires_at`，存在误过期风险。
   - 我的预约页缺少继续支付入口。
 - 新增验证：`scripts/sql/verify_apt04_phase2_settlement.sql`，覆盖 package consume/取消返还、online deposit paid 状态推进、terminal 状态防回写 paid。
+
+### 11.7 Phase 2 隔离浏览器 UAT（HitPay Sandbox）
+
+- 专用 flow：`apt04-settlement-sandbox-local`（`uat.flows.json`）。
+- 首选执行：GitHub Actions **Free cloud UAT**，选择 `apt04-settlement-sandbox-local`（runner 自带 Docker 并启动本地 Supabase；复用 `POS03_HITPAY_*` + `HITPAY_API_BASE_URL=https://api.sandbox.hit-pay.com`）。
+- 覆盖：390px 自助预约页、package credit 扣减并确认、取消 `cancel_return`、online deposit 创建 Sandbox checkout、pending 时 Continue payment、签名 webhook `deposit_paid` 且清空 `expires_at`、webhook 重放保持 paid。
+- 不使用 Production HitPay，也不在 Production 造预约/支付测试数据。
+- Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32032684540（`apt04_settlement_local_uat_ok`）。
+- Phase 2 升为“已验证/待上线”；不升“已上线”（待发布窗口）。
