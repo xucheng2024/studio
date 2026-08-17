@@ -321,6 +321,9 @@ async function runBrowser(name, launcher, email, full = false) {
       });
       if (termsError) throw termsError;
       await staleForm.getByRole("button", { name: "Book this slot" }).click();
+      await session.page.waitForURL((url) => url.searchParams.get("error") === "terms_version_stale", {
+        timeout: 30_000,
+      });
       await capture(session.page, name, "10-terms-stale-rejected.png", ["Terms & Conditions have been updated"]);
       await session.page.goto(bookingUrl(dates.primary), { waitUntil: "domcontentloaded" });
     }
