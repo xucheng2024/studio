@@ -265,7 +265,7 @@ async function bookFirstAvailable(page) {
   const startsAt = await form.locator('input[name="slot_starts_at"]').inputValue();
   await form.locator('input[name="terms_accepted"]').check();
   await form.getByRole("button", { name: "Book this slot" }).click();
-  await page.waitForLoadState("domcontentloaded");
+  await page.waitForURL((url) => url.searchParams.get("ok") === "booked", { timeout: 30_000 });
   return startsAt;
 }
 
@@ -335,11 +335,13 @@ async function runBrowser(name, launcher, email, full = false) {
       const rescheduleForm = session.page.locator('form:has(button:text("Reschedule"))').first();
       await rescheduleForm.locator('input[name="new_starts_at"]').fill(`${dates.secondary}T11:00`);
       await rescheduleForm.getByRole("button", { name: "Reschedule" }).click();
+      await session.page.waitForURL((url) => url.searchParams.get("ok") === "rescheduled", { timeout: 30_000 });
       await capture(session.page, name, "06-reschedule-success.png", ["Appointment rescheduled"]);
     }
 
     const cancelForm = session.page.locator('form:has(button:text("Cancel"))').first();
     await cancelForm.getByRole("button", { name: "Cancel" }).click();
+    await session.page.waitForURL((url) => url.searchParams.get("ok") === "cancelled", { timeout: 30_000 });
     await capture(session.page, name, "07-cancel-success.png", ["Appointment cancelled"]);
 
     if (full) {
