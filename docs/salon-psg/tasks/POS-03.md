@@ -1,12 +1,12 @@
 # POS-03：HitPay 在线支付闭环（Batch 1 + Batch 2）
 
-状态：已实现/待目标环境验证（Batch 1/2 已落地；2026-08-17 远端 Migration 已对齐）
+状态：已验证/待上线（Batch 1/2；专用 Free cloud Sandbox UAT 已通过）
 
 负责人：Codex
 
 开始日期：2026-08-13
 
-Commit / Release：`8c402c3`、`1c0704f`；未上线
+Commit / Release：`8c402c3`、`1c0704f`、`ccc9f79`、`f8188f6`；未上线
 
 ## 1. 目标
 
@@ -60,4 +60,16 @@ Commit / Release：`8c402c3`、`1c0704f`；未上线
 - Studio 远端已应用 `20260817120000_pos03_hitpay_recovery_hardening.sql`，并与本地 migration history 对齐。
 - 异常记录表已启用 RLS，仅允许 service role 读写；主动同步与 webhook 使用同一 POS 完成事务保存网关证据，已付重放不得覆盖既有事实。
 - 本地验证已通过：`test:pos03-db`、`test:pos03-app`、`test:hitpay-merchant-mode`、`npx tsc --noEmit`、定向 ESLint。
-- 仍需在目标 Sandbox 留存主动同步、provider-event 完成失败后的重试、以及 webhook 异常恢复证据；不得以 Production 测试数据替代。
+
+## 7. 本地浏览器 UAT（HitPay Sandbox）
+
+- 专用 flow：`pos03-hitpay-sandbox-local`（`uat.flows.json`）。
+- 首选执行：GitHub Actions **Free cloud UAT**，选择 `pos03-hitpay-sandbox-local`（runner 自带 Docker 并启动本地 Supabase；使用 `POS03_HITPAY_*` + `HITPAY_API_BASE_URL=https://api.sandbox.hit-pay.com`）。
+- 覆盖：创建 HitPay payment request、pending 主动同步、签名 webhook 完成 paid、重放幂等（sale/payment 仍 paid 且 receipt 不变）、无效签名 `401`、已付后再 sync 保持 paid。
+- 不使用 Production HitPay，也不在 Production 造支付测试数据。
+
+## 8. 收口证据（2026-08-17）
+
+- Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32004577210
+- 日志标记：`pos03_local_uat_ok`；HitPay API base：`https://api.sandbox.hit-pay.com`
+- Batch 1/2 专用 Sandbox 浏览器 UAT 已收口；不升“已上线”（待发布窗口）。
