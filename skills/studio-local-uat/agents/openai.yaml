@@ -1,0 +1,4 @@
+interface:
+  display_name: "Studio Local UAT"
+  short_description: "Verify Studio locally across database and browser."
+  default_prompt: "Use $studio-local-uat to run an isolated local database contract and browser UAT flow for this Studio repository."
