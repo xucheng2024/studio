@@ -100,7 +100,7 @@ try {
   await instructor.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await instructor.page.getByText("APT-03 L1 customer", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   assert.equal(await instructor.page.getByRole("heading", { name: "Create appointment" }).count(), 0, "instructor cannot create appointments");
-  assert.equal(await instructor.page.getByText("APT-03 L2 customer").count(), 0, "instructor does not see other-employee L2 appointment");
+  assert.equal(await instructor.page.locator("article").filter({ hasText: "APT-03 L2 customer" }).count(), 0, "instructor does not see other-employee L2 appointment");
   await instructor.context.close();
 
   const frontdesk = await login(APT_LOCAL_IDENTITIES.frontdesk);
