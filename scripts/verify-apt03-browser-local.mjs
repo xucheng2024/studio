@@ -47,11 +47,11 @@ try {
   await owner.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "appointments mobile overflow");
 
-  const createForm = owner.page.locator("section").filter({ hasText: "Create appointment" });
-  await createForm.getByLabel("Customer").selectOption({ label: "APT-03 L1 customer" });
-  await createForm.getByLabel("Service").selectOption({ label: "APT-03 local service" });
-  await createForm.getByLabel("Employee").selectOption({ label: "APT-03 instructor" });
-  await createForm.getByLabel("Starts at (SGT)").fill(slotLocal);
+  const createForm = owner.page.locator("form").filter({ has: owner.page.getByRole("button", { name: "Create appointment" }) });
+  await createForm.locator('select[name="salon_customer_id"]').selectOption({ label: "APT-03 L1 customer" });
+  await createForm.locator('select[name="service_id"]').selectOption({ label: "APT-03 local service" });
+  await createForm.locator('select[name="employee_id"]').selectOption({ label: "APT-03 instructor" });
+  await createForm.locator('input[name="starts_at"]').fill(slotLocal);
   await createForm.getByRole("button", { name: "Create appointment" }).click();
   await waitForToast(owner.page, "Appointment created.");
 
