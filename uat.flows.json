@@ -210,6 +210,56 @@
       }
     },
     {
+      "id": "pos03-hitpay-sandbox-local",
+      "paths": [
+        "src/app/(app)/dashboard/pos/[saleId]/page.tsx",
+        "src/app/api/pos/payments/hitpay/**",
+        "src/app/api/payment/hitpay/**",
+        "src/app/api/webhooks/hitpay/**",
+        "src/lib/hitpay.ts",
+        "src/lib/hitpay-webhook-observability.ts",
+        "src/lib/hitpayApplyPaymentRequestStatus.ts",
+        "scripts/run-pos03-uat-local.mjs",
+        "scripts/verify-pos03-browser-local.mjs",
+        "scripts/sql/pos03_uat_local_execute.sql",
+        "scripts/fixtures/pos-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "supabase/migrations/20260813103000_pos03_hitpay_complete_rpc.sql",
+        "supabase/migrations/20260813121000_pos03_batch2_hitpay_webhook_failures.sql",
+        "supabase/migrations/20260817120000_pos03_hitpay_recovery_hardening.sql"
+      ],
+      "command": [
+        "npm",
+        "run",
+        "test:pos03-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/pos03-uat"],
+        "index": "tmp/pos03-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "pos-packages-local",
       "paths": [
         "src/app/(app)/dashboard/pos/**",

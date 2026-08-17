@@ -13,6 +13,7 @@ const FAST_SCRIPTS = {
   "crm02-clients-local": "test:crm02-app",
   "mkt01-marketing-local": "test:mkt02-marketing-contract",
   "pos02-cash-receipt-local": "test:local-uat-safety",
+  "pos03-hitpay-sandbox-local": "test:hitpay-merchant-mode",
   "pos-packages-local": "test:pos-pkg-browser-guard",
 };
 

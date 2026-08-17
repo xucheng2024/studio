@@ -20,6 +20,7 @@ const batchedFlowIds = [
   "crm02-clients-local",
   "mkt01-marketing-local",
   "pos02-cash-receipt-local",
+  "pos03-hitpay-sandbox-local",
   "pos-packages-local",
 ];
 const flowIds = requestedFlow === "all-batched" ? batchedFlowIds : [requestedFlow];
