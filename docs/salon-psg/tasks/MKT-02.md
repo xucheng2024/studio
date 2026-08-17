@@ -1,6 +1,6 @@
 # MKT-02：调度、Webhook 和报告
 
-状态：已实现/待验证（per-studio Resend 已上线代码，缺目标环境送达证据）
+状态：已验证/待上线（`mkt02-studio-email-local` Free cloud UAT 已通过）
 
 负责人：Codex
 
@@ -25,16 +25,14 @@
 - 通过：MKT-02 DB 状态机专项验证（重复 Claim、重试、完成、Delivered、点击和 Bounce Suppression）。
 - 通过：MKT-02 静态安全/幂等契约测试、`npx tsc --noEmit`、定向 ESLint、`git diff --check`。
 - 通过：隔离本地 `mkt01-marketing-local` 浏览器回归（Consent/Suppression、匿名退订、角色拒绝、390×844 移动布局）。
+- 通过：隔离 Free cloud UAT `mkt02-studio-email-local`（run `32046926360`，`mkt02_studio_email_local_uat_ok`）：Owner 启用 studio Resend、密钥不回显、Instructor 拒绝、未配置 401、旧 webhook 410、签名 Delivered、重放幂等、未知 studio 401、390px。
 - 一键复验：`npm run test:mkt02`（仅允许本地 Supabase，依次执行非破坏性 Migration 预检、DB 状态机、应用契约和浏览器 UAT）。
 
 ## 剩余工作（per-studio Resend）
 
 代码已上 `main`（`26b7ab7`）：Owner 在 `/dashboard/settings/email` 配置 API key / From / webhook secret；Campaign、预约通知和发票读取该 Studio 密钥；未配置返回 `email_provider_not_configured`，不回退平台 `RESEND_*`。Webhook 为 `/api/webhooks/resend/[studioId]`。
 
-远端 migration 与 Vercel 平台 `RESEND_WEBHOOK_SECRET` 已完成。仍待：
-
-- 演示 Studio Owner 保存自己的 Resend 凭证并启用。
-- 用该 Studio 自己的 key 做受控送达 / Webhook / Bounce / 点击报告证据。
+远端 migration、Vercel 平台 `RESEND_WEBHOOK_SECRET`、以及隔离 UAT 已完成。生产上线前仍待 Owner 在真实 Studio 启用自己的 Resend。
 
 ## 目标环境待办
 

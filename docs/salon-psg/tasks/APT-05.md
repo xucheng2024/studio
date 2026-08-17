@@ -123,7 +123,7 @@ Commit / Release：未提交
 
 - 邮件模板已切为英文事件化文案，但仍为 MVP 版本，尚未接产品最终文案。
 - 当前 Cron 以 `CRON_SECRET` 保护，尚未补充生产告警与观测看板。
-- 发送已改为该 Studio 自己的 Resend 密钥；未配置时不得回退平台 key。目标环境仍需 Owner 在 Email settings 启用后验证。
+- 发送已改为该 Studio 自己的 Resend 密钥；未配置时不得回退平台 key。隔离 Email settings UAT 已通过；生产仍需 Owner 启用该店 Resend。
 
 没有实际命令输出或测试证据时，不勾选对应项目。
 
