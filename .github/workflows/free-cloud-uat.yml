@@ -67,7 +67,7 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Save Chromium browser cache
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.playwright-cache.outputs.cache-hit != 'true' && (inputs.flow != 'all' || matrix.flow == 'apt04-appointments-local')
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
@@ -92,7 +92,7 @@ jobs:
 
       - name: Export Supabase images for cache
         id: supabase-cache-export
-        if: always() && steps.supabase-cache.outputs.cache-hit != 'true'
+        if: always() && steps.supabase-cache.outputs.cache-hit != 'true' && (inputs.flow != 'all' || matrix.flow == 'apt04-appointments-local')
         run: |
           node scripts/cache-github-uat-images.mjs save
           if [[ -f .cache/github-uat/supabase-images.tar ]]; then
@@ -100,7 +100,7 @@ jobs:
           fi
 
       - name: Save Supabase image cache
-        if: always() && steps.supabase-cache.outputs.cache-hit != 'true' && steps.supabase-cache-export.outputs.created == 'true'
+        if: always() && steps.supabase-cache.outputs.cache-hit != 'true' && steps.supabase-cache-export.outputs.created == 'true' && (inputs.flow != 'all' || matrix.flow == 'apt04-appointments-local')
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .cache/github-uat/supabase-images.tar
