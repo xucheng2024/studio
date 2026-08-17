@@ -1,6 +1,7 @@
 import "server-only";
 
 import { buildAccessContext, type StaffRole } from "@/lib/rbac";
+import { isAllowedMarketingCtaUrl } from "@/lib/marketing-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type MarketingAudienceType = "vip" | "frequent" | "inactive";
@@ -37,6 +38,9 @@ export async function createMarketingCampaignSnapshot(input: MarketingActor & {
   const ctx = await buildAccessContext(input.userId, input.email, input.locationId);
   const role = actorRole(ctx, input.studioId, input.locationId);
   if (!role) return { ok: false as const, message: "You do not have marketing access for this studio." };
+  if (input.ctaUrl && !isAllowedMarketingCtaUrl(input.ctaUrl)) {
+    return { ok: false as const, message: "CTA URL must use an approved HTTPS domain." };
+  }
 
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("mkt01_create_campaign_snapshot", {
@@ -58,4 +62,33 @@ export async function createMarketingCampaignSnapshot(input: MarketingActor & {
   if (error || !data || typeof data !== "object") return { ok: false as const, message: error?.message ?? "Could not create the campaign snapshot." };
   const result = data as { campaign_id?: string; recipient_count?: number; eligible_count?: number };
   return { ok: true as const, campaignId: result.campaign_id ?? "", recipientCount: Number(result.recipient_count ?? 0), eligibleCount: Number(result.eligible_count ?? 0) };
+}
+
+export async function scheduleMarketingCampaign(input: MarketingActor & { campaignId: string; scheduledAt: string }) {
+  const ctx = await buildAccessContext(input.userId, input.email, input.locationId);
+  const role = actorRole(ctx, input.studioId, input.locationId);
+  if (!role) return { ok: false as const, message: "You do not have marketing access for this studio." };
+  const { data, error } = await createAdminClient().rpc("mkt02_schedule_campaign", {
+    p_campaign_id: input.campaignId,
+    p_actor_id: input.userId,
+    p_actor_role: role,
+    p_scheduled_at: input.scheduledAt,
+  });
+  const result = data as { ok?: boolean; reason?: string; ready_count?: number } | null;
+  if (error || !result?.ok) return { ok: false as const, message: error?.message ?? `Could not schedule campaign (${result?.reason ?? "unknown"}).` };
+  return { ok: true as const, readyCount: Number(result.ready_count ?? 0) };
+}
+
+export async function retryMarketingCampaign(input: MarketingActor & { campaignId: string }) {
+  const ctx = await buildAccessContext(input.userId, input.email, input.locationId);
+  const role = actorRole(ctx, input.studioId, input.locationId);
+  if (!role) return { ok: false as const, message: "You do not have marketing access for this studio." };
+  const { data, error } = await createAdminClient().rpc("mkt02_retry_campaign", {
+    p_campaign_id: input.campaignId,
+    p_actor_id: input.userId,
+    p_actor_role: role,
+  });
+  const result = data as { ok?: boolean; reason?: string; retry_count?: number } | null;
+  if (error || !result?.ok) return { ok: false as const, message: error?.message ?? `Could not retry campaign (${result?.reason ?? "unknown"}).` };
+  return { ok: true as const, retryCount: Number(result.retry_count ?? 0) };
 }

@@ -49,7 +49,7 @@
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已验证/待上线（Batch 1/2/3 已完成） | COM-01、PKG-01 | 2026-08-16 已在隔离 Docker/Postgres 重跑 `test:pos04-db`（部分退款、现金班次、RPC 幂等均通过）；隔离本地 COM-01 浏览器 UAT 已真实提交全额退款与关班表单，并核验佣金反向分录、现金差异、审计和最终页面。浏览器 UAT 不会隐式回退生产；Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。待发布窗口及目标环境发布证据。 |
 | Phase 3 | MKT-01 Audience/Email | 已验证/待上线 | FND-02、CRM-01、POS-04 | 已发布 Consent/Suppression、Audience Snapshot、固定 Email Builder、测试邮件和一键退订；专用隔离本地 UAT 已通过 |
-| Phase 3 | MKT-02 Dispatch/Report | 未开始 | MKT-01、FND-04 | 依赖已具备；实现发送、Webhook 和报告 |
+| Phase 3 | MKT-02 Dispatch/Report | 已实现/待目标环境验证 | MKT-01、FND-04 | 已完成立即/预约发送、幂等分批 Cron、Resend 签名 Webhook、退避重试、Bounce/Complaint Suppression、CTA 点击和 Campaign 报告；本地 DB 契约、TypeScript、ESLint 与隔离浏览器回归通过，待目标环境配置真实 Resend Webhook 并留存送达证据 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
 | Phase 3 | PAY-02 Payroll Run | 未开始 | PAY-01 | 等待依赖 |
 | Phase 3 | PAY-03 Payslip/Reports | 未开始 | PAY-02 | 等待依赖 |

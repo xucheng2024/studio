@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { sendMarketingTestEmail } from "@/lib/email";
-import { createMarketingCampaignSnapshot, type MarketingAudienceType } from "@/lib/marketing";
+import { createMarketingCampaignSnapshot, retryMarketingCampaign, scheduleMarketingCampaign, type MarketingAudienceType } from "@/lib/marketing";
 import { err, ok, requireUser, requireStudio, type DashboardFormResult } from "./shared";
 
 const audienceTypes = new Set<MarketingAudienceType>(["vip", "frequent", "inactive"]);
@@ -62,4 +62,44 @@ export async function sendMarketingTestEmailAction(
   const result = await sendMarketingTestEmail({ to, subject, body, imageUrl, ctaLabel, ctaUrl });
   if (result.skipped) return err(result.error ? "Test email could not be sent." : "Email is not configured in this environment.");
   return ok(`Test email sent to ${to}.`);
+}
+
+export async function scheduleMarketingCampaignAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = text(formData.get("studio_id"));
+  const locationId = text(formData.get("location_id")) || null;
+  const campaignId = text(formData.get("campaign_id"));
+  const mode = text(formData.get("send_mode"));
+  const localDateTime = text(formData.get("scheduled_at"));
+  if (!studioId || !campaignId || !["now", "scheduled"].includes(mode)) return err("Choose a campaign and send time.");
+  let scheduledAt = new Date().toISOString();
+  if (mode === "scheduled") {
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(localDateTime)) return err("Provide a valid Singapore date and time.");
+    const parsed = new Date(`${localDateTime}:00+08:00`);
+    if (!Number.isFinite(parsed.getTime()) || parsed.getTime() < Date.now() - 60_000) return err("Scheduled time must be in the future.");
+    scheduledAt = parsed.toISOString();
+  }
+  const { user } = await requireUser();
+  const result = await scheduleMarketingCampaign({ userId: user.id, email: user.email ?? null, studioId, locationId, campaignId, scheduledAt });
+  if (!result.ok) return err(result.message);
+  revalidatePath("/dashboard/marketing");
+  return ok(result.readyCount ? `Campaign queued for ${result.readyCount} recipients.` : "Campaign completed with no currently eligible recipients.");
+}
+
+export async function retryMarketingCampaignAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = text(formData.get("studio_id"));
+  const locationId = text(formData.get("location_id")) || null;
+  const campaignId = text(formData.get("campaign_id"));
+  if (!studioId || !campaignId) return err("Choose a campaign to retry.");
+  const { user } = await requireUser();
+  const result = await retryMarketingCampaign({ userId: user.id, email: user.email ?? null, studioId, locationId, campaignId });
+  if (!result.ok) return err(result.message);
+  revalidatePath("/dashboard/marketing");
+  revalidatePath(`/dashboard/marketing/campaigns/${campaignId}`);
+  return ok(result.retryCount ? `${result.retryCount} failed recipients queued for retry.` : "No retryable recipients remain.");
 }
