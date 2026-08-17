@@ -73,8 +73,8 @@ begin
     (gen_random_uuid(), v_instructor, v_studio, v_location, 'instructor', true)
   on conflict do nothing;
 
-  insert into public.employees (id, studio_id, user_id, display_name, employment_status, is_active)
-  values (v_employee, v_studio, v_instructor, 'APT-04 settlement staff', 'active', true);
+  insert into public.employees (id, studio_id, user_id, display_name, employment_status)
+  values (v_employee, v_studio, v_instructor, 'APT-04 settlement staff', 'active');
 
   insert into public.employee_locations (employee_id, location_id, studio_id, is_primary, is_active)
   values (v_employee, v_location, v_studio, true, true);
