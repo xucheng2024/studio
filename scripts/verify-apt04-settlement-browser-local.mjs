@@ -103,6 +103,11 @@ async function bookFirstSlot(page, paymentOption) {
   const form = page.locator('form:has(input[name="slot_starts_at"])').first();
   await form.waitFor({ state: "visible", timeout: 30_000 });
   const paymentSelect = form.locator('select[name="payment_option"]');
+  if (paymentOption === "package_credit") {
+    const packageOption = paymentSelect.locator('option[value="package_credit"]');
+    await packageOption.waitFor({ state: "attached", timeout: 15_000 });
+    assert.equal(await packageOption.getAttribute("disabled"), null, "package credit option should be eligible");
+  }
   await paymentSelect.selectOption(paymentOption);
   await form.locator('input[name="terms_accepted"]').check();
   console.log("[apt04-settlement-uat] submitting slot", { paymentOption });
@@ -138,7 +143,6 @@ try {
     false,
     "booking page 390px overflow",
   );
-  await customer.page.getByRole("option", { name: /^Use package credits$/ }).waitFor({ state: "attached", timeout: 15_000 });
 
   await bookFirstSlot(customer.page, "package_credit");
   assert.match(customer.page.url(), /ok=booked/);
