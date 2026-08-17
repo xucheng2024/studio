@@ -74,10 +74,45 @@ function waitForApp(url) {
   });
 }
 
+function waitForExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(false);
+    }, timeoutMs);
+    child.once("exit", onExit);
+  });
+}
+
+async function stopProcessTree(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const signal = (name) => {
+    try {
+      if (process.platform === "win32") child.kill(name);
+      else process.kill(-child.pid, name);
+    } catch (error) {
+      if (error?.code !== "ESRCH") throw error;
+    }
+  };
+  signal("SIGTERM");
+  if (await waitForExit(child, 5_000)) return;
+  signal("SIGKILL");
+  await waitForExit(child, 5_000);
+}
+
 export async function runLocalNextUat({ port, env, command, readyPath = "/" }) {
   const baseUrl = `http://127.0.0.1:${port}`;
   const readyUrl = new URL(readyPath, baseUrl);
-  const app = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", String(port)], { env, stdio: "inherit" });
+  const app = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", String(port)], {
+    env,
+    stdio: "inherit",
+    detached: process.platform !== "win32",
+  });
   try {
     for (let attempt = 0; attempt < 60; attempt += 1) {
       if (await waitForApp(readyUrl)) break;
@@ -87,6 +122,6 @@ export async function runLocalNextUat({ port, env, command, readyPath = "/" }) {
     const test = spawn(command[0], command.slice(1), { env, stdio: "inherit" });
     return await new Promise((resolve) => test.once("exit", (exitCode) => resolve(exitCode ?? 1)));
   } finally {
-    app.kill("SIGTERM");
+    await stopProcessTree(app);
   }
 }
