@@ -62,7 +62,8 @@ begin
   values (v_service, v_studio, 'APT-01 local service', 80, 'SGD', true, 60);
 
   insert into public.service_locations (studio_id, service_id, location_id, is_enabled, uses_default_values)
-  values (v_studio, v_service, v_location, true, true);
+  values (v_studio, v_service, v_location, true, true)
+  on conflict (service_id, location_id) do update set is_enabled = true, uses_default_values = true;
 end $$;
 
 select 'apt01_uat_fixture_ok' as result;

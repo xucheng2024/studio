@@ -80,11 +80,13 @@ begin
 
   insert into public.service_locations (studio_id, service_id, location_id, is_enabled, uses_default_values) values
     (v_studio, v_service, v_l1, true, true),
-    (v_studio, v_service, v_l2, true, true);
+    (v_studio, v_service, v_l2, true, true)
+  on conflict (service_id, location_id) do update set is_enabled = true, uses_default_values = true;
 
   insert into public.service_employees (studio_id, service_id, employee_id, is_active) values
     (v_studio, v_service, v_employee_l1, true),
-    (v_studio, v_service, v_employee_l2, true);
+    (v_studio, v_service, v_employee_l2, true)
+  on conflict (service_id, employee_id) do update set is_active = true;
 
   for v_weekday in 0..6 loop
     insert into public.location_operating_hours (studio_id, location_id, weekday, is_closed, opens_at, closes_at) values
