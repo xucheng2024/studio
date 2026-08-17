@@ -130,8 +130,16 @@ try {
 
   const replayResponse = await postWebhook(rawBody, goodSignature, eventId);
   assert.equal(replayResponse.status, 200, `webhook replay failed: ${await replayResponse.text()}`);
-  const replayBody = await replayResponse.json().catch(() => ({}));
-  assert.equal(replayBody.duplicate === true || replayBody.ok === true, true, "webhook replay stays idempotent");
+  const replayPaid = await waitForLocalDatabaseState(async () => {
+    const [{ data: sale, error: saleError }, { data: payment, error: paymentError }] = await Promise.all([
+      admin.from("pos_sales").select("status, receipt_number").eq("id", saleId).single(),
+      admin.from("payments").select("status").eq("id", paymentId).single(),
+    ]);
+    if (saleError) throw saleError;
+    if (paymentError) throw paymentError;
+    return { sale, payment };
+  }, (row) => row?.sale?.status === "paid" && row?.payment?.status === "paid", "webhook replay keeps paid state");
+  assert.equal(replayPaid.sale.receipt_number, paidSale.receipt_number, "webhook replay must not change receipt number");
 
   const badResponse = await postWebhook(rawBody, "not-a-valid-signature", `${eventId}-bad`);
   assert.equal(badResponse.status, 401);
