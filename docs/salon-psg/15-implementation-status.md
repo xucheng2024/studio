@@ -1,6 +1,6 @@
 # Salon PSG 实施状态表
 
-更新时间：2026-08-14
+更新时间：2026-08-17
 
 本文件是开发进度的唯一来源。模块需求说明“最终产品要做什么”，Backlog 说明依赖顺序，本文件只记录每个任务当前真实状态和交付证据。
 
@@ -22,7 +22,7 @@
 | FND-01 | 已上线 | 已存在 `employees`、`employee_locations`、迁移冲突表、Studio 一致性约束、唯一用户/Instructor 关联、单一主要门店、RLS/RPC 和 `src/lib/employees.ts` | `522ef18` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。 |
 | FND-02 | 已上线 | 已存在 `salon_customers`、迁移冲突、Merge Audit、Studio 引用校验、Guest Link/Merge RPC、RLS 和 `src/lib/salon-customers.ts` | `6ba056e` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。健康资料仍属于 CRM-01。 |
 | FND-03 | 已上线 | 已存在 `service_locations` Migration 和 `src/lib/service-locations.ts`，包含发布范围、停用、覆盖值、审计及权限入口 | `6c40e3d`，`main` / `origin/main` | Migration 已返回 `service_location_rows_created: 47`。总部默认时长/缓冲由 APT-01 在建立 Salon Availability 契约时补充，不回退 FND-03。 |
-| FND-04 | 已实现/待验证 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | `75caa06`，已进入 `main` | 验证使用独立最小 Postgres 沙盒完成（详见 [FND-04](./tasks/FND-04.md)），因既有 `051_member_profile_notes.sql` 的 `\restrict` 语法及 `auth` Schema 权限问题（与本任务无关）暂无法从空库完整重放历史；`operation_audits` 未做 Schema 变更或回填，仅在任务文件中给出未解决 Legacy 记录的报告查询。 |
+| FND-04 | 已验证/待上线 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | `75caa06`，已进入 `main` | 已修复 051 历史 dump 本地重放阻断，并在完整 migration 历史重放后通过 `test:apt02-idempotency-faults`。待发布窗口后升“已上线”。 |
 
 详细记录见 [FND-01](./tasks/FND-01.md)、[FND-02](./tasks/FND-02.md)、[FND-03](./tasks/FND-03.md)、[FND-04](./tasks/FND-04.md)、[APT-02](./tasks/APT-02.md)。
 
@@ -70,8 +70,8 @@
   - Legacy 051 阻断复核：`supabase start` 仍在 `051_member_profile_notes.sql` 的 `\restrict` 语法处报 `42601`，阻断仍真实存在（非过期结论）。
   - 合同验证：最小 Postgres 沙盒复测 `strong_audit_logs` append-only、`business_idempotency_keys` claim/replay/stale fencing、`provider_events` dedup/payload_conflict，结果 `fnd04_acceptance_ok`。
   - 复用性验证：`test:apt02-idempotency-faults`、`test:crm01-db`、`test:crm02-db` 均通过，说明 Appointment/CRM 已稳定复用同一幂等与强审计原语。
-- APT-01：`test:apt01-static-gates`、`test:availability`、`test:apt01-db-rollback` 通过，确认跨 Studio/Location 资源与可用性核心契约可回归；动态浏览器矩阵与 390px 手工回归仍需上线窗口补证。
-- APT-03：`test:apt03-app` + `test:apt03-db` 通过，覆盖日/周视图查询契约、状态转换、资源释放、幂等重放与越权拒绝；390px 浏览器手工回归仍需上线窗口补证。
+- APT-01：`test:apt01-static-gates`、`test:availability`、`test:apt01-db-rollback` 通过，确认跨 Studio/Location 资源与可用性核心契约可回归。2026-08-17 已用 `apt01-availability-local` Free cloud UAT 补 390px 与角色拒绝证据。
+- APT-03：`test:apt03-app` + `test:apt03-db` 通过，覆盖日/周视图查询契约、状态转换、资源释放、幂等重放与越权拒绝。2026-08-17 已用 `apt03-calendar-local` Free cloud UAT 补 390px 日历主路径与跨门店拒绝证据。
 - CRM-01：`test:crm01-app`、`test:crm01-static`、`test:crm01-db` 通过；`verify:crm01-preflight` 受缺失 `CRM01_E2E_STUDIO_ID` 限制未完成专属隔离门店预检。生产侧补充执行 `test:crm02-browser`（固定账号 + 390px）通过，角色矩阵、越权拒绝、审计脱敏与幂等重放均通过。
 
 冻结结论（供下游直接依赖）：
@@ -83,7 +83,7 @@
 未完成项（不阻断契约冻结，但阻断“全部真实环境验收完成”）：
 
 - `CRM01_E2E_STUDIO_ID` 对应隔离门店预检尚未补齐。
-- APT-01 与 APT-03 的 390px 端到端浏览器手工证据需在上线窗口补档。
+- APT-01 与 APT-03 的隔离 390px / 角色矩阵浏览器证据已于 2026-08-17 由 Free cloud UAT 收口；生产发布窗口证据仍待补，不升“已上线”。
 
 ## 当前建议领取顺序
 

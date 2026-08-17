@@ -130,7 +130,7 @@ Commit / Release：`dc1262e`、`42a70da`；未上线
 - [x] `npx tsc --noEmit`
 - [x] 仅任务相关文件 ESLint
 
-### 已实现/待验证
+### 浏览器 UAT（2026-08-17 已通过）
 
 - [x] Location Manager / Frontdesk 跨门店越权（隔离 UAT：Frontdesk 看不到 L2 appointment card）
 - [x] 移动端核心操作回归（390px create + 状态推进）

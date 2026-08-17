@@ -9,7 +9,7 @@
 | Q1 云端及多设备 | ✅ 基本满足 | Yes | 保持响应式 Web/PWA 和云端单一数据源；准备桌面、平板/手机浏览器及同账号数据同步截图。PWA 不在这里宣称为独立 Mobile App。 |
 | Q2 多门店集中管理 | 🟡 部分满足 | Yes | `FND-01`、`FND-03` 完成员工多门店和服务发布基础；还需 `APT-01`/`APT-02`、`POS-01` 和 `RPT-01`/`RPT-02` 分别保证预约、销售真实归店以及单店/全部门店汇总。全部完成并通过越权测试后才能判定 Q2 满足。 |
 | Q3 Dashboard / Reports | ❌ 不满足 | Yes | 完成 `RPT-01`、`RPT-02`：四个真实互动图表，公共筛选同时作用；并提供 Appointment Outcome、Outlet/Service/Retail/YoY Sales、New/Repeat Retention、FOV、Employee/Commission 和 Package Balance Value 报表。Inventory、Loyalty 按未启用模块填 0。 |
-| Q4 Appointment Scheduling | 🟡 已实现待最终验收 | Yes | `APT-01` 至 `APT-03` 已实现一对一 Salon Appointment、员工时间、房间/床位/设备、跨门店冲突、状态、取消/改期和原子占用；补齐 APT-01/APT-03 生产角色、动态越权和移动端证据后确认满足。现有课程 Session 不作为证据。 |
+| Q4 Appointment Scheduling | 🟡 已验证/待上线 | Yes | `APT-01` 至 `APT-03` 已实现一对一 Salon Appointment、员工时间、房间/床位/设备、跨门店冲突、状态、取消/改期和原子占用；2026-08-17 隔离 Free cloud UAT 已覆盖 APT-01 角色拒绝/390px 配置写入与 APT-03 日历主路径/跨门店拒绝。待生产发布窗口与申请截图后确认满足。现有课程 Session 不作为证据。 |
 | Q5–Q6 Online Booking | 🟡 模块存在但不完整 | Yes | 完成 `APT-05` 与分段 `APT-04`：先交付安全登录、实时档期、客户本人预约/取消/改期和 Terms，再联合 `PKG-01`、`POS-03` 接入 Package Credits、订金或全额付款及通知。 |
 | Q7 Customer Management | 🟡 已实现待证据收口 | Yes | `FND-02`、`CRM-01`、`CRM-02` 已覆盖 Studio-scoped Customer、偏好、过敏、健康/禁忌、疗程历史、Follow-up、Consent 和敏感权限；CRM-02 已上线，补齐 CRM-01 最终上线状态与申请截图后确认满足。 |
 | Q8 实时同步 | ✅ 基础满足 | Yes | Supabase 继续作为单一数据源；所有新模块写入同一业务数据关系。准备两个设备同时更新客户、预约或销售并即时看到一致结果的演示证据。 |
