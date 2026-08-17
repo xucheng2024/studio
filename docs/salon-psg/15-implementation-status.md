@@ -215,3 +215,9 @@
 - 已新增并接入 `mkt02-studio-email-local`（fixture、浏览器 verifier、Free cloud UAT / changed-path / release-gate 目录）。
 - GitHub Actions Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32046926360（`mkt02_studio_email_local_uat_ok`）。
 - MKT-02 升为“已验证/待上线”。未向真实客户群发；生产 Owner 启用该店 Resend 后随发布窗口升“已上线”。
+
+## 2026-08-18 状态更新（isolated UAT scaffolder）
+
+- 新增 `scripts/scaffold-isolated-uat-flow.mjs`：一次写入 fixture stubs 与 Free cloud UAT / release-gate / `FAST_SCRIPTS` 目录。
+- 新增 flow 用 `--write`，再补 verifier 断言，然后 `npm run test:cloud-uat-options`。
+- 业务状态不变。下一开发项仍是 PAY-01（等规则签字）；并行发布窗口与生产 Owner 启用该店 Resend。
