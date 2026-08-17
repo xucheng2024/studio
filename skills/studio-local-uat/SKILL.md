@@ -7,6 +7,12 @@ description: Run, debug, or add isolated local browser UAT and combined Supabase
 
 Use this project skill with `$uat-browser` for Studio browser/UAT work. Keep all app, auth, and database targets on loopback addresses.
 
+## Studio cloud adapter
+
+Use `$uat-browser` for generic cloud-hosted routing, caching, batching, concurrency, and minute-usage decisions. This skill owns only Studio-specific declarations: `uat.flows.json`, `scripts/select-cloud-uat-flow.mjs`, `.github/workflows/fast-changed-path-checks.yml`, and `.github/workflows/free-cloud-uat.yml`.
+
+For a normal Studio change, run the changed-path selector first and keep Docker UAT explicit. Use `all` for parallel feedback and `all-batched` only after preserving the audited fixture order in `scripts/run-github-hosted-uat.mjs`.
+
 ## Select a flow
 
 - Read `uat.flows.json` before choosing a command. Treat the selected flow as discovery: inspect its verifier, fixture writes, authentication, and server lifecycle before running it.

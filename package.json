@@ -53,6 +53,7 @@
     "test:crm02-browser": "node scripts/verify-crm02-playwright.mjs",
     "test:crm02-uat-local": "node scripts/run-crm02-uat-local.mjs",
     "test:mkt01-uat-local": "node scripts/run-mkt01-uat-local.mjs",
+    "test:mkt02-marketing-contract": "node --experimental-strip-types --test scripts/tests/mkt02-marketing-contract.test.ts",
     "test:mkt02": "node scripts/verify-mkt02-local.mjs",
     "test:pos-pkg-uat-local": "node scripts/run-pos-pkg-uat-local.mjs",
     "test:uat-github": "node scripts/run-github-hosted-uat.mjs",

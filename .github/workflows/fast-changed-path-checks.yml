@@ -1,0 +1,45 @@
+name: Fast changed-path checks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fast-changed-path-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  route:
+    runs-on: ubuntu-24.04
+    outputs:
+      fast_matrix: ${{ steps.route.outputs.fast_matrix }}
+      has_fast: ${{ steps.route.outputs.has_fast }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: route
+        run: node scripts/select-cloud-uat-flow.mjs --base "${{ github.event.before || 'HEAD~1' }}" --head "${{ github.sha }}"
+
+  fast-contracts:
+    needs: route
+    if: needs.route.outputs.has_fast == 'true'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.route.outputs.fast_matrix) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm run ${{ matrix.script }}

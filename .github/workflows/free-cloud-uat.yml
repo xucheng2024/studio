@@ -15,6 +15,7 @@ on:
           - mkt01-marketing-local
           - pos-packages-local
           - all
+          - all-batched
 
 permissions:
   contents: read
@@ -25,7 +26,7 @@ jobs:
       fail-fast: false
       max-parallel: 5
       matrix:
-        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt04-appointments-local","com01-commission-local","crm02-clients-local","mkt01-marketing-local","pos-packages-local"]' || format('["{0}"]', inputs.flow)) }}
+        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt04-appointments-local","com01-commission-local","crm02-clients-local","mkt01-marketing-local","pos-packages-local"]' || inputs.flow == 'all-batched' && '["all-batched"]' || format('["{0}"]', inputs.flow)) }}
     concurrency:
       group: free-cloud-uat-${{ github.ref }}-${{ matrix.flow }}
       cancel-in-progress: true
