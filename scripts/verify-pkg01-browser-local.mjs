@@ -79,6 +79,7 @@ try {
     if (error) throw error;
     return data;
   }, (row) => row?.event_type === "purchase_grant" && Number(row.delta_credits) === 6, "purchase grant ledger");
+  console.log("pkg01_purchase_grant_ok", { saleId, deltaCredits: grant.delta_credits, clientPackageId: grant.client_package_id });
   const grantedPackage = await waitForLocalDatabaseState(async () => {
     const { data, error } = await admin.from("client_packages").select("id, credits_left").eq("id", grant.client_package_id).single();
     if (error) throw error;
@@ -96,7 +97,8 @@ try {
   await owner.page.locator(`input[name="refund_amount__${saleItemId}"]`).fill("120.00");
   await owner.page.getByLabel("Refund reason (optional)").fill("PKG-01 local full package refund");
   await owner.page.getByRole("button", { name: "Refund items" }).click();
-  await waitForToast(owner.page, "Refund applied to 1 item(s).");
+  await waitForToast(owner.page, "Sale fully refunded.");
+  console.log("pkg01_refund_toast_ok", { saleId, saleItemId });
 
   await waitForLocalDatabaseState(async () => {
     const { data, error } = await admin
