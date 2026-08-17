@@ -21,6 +21,7 @@ Studio's first-release Docker UAT path is **GitHub Actions Free cloud UAT**, not
 2. Local `$uat-browser` `run_flow.py` is optional when the workstation already has Docker and local Supabase.
 3. If `run_flow.py` fails with missing `docker`, unavailable Docker daemon, or equivalent local-environment requirements, **do not treat that as product failure**. Switch immediately to Free cloud UAT for the selected flow. Do not ask the user to install Docker first unless they explicitly want a local runner.
 4. When adding a new isolated browser flow, wire it into all of: `uat.flows.json`, `scripts/lib/cloud-uat-routing.mjs` (`FAST_SCRIPTS`), `scripts/run-github-hosted-uat.mjs` (`batchedFlowIds`), `.github/workflows/free-cloud-uat.yml` (options + `all` matrix), and release-gate flow lists when applicable. A flow that exists only in `uat.flows.json` is not cloud-executable.
+5. After that flow passes and the task is closed, read `$workflow-saver` once and screen in silence. Repeated fixture/runner/catalog wiring across flows is valid evidence. Do not skip this screen because validation already passed.
 
 ## Select a flow
 

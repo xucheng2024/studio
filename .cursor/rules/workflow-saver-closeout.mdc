@@ -1,0 +1,15 @@
+---
+description: After material UAT or implementation closeout, screen workflow-saver once.
+alwaysApply: true
+---
+
+# Closeout skill screen
+
+When a material implementation, isolated UAT, migration, or operational task is closed (status updated, flow passed, or user asked to stop):
+
+1. Read `$workflow-saver` once in the same turn as closeout.
+2. Screen from this conversation only. Do not treat “validation passed” as a reason to skip.
+3. If the screen fails the skill’s repetition/error-prone gates, stay silent.
+4. If it passes, give at most one suggestion in the skill’s four-line format and ask for approval. Do not create files until approved.
+
+This screen is part of closeout. It is not extra work after the task is verified.

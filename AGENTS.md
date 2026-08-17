@@ -34,6 +34,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Check `git status` before making changes and preserve unrelated existing modifications.
 - Do not modify unrelated files.
 - Stop when the requested task is sufficiently verified.
+- After a completed material implementation, UAT, migration, or operational closeout, read `$workflow-saver` once and screen in silence. A passing screen may yield one suggestion; a skip stays silent. This screen is part of closeout, not extra work after “verified”.
 - Keep command output and final responses concise.
 
 # UI / E2E Validation
@@ -85,3 +86,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Treat a selected `uat.flows.json` flow as discovery only: inspect its verifier's target, writes, auth, and server lifecycle before execution.
 - Do not modify `uat.flows.json` during an ordinary UAT run. Sync it only when the task explicitly creates, updates, or maintains UAT routing.
 - Do not run remote or data-writing UAT flows without explicit task authority. Never use a production fallback.
+- After a new or updated isolated flow passes Free cloud UAT (or local Docker UAT) and status/docs are closed, read `$workflow-saver` once. Screen from this conversation only. If POS-02/POS-03/APT-style fixture+catalog wiring repeated, that is enough evidence to suggest improving `skills/studio-local-uat` or a small generator—not a second flow template. Skip silently when the suggestion was already made this chat.
