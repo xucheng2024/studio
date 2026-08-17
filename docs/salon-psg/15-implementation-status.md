@@ -41,7 +41,7 @@
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
 | Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
 | Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
-| Phase 2 | PKG-01 Package Ledger | 已实现/待验证 | FND-02、FND-03、FND-04、POS-01 | 目标 migration 已对齐；2 条历史正余额已完成 opening Ledger 回填且只读预检通过。已新增专用 Free cloud UAT `pkg01-package-ledger-local`（待执行）；通过后升为已验证 |
+| Phase 2 | PKG-01 Package Ledger | 已验证/待上线 | FND-02、FND-03、FND-04、POS-01 | 目标 migration 已对齐；2 条历史正余额已完成 opening Ledger 回填。专用 Free cloud UAT `pkg01-package-ledger-local` 已通过（run `32027455067`，`pkg01_local_uat_ok`）。覆盖 390px 现金收款发放 `purchase_grant`、客户 ledger 可见 credits、整项退款 `refund_reversal` 与 Instructor POS 拒绝；待发布窗口后升“已上线”。 |
 | Phase 2 | POS-02 Cash/Receipt | 已验证/待上线 | POS-01 | DB Gate、目标 migration 与 Batch 1/2 专用 Free cloud UAT 已通过（`pos02-cash-receipt-local`，run `32002949749`，`pos02_local_uat_ok`）。覆盖现金班次开启、现金收款、Sale/Payment 原子 paid、receipt number 展示、Instructor 越权拒绝与 390px。找零 UI 与 PDF/可点击收据仍不在 Batch 1/2 范围；待发布窗口后升“已上线”。 |
 | Phase 2 | POS-03 HitPay | 已验证/待上线 | POS-01 | Merchant Key-only 与 Batch 2 恢复加固已落地；专用 Free cloud UAT `pos03-hitpay-sandbox-local` 已通过（run `32004577210`，`pos03_local_uat_ok`，Sandbox `api.sandbox.hit-pay.com`）。覆盖 create、pending sync、签名 webhook paid、重放幂等、无效签名 401、已付后再 sync。未在 Production 造支付数据；待发布窗口后升“已上线”。 |
 | Phase 2 | PKG-02 Package Approval | 已验证/待上线 | PKG-01 | DB Gate、目标 migration 与 `pos-packages-local` Free cloud UAT 已通过（run `32003377267`，`pos_pkg_local_uat_ok`）。覆盖 390px draft/submit、并发 checker 批准单一转换、Ledger apply、拒绝路径与 Instructor 拒绝访问；待发布窗口后升“已上线”。 |
@@ -87,8 +87,8 @@
 
 ## 当前建议领取顺序
 
-1. Phase 1 浏览器证据缺口（APT-01 / APT-03）已用隔离 Free cloud UAT 收口。进入 Phase 3 前仍需生产发布窗口，才能把 APT-02/05、CRM-01、POS-02/03、PKG-02、POS-04 等“已验证/待上线”升为“已上线”。
-2. 下一开发项优先 PKG-01（仍为已实现/待验证：专用事务点击流）。APT-04 / MKT-02 继续按依赖窗口补目标环境证据；支付相关验证只用 HitPay Sandbox。
+1. Phase 1 浏览器证据缺口（APT-01 / APT-03）已用隔离 Free cloud UAT 收口。进入 Phase 3 前仍需生产发布窗口，才能把 APT-02/05、CRM-01、POS-02/03、PKG-01/02、POS-04 等“已验证/待上线”升为“已上线”。
+2. 下一开发项优先 APT-04 / MKT-02 目标环境证据。支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -115,6 +115,13 @@
 - APT-01 Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32006999542（`apt01_local_uat_ok`）。
 - APT-03 Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32008529292（`apt03_local_uat_ok`）。
 - 日历创建表单改为读取 `studio_services.title`。两项均升为“已验证/待上线”；不升“已上线”（待发布窗口）。
+
+## 2026-08-17 状态更新（PKG-01 Package Ledger UAT）
+
+- 已新增并接入 `pkg01-package-ledger-local`（fixture、浏览器 verifier、Free cloud UAT / changed-path / release-gate 目录）。
+- GitHub Actions Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32027455067（`pkg01_local_uat_ok`）。
+- 覆盖 390px 现金收款发放 `purchase_grant`、客户 ledger 可见 credits、整项退款 `refund_reversal` 与 Instructor POS 拒绝。
+- PKG-01 升为“已验证/待上线”；部分 package refund 与 Guest `user_id is null` 发放仍不在本项范围。
 
 ## 2026-08-14 状态更新（COM-01）
 

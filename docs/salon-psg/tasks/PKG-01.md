@@ -1,14 +1,14 @@
 # PKG-01：Package Ledger（opening balance + 事件账本）
 
-状态：已实现/待目标环境验证（Batch 1/2/3/4/5 已落地）
+状态：已验证/待上线（专用 Free cloud UAT 已通过）
 
 负责人：待分配
 
 开始日期：2026-08-14
 
-完成日期：
+完成日期：2026-08-17
 
-Commit / Release：`52ff41a`、`92b2efe`、`e045136`；未上线
+Commit / Release：`52ff41a`、`92b2efe`、`e045136`、`f11a42d`、`f2a6f4a`；未上线
 
 ## 1. 目标
 
@@ -115,9 +115,9 @@ Commit / Release：`52ff41a`、`92b2efe`、`e045136`；未上线
 
 - [ ] opening balance 迁移后，`credits_left == Ledger 汇总余额`
 - [ ] 旧 Class Booking 不回退，既有 consume/return 语义保持
-- [ ] 仅 paid package sale 发放 `purchase_grant`
+- [x] 仅 paid package sale 发放 `purchase_grant`
 - [ ] 同一来源重复触发不重复发放（幂等）
-- [ ] 退款仅回冲已发放且未被同源回冲的权益
+- [x] 退款仅回冲已发放且未被同源回冲的权益
 - [ ] Studio 隔离与 Location Scope 允许/拒绝
 - [ ] 角色允许/拒绝（含 Customer 仅可读本人）
 - [ ] 数据库约束拒绝非法组合（跨 Studio、负余额、未知来源）
@@ -209,6 +209,7 @@ Commit / Release：`52ff41a`、`92b2efe`、`e045136`；未上线
 - 首选执行：GitHub Actions **Free cloud UAT**，选择 `pkg01-package-ledger-local`。
 - 覆盖：390px 现金班次开启、package 现金收款、`purchase_grant` 与客户 ledger 可见 credits、整项退款 `refund_reversal`、Instructor POS 拒绝访问。
 - 不把部分 package refund 或 Guest `user_id is null` 发放作为本项通过条件。
+- Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32027455067（`pkg01_local_uat_ok`）。
 
 ### 未解决风险
 
