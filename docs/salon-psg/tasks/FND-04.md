@@ -1,6 +1,6 @@
 # FND-04：强审计与幂等基础
 
-状态：已实现/待验证
+状态：已验证/待上线
 
 ## 已确认实施内容
 
@@ -56,9 +56,11 @@ select count(*) from public.operation_audits;
 - [x] Provider Event 重放：相同 Payload Hash 且已 `processed` → `already_processed`（`duplicate:true`），未产生第二次业务动作；相同 Event ID 不同 Payload Hash → `payload_conflict`，原记录 `payload_hash` 未被覆盖。
 - [x] 权限矩阵：`anon`/`authenticated` 对三张新表的 `select` 及全部新 RPC 的 `execute` 均被拒绝；`service_role` 可 `select` 三张表，但对 `strong_audit_logs` 的直接 `INSERT` 被拒绝（必须经 `record_strong_audit`），可正常 `execute` 全部 RPC。
 - [x] `getStrongAuditTrail` 使用 `requireGlobalStaffScope`，越权 Studio/Location 的 Actor 在服务端被拒绝（复用 `scope.ts` 既有测试路径，逻辑与 `salon-customers.ts` 的 `hasGlobalCustomerReadAccess` 一致，未重新发明角色策略）。
-- [ ] FND-01/02/03 最小回归：本轮未连回真实完整历史库重跑（受上述 051 既有问题阻塞），改为静态确认——`git diff` 显示本任务未修改 `124_employee_foundation.sql`、`salon_customer_foundation`、`fnd03_service_location_publish` 及对应 `src/lib/*.ts`；`npx tsc --noEmit` 对整个项目通过，未出现类型冲突。**建议独立修复 051 的既有问题后，对完整历史重跑一次真实回归。**
+- [x] FND-01/02/03 最小回归：`npx supabase db reset --local --no-seed` 已从空库完整重放全部 migration 至 `20260817140100`；`npx tsc --noEmit` 通过。
 - [x] 现有 `operation_audits`/`writeOperationAudit`：本任务未修改该表或函数，`git diff` 确认零改动。
 
-## 当前确认边界
+## 2026-08-17 完整历史重放补证
 
-`051_member_profile_notes.sql` 的 `\restrict`/`\unrestrict` 语法错误与 `auth` Schema 权限拒绝是本任务发现但不属于本任务范围的既有问题，阻塞了"从空库完整重放历史 Migration"这一验证方式；本任务改用等价最小沙盒完成同等验证，未修改任何已上线 Migration。后续任务（尤其下一个需要 `supabase start`/`db reset` 的任务）在真正需要完整历史重放前，应先单独处理该问题。
+- `051_member_profile_notes.sql` 已移除 pg_dump 的 `\restrict`/`\unrestrict` 元指令及受 Supabase 管理的 auth/storage schema dump；应用 schema 保持不变。
+- `npx supabase db reset --local --no-seed` 已从空库完整重放至 `20260817140100`。
+- 已确认 `strong_audit_logs`、`business_idempotency_keys`、`provider_events` 与 `marketing_campaigns` 存在；`npm run test:apt02-idempotency-faults`、`npx tsc --noEmit` 通过。
