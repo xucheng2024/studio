@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       flow:
-        description: "One isolated local-only UAT flow to run"
+        description: "One isolated UAT flow, or all flows in parallel"
         required: true
         default: apt04-appointments-local
         type: choice
@@ -14,16 +14,21 @@ on:
           - crm02-clients-local
           - mkt01-marketing-local
           - pos-packages-local
+          - all
 
 permissions:
   contents: read
 
-concurrency:
-  group: free-cloud-uat-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   isolated-uat:
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt04-appointments-local","com01-commission-local","crm02-clients-local","mkt01-marketing-local","pos-packages-local"]' || format('["{0}"]', inputs.flow)) }}
+    concurrency:
+      group: free-cloud-uat-${{ github.ref }}-${{ matrix.flow }}
+      cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -81,7 +86,7 @@ jobs:
 
       - name: Run isolated Docker-backed UAT
         env:
-          SELECTED_FLOW: ${{ inputs.flow }}
+          SELECTED_FLOW: ${{ matrix.flow }}
           UAT_SUPABASE_EXCLUDE: realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
         run: node scripts/run-github-hosted-uat.mjs --flow "$SELECTED_FLOW"
 

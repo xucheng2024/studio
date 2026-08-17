@@ -4,7 +4,7 @@ The first release recommends one no-upfront-cost path: GitHub Actions. Run `npm 
 
 ## GitHub Actions
 
-Choose GitHub Actions when you want the simplest setup and only need an occasional UAT run. The repository already supplies **Free cloud UAT** under Actions; select one flow and GitHub creates a fresh x64 Ubuntu runner, starts Docker-backed local Supabase, runs the browser verifier, and cleans up.
+Choose GitHub Actions when you want the simplest setup and do not need to maintain a server. The repository already supplies **Free cloud UAT** under Actions; select one flow, or select **all** to run the five isolated flows in parallel. Each job creates a fresh x64 Ubuntu runner, starts Docker-backed local Supabase, runs its browser verifier, and cleans up.
 
 Why it is the default:
 
@@ -16,7 +16,9 @@ The workflow reuses only immutable dependencies: npm download data, the Playwrig
 
 The first run for a new lockfile or workflow revision is intentionally cold and creates the browser and image caches. Later runs restore them. Changing the dependency lockfile, Supabase configuration, or workflow invalidates the relevant cache automatically; GitHub may also evict old caches under its repository cache limit.
 
-Limits: standard runners are free without minute limits for public repositories. Private repositories consume the account's included minutes; GitHub Free currently includes a monthly allowance. A private-repository Ubuntu runner currently has 8 GB RAM and 14 GB SSD, so the workflow deliberately runs one flow at a time.
+For a few hours of active development, run only the flow affected by the latest change. A newer run for the same branch and flow automatically cancels its older in-progress run, so stale checks do not form a queue. Different flows can run concurrently; selecting **all** fans out to all five. Parallel runs reduce wall-clock time but consume roughly the same GitHub Actions minutes as running the flows one after another.
+
+Limits: standard runners are free without minute limits for public repositories. Private repositories consume the account's included minutes; GitHub Free currently includes a monthly allowance. A private-repository Ubuntu runner currently has 8 GB RAM and 14 GB SSD. GitHub-hosted runners are intentionally disposable: no test environment remains alive between workflow runs. A persistent, interactive environment for several hours requires a self-hosted runner or cloud VM.
 
 ## What is not recommended
 
