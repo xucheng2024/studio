@@ -203,6 +203,13 @@ Commit / Release：`52ff41a`、`92b2efe`、`e045136`；未上线
   - deferred value 冲突可写入并在数据修复后自动转为 `resolved`。
   - Ledger append-only 保护在校验链路中保持有效。
 
+### 本地浏览器 UAT
+
+- 专用 flow：`pkg01-package-ledger-local`（`uat.flows.json`）。
+- 首选执行：GitHub Actions **Free cloud UAT**，选择 `pkg01-package-ledger-local`。
+- 覆盖：390px 现金班次开启、package 现金收款、`purchase_grant` 与客户 ledger 可见 credits、整项退款 `refund_reversal`、Instructor POS 拒绝访问。
+- 不把部分 package refund 或 Guest `user_id is null` 发放作为本项通过条件。
+
 ### 未解决风险
 
 - 当前 Batch 2 对 package item 退款采用最小闭环：仅支持“整项全额退款”自动回冲；部分 package refund 留待后续批次。

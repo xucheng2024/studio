@@ -79,7 +79,8 @@
     "test:com01-db": "bash scripts/verify-com01-db.sh",
     "test:com01-uat-local": "node scripts/run-com01-uat-local.mjs",
     "test:pos02-uat-local": "node scripts/run-pos02-uat-local.mjs",
-    "test:pos03-uat-local": "node scripts/run-pos03-uat-local.mjs"
+    "test:pos03-uat-local": "node scripts/run-pos03-uat-local.mjs",
+    "test:pkg01-uat-local": "node scripts/run-pkg01-uat-local.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

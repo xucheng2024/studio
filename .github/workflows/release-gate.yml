@@ -111,6 +111,7 @@ jobs:
             mkt01-marketing-local
             pos02-cash-receipt-local
             pos03-hitpay-sandbox-local
+            pkg01-package-ledger-local
             pos-packages-local
           )
           for flow in "${flows[@]}"; do

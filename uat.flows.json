@@ -330,6 +330,51 @@
       }
     },
     {
+      "id": "pkg01-package-ledger-local",
+      "paths": [
+        "src/app/(app)/dashboard/pos/[saleId]/page.tsx",
+        "src/app/(app)/dashboard/clients/[clientId]/page.tsx",
+        "src/app/(app)/dashboard/_actions/pos-sales.ts",
+        "scripts/run-pkg01-uat-local.mjs",
+        "scripts/verify-pkg01-browser-local.mjs",
+        "scripts/sql/pkg01_uat_local_execute.sql",
+        "scripts/fixtures/pos-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "supabase/migrations/20260814001000_pkg01_package_ledger_foundation.sql",
+        "supabase/migrations/20260814002000_pkg01_pos_package_grant_refund_linkage.sql"
+      ],
+      "command": [
+        "npm",
+        "run",
+        "test:pkg01-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/pkg01-uat"],
+        "index": "tmp/pkg01-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "pos-packages-local",
       "paths": [
         "src/app/(app)/dashboard/pos/**",
