@@ -23,6 +23,7 @@
     "test:apt04-db": "bash scripts/verify-apt04-db.sh",
     "test:apt04": "npm run test:apt04-app && npm run test:apt04-db",
     "test:apt04-uat-local": "node scripts/verify-apt04-uat-local.mjs",
+    "test:apt04-settlement-uat-local": "node scripts/run-apt04-settlement-uat-local.mjs",
     "test:local-uat": "node scripts/run-local-uat.mjs",
     "test:apt05-app": "node scripts/verify-apt05-app.mjs",
     "test:apt05-db": "bash scripts/verify-apt05-db.sh",

@@ -12,6 +12,7 @@ on:
           - apt01-availability-local
           - apt03-calendar-local
           - apt04-appointments-local
+          - apt04-settlement-sandbox-local
           - com01-commission-local
           - crm02-clients-local
           - mkt01-marketing-local
@@ -29,9 +30,9 @@ jobs:
   isolated-uat:
     strategy:
       fail-fast: false
-      max-parallel: 10
+      max-parallel: 11
       matrix:
-        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt01-availability-local","apt03-calendar-local","apt04-appointments-local","com01-commission-local","crm02-clients-local","mkt01-marketing-local","pos02-cash-receipt-local","pos03-hitpay-sandbox-local","pkg01-package-ledger-local","pos-packages-local"]' || inputs.flow == 'all-batched' && '["all-batched"]' || format('["{0}"]', inputs.flow)) }}
+        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt01-availability-local","apt03-calendar-local","apt04-appointments-local","apt04-settlement-sandbox-local","com01-commission-local","crm02-clients-local","mkt01-marketing-local","pos02-cash-receipt-local","pos03-hitpay-sandbox-local","pkg01-package-ledger-local","pos-packages-local"]' || inputs.flow == 'all-batched' && '["all-batched"]' || format('["{0}"]', inputs.flow)) }}
     concurrency:
       group: free-cloud-uat-${{ github.ref }}-${{ matrix.flow }}
       cancel-in-progress: true

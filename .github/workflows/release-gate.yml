@@ -106,6 +106,7 @@ jobs:
             apt01-availability-local
             apt03-calendar-local
             apt04-appointments-local
+            apt04-settlement-sandbox-local
             com01-commission-local
             crm02-clients-local
             mkt01-marketing-local

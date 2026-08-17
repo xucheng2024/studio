@@ -6,6 +6,7 @@ const flows = [
   { id: "apt01-availability-local", paths: ["scripts/verify-apt01-browser-local.mjs"] },
   { id: "apt03-calendar-local", paths: ["scripts/verify-apt03-browser-local.mjs"] },
   { id: "apt04-appointments-local", paths: ["src/app/[studioSlug]/appointments/**"] },
+  { id: "apt04-settlement-sandbox-local", paths: ["scripts/verify-apt04-settlement-browser-local.mjs"] },
   { id: "com01-commission-local", paths: ["scripts/verify-com01-uat-browser-local.mjs"] },
   { id: "crm02-clients-local", paths: ["src/app/(app)/dashboard/clients/**"] },
   { id: "mkt01-marketing-local", paths: ["src/lib/marketing.ts"] },
@@ -47,6 +48,13 @@ test("routes APT-03 calendar changes to the dedicated cloud UAT flow", () => {
   assert.deepEqual(result.flows, ["apt03-calendar-local"]);
   assert.equal(result.dispatch, "apt03-calendar-local");
   assert.deepEqual(result.fastMatrix.include, [{ flow: "apt03-calendar-local", script: "test:apt03-app" }]);
+});
+
+test("routes APT-04 settlement sandbox changes to the dedicated cloud UAT flow", () => {
+  const result = routeCloudUatChanges(["scripts/verify-apt04-settlement-browser-local.mjs"], flows);
+  assert.deepEqual(result.flows, ["apt04-settlement-sandbox-local"]);
+  assert.equal(result.dispatch, "apt04-settlement-sandbox-local");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "apt04-settlement-sandbox-local", script: "test:apt04-app" }]);
 });
 
 test("routes POS-02 cash/receipt changes to the dedicated cloud UAT flow", () => {

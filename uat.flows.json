@@ -113,6 +113,51 @@
       }
     },
     {
+      "id": "apt04-settlement-sandbox-local",
+      "paths": [
+        "src/app/[studioSlug]/appointments/**",
+        "src/app/(app)/me/appointments/**",
+        "src/lib/salon-appointments-self.ts",
+        "scripts/run-apt04-settlement-uat-local.mjs",
+        "scripts/verify-apt04-settlement-browser-local.mjs",
+        "scripts/sql/apt04_settlement_uat_local_execute.sql",
+        "scripts/fixtures/pos-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "supabase/migrations/20260814220000_apt04_phase2_self_booking_settlement.sql",
+        "supabase/migrations/20260814233000_apt04_phase2_p1_correctness_hotfix.sql"
+      ],
+      "command": [
+        "npm",
+        "run",
+        "test:apt04-settlement-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": ["node", "npm", "npx", "psql"],
+        "services": ["docker"]
+      },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/apt04-settlement-uat"],
+        "index": "tmp/apt04-settlement-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "com01-commission-local",
       "paths": [
         "scripts/verify-com01-uat-browser-local.mjs",

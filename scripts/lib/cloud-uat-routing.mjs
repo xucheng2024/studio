@@ -11,6 +11,7 @@ export const FAST_SCRIPTS = Object.freeze({
   "apt01-availability-local": "test:apt01-static-gates",
   "apt03-calendar-local": "test:apt03-app",
   "apt04-appointments-local": "test:apt04-app",
+  "apt04-settlement-sandbox-local": "test:apt04-app",
   "com01-commission-local": "test:local-uat-safety",
   "crm02-clients-local": "test:crm02-app",
   "mkt01-marketing-local": "test:mkt02-marketing-contract",
