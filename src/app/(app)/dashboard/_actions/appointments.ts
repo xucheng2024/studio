@@ -419,72 +419,140 @@ export async function transitionSalonAppointmentStatusAction(
   return ok(`Appointment moved to ${result.payload.toStatus.replaceAll("_", " ")}.`);
 }
 
-export async function chargeSalonAppointmentAction(
-  _prevState: DashboardFormResult | null,
-  formData: FormData,
-): Promise<DashboardFormResult> {
-  const studioId = String(formData.get("studio_id") ?? "").trim();
-  const locationId = String(formData.get("location_id") ?? "").trim();
-  const appointmentId = String(formData.get("appointment_id") ?? "").trim();
-  const salonCustomerId = String(formData.get("salon_customer_id") ?? "").trim();
-  const serviceId = String(formData.get("service_id") ?? "").trim();
-  const employeeId = String(formData.get("employee_id") ?? "").trim();
-  const itemName = String(formData.get("item_name") ?? "").trim();
-  const currency = String(formData.get("currency") ?? "SGD").trim() || "SGD";
-  const unitPriceRaw = String(formData.get("unit_price") ?? "").trim();
-  const unitPrice = Number(unitPriceRaw);
+function readAppointmentChargeFields(formData: FormData) {
+  return {
+    studioId: String(formData.get("studio_id") ?? "").trim(),
+    locationId: String(formData.get("location_id") ?? "").trim(),
+    appointmentId: String(formData.get("appointment_id") ?? "").trim(),
+    salonCustomerId: String(formData.get("salon_customer_id") ?? "").trim(),
+    serviceId: String(formData.get("service_id") ?? "").trim(),
+    employeeId: String(formData.get("employee_id") ?? "").trim(),
+    itemName: String(formData.get("item_name") ?? "").trim(),
+    currency: String(formData.get("currency") ?? "SGD").trim() || "SGD",
+    unitPrice: Number(String(formData.get("unit_price") ?? "").trim()),
+  };
+}
 
-  if (!studioId || !locationId || !appointmentId || !serviceId) {
-    return err("Missing appointment details for POS charge.");
+async function openAppointmentPosDraft(params: {
+  userId: string;
+  studioId: string;
+  locationId: string;
+  appointmentId: string;
+  salonCustomerId: string;
+  serviceId: string;
+  employeeId: string;
+  itemName: string;
+  currency: string;
+  unitPrice: number;
+  logLabel: string;
+  failureMessage?: string;
+}): Promise<DashboardFormResult> {
+  if (!params.studioId || !params.locationId || !params.appointmentId || !params.serviceId) {
+    return err(params.failureMessage || "Missing appointment details for POS charge.");
   }
 
-  const { user } = await requireUser();
   const draft = await createPosSaleDraft({
-    userId: user.id,
-    studioId,
-    locationId,
-    salonCustomerId: salonCustomerId || null,
-    note: `Appointment ${appointmentId.slice(0, 8)}`,
-    idempotencyKey: `apt-charge:${appointmentId}`,
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: params.locationId,
+    salonCustomerId: params.salonCustomerId || null,
+    note: `Appointment ${params.appointmentId.slice(0, 8)}`,
+    idempotencyKey: `apt-charge:${params.appointmentId}`,
   });
 
   if (!draft.ok) {
-    console.log("chargeSalonAppointmentAction draft failed", {
+    console.log(`${params.logLabel} draft failed`, {
       code: draft.code,
       message: draft.message,
-      appointmentId,
+      appointmentId: params.appointmentId,
     });
-    return err(mapPosMutationMessage(draft.code, draft.message || "Could not create POS draft."));
+    return err(params.failureMessage || mapPosMutationMessage(draft.code, draft.message || "Could not create POS draft."));
   }
 
   const item = await upsertPosSaleItem({
-    userId: user.id,
-    studioId,
+    userId: params.userId,
+    studioId: params.studioId,
     saleId: draft.payload.sale_id,
     lineNumber: 1,
     itemType: "service",
-    serviceId,
-    salonAppointmentId: appointmentId,
-    employeeId: employeeId || null,
-    itemNameSnapshot: itemName || "Service",
-    itemCurrencySnapshot: currency,
+    serviceId: params.serviceId,
+    salonAppointmentId: params.appointmentId,
+    employeeId: params.employeeId || null,
+    itemNameSnapshot: params.itemName || "Service",
+    itemCurrencySnapshot: params.currency,
     quantity: 1,
-    unitPriceAmount: Number.isFinite(unitPrice) ? unitPrice : 0,
-    idempotencyKey: `apt-charge-item:${appointmentId}`,
+    unitPriceAmount: Number.isFinite(params.unitPrice) ? params.unitPrice : 0,
+    idempotencyKey: `apt-charge-item:${params.appointmentId}`,
   });
 
   if (!item.ok) {
-    console.log("chargeSalonAppointmentAction item failed", {
+    console.log(`${params.logLabel} item failed`, {
       code: item.code,
       message: item.message,
-      appointmentId,
+      appointmentId: params.appointmentId,
       saleId: draft.payload.sale_id,
     });
-    return err(mapPosMutationMessage(item.code, item.message || "Could not add appointment to POS."));
+    return err(params.failureMessage || mapPosMutationMessage(item.code, item.message || "Could not add appointment to POS."));
   }
 
   revalidatePath("/dashboard/appointments");
   revalidatePath("/dashboard/pos");
-  const query = new URLSearchParams({ studio_id: studioId, location_id: locationId, sale_id: draft.payload.sale_id });
+  const query = new URLSearchParams({
+    studio_id: params.studioId,
+    location_id: params.locationId,
+    sale_id: draft.payload.sale_id,
+  });
   redirect(`/dashboard/pos?${query.toString()}`);
+}
+
+export async function chargeSalonAppointmentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const fields = readAppointmentChargeFields(formData);
+  const { user } = await requireUser();
+  return openAppointmentPosDraft({
+    ...fields,
+    userId: user.id,
+    logLabel: "chargeSalonAppointmentAction",
+  });
+}
+
+export async function completeAndChargeSalonAppointmentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const fields = readAppointmentChargeFields(formData);
+  if (!fields.studioId || !fields.appointmentId) {
+    return err("Missing required status transition fields.");
+  }
+  if (!fields.locationId || !fields.serviceId) {
+    return err("Missing appointment details for POS charge.");
+  }
+
+  const { user } = await requireUser();
+  const complete = await transitionAppointmentStatus({
+    userId: user.id,
+    studioId: fields.studioId,
+    appointmentId: fields.appointmentId,
+    toStatus: "completed",
+    reason: String(formData.get("reason") ?? "").trim() || null,
+    idempotencyKey: getIdempotencyKey(formData),
+  });
+  if (!complete.ok) {
+    console.log("completeAndChargeSalonAppointmentAction complete failed", {
+      code: complete.code,
+      message: complete.message,
+      appointmentId: fields.appointmentId,
+    });
+    return err(mapAppointmentError(complete.code, complete.message || "Could not complete appointment."));
+  }
+
+  revalidatePath("/dashboard/appointments");
+  return openAppointmentPosDraft({
+    ...fields,
+    userId: user.id,
+    logLabel: "completeAndChargeSalonAppointmentAction",
+    failureMessage: "Completed but could not open POS.",
+  });
 }

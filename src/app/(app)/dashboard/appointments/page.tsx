@@ -10,6 +10,7 @@ import {
   arriveSalonAppointmentAction,
   cancelSalonAppointmentAction,
   chargeSalonAppointmentAction,
+  completeAndChargeSalonAppointmentAction,
   createSalonAppointmentAction,
   rescheduleSalonAppointmentAction,
   transitionSalonAppointmentStatusAction,
@@ -151,6 +152,26 @@ function defaultCreateStartsAt(anchorDate: string) {
   return `${anchorDate}T10:00`;
 }
 
+function AppointmentChargeFields(props: {
+  studioId: string;
+  appointment: AppointmentCalendarRow;
+}) {
+  const appointment = props.appointment;
+  return (
+    <>
+      <input type="hidden" name="studio_id" value={props.studioId} />
+      <input type="hidden" name="location_id" value={appointment.location_id} />
+      <input type="hidden" name="appointment_id" value={appointment.id} />
+      <input type="hidden" name="salon_customer_id" value={appointment.salon_customer_id} />
+      <input type="hidden" name="service_id" value={appointment.service_id} />
+      <input type="hidden" name="employee_id" value={appointment.employee_id} />
+      <input type="hidden" name="item_name" value={appointment.service_title_snapshot} />
+      <input type="hidden" name="currency" value={appointment.service_currency_snapshot} />
+      <input type="hidden" name="unit_price" value={String(appointment.service_price_snapshot ?? 0)} />
+    </>
+  );
+}
+
 function appointmentsHref(params: {
   studioId: string;
   locationId?: string | null;
@@ -191,9 +212,11 @@ function AppointmentCard(props: {
   const transitionSet = new Set<string>(transitions as readonly string[]);
   const canReschedule = props.canManage && ["pending", "confirmed"].includes(status);
   const showArrive = (props.canManage || props.isInstructorOnly) && status === "confirmed";
+  const showCompleteAndCharge = props.canManage && status === "in_progress";
   const primaryTargets = transitions.filter((target) => {
     if (target === "cancelled" || target === "no_show") return false;
     if (showArrive && target === "checked_in") return false;
+    if (showCompleteAndCharge && target === "completed") return false;
     return true;
   });
   const showCardNoShow = props.canManage && transitionSet.has("no_show") && status === "confirmed";
@@ -233,7 +256,7 @@ function AppointmentCard(props: {
         </p>
       ) : null}
 
-      {whatsappLink || primaryTargets.length > 0 || showArrive || canReschedule || (props.canManage && status === "completed") || showCardNoShow ? (
+      {whatsappLink || primaryTargets.length > 0 || showArrive || showCompleteAndCharge || canReschedule || (props.canManage && status === "completed") || showCardNoShow ? (
         <div className="flex flex-wrap gap-2">
           <StaffWhatsappLink href={whatsappLink} />
           {showArrive ? (
@@ -242,6 +265,22 @@ function AppointmentCard(props: {
               <input type="hidden" name="appointment_id" value={appointment.id} />
               <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "arrive")} />
               <button type="submit" className={ui.btnPrimarySm}>Arrive</button>
+            </ServerActionToastForm>
+          ) : null}
+          {showCompleteAndCharge ? (
+            <ServerActionToastForm action={completeAndChargeSalonAppointmentAction} refreshOnSuccess={false}>
+              <AppointmentChargeFields studioId={props.studioId} appointment={appointment} />
+              <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "completed")} />
+              <button type="submit" className={ui.btnPrimarySm}>Complete & Charge</button>
+            </ServerActionToastForm>
+          ) : null}
+          {showCompleteAndCharge ? (
+            <ServerActionToastForm action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
+              <input type="hidden" name="studio_id" value={props.studioId} />
+              <input type="hidden" name="appointment_id" value={appointment.id} />
+              <input type="hidden" name="to_status" value="completed" />
+              <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "completed")} />
+              <button type="submit" className={ui.btnSecondarySm}>Complete</button>
             </ServerActionToastForm>
           ) : null}
           {primaryTargets.map((target) => (
@@ -267,15 +306,7 @@ function AppointmentCard(props: {
           ) : null}
           {props.canManage && status === "completed" ? (
             <ServerActionToastForm action={chargeSalonAppointmentAction} refreshOnSuccess={false}>
-              <input type="hidden" name="studio_id" value={props.studioId} />
-              <input type="hidden" name="location_id" value={appointment.location_id} />
-              <input type="hidden" name="appointment_id" value={appointment.id} />
-              <input type="hidden" name="salon_customer_id" value={appointment.salon_customer_id} />
-              <input type="hidden" name="service_id" value={appointment.service_id} />
-              <input type="hidden" name="employee_id" value={appointment.employee_id} />
-              <input type="hidden" name="item_name" value={appointment.service_title_snapshot} />
-              <input type="hidden" name="currency" value={appointment.service_currency_snapshot} />
-              <input type="hidden" name="unit_price" value={String(appointment.service_price_snapshot ?? 0)} />
+              <AppointmentChargeFields studioId={props.studioId} appointment={appointment} />
               <button type="submit" className={ui.btnPrimarySm}>Charge</button>
             </ServerActionToastForm>
           ) : null}

@@ -55,6 +55,7 @@ export {
   arriveSalonAppointmentAction,
   cancelSalonAppointmentAction,
   chargeSalonAppointmentAction,
+  completeAndChargeSalonAppointmentAction,
   createSalonAppointmentAction,
   listStaffBookableSlotsAction,
   rescheduleSalonAppointmentAction,
