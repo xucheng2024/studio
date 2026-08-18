@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { localISODate, parseDatetimeLocalAsSgt } from "@/lib/date";
+import { localISODate, parseDatetimeLocalAsSgt, toLocalDateTimeInputValue } from "@/lib/date";
 import { mapPosMutationMessage } from "@/lib/pos-error-message";
 import { createPosSaleDraft, upsertPosSaleItem } from "@/lib/pos-sales";
+import { buildAccessContext, hasStudioRole } from "@/lib/rbac";
 import {
   cancelAppointment,
   createAppointment,
@@ -14,6 +15,22 @@ import {
 } from "@/lib/salon-appointments";
 import { listSelfBookableSlots } from "@/lib/salon-appointments-self";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
+
+export type StaffBookableSlot = {
+  startsAtLocal: string;
+  startsAtIso: string;
+  endsAtIso: string;
+  employeeId: string;
+  employeeName: string;
+  resourceIds: string[];
+};
+
+function parseStartAt(raw: string) {
+  const local = parseDatetimeLocalAsSgt(raw);
+  if (local) return local;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 function getIdempotencyKey(formData: FormData, fieldName = "idempotency_key") {
   const raw = String(formData.get(fieldName) ?? "").trim();
@@ -109,7 +126,7 @@ export async function createSalonAppointmentAction(
   const serviceId = String(formData.get("service_id") ?? "").trim();
   const employeeId = String(formData.get("employee_id") ?? "").trim();
   const startsAtRaw = String(formData.get("starts_at") ?? "").trim();
-  const startsAt = parseDatetimeLocalAsSgt(startsAtRaw);
+  const startsAt = parseStartAt(startsAtRaw);
   const resourceIds = parseResourceIds(String(formData.get("resource_ids") ?? ""));
   const internalNote = String(formData.get("internal_note") ?? "").trim() || null;
 
@@ -182,7 +199,7 @@ export async function rescheduleSalonAppointmentAction(
   const studioId = String(formData.get("studio_id") ?? "").trim();
   const appointmentId = String(formData.get("appointment_id") ?? "").trim();
   const newStartsAtRaw = String(formData.get("new_starts_at") ?? "").trim();
-  const newStartsAt = parseDatetimeLocalAsSgt(newStartsAtRaw);
+  const newStartsAt = parseStartAt(newStartsAtRaw);
   const reason = String(formData.get("reason") ?? "").trim() || null;
   const newLocationId = String(formData.get("new_location_id") ?? "").trim() || null;
   const newServiceId = String(formData.get("new_service_id") ?? "").trim() || null;
@@ -259,6 +276,113 @@ export async function cancelSalonAppointmentAction(
 
   revalidatePath("/dashboard/appointments");
   return ok(result.payload.alreadyCancelled ? "Appointment already cancelled." : "Appointment cancelled.");
+}
+
+export async function listStaffBookableSlotsAction(input: {
+  studioId: string;
+  locationId: string;
+  serviceId: string;
+  dateYmd: string;
+  ignoreAppointmentId?: string;
+}): Promise<{ ok: true; slots: StaffBookableSlot[] } | { ok: false; message: string }> {
+  const studioId = input.studioId.trim();
+  const locationId = input.locationId.trim();
+  const serviceId = input.serviceId.trim();
+  const dateYmd = input.dateYmd.trim();
+  if (!studioId || !locationId || !serviceId || !/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) {
+    return { ok: false, message: "Select location, service, and date to load slots." };
+  }
+
+  const { user } = await requireUser();
+  const ctx = await buildAccessContext(user.id, user.email ?? null, null);
+  if (!hasStudioRole(ctx, studioId, ["owner", "manager", "frontdesk"])) {
+    console.log("listStaffBookableSlotsAction forbidden", { studioId, userId: user.id });
+    return { ok: false, message: "You do not have permission to load appointment slots." };
+  }
+
+  const today = localISODate();
+  const nowIso = dateYmd === today ? undefined : `${dateYmd}T00:00:00+08:00`;
+  const result = await listSelfBookableSlots({
+    studioId,
+    locationId,
+    serviceId,
+    dateYmd,
+    nowIso,
+    ignoreAppointmentId: input.ignoreAppointmentId,
+  });
+  if (!result.ok) {
+    console.log("listStaffBookableSlotsAction failed", {
+      code: result.code,
+      message: result.message,
+      studioId,
+      locationId,
+      serviceId,
+      dateYmd,
+    });
+    return { ok: false, message: result.message || "Could not load slots." };
+  }
+
+  return {
+    ok: true,
+    slots: result.payload.slots.map((slot) => ({
+      startsAtLocal: toLocalDateTimeInputValue(slot.startsAtIso),
+      startsAtIso: slot.startsAtIso,
+      endsAtIso: slot.endsAtIso,
+      employeeId: slot.employeeId,
+      employeeName: slot.employeeName,
+      resourceIds: slot.resourceIds,
+    })),
+  };
+}
+
+export async function arriveSalonAppointmentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const appointmentId = String(formData.get("appointment_id") ?? "").trim();
+  if (!studioId || !appointmentId) {
+    return err("Missing required arrival fields.");
+  }
+
+  const { user } = await requireUser();
+  const idempotencyKey = getIdempotencyKey(formData);
+  const checkIn = await transitionAppointmentStatus({
+    userId: user.id,
+    studioId,
+    appointmentId,
+    toStatus: "checked_in",
+    reason: "staff_arrive",
+    idempotencyKey: `apt-arrive-checkin:${appointmentId}:${idempotencyKey}`,
+  });
+  if (!checkIn.ok) {
+    console.log("arriveSalonAppointmentAction check-in failed", {
+      code: checkIn.code,
+      message: checkIn.message,
+      appointmentId,
+    });
+    return err(mapAppointmentError(checkIn.code, checkIn.message || "Could not check in."));
+  }
+
+  const start = await transitionAppointmentStatus({
+    userId: user.id,
+    studioId,
+    appointmentId,
+    toStatus: "in_progress",
+    reason: "staff_arrive",
+    idempotencyKey: `apt-arrive-start:${appointmentId}:${idempotencyKey}`,
+  });
+  if (!start.ok) {
+    console.log("arriveSalonAppointmentAction start failed", {
+      code: start.code,
+      message: start.message,
+      appointmentId,
+    });
+    return err(mapAppointmentError(start.code, start.message || "Checked in but could not start."));
+  }
+
+  revalidatePath("/dashboard/appointments");
+  return ok("Customer arrived.");
 }
 
 export async function transitionSalonAppointmentStatusAction(

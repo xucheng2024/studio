@@ -3,9 +3,11 @@ import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { AppointmentCustomerSelect } from "@/components/dashboard/AppointmentCustomerSelect";
 import { AppointmentNotificationOpsPanel } from "@/components/dashboard/AppointmentNotificationOpsPanel";
 import { AppointmentServiceSelect } from "@/components/dashboard/AppointmentServiceSelect";
+import { AppointmentSlotPicker } from "@/components/dashboard/AppointmentSlotPicker";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { StaffWhatsappLink } from "@/components/StaffWhatsappLink";
 import {
+  arriveSalonAppointmentAction,
   cancelSalonAppointmentAction,
   chargeSalonAppointmentAction,
   createSalonAppointmentAction,
@@ -176,7 +178,7 @@ function AppointmentCard(props: {
   canManage: boolean;
   isInstructorOnly: boolean;
   locations: Array<{ id: string; name: string }>;
-  services: Array<{ id: string; name: string }>;
+  services: Array<{ id: string; name: string; durationMinutes: number }>;
   employees: Array<{ id: string; display_name: string }>;
 }) {
   const appointment = props.appointment;
@@ -188,7 +190,12 @@ function AppointmentCard(props: {
       : [];
   const transitionSet = new Set<string>(transitions as readonly string[]);
   const canReschedule = props.canManage && ["pending", "confirmed"].includes(status);
-  const primaryTargets = transitions.filter((target) => target !== "cancelled" && target !== "no_show");
+  const showArrive = (props.canManage || props.isInstructorOnly) && status === "confirmed";
+  const primaryTargets = transitions.filter((target) => {
+    if (target === "cancelled" || target === "no_show") return false;
+    if (showArrive && target === "checked_in") return false;
+    return true;
+  });
   const showCardNoShow = props.canManage && transitionSet.has("no_show") && status === "confirmed";
   const whatsappLink = whatsappHref(
     props.customerPhone,
@@ -226,9 +233,17 @@ function AppointmentCard(props: {
         </p>
       ) : null}
 
-      {whatsappLink || primaryTargets.length > 0 || (props.canManage && status === "completed") || showCardNoShow ? (
+      {whatsappLink || primaryTargets.length > 0 || showArrive || canReschedule || (props.canManage && status === "completed") || showCardNoShow ? (
         <div className="flex flex-wrap gap-2">
           <StaffWhatsappLink href={whatsappLink} />
+          {showArrive ? (
+            <ServerActionToastForm action={arriveSalonAppointmentAction} refreshOnSuccess={false}>
+              <input type="hidden" name="studio_id" value={props.studioId} />
+              <input type="hidden" name="appointment_id" value={appointment.id} />
+              <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "arrive")} />
+              <button type="submit" className={ui.btnPrimarySm}>Arrive</button>
+            </ServerActionToastForm>
+          ) : null}
           {primaryTargets.map((target) => (
             <ServerActionToastForm key={target} action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
               <input type="hidden" name="studio_id" value={props.studioId} />
@@ -267,6 +282,59 @@ function AppointmentCard(props: {
         </div>
       ) : null}
 
+      {canReschedule ? (
+        <details className="chevron rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-800">
+          <summary className="cursor-pointer text-xs font-medium text-stone-700 dark:text-stone-300">Reschedule</summary>
+          <ServerActionToastForm action={rescheduleSalonAppointmentAction} className="mt-3 grid gap-2 sm:grid-cols-2" refreshOnSuccess={false}>
+            <input type="hidden" name="studio_id" value={props.studioId} />
+            <input type="hidden" name="appointment_id" value={appointment.id} />
+            <input type="hidden" name="idempotency_key" value={`apt03-reschedule:${appointment.id}:${appointment.updated_at}`} />
+            <input type="hidden" name="reason" value="rescheduled" />
+
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Location</span>
+              <select name="new_location_id" className={ui.select} defaultValue={appointment.location_id}>
+                {props.locations.map((location) => (
+                  <option key={location.id} value={location.id}>{location.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className={ui.label}>Employee</span>
+              <select name="new_employee_id" className={ui.select} defaultValue={appointment.employee_id}>
+                {props.employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>{employee.display_name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className={ui.label}>Service</span>
+              <select name="new_service_id" className={ui.select} defaultValue={appointment.service_id}>
+                {props.services.map((service) => (
+                  <option key={service.id} value={service.id}>{service.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <AppointmentSlotPicker
+              studioId={props.studioId}
+              defaultDate={localDateKey(appointment.starts_at) || localISODate()}
+              defaultStartsAt={toLocalDateTimeInputValue(appointment.starts_at)}
+              locationField="new_location_id"
+              serviceField="new_service_id"
+              employeeField="new_employee_id"
+              startsAtName="new_starts_at"
+              resourceIdsName="new_resource_ids"
+              ignoreAppointmentId={appointment.id}
+            />
+
+            <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Reschedule</button>
+          </ServerActionToastForm>
+        </details>
+      ) : null}
+
       <details className="chevron rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-800">
         <summary className="cursor-pointer text-xs font-medium text-stone-700 dark:text-stone-300">Details & actions</summary>
         <div className="mt-3 grid gap-3">
@@ -293,6 +361,26 @@ function AppointmentCard(props: {
             </ServerActionToastForm>
           ) : null}
 
+          {transitionSet.has("checked_in") ? (
+            <ServerActionToastForm action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
+              <input type="hidden" name="studio_id" value={props.studioId} />
+              <input type="hidden" name="appointment_id" value={appointment.id} />
+              <input type="hidden" name="to_status" value="checked_in" />
+              <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "checked_in")} />
+              <button type="submit" className={ui.btnSecondarySm}>Check-in</button>
+            </ServerActionToastForm>
+          ) : null}
+
+          {transitionSet.has("in_progress") && !primaryTargets.includes("in_progress") ? (
+            <ServerActionToastForm action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
+              <input type="hidden" name="studio_id" value={props.studioId} />
+              <input type="hidden" name="appointment_id" value={appointment.id} />
+              <input type="hidden" name="to_status" value="in_progress" />
+              <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "in_progress")} />
+              <button type="submit" className={ui.btnSecondarySm}>Start</button>
+            </ServerActionToastForm>
+          ) : null}
+
           {props.canManage && transitionSet.has("no_show") && !showCardNoShow ? (
             <ServerActionToastForm action={transitionSalonAppointmentStatusAction} className="grid gap-2 sm:grid-cols-[1fr_auto]" refreshOnSuccess={false}>
               <input type="hidden" name="studio_id" value={props.studioId} />
@@ -307,59 +395,6 @@ function AppointmentCard(props: {
               />
               <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "no_show")} />
               <button type="submit" className={ui.btnDangerSm}>No-show</button>
-            </ServerActionToastForm>
-          ) : null}
-
-          {canReschedule ? (
-            <ServerActionToastForm action={rescheduleSalonAppointmentAction} className="grid gap-2 sm:grid-cols-2" refreshOnSuccess={false}>
-              <input type="hidden" name="studio_id" value={props.studioId} />
-              <input type="hidden" name="appointment_id" value={appointment.id} />
-              <input type="hidden" name="idempotency_key" value={`apt03-reschedule:${appointment.id}:${appointment.updated_at}`} />
-
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>New start</span>
-                <input
-                  type="datetime-local"
-                  name="new_starts_at"
-                  className={ui.input}
-                  defaultValue={toLocalDateTimeInputValue(appointment.starts_at)}
-                  required
-                />
-              </label>
-
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Reason</span>
-                <input name="reason" className={ui.input} placeholder="rescheduled" defaultValue="rescheduled" />
-              </label>
-
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Location</span>
-                <select name="new_location_id" className={ui.select} defaultValue={appointment.location_id}>
-                  {props.locations.map((location) => (
-                    <option key={location.id} value={location.id}>{location.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Employee</span>
-                <select name="new_employee_id" className={ui.select} defaultValue={appointment.employee_id}>
-                  {props.employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>{employee.display_name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-1 sm:col-span-2">
-                <span className={ui.label}>Service</span>
-                <select name="new_service_id" className={ui.select} defaultValue={appointment.service_id}>
-                  {props.services.map((service) => (
-                    <option key={service.id} value={service.id}>{service.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Reschedule</button>
             </ServerActionToastForm>
           ) : null}
         </div>
@@ -603,7 +638,12 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
               </select>
             </label>
 
-            <AppointmentCustomerSelect customers={customers} required />
+            <AppointmentCustomerSelect
+              customers={customers}
+              required
+              studioId={activeStudioId}
+              locationId={effectiveLocationId ?? locations[0]?.id ?? null}
+            />
             <AppointmentServiceSelect services={services} required />
 
             <label className="flex flex-col gap-1.5">
@@ -616,10 +656,11 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Starts at (SGT)</span>
-              <input type="datetime-local" name="starts_at" className={ui.input} defaultValue={defaultCreateStartsAt(anchorDate)} required />
-            </label>
+            <AppointmentSlotPicker
+              studioId={activeStudioId}
+              defaultDate={anchorDate}
+              defaultStartsAt={defaultCreateStartsAt(anchorDate)}
+            />
 
             <label className="flex flex-col gap-1.5 sm:col-span-2">
               <span className={ui.label}>Internal note</span>

@@ -52,12 +52,15 @@ export type { DashboardFormResult } from "./_actions/shared";
 export { createMarketingCampaignAction, retryMarketingCampaignAction, scheduleMarketingCampaignAction, sendMarketingTestEmailAction } from "./_actions/marketing";
 
 export {
+  arriveSalonAppointmentAction,
   cancelSalonAppointmentAction,
   chargeSalonAppointmentAction,
   createSalonAppointmentAction,
+  listStaffBookableSlotsAction,
   rescheduleSalonAppointmentAction,
   transitionSalonAppointmentStatusAction,
 } from "./_actions/appointments";
+export type { StaffBookableSlot } from "./_actions/appointments";
 
 export { createEvent, deleteEvent, updateEvent } from "./_actions/events";
 

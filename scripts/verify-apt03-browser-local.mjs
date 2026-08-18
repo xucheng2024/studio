@@ -69,7 +69,13 @@ try {
   await createForm.locator('select[name="salon_customer_id"]').selectOption({ label: "APT-03 L1 customer" });
   await createForm.locator('select[name="service_id"]').selectOption({ label: "APT-03 local service" });
   await createForm.locator('select[name="employee_id"]').selectOption({ label: "APT-03 instructor" });
-  await createForm.locator('input[name="starts_at"]').fill(slotLocal);
+  await createForm.getByText("Loading slots…").waitFor({ state: "hidden", timeout: 15_000 }).catch(() => {});
+  const slotButton = createForm.locator(`[data-slot-local="${slotLocal}"]`).first();
+  if (await slotButton.count()) {
+    await slotButton.click();
+  } else {
+    await createForm.locator('input[name="starts_at"]').fill(slotLocal);
+  }
   await createForm.getByRole("button", { name: "Create appointment" }).click();
   await owner.page.getByText("Appointment created.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
 
@@ -89,9 +95,7 @@ try {
   await owner.page.reload({ waitUntil: "domcontentloaded" });
   await owner.page.getByRole("heading", { name: "Appointments" }).waitFor({ state: "visible", timeout: 30_000 });
   const card = owner.page.locator("article").filter({ hasText: "APT-03 L1 customer" });
-  await transitionOnCard(owner.page, card, "Check-in", "checked_in", created.id);
-  await owner.page.reload({ waitUntil: "domcontentloaded" });
-  await transitionOnCard(owner.page, card, "Start", "in_progress", created.id);
+  await transitionOnCard(owner.page, card, "Arrive", "in_progress", created.id);
   await owner.page.reload({ waitUntil: "domcontentloaded" });
   await transitionOnCard(owner.page, card, "Complete", "completed", created.id);
   await owner.context.close();
@@ -116,7 +120,7 @@ try {
     run_id: runId,
     status: "passed",
     assertions: [
-      { name: "owner create-checkin-start-complete", result: "passed" },
+      { name: "owner create-arrive-complete", result: "passed" },
       { name: "instructor sees own appointment and cannot create", result: "passed" },
       { name: "frontdesk is denied cross-location L2 appointment", result: "passed" },
       { name: "390px layout has no horizontal overflow", result: "passed" },

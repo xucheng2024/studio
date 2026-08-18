@@ -439,6 +439,7 @@ export async function listSelfBookableSlots(params: {
   serviceId: string;
   dateYmd?: string;
   nowIso?: string;
+  ignoreAppointmentId?: string;
 }): Promise<AppointmentMutationResult<{ dateYmd: string; slots: SelfBookableSlot[] }>> {
   const dateYmd = String(params.dateYmd ?? localISODate()).trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) {
@@ -505,7 +506,7 @@ export async function listSelfBookableSlots(params: {
       .gte("ends_at", dayStartIso),
     admin
       .from("salon_appointments")
-      .select("employee_id, occupied_from, occupied_until")
+      .select("id, employee_id, occupied_from, occupied_until")
       .eq("studio_id", params.studioId)
       .eq("location_id", params.locationId)
       .in("status", ACTIVE_APPOINTMENT_STATUSES)
@@ -524,7 +525,7 @@ export async function listSelfBookableSlots(params: {
       .eq("is_active", true),
     admin
       .from("salon_appointment_resources")
-      .select("resource_id, occupied_from, occupied_until")
+      .select("appointment_id, resource_id, occupied_from, occupied_until")
       .eq("studio_id", params.studioId)
       .eq("location_id", params.locationId)
       .eq("is_active", true)
@@ -582,8 +583,10 @@ export async function listSelfBookableSlots(params: {
     employeeExceptions.set(row.employee_id, existing);
   }
 
+  const ignoreAppointmentId = params.ignoreAppointmentId?.trim() || "";
   const appointmentBusyByEmployee = new Map<string, Array<{ startMs: number; endMs: number }>>();
   for (const row of appointmentRes.data ?? []) {
+    if (ignoreAppointmentId && row.id === ignoreAppointmentId) continue;
     const startMs = new Date(row.occupied_from).getTime();
     const endMs = new Date(row.occupied_until).getTime();
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
@@ -606,6 +609,7 @@ export async function listSelfBookableSlots(params: {
 
   const busyByResource = new Map<string, Array<{ startMs: number; endMs: number }>>();
   for (const row of busyResourceRes.data ?? []) {
+    if (ignoreAppointmentId && row.appointment_id === ignoreAppointmentId) continue;
     const startMs = new Date(row.occupied_from).getTime();
     const endMs = new Date(row.occupied_until).getTime();
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
