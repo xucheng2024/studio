@@ -13,10 +13,11 @@ import { CoverUrlField } from "@/components/dashboard/PublicMediaFields";
 import { ShopExtraImagesField } from "@/components/dashboard/ShopExtraImagesField";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { isShopStockLow } from "@/lib/shop-stock";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string; fulfillment?: string }> };
+type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string; fulfillment?: string; stock?: string }> };
 
 export default async function DashboardShopPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -41,11 +42,12 @@ export default async function DashboardShopPage({ searchParams }: Props) {
     sp.fulfillment === "unfulfilled" || sp.fulfillment === "shipped" || sp.fulfillment === "cancelled"
       ? sp.fulfillment
       : "all";
+  const stockFilter = sp.stock === "low" ? "low" : "all";
   const [{ data: studio }, { data: products }, { data: orders }] = await Promise.all([
     supabase.from("studios").select("id, public_slug").eq("id", studioId).maybeSingle(),
     supabase
       .from("shop_products")
-      .select("id, title, summary, description, image_url, image_urls, price, stock_qty, sort_order, is_active, share_slug")
+      .select("id, title, summary, description, image_url, image_urls, price, stock_qty, min_stock_qty, sort_order, is_active, share_slug")
       .eq("studio_id", studioId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -71,10 +73,20 @@ export default async function DashboardShopPage({ searchParams }: Props) {
   };
 
   const publicHref = studio.public_slug ? `/${studio.public_slug}#shop` : null;
-  const scopedShopHref = (fulfillment: "all" | "unfulfilled" | "shipped" | "cancelled") => {
+  const lowStockCount = (products ?? []).filter((product) =>
+    isShopStockLow(product.stock_qty, product.min_stock_qty),
+  ).length;
+  const visibleProducts = (products ?? []).filter((product) =>
+    stockFilter === "low" ? isShopStockLow(product.stock_qty, product.min_stock_qty) : true,
+  );
+  const scopedShopHref = (
+    fulfillment: "all" | "unfulfilled" | "shipped" | "cancelled" = fulfillmentFilter,
+    stock: "all" | "low" = stockFilter,
+  ) => {
     const params = new URLSearchParams();
     params.set("studio_id", studio.id);
     if (fulfillment !== "all") params.set("fulfillment", fulfillment);
+    if (stock !== "all") params.set("stock", "low");
     return `/dashboard/shop?${params.toString()}`;
   };
 
@@ -85,7 +97,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           <h1 className={ui.h1}>Shop setup</h1>
           <p className={ui.muted}>Sell merchandise on your public studio page. Paid orders use HitPay, while free orders skip payment and still collect a shipping address.</p>
           <p className={`mt-1 text-sm ${ui.muted}`}>
-            Products are visible after creation unless hidden later. Stock is reduced at checkout when a quantity is set.
+            Products are visible after creation unless hidden later. Stock is reduced at online checkout when a quantity is set.
           </p>
         </div>
         {publicHref ? (
@@ -132,6 +144,11 @@ export default async function DashboardShopPage({ searchParams }: Props) {
             <p className={`text-xs ${ui.muted}`}>Use 0 to show sold out. Leave blank when you do not track stock.</p>
           </label>
           <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Restock at (optional)</span>
+            <input name="min_stock_qty" type="number" min={0} step={1} className={ui.input} />
+            <p className={`text-xs ${ui.muted}`}>Listed here when stock is at or below this number.</p>
+          </label>
+          <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Sort order</span>
             <input name="sort_order" type="number" defaultValue={100} className={ui.input} />
           </label>
@@ -160,8 +177,23 @@ export default async function DashboardShopPage({ searchParams }: Props) {
         </ServerActionToastForm>
       </details>
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className={ui.h2}>Products</h2>
+        <div className="flex flex-wrap gap-2">
+          <DashboardAppLink href={scopedShopHref(fulfillmentFilter, "all")} className={stockFilter === "all" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            All ({products?.length ?? 0})
+          </DashboardAppLink>
+          <DashboardAppLink href={scopedShopHref(fulfillmentFilter, "low")} className={stockFilter === "low" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            Needs restock ({lowStockCount})
+          </DashboardAppLink>
+        </div>
+      </div>
+
       <div className="grid gap-4">
-        {(products ?? []).map((product) => (
+        {visibleProducts.map((product) => {
+          const soldOut = product.stock_qty != null && Number(product.stock_qty) < 1;
+          const needsRestock = isShopStockLow(product.stock_qty, product.min_stock_qty);
+          return (
           <div key={product.id} className={ui.card}>
             <ServerActionToastForm action={updateShopProduct}>
               <input type="hidden" name="studio_id" value={studio.id} />
@@ -185,9 +217,12 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                     <p className={`text-sm ${ui.muted}`}>
                       {Number(product.price) === 0 ? "Free" : `SGD ${Number(product.price).toFixed(2)}`}
                       {product.stock_qty != null ? ` · ${product.stock_qty} in stock` : " · Unlimited stock"}
+                      {product.min_stock_qty != null ? ` · restock at ${product.min_stock_qty}` : ""}
                       {!product.is_active ? " · Hidden" : ""}
                     </p>
                   </div>
+                  {soldOut ? <span className={ui.badgeRed}>Sold out</span> : null}
+                  {!soldOut && needsRestock ? <span className={ui.badgeAmber}>Needs restock</span> : null}
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="flex flex-col gap-1.5 sm:col-span-2">
@@ -217,6 +252,18 @@ export default async function DashboardShopPage({ searchParams }: Props) {
                       className={ui.input}
                     />
                     <p className={`text-xs ${ui.muted}`}>Use 0 to stop sales. Blank means unlimited stock.</p>
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ui.label}>Restock at (optional)</span>
+                    <input
+                      name="min_stock_qty"
+                      type="number"
+                      min={0}
+                      step={1}
+                      defaultValue={product.min_stock_qty ?? ""}
+                      className={ui.input}
+                    />
+                    <p className={`text-xs ${ui.muted}`}>Listed here when stock is at or below this number.</p>
                   </label>
                   <label className="flex flex-col gap-1.5">
                     <span className={ui.label}>Sort order</span>
@@ -267,8 +314,12 @@ export default async function DashboardShopPage({ searchParams }: Props) {
               </details>
             </ServerActionToastForm>
           </div>
-        ))}
+          );
+        })}
         {!products?.length ? <p className={`text-sm ${ui.muted}`}>No products yet.</p> : null}
+        {(products?.length ?? 0) > 0 && visibleProducts.length === 0 ? (
+          <p className={`text-sm ${ui.muted}`}>No products at or below restock level.</p>
+        ) : null}
       </div>
 
       {(orders ?? []).length > 0 ? (

@@ -313,6 +313,7 @@ export async function createShopProduct(
   const image_urls = parseImageUrlsField(formData.get("image_urls"));
   const currency = STUDIO_CURRENCY;
   const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
+  const min_stock_qty = sanitizeStockQtyNullable(formData.get("min_stock_qty"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const share_slug = await generateUniqueShareSlug(supabase, "shop_products", activeStudio.id);
   if (!share_slug) return err("Could not create product.");
@@ -327,12 +328,20 @@ export async function createShopProduct(
     price,
     currency,
     stock_qty,
+    min_stock_qty,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
     share_slug,
     is_active: true,
   });
   if (error) {
-    console.error(error.message);
+    console.error("createShopProduct failed", {
+      studioId: activeStudio.id,
+      title,
+      stock_qty,
+      min_stock_qty,
+      message: error.message,
+      code: error.code,
+    });
     return err("Could not create product.");
   }
   revalidateDashboardContent("shop");
@@ -363,6 +372,7 @@ export async function updateShopProduct(
   const image_urls = parseImageUrlsField(formData.get("image_urls"));
   const currency = STUDIO_CURRENCY;
   const stock_qty = sanitizeStockQtyNullable(formData.get("stock_qty"));
+  const min_stock_qty = sanitizeStockQtyNullable(formData.get("min_stock_qty"));
   const sort_order = Number(formData.get("sort_order") ?? 100);
   const is_active = formData.get("is_active") === "on";
   const { data: existingProduct } = await supabase
@@ -383,6 +393,7 @@ export async function updateShopProduct(
       price,
       currency,
       stock_qty,
+      min_stock_qty,
       sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
       is_active,
       updated_at: new Date().toISOString(),
@@ -390,7 +401,14 @@ export async function updateShopProduct(
     .eq("id", productId)
     .eq("studio_id", activeStudio.id);
   if (error) {
-    console.error(error.message);
+    console.error("updateShopProduct failed", {
+      studioId: activeStudio.id,
+      productId,
+      stock_qty,
+      min_stock_qty,
+      message: error.message,
+      code: error.code,
+    });
     return err("Could not save product.");
   }
   revalidateDashboardContent("shop");
