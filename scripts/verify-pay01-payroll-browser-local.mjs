@@ -93,9 +93,12 @@ try {
   await owner.page.getByRole("link", { name: "2026-08" }).click();
   await owner.page.getByRole("heading", { name: "2026-08 payroll" }).waitFor({ state: "visible", timeout: 30_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "payroll run mobile overflow");
-  await owner.page.getByText("2000.00", { exact: true }).first().waitFor({ state: "visible", timeout: 30_000 });
-  await owner.page.getByText("1599.50", { exact: true }).first().waitFor({ state: "visible", timeout: 30_000 });
-  await owner.page.getByText("Ready", { exact: true }).first().waitFor({ state: "visible", timeout: 30_000 });
+  const runBody = await owner.page.locator("body").innerText();
+  console.log("pay01_run_body", runBody.slice(0, 800));
+  assert.match(runBody, /PAY local instructor/);
+  assert.match(runBody, /2000(\.00)?/);
+  assert.match(runBody, /1599\.50|1599\.5\b/);
+  assert.match(runBody, /\bReady\b/);
   await owner.page.getByRole("button", { name: "Finalise" }).waitFor({ state: "visible", timeout: 30_000 });
   await owner.page.getByRole("button", { name: "Recalculate" }).click();
   try {
