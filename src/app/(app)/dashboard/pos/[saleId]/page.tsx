@@ -134,7 +134,9 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
               {sale.customer_name ?? "Walk-in"} · {sale.location_name ?? "Location"} · {sale.currency} {Number(sale.total_amount).toFixed(2)}
             </p>
             {sale.receipt_number ? (
-              <p className="mt-1 text-sm font-medium text-teal-800 dark:text-teal-300">Receipt {sale.receipt_number}</p>
+              <p className="mt-1 text-sm font-medium text-teal-800 dark:text-teal-300">
+                Receipt <span>{sale.receipt_number}</span>
+              </p>
             ) : null}
           </div>
           {sale.status === "draft" || sale.status === "pending_payment" ? (
