@@ -45,7 +45,7 @@ try {
   await owner.page.getByRole("heading", { name: "Payroll" }).waitFor({ state: "visible", timeout: 30_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "payroll list mobile overflow");
   assert.ok(await owner.page.getByRole("link", { name: "Payroll" }).count() > 0, "owner sees Payroll nav");
-  await owner.page.getByRole("link", { name: "PAY local instructor" }).click();
+  await owner.page.getByRole("link", { name: "PAY local instructor", exact: true }).click();
   await owner.page.getByRole("heading", { name: "PAY local instructor" }).waitFor({ state: "visible", timeout: 30_000 });
   console.log("pay01_owner_profile_open");
 
