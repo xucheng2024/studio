@@ -76,7 +76,7 @@ try {
 
   await owner.page.locator(`input[name="refund_item_id"][value="${saleItemId}"]`).check();
   await owner.page.locator(`input[name="refund_amount__${saleItemId}"]`).fill("40.00");
-  await owner.page.getByLabel("Refund reason (optional)").fill("POS local partial refund");
+  await owner.page.getByLabel("Refund reason").fill("POS local partial refund");
   await owner.page.getByRole("button", { name: "Refund items" }).click();
   await waitForToast(owner.page, "Refund applied to 1 item(s).");
   await waitForRow("pos_sales", saleId, (row) => row.status === "partially_refunded" && Number(row.refunded_amount) === 40, "partial refund");
