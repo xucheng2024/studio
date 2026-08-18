@@ -487,15 +487,23 @@ export function computeEmployeePayrollRun(params: {
     blockers.push({ code: "unpaid_absence_exceeds_ordinary_wages", message: "Unpaid absence cannot exceed ordinary wages for the month." });
   }
 
+  const basicCode: PayrollComputedLine["code"] = params.profile.salaryType === "hourly"
+    ? "hourly_wages"
+    : (params.period.workingDaysInMonth || params.period.daysActuallyWorked ? "incomplete_month" : "basic");
   const lines: PayrollComputedLine[] = [
-    { code: params.profile.salaryType === "hourly" ? "hourly_wages" : (params.period.workingDaysInMonth || params.period.daysActuallyWorked ? "incomplete_month" : "basic"), amountCents: basicCents, wageClass: "ow" },
+    { code: basicCode, amountCents: basicCents, wageClass: "ow" },
+  ];
+  const optionalLines: PayrollComputedLine[] = [
     { code: "commission", amountCents: commissionCents, wageClass: "ow" },
     { code: "allowance", amountCents: allowanceCents, wageClass: "ow" },
     { code: "overtime", amountCents: overtime.overtimeCents, wageClass: "ow" },
     { code: "bonus", amountCents: bonusCents, wageClass: "aw" },
     { code: "unpaid_absence", amountCents: unpaidCents, wageClass: "ow" },
     { code: "other_deduction", amountCents: otherDeductionCents, wageClass: "none" },
-  ].filter((line) => line.amountCents !== 0 || line.code === "basic" || line.code === "hourly_wages" || line.code === "incomplete_month");
+  ];
+  for (const line of optionalLines) {
+    if (line.amountCents !== 0) lines.push(line);
+  }
 
   const owCents = Math.max(0, basicCents + commissionCents + allowanceCents + overtime.overtimeCents - unpaidCents);
   const awCents = bonusCents;
