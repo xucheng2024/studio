@@ -1,18 +1,24 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { AppointmentCustomerSelect } from "@/components/dashboard/AppointmentCustomerSelect";
 import { AppointmentNotificationOpsPanel } from "@/components/dashboard/AppointmentNotificationOpsPanel";
+import { AppointmentServiceSelect } from "@/components/dashboard/AppointmentServiceSelect";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { StaffWhatsappLink } from "@/components/StaffWhatsappLink";
 import {
   cancelSalonAppointmentAction,
+  chargeSalonAppointmentAction,
   createSalonAppointmentAction,
   rescheduleSalonAppointmentAction,
   transitionSalonAppointmentStatusAction,
 } from "@/app/(app)/dashboard/actions";
 import {
   formatLocalDate,
+  formatLocalTime,
   localDateKey,
   localISODate,
+  nextQuarterHourLocalInput,
+  shiftLocalIsoDate,
   toLocalDateTimeInputValue,
 } from "@/lib/date";
 import { buildSgtCalendarWindow } from "@/lib/appointment-calendar";
@@ -24,7 +30,7 @@ import { appointmentWhatsappText, whatsappHref } from "@/lib/whatsapp";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { CalendarDays, CalendarX2 } from "lucide-react";
+import { CalendarDays, CalendarX2, ChevronLeft, ChevronRight } from "lucide-react";
 
 type AppointmentStatus =
   | "pending"
@@ -35,6 +41,8 @@ type AppointmentStatus =
   | "cancelled"
   | "no_show";
 
+type StatusFilter = "active" | "all" | AppointmentStatus;
+
 type Props = {
   searchParams: Promise<{
     studio_id?: string;
@@ -43,7 +51,7 @@ type Props = {
     date?: string;
     employee_id?: string;
     service_id?: string;
-    status?: "all" | AppointmentStatus;
+    status?: StatusFilter;
   }>;
 };
 
@@ -56,6 +64,8 @@ const STATUS_OPTIONS: AppointmentStatus[] = [
   "cancelled",
   "no_show",
 ];
+
+const ACTIVE_STATUSES: AppointmentStatus[] = ["pending", "confirmed", "checked_in", "in_progress"];
 
 function getStatusLabel(status: AppointmentStatus) {
   switch (status) {
@@ -82,7 +92,6 @@ function getStatusBadge(status: AppointmentStatus) {
   if (status === "pending") return ui.badgeAmber;
   return ui.badgeNeutral;
 }
-
 
 function buildTransitionKey(appointment: AppointmentCalendarRow, toStatus: string) {
   return `apt03-transition:${appointment.id}:${appointment.updated_at}:${toStatus}`;
@@ -116,6 +125,14 @@ function getInstructorTransitions(status: AppointmentStatus) {
   }
 }
 
+function primaryActionLabel(target: string) {
+  if (target === "checked_in") return "Check-in";
+  if (target === "in_progress") return "Start";
+  if (target === "confirmed") return "Confirm";
+  if (target === "completed") return "Complete";
+  return target;
+}
+
 function groupByDate(appointments: AppointmentCalendarRow[]) {
   const grouped = new Map<string, AppointmentCalendarRow[]>();
   for (const appointment of appointments) {
@@ -125,6 +142,31 @@ function groupByDate(appointments: AppointmentCalendarRow[]) {
     grouped.set(key, list);
   }
   return grouped;
+}
+
+function defaultCreateStartsAt(anchorDate: string) {
+  if (anchorDate === localISODate()) return nextQuarterHourLocalInput();
+  return `${anchorDate}T10:00`;
+}
+
+function appointmentsHref(params: {
+  studioId: string;
+  locationId?: string | null;
+  view?: "day" | "week";
+  date?: string;
+  employeeId?: string | null;
+  serviceId?: string | null;
+  status?: string;
+}) {
+  const query = new URLSearchParams();
+  query.set("studio_id", params.studioId);
+  if (params.locationId) query.set("location_id", params.locationId);
+  if (params.view) query.set("view", params.view);
+  if (params.date) query.set("date", params.date);
+  if (params.employeeId) query.set("employee_id", params.employeeId);
+  if (params.serviceId) query.set("service_id", params.serviceId);
+  if (params.status) query.set("status", params.status);
+  return `/dashboard/appointments?${query.toString()}`;
 }
 
 function AppointmentCard(props: {
@@ -138,14 +180,16 @@ function AppointmentCard(props: {
   employees: Array<{ id: string; display_name: string }>;
 }) {
   const appointment = props.appointment;
+  const status = appointment.status as AppointmentStatus;
   const transitions = props.canManage
-    ? getManageTransitions(appointment.status as AppointmentStatus)
+    ? getManageTransitions(status)
     : props.isInstructorOnly
-      ? getInstructorTransitions(appointment.status as AppointmentStatus)
+      ? getInstructorTransitions(status)
       : [];
   const transitionSet = new Set<string>(transitions as readonly string[]);
-  const canReschedule =
-    props.canManage && ["pending", "confirmed"].includes(appointment.status);
+  const canReschedule = props.canManage && ["pending", "confirmed"].includes(status);
+  const primaryTargets = transitions.filter((target) => target !== "cancelled" && target !== "no_show");
+  const showCardNoShow = props.canManage && transitionSet.has("no_show") && status === "confirmed";
   const whatsappLink = whatsappHref(
     props.customerPhone,
     appointmentWhatsappText({
@@ -161,23 +205,20 @@ function AppointmentCard(props: {
     <article className={`${ui.card} flex flex-col gap-3`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+          <p className="text-sm font-semibold tabular-nums text-stone-900 dark:text-stone-100">
+            <LocalTime iso={appointment.starts_at} options={{ timeStyle: "short" }} />
+            {" – "}
+            <LocalTime iso={appointment.ends_at} options={{ timeStyle: "short" }} />
+          </p>
+          <p className="mt-0.5 text-sm font-medium text-stone-900 dark:text-stone-100">
             {appointment.customer_name ?? "Unnamed customer"}
           </p>
           <p className={`text-xs ${ui.muted}`}>
             {appointment.service_title_snapshot} · {appointment.employee_name_snapshot} · {appointment.location_name_snapshot}
           </p>
         </div>
-        <span className={getStatusBadge(appointment.status as AppointmentStatus)}>
-          {getStatusLabel(appointment.status as AppointmentStatus)}
-        </span>
+        <span className={getStatusBadge(status)}>{getStatusLabel(status)}</span>
       </div>
-
-      <p className={`text-xs ${ui.muted}`}>
-        <LocalTime iso={appointment.starts_at} options={{ dateStyle: "medium", timeStyle: "short" }} />
-        {" — "}
-        <LocalTime iso={appointment.ends_at} options={{ timeStyle: "short" }} />
-      </p>
 
       {appointment.cancellation_reason ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
@@ -185,26 +226,44 @@ function AppointmentCard(props: {
         </p>
       ) : null}
 
-      {whatsappLink || transitions.length > 0 ? (
+      {whatsappLink || primaryTargets.length > 0 || (props.canManage && status === "completed") || showCardNoShow ? (
         <div className="flex flex-wrap gap-2">
           <StaffWhatsappLink href={whatsappLink} />
-          {transitions.filter((status) => status !== "cancelled" && status !== "no_show").map((target) => (
+          {primaryTargets.map((target) => (
             <ServerActionToastForm key={target} action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
               <input type="hidden" name="studio_id" value={props.studioId} />
               <input type="hidden" name="appointment_id" value={appointment.id} />
               <input type="hidden" name="to_status" value={target} />
               <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, target)} />
-              <button type="submit" className={ui.btnSecondarySm}>
-                {target === "checked_in"
-                  ? "Check-in"
-                  : target === "in_progress"
-                    ? "Start"
-                    : target === "confirmed"
-                      ? "Confirm"
-                      : "Complete"}
+              <button type="submit" className={ui.btnPrimarySm}>
+                {primaryActionLabel(target)}
               </button>
             </ServerActionToastForm>
           ))}
+          {showCardNoShow ? (
+            <ServerActionToastForm action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
+              <input type="hidden" name="studio_id" value={props.studioId} />
+              <input type="hidden" name="appointment_id" value={appointment.id} />
+              <input type="hidden" name="to_status" value="no_show" />
+              <input type="hidden" name="reason" value="customer_no_show" />
+              <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "no_show")} />
+              <button type="submit" className={ui.btnDangerSm}>No-show</button>
+            </ServerActionToastForm>
+          ) : null}
+          {props.canManage && status === "completed" ? (
+            <ServerActionToastForm action={chargeSalonAppointmentAction} refreshOnSuccess={false}>
+              <input type="hidden" name="studio_id" value={props.studioId} />
+              <input type="hidden" name="location_id" value={appointment.location_id} />
+              <input type="hidden" name="appointment_id" value={appointment.id} />
+              <input type="hidden" name="salon_customer_id" value={appointment.salon_customer_id} />
+              <input type="hidden" name="service_id" value={appointment.service_id} />
+              <input type="hidden" name="employee_id" value={appointment.employee_id} />
+              <input type="hidden" name="item_name" value={appointment.service_title_snapshot} />
+              <input type="hidden" name="currency" value={appointment.service_currency_snapshot} />
+              <input type="hidden" name="unit_price" value={String(appointment.service_price_snapshot ?? 0)} />
+              <button type="submit" className={ui.btnPrimarySm}>Charge</button>
+            </ServerActionToastForm>
+          ) : null}
         </div>
       ) : null}
 
@@ -212,10 +271,9 @@ function AppointmentCard(props: {
         <summary className="cursor-pointer text-xs font-medium text-stone-700 dark:text-stone-300">Details & actions</summary>
         <div className="mt-3 grid gap-3">
           <div className={`grid gap-1 text-xs ${ui.muted}`}>
-            <p><span className="font-medium text-stone-700 dark:text-stone-300">Appointment:</span> {appointment.id}</p>
-            <p><span className="font-medium text-stone-700 dark:text-stone-300">Service:</span> {appointment.service_id}</p>
-            <p><span className="font-medium text-stone-700 dark:text-stone-300">Employee:</span> {appointment.employee_id}</p>
-            <p><span className="font-medium text-stone-700 dark:text-stone-300">Customer:</span> {appointment.salon_customer_id}</p>
+            <p><span className="font-medium text-stone-700 dark:text-stone-300">Service:</span> {appointment.service_title_snapshot}</p>
+            <p><span className="font-medium text-stone-700 dark:text-stone-300">Staff:</span> {appointment.employee_name_snapshot}</p>
+            <p><span className="font-medium text-stone-700 dark:text-stone-300">Customer:</span> {appointment.customer_name ?? "Unnamed"}</p>
             {!whatsappLink ? <p>Add a customer phone to enable WhatsApp.</p> : null}
           </div>
 
@@ -235,7 +293,7 @@ function AppointmentCard(props: {
             </ServerActionToastForm>
           ) : null}
 
-          {props.canManage && transitionSet.has("no_show") ? (
+          {props.canManage && transitionSet.has("no_show") && !showCardNoShow ? (
             <ServerActionToastForm action={transitionSalonAppointmentStatusAction} className="grid gap-2 sm:grid-cols-[1fr_auto]" refreshOnSuccess={false}>
               <input type="hidden" name="studio_id" value={props.studioId} />
               <input type="hidden" name="appointment_id" value={appointment.id} />
@@ -292,18 +350,13 @@ function AppointmentCard(props: {
                 </select>
               </label>
 
-              <label className="flex flex-col gap-1">
+              <label className="flex flex-col gap-1 sm:col-span-2">
                 <span className={ui.label}>Service</span>
                 <select name="new_service_id" className={ui.select} defaultValue={appointment.service_id}>
                   {props.services.map((service) => (
                     <option key={service.id} value={service.id}>{service.name}</option>
                   ))}
                 </select>
-              </label>
-
-              <label className="flex flex-col gap-1">
-                <span className={ui.label}>Resources (UUID, comma-separated)</span>
-                <input name="new_resource_ids" className={ui.input} placeholder="optional" />
               </label>
 
               <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Reschedule</button>
@@ -369,7 +422,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
   const [servicesResult, customersResult, allEmployeesResult, ownEmployeeResult] = await Promise.all([
     admin
       .from("studio_services")
-      .select("id, title")
+      .select("id, title, default_duration_minutes")
       .eq("studio_id", activeStudioId)
       .eq("is_active", true)
       .order("title"),
@@ -398,7 +451,11 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
       .maybeSingle<{ id: string; display_name: string }>(),
   ]);
 
-  const services = (servicesResult.data ?? []).map((service) => ({ id: service.id, name: service.title ?? "Unnamed" }));
+  const services = (servicesResult.data ?? []).map((service) => ({
+    id: service.id,
+    name: service.title ?? "Unnamed",
+    durationMinutes: Number(service.default_duration_minutes ?? 60),
+  }));
   const customers = (customersResult.data ?? []).map((customer) => ({ id: customer.id, full_name: customer.full_name ?? "Unnamed" }));
   const employees = canManage
     ? (allEmployeesResult.data ?? []).map((employee) => ({ id: employee.id, display_name: employee.display_name ?? "Unnamed" }))
@@ -408,9 +465,10 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
 
   const selectedView = sp.view === "week" ? "week" : "day";
   const anchorDate = sp.date ?? localISODate();
-  const selectedStatus = sp.status && (sp.status === "all" || STATUS_OPTIONS.includes(sp.status as AppointmentStatus))
-    ? sp.status
-    : "all";
+  const selectedStatus: StatusFilter =
+    sp.status === "all" || sp.status === "active" || (sp.status && STATUS_OPTIONS.includes(sp.status as AppointmentStatus))
+      ? (sp.status as StatusFilter)
+      : "active";
 
   const window = buildSgtCalendarWindow(selectedView, anchorDate);
   if (!window.rangeStartIso || !window.rangeEndIso) {
@@ -419,7 +477,12 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
 
   const selectedEmployeeId = sp.employee_id?.trim() || null;
   const selectedServiceId = sp.service_id?.trim() || null;
-  const statusFilters = selectedStatus === "all" ? null : [selectedStatus as AppointmentStatus];
+  const statusFilters =
+    selectedStatus === "all"
+      ? null
+      : selectedStatus === "active"
+        ? ACTIVE_STATUSES
+        : [selectedStatus as AppointmentStatus];
 
   const calendarResult = await listAppointmentsForCalendar({
     userId: user.id,
@@ -447,12 +510,17 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
     }
   }
 
-  const scopeQuery = new URLSearchParams();
-  scopeQuery.set("studio_id", activeStudioId);
-  if (effectiveLocationId) scopeQuery.set("location_id", effectiveLocationId);
+  const hrefBase = {
+    studioId: activeStudioId,
+    locationId: effectiveLocationId,
+    employeeId: selectedEmployeeId,
+    serviceId: selectedServiceId,
+    status: selectedStatus,
+  };
+  const locationOptions = locations.map((location) => ({ id: location.id, name: location.name ?? "Unnamed" }));
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className={`${ui.card} flex flex-wrap gap-3`}>
         <DashboardLocationFilter
           locations={locations}
@@ -463,17 +531,65 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
         />
       </div>
 
-      <div>
-        <h1 className={ui.h1}>Appointments</h1>
-        <p className={`mt-1 ${ui.muted}`}>
-          Day/week calendar with scoped status operations.
-          {studioResult.data?.contract_status === "suspended" ? " Studio is suspended." : ""}
-        </p>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className={ui.h1}>Appointments</h1>
+            <p className={`mt-1 ${ui.muted}`}>
+              {appointments.length} remaining
+              {studioResult.data?.contract_status === "suspended" ? " · Studio is suspended." : ""}
+            </p>
+          </div>
+          <div className="inline-flex gap-1 rounded-xl bg-stone-100 p-1 dark:bg-stone-800/80">
+            <DashboardAppLink
+              href={appointmentsHref({ ...hrefBase, view: "day", date: anchorDate })}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${selectedView === "day" ? "bg-white text-stone-900 shadow-sm dark:bg-stone-950 dark:text-stone-100" : "text-stone-600 dark:text-stone-300"}`}
+            >
+              Day
+            </DashboardAppLink>
+            <DashboardAppLink
+              href={appointmentsHref({ ...hrefBase, view: "week", date: anchorDate })}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${selectedView === "week" ? "bg-white text-stone-900 shadow-sm dark:bg-stone-950 dark:text-stone-100" : "text-stone-600 dark:text-stone-300"}`}
+            >
+              Week
+            </DashboardAppLink>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <DashboardAppLink
+            href={appointmentsHref({ ...hrefBase, view: selectedView, date: shiftLocalIsoDate(anchorDate, selectedView === "week" ? -7 : -1) })}
+            className={ui.btnGhost}
+          >
+            <ChevronLeft size={16} />
+            Prev
+          </DashboardAppLink>
+          <DashboardAppLink
+            href={appointmentsHref({ ...hrefBase, view: selectedView, date: localISODate() })}
+            className={ui.btnSecondarySm}
+          >
+            Today
+          </DashboardAppLink>
+          <DashboardAppLink
+            href={appointmentsHref({ ...hrefBase, view: selectedView, date: shiftLocalIsoDate(anchorDate, selectedView === "week" ? 7 : 1) })}
+            className={ui.btnGhost}
+          >
+            Next
+            <ChevronRight size={16} />
+          </DashboardAppLink>
+          <p className="text-sm font-medium text-stone-800 dark:text-stone-100">
+            {selectedView === "week"
+              ? `${formatLocalDate(`${window.dayKeys[0]}T00:00:00+08:00`)} – ${formatLocalDate(`${window.dayKeys[window.dayKeys.length - 1]}T00:00:00+08:00`)}`
+              : formatLocalDate(`${anchorDate}T00:00:00+08:00`, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
       </div>
 
       {canManage ? (
-        <section className={ui.card}>
-          <h2 className={ui.h2}>Create appointment</h2>
+        <details className={`chevron ${ui.card}`}>
+          <summary className="cursor-pointer">
+            <h2 className={`${ui.h2} inline`}>Create appointment</h2>
+          </summary>
           <ServerActionToastForm action={createSalonAppointmentAction} className="mt-4 grid gap-3 sm:grid-cols-2" refreshOnSuccess={false}>
             <input type="hidden" name="studio_id" value={activeStudioId} />
             <input type="hidden" name="idempotency_key" value={`apt03-create:${crypto.randomUUID()}`} />
@@ -487,25 +603,8 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Customer</span>
-              <select name="salon_customer_id" className={ui.select} required>
-                <option value="">Select customer</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.full_name}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Service</span>
-              <select name="service_id" className={ui.select} required>
-                <option value="">Select service</option>
-                {services.map((service) => (
-                  <option key={service.id} value={service.id}>{service.name}</option>
-                ))}
-              </select>
-            </label>
+            <AppointmentCustomerSelect customers={customers} required />
+            <AppointmentServiceSelect services={services} required />
 
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Employee</span>
@@ -519,12 +618,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
 
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Starts at (SGT)</span>
-              <input type="datetime-local" name="starts_at" className={ui.input} required />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Resources (UUID, comma-separated)</span>
-              <input name="resource_ids" className={ui.input} placeholder="optional" />
+              <input type="datetime-local" name="starts_at" className={ui.input} defaultValue={defaultCreateStartsAt(anchorDate)} required />
             </label>
 
             <label className="flex flex-col gap-1.5 sm:col-span-2">
@@ -534,7 +628,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
 
             <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2 sm:w-fit`}>Create appointment</button>
           </ServerActionToastForm>
-        </section>
+        </details>
       ) : null}
 
       <section>
@@ -542,19 +636,8 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
         <form method="get" className={`${ui.card} mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <input type="hidden" name="studio_id" value={activeStudioId} />
           {effectiveLocationId ? <input type="hidden" name="location_id" value={effectiveLocationId} /> : null}
-
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>View</span>
-            <select name="view" className={ui.select} defaultValue={selectedView}>
-              <option value="day">Day</option>
-              <option value="week">Week</option>
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Anchor date</span>
-            <input type="date" name="date" className={ui.input} defaultValue={anchorDate} required />
-          </label>
+          <input type="hidden" name="view" value={selectedView} />
+          <input type="hidden" name="date" value={anchorDate} />
 
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Employee</span>
@@ -576,9 +659,10 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
             </select>
           </label>
 
-          <label className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-2">
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className={ui.label}>Status</span>
             <select name="status" className={ui.select} defaultValue={selectedStatus}>
+              <option value="active">Active</option>
               <option value="all">All</option>
               {STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>{getStatusLabel(status)}</option>
@@ -586,9 +670,9 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
             </select>
           </label>
 
-          <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
+          <div className="flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4">
             <button type="submit" className={ui.btnPrimarySm}>Apply</button>
-            <DashboardAppLink href={`/dashboard/appointments?${scopeQuery.toString()}`} className={ui.btnGhost}>Reset</DashboardAppLink>
+            <DashboardAppLink href={appointmentsHref({ studioId: activeStudioId, locationId: effectiveLocationId })} className={ui.btnGhost}>Reset</DashboardAppLink>
           </div>
         </form>
 
@@ -609,7 +693,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
                   customerPhone={customerPhones.get(appointment.salon_customer_id) ?? null}
                   canManage={canManage}
                   isInstructorOnly={isInstructorOnly}
-                  locations={locations.map((location) => ({ id: location.id, name: location.name ?? "Unnamed" }))}
+                  locations={locationOptions}
                   services={services}
                   employees={employees}
                 />
@@ -622,39 +706,43 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
             </div>
           )
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <div className="grid min-w-[980px] grid-cols-7 gap-3">
-              {window.dayKeys.map((dayKey) => (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+            {window.dayKeys.map((dayKey) => {
+              const dayAppointments = groupedByDate.get(dayKey) ?? [];
+              return (
                 <section key={dayKey} className="rounded-2xl border border-stone-200 bg-white/90 p-3 dark:border-stone-800 dark:bg-stone-900/60">
                   <header className="mb-2">
-                    <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{formatLocalDate(`${dayKey}T00:00:00+08:00`)}</p>
-                    <p className={`text-xs ${ui.muted}`}>{(groupedByDate.get(dayKey) ?? []).length} appointments</p>
+                    <DashboardAppLink
+                      href={appointmentsHref({ ...hrefBase, view: "day", date: dayKey })}
+                      className="text-sm font-semibold text-stone-900 dark:text-stone-100"
+                    >
+                      {formatLocalDate(`${dayKey}T00:00:00+08:00`, { weekday: "short", month: "short", day: "numeric" })}
+                    </DashboardAppLink>
+                    <p className={`text-xs ${ui.muted}`}>{dayAppointments.length} appointments</p>
                   </header>
-
                   <div className="flex flex-col gap-2">
-                    {(groupedByDate.get(dayKey) ?? []).length === 0 ? (
+                    {dayAppointments.length === 0 ? (
                       <p className={`rounded-lg border border-dashed border-stone-200 px-2 py-3 text-center text-xs ${ui.muted} dark:border-stone-700`}>
                         No appointments
                       </p>
                     ) : (
-                      (groupedByDate.get(dayKey) ?? []).map((appointment) => (
-                        <AppointmentCard
+                      dayAppointments.map((appointment) => (
+                        <DashboardAppLink
                           key={appointment.id}
-                          appointment={appointment}
-                          studioId={activeStudioId}
-                          customerPhone={customerPhones.get(appointment.salon_customer_id) ?? null}
-                          canManage={canManage}
-                          isInstructorOnly={isInstructorOnly}
-                          locations={locations.map((location) => ({ id: location.id, name: location.name ?? "Unnamed" }))}
-                          services={services}
-                          employees={employees}
-                        />
+                          href={appointmentsHref({ ...hrefBase, view: "day", date: dayKey })}
+                          className="rounded-lg border border-stone-200 px-2 py-1.5 text-left dark:border-stone-700"
+                        >
+                          <p className="text-xs font-semibold tabular-nums text-stone-900 dark:text-stone-100">
+                            {formatLocalTime(appointment.starts_at)} · {appointment.customer_name ?? "Unnamed"}
+                          </p>
+                          <p className={`truncate text-[11px] ${ui.muted}`}>{getStatusLabel(appointment.status as AppointmentStatus)}</p>
+                        </DashboardAppLink>
                       ))
                     )}
                   </div>
                 </section>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 

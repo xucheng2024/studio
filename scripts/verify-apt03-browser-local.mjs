@@ -63,6 +63,8 @@ try {
   await owner.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "appointments mobile overflow");
 
+  const createSection = owner.page.locator("details").filter({ has: owner.page.getByRole("heading", { name: "Create appointment" }) });
+  await createSection.locator("summary").click();
   const createForm = owner.page.locator("form").filter({ has: owner.page.getByRole("button", { name: "Create appointment" }) });
   await createForm.locator('select[name="salon_customer_id"]').selectOption({ label: "APT-03 L1 customer" });
   await createForm.locator('select[name="service_id"]').selectOption({ label: "APT-03 local service" });
@@ -82,13 +84,11 @@ try {
       .maybeSingle();
     if (error) throw error;
     return data;
-  }, (row) => row?.status === "pending", "owner created pending appointment");
+  }, (row) => row?.status === "confirmed", "owner created confirmed appointment");
 
   await owner.page.reload({ waitUntil: "domcontentloaded" });
   await owner.page.getByRole("heading", { name: "Appointments" }).waitFor({ state: "visible", timeout: 30_000 });
   const card = owner.page.locator("article").filter({ hasText: "APT-03 L1 customer" });
-  await transitionOnCard(owner.page, card, "Confirm", "confirmed", created.id);
-  await owner.page.reload({ waitUntil: "domcontentloaded" });
   await transitionOnCard(owner.page, card, "Check-in", "checked_in", created.id);
   await owner.page.reload({ waitUntil: "domcontentloaded" });
   await transitionOnCard(owner.page, card, "Start", "in_progress", created.id);
@@ -97,16 +97,16 @@ try {
   await owner.context.close();
 
   const instructor = await login(APT_LOCAL_IDENTITIES.instructor);
-  await instructor.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await instructor.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}&status=all`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await instructor.page.getByText("APT-03 L1 customer", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   assert.equal(await instructor.page.getByRole("heading", { name: "Create appointment" }).count(), 0, "instructor cannot create appointments");
   assert.equal(await instructor.page.locator("article").filter({ hasText: "APT-03 L2 customer" }).count(), 0, "instructor does not see other-employee L2 appointment");
   await instructor.context.close();
 
   const frontdesk = await login(APT_LOCAL_IDENTITIES.frontdesk);
-  await frontdesk.page.goto(`${baseUrl}/dashboard/appointments?studio_id=${studioId}&location_id=${locationL2Id}&date=${slotDate}&view=day`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await frontdesk.page.goto(`${baseUrl}/dashboard/appointments?studio_id=${studioId}&location_id=${locationL2Id}&date=${slotDate}&view=day&status=all`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await frontdesk.page.locator("article").filter({ hasText: "APT-03 L2 customer" }).count(), 0, "frontdesk cannot read L2 appointment");
-  await frontdesk.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await frontdesk.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}&status=all`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await frontdesk.page.locator("article").filter({ hasText: "APT-03 L1 customer" }).waitFor({ state: "visible", timeout: 30_000 });
   await frontdesk.context.close();
 
@@ -116,7 +116,7 @@ try {
     run_id: runId,
     status: "passed",
     assertions: [
-      { name: "owner create-confirm-checkin-start-complete", result: "passed" },
+      { name: "owner create-checkin-start-complete", result: "passed" },
       { name: "instructor sees own appointment and cannot create", result: "passed" },
       { name: "frontdesk is denied cross-location L2 appointment", result: "passed" },
       { name: "390px layout has no horizontal overflow", result: "passed" },

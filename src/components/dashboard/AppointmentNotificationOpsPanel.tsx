@@ -116,13 +116,20 @@ export function AppointmentNotificationOpsPanel(props: {
     }
   }
 
+  const failedCount = rows.filter((row) => row.status === "failed" || row.status === "invalidated").length;
+
   return (
-    <section className={ui.card}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className={ui.h2}>Appointment Email Notifications</h2>
-          <p className={ui.muted}>Latest queue logs and manual retry controls.</p>
-        </div>
+    <details className={`chevron ${ui.card}`}>
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-stone-900 dark:text-stone-100">Email notifications</span>
+        {failedCount > 0 ? (
+          <span className={ui.badgeAmber}>{failedCount} failed</span>
+        ) : (
+          <span className={`text-xs ${ui.muted}`}>{loading ? "Loading…" : `${rows.length} recent`}</span>
+        )}
+      </summary>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className={ui.muted}>Latest queue logs and manual retry controls.</p>
         <button
           type="button"
           className={ui.btnSecondarySm}
@@ -202,6 +209,6 @@ export function AppointmentNotificationOpsPanel(props: {
       {!props.canRetry ? (
         <p className={`mt-3 text-xs ${ui.muted}`}>Manual retry requires Owner or Manager role.</p>
       ) : null}
-    </section>
+    </details>
   );
 }

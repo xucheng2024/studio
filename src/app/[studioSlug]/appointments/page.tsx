@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
-import { formatLocalDate, formatLocalTime, localISODate } from "@/lib/date";
+import Link from "next/link";
+import { formatLocalDate, formatLocalTime, localISODate, shiftLocalIsoDate } from "@/lib/date";
 import {
   createSelfAppointment,
   getLatestSalonTermsVersion,
@@ -102,8 +103,8 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const selfCustomer = await resolveSelfSalonCustomer({ studioId: studio.id, userId: user.id });
   const studioId = studio.id;
   const catalog = await listSelfBookableCatalog({ studioId: studio.id });
-  const selectedLocationId = String(sp.location_id ?? "").trim();
-  const selectedServiceId = String(sp.service_id ?? "").trim();
+  const selectedLocationId = String(sp.location_id ?? "").trim() || (catalog.locations.length === 1 ? catalog.locations[0].id : "");
+  const selectedServiceId = String(sp.service_id ?? "").trim() || (catalog.services.length === 1 ? catalog.services[0].id : "");
   const selectedDate = String(sp.date ?? localISODate()).trim();
 
   const selectedService = catalog.services.find((service) => service.id === selectedServiceId) ?? null;
@@ -131,6 +132,14 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const notice = messageFromStatus(sp.ok, sp.error);
   const availableSlots = slotResult?.ok ? slotResult.payload.slots : [];
   const termsSummary = summarizeTermsSnapshot(termsVersion?.content_snapshot ?? null);
+  const defaultPayment = packageCredits?.ok && packageCredits.payload.packages.length > 0 ? "package_credit" : "free";
+  const bookingQuery = (date: string) => {
+    const query = new URLSearchParams();
+    if (selectedLocationId) query.set("location_id", selectedLocationId);
+    if (selectedServiceId) query.set("service_id", selectedServiceId);
+    query.set("date", date);
+    return `/${studioSlug}/appointments?${query.toString()}`;
+  };
 
   async function bookAppointmentAction(formData: FormData) {
     "use server";
@@ -273,7 +282,11 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
 
               <div className="sm:col-span-1">
                 <label className={ui.label}>Date (SGT)</label>
-                <input type="date" name="date" className={ui.input} defaultValue={selectedDate} required />
+                <div className="flex items-center gap-1">
+                  <Link href={bookingQuery(shiftLocalIsoDate(selectedDate, -1))} className={ui.btnGhost}>Prev</Link>
+                  <input type="date" name="date" className={ui.input} defaultValue={selectedDate} required />
+                  <Link href={bookingQuery(shiftLocalIsoDate(selectedDate, 1))} className={ui.btnGhost}>Next</Link>
+                </div>
               </div>
 
               <div className="sm:col-span-1 flex items-end">
@@ -283,7 +296,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
 
             <section className={ui.card}>
               <h2 className={ui.h3}>Available slots</h2>
-              <p className={`mt-1 text-sm ${ui.muted}`}>Real-time availability is checked again during submit to prevent concurrency conflicts.</p>
+              <p className={`mt-1 text-sm ${ui.muted}`}>Pick a time. Availability is checked again when you book.</p>
 
               {termsVersion?.id ? (
                 <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900/40">
@@ -314,66 +327,61 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                 <ul className="mt-4 space-y-2">
                   {availableSlots.map((slot) => (
                     <li key={`${slot.startsAtIso}:${slot.employeeId}`} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
+                      <form action={bookAppointmentAction} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <input type="hidden" name="slot_starts_at" value={slot.startsAtIso} />
+                        <input type="hidden" name="slot_employee_id" value={slot.employeeId} />
+                        <input type="hidden" name="resource_ids" value={slot.resourceIds.join(",")} />
+                        <input type="hidden" name="service_id" value={selectedServiceId} />
+                        <input type="hidden" name="location_id" value={selectedLocationId} />
+                        <input type="hidden" name="date" value={selectedDate} />
+                        <input
+                          type="hidden"
+                          name="idempotency_key"
+                          value={`apt04-self-create:${crypto.randomUUID()}`}
+                        />
+                        <input type="hidden" name="terms_version_id" value={termsVersion.id} />
+                        <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
+
                         <div>
                           <p className="font-medium text-stone-900 dark:text-stone-100">
-                            {formatLocalDate(slot.startsAtIso, { weekday: "short", month: "short", day: "2-digit" })} · {formatLocalTime(slot.startsAtIso)}
+                            {formatLocalTime(slot.startsAtIso)} · {slot.employeeName}
                           </p>
-                          <p className={`text-sm ${ui.muted}`}>Staff: {slot.employeeName}</p>
+                          <p className={`text-xs ${ui.muted}`}>
+                            {formatLocalDate(slot.startsAtIso, { weekday: "short", month: "short", day: "2-digit" })}
+                          </p>
                         </div>
-                        <form action={bookAppointmentAction} className="grid gap-2 sm:grid-cols-2">
-                          <input type="hidden" name="slot_starts_at" value={slot.startsAtIso} />
-                          <input type="hidden" name="slot_employee_id" value={slot.employeeId} />
-                          <input type="hidden" name="resource_ids" value={slot.resourceIds.join(",")} />
-                          <input type="hidden" name="service_id" value={selectedServiceId} />
-                          <input type="hidden" name="location_id" value={selectedLocationId} />
-                          <input type="hidden" name="date" value={selectedDate} />
-                          <input
-                            type="hidden"
-                            name="idempotency_key"
-                            value={`apt04-self-create:${crypto.randomUUID()}`}
-                          />
-                          <input type="hidden" name="terms_version_id" value={termsVersion.id} />
-                          <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
-
-                          <label className="sm:col-span-2 text-xs font-medium text-stone-700 dark:text-stone-200">
-                            Payment option
-                          </label>
-                          <select name="payment_option" className={`${ui.input} sm:col-span-2`} defaultValue="free" required>
-                            <option value="free">No prepayment (Phase 1 compatible)</option>
-                            <option value="package_credit" disabled={!packageCredits?.ok || !packageCredits.payload.packages.length}>
-                              Use package credits {!packageCredits?.ok || !packageCredits.payload.packages.length ? "(not eligible)" : ""}
-                            </option>
-                            <option value="online_deposit">Online deposit (30%)</option>
-                            <option value="online_full">Online full payment</option>
-                          </select>
-
-                          {packageCredits?.ok && packageCredits.payload.packages.length ? (
-                            <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
-                              Eligible package credits: {packageCredits.payload.packages.map((pkg) => `${pkg.packageName} (${pkg.creditsLeft})`).join(", ")}
-                            </p>
-                          ) : (
-                            <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
-                              Package rule (conservative): same studio + location scope + active package + unexpired + credits &gt; 0.
-                            </p>
-                          )}
-
-                          <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
-                            <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
-                            <span>
-                              I accept Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}.
-                            </span>
-                          </label>
-                          <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
-                            <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
-                            <span>
-                              I accept Privacy notice {privacyNotice.version_label ? `(${privacyNotice.version_label})` : ""}{" "}
-                              <a href={studioPrivacyPath(studioSlug)} className={ui.link} target="_blank" rel="noreferrer">view</a>.
-                            </span>
-                          </label>
-                          <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Book this slot</button>
-                        </form>
-                      </div>
+                        <select name="payment_option" className={ui.select} defaultValue={defaultPayment} required>
+                          <option value="free">No prepayment</option>
+                          <option value="package_credit" disabled={!packageCredits?.ok || !packageCredits.payload.packages.length}>
+                            Use package credits {!packageCredits?.ok || !packageCredits.payload.packages.length ? "(not eligible)" : ""}
+                          </option>
+                          <option value="online_deposit">Online deposit (30%)</option>
+                          <option value="online_full">Online full payment</option>
+                        </select>
+                        {packageCredits?.ok && packageCredits.payload.packages.length ? (
+                          <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
+                            Eligible package credits: {packageCredits.payload.packages.map((pkg) => `${pkg.packageName} (${pkg.creditsLeft})`).join(", ")}
+                          </p>
+                        ) : (
+                          <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
+                            Package rule (conservative): same studio + location scope + active package + unexpired + credits &gt; 0.
+                          </p>
+                        )}
+                        <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
+                          <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
+                          <span>
+                            I accept Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}.
+                          </span>
+                        </label>
+                        <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
+                          <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
+                          <span>
+                            I accept Privacy notice {privacyNotice.version_label ? `(${privacyNotice.version_label})` : ""}{" "}
+                            <a href={studioPrivacyPath(studioSlug)} className={ui.link} target="_blank" rel="noreferrer">view</a>.
+                          </span>
+                        </label>
+                        <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Book this slot</button>
+                      </form>
                     </li>
                   ))}
                 </ul>

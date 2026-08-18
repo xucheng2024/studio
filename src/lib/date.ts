@@ -129,3 +129,16 @@ export function localDateKey(value: string | number | Date | null | undefined) {
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
+
+export function shiftLocalIsoDate(dateText: string, days: number) {
+  const date = new Date(`${dateText}T12:00:00${BUSINESS_UTC_OFFSET}`);
+  if (Number.isNaN(date.getTime())) return dateText;
+  date.setUTCDate(date.getUTCDate() + days);
+  return localISODate(date);
+}
+
+export function nextQuarterHourLocalInput(from = new Date()) {
+  const quarterMs = 15 * 60 * 1000;
+  const rounded = new Date(Math.ceil((from.getTime() + 1) / quarterMs) * quarterMs);
+  return toLocalDateTimeInputValue(rounded);
+}

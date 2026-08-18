@@ -45,6 +45,7 @@ export { createMarketingCampaignAction, retryMarketingCampaignAction, scheduleMa
 
 export {
   cancelSalonAppointmentAction,
+  chargeSalonAppointmentAction,
   createSalonAppointmentAction,
   rescheduleSalonAppointmentAction,
   transitionSalonAppointmentStatusAction,
