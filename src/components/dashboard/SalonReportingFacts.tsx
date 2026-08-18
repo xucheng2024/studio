@@ -51,7 +51,7 @@ export function SalonReportingFacts({ facts }: { facts: ReportingFacts }) {
       <div>
         <h2 className={ui.h2}>Salon facts</h2>
         <p className={`mt-1 ${ui.muted}`}>
-          Database aggregates for {facts.from} to {facts.to}. Charts come in the next dashboard pass. Inventory and loyalty stay 0.
+          Database aggregates for {facts.from} to {facts.to}. Inventory and loyalty stay 0.
         </p>
       </div>
 

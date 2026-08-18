@@ -10,6 +10,7 @@ export type AppointmentOutcomeFacts = {
     cancelled: number;
     no_show: number;
   }>;
+  by_day: Array<{ day: string; completed: number; cancelled: number; no_show: number }>;
 };
 
 export type SalesFacts = {
@@ -23,6 +24,7 @@ export type SalesFacts = {
   }>;
   by_service: Array<{ service_id: string | null; service_label: string; gross: number; refunds: number; net: number }>;
   by_product: Array<{ product_id: string | null; product_label: string; gross: number; refunds: number; net: number }>;
+  by_day: Array<{ day: string; service_net: number; retail_net: number }>;
   yoy: { current_net: number; prior_net: number };
 };
 
@@ -123,6 +125,52 @@ export function locationSalesMatch(sales: SalesFacts) {
   return summed.service === Number(sales.service.net ?? 0) && summed.retail === Number(sales.retail.net ?? 0);
 }
 
+export type ChartBar = { label: string; values: Record<string, number> };
+
+function shortDay(day: string) {
+  return day.length >= 10 ? day.slice(5, 10) : day;
+}
+
+export function appointmentOutcomeBars(facts: ReportingFacts): ChartBar[] {
+  if (facts.appointment_outcome.by_day.length) {
+    return facts.appointment_outcome.by_day.map((row) => ({
+      label: shortDay(row.day),
+      values: { Completed: row.completed, Cancelled: row.cancelled, "No-show": row.no_show },
+    }));
+  }
+  return facts.appointment_outcome.by_location.map((row) => ({
+    label: row.location_label,
+    values: { Completed: row.completed, Cancelled: row.cancelled, "No-show": row.no_show },
+  }));
+}
+
+export function salesTrendBars(facts: ReportingFacts): ChartBar[] {
+  if (facts.sales.by_day.length) {
+    return facts.sales.by_day.map((row) => ({
+      label: shortDay(row.day),
+      values: { Service: row.service_net, Retail: row.retail_net },
+    }));
+  }
+  return [
+    { label: "This period", values: { Service: facts.sales.service.net, Retail: facts.sales.retail.net } },
+    { label: "Prior year", values: { Service: facts.sales.yoy.prior_net, Retail: 0 } },
+  ].filter((row) => Object.values(row.values).some((value) => value !== 0));
+}
+
+export function revenueByServiceBars(facts: ReportingFacts): ChartBar[] {
+  return facts.sales.by_service.map((row) => ({
+    label: row.service_label,
+    values: { Net: row.net },
+  }));
+}
+
+export function employeeProductivityBars(facts: ReportingFacts): ChartBar[] {
+  return facts.employees.map((row) => ({
+    label: row.employee_label,
+    values: { Sales: row.net_service_sales, Commission: row.net_commission },
+  }));
+}
+
 function num(value: unknown) {
   const amount = Number(value ?? 0);
   return Number.isFinite(amount) ? amount : 0;
@@ -169,6 +217,17 @@ export function normalizeReportingFacts(raw: unknown): ReportingFacts {
           };
         })
         : [],
+      by_day: Array.isArray(outcome.by_day)
+        ? outcome.by_day.map((item) => {
+          const day = item as Record<string, unknown>;
+          return {
+            day: String(day.day ?? ""),
+            completed: num(day.completed),
+            cancelled: num(day.cancelled),
+            no_show: num(day.no_show),
+          };
+        })
+        : [],
     },
     sales: {
       service: bucket(sales.service),
@@ -205,6 +264,16 @@ export function normalizeReportingFacts(raw: unknown): ReportingFacts {
             gross: num(product.gross),
             refunds: num(product.refunds),
             net: num(product.net),
+          };
+        })
+        : [],
+      by_day: Array.isArray(sales.by_day)
+        ? sales.by_day.map((item) => {
+          const day = item as Record<string, unknown>;
+          return {
+            day: String(day.day ?? ""),
+            service_net: num(day.service_net),
+            retail_net: num(day.retail_net),
           };
         })
         : [],

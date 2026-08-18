@@ -1,5 +1,6 @@
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { SalonDashboardCharts } from "@/components/dashboard/SalonDashboardCharts";
 import { SalonReportingFacts } from "@/components/dashboard/SalonReportingFacts";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
@@ -415,7 +416,12 @@ export default async function ReportsPage({ searchParams }: Props) {
         </form>
       </div>
 
-      {salonFacts ? <SalonReportingFacts facts={salonFacts} /> : <p className={ui.muted}>Salon facts are unavailable until the reporting migration is applied.</p>}
+      {salonFacts ? (
+        <>
+          <SalonDashboardCharts facts={salonFacts} />
+          <SalonReportingFacts facts={salonFacts} />
+        </>
+      ) : <p className={ui.muted}>Salon facts are unavailable until the reporting migration is applied.</p>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className={`${ui.statCard} flex items-center gap-4`}>

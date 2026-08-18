@@ -54,7 +54,7 @@
 | Phase 3 | PAY-02 Payroll Run | 已上线 | PAY-01 | Draft → Finalised → Paid / Voided 已进入生产。隔离 UAT 覆盖 Owner 建 Draft/重算、Manager 拒绝、员工 My pay；未对真实 Surgery 员工 Finalise/Paid。 |
 | Phase 3 | PAY-03 Payslip/Reports | 已上线 | PAY-02 | MOM Itemised Payslip 查看/打印/PDF、员工本人查看、Payroll/Commission/Statutory 报表。隔离 UAT 已对 fixture Finalise；未对真实 Surgery 员工 Finalise/Paid。 |
 | Phase 4 | RPT-01 Reporting Facts | 进行中 | 已上线 APT-03、POS-04、COM-01、PKG-01 | 复用现有 Revenue/Deferred/Commission 事实，只补 Q3 缺口 |
-| Phase 4 | RPT-02 Dashboard | 未开始 | RPT-01 | 等待依赖 |
+| Phase 4 | RPT-02 Dashboard | 进行中 | RPT-01 | 四图证据 Dashboard |
 | Phase 4 | EXP-01 Exports | 未开始 | RPT-01、CRM-02、POS-04、PKG-02、PAY-03 | 已有 Deferred 四格式 builder 和 Payments CSV；等待依赖后扩至核心数据 |
 | Phase 4 | CMP-01 PDPA Controls | 未开始 | CRM-01、FND-04 | 产品开发后由负责人完成表格 |
 | Phase 4 | SEC-01 VA/PT | 未开始 | 全部 Yes 功能稳定 | 提前询价，稳定后测试 |

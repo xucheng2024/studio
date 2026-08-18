@@ -46,6 +46,7 @@ test("RPT-01 location rows sum to the All locations totals", () => {
     ],
     by_service: [],
     by_product: [],
+    by_day: [],
     yoy: { current_net: 13, prior_net: 10 },
   }), true);
 });
