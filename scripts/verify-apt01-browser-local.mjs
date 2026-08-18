@@ -36,10 +36,6 @@ async function login(identity) {
   return { context, page: await context.newPage() };
 }
 
-async function waitForToast(page, message) {
-  await page.getByText(message, { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-}
-
 async function fillTimeInput(page, label, value) {
   const input = page.getByLabel(label);
   await input.waitFor({ state: "visible", timeout: 30_000 });
