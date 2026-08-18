@@ -13,6 +13,9 @@ export {
   updateStudioEmailSettings,
   updateStudioPublicBranding,
   updateStudioPublicProfile,
+  publishStudioPrivacyNoticeAction,
+  updateStudioRetentionSettingsAction,
+  markAppointmentRetentionReviewedAction,
 } from "./_actions/studio-settings";
 export type { BookingSettingsResult, CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult } from "./_actions/studio-settings";
 
@@ -62,11 +65,16 @@ export {
   createOrLinkTreatmentFromAppointmentAction,
   createStaffInvite,
   recordSalonCustomerEmailConsentAction,
+  recordSalonCustomerPrivacyConsentAction,
   revokeStaffInvite,
   reviseTreatmentAction,
   upsertTreatmentFollowUpAction,
+  updateSalonCustomerCoreProfileAction,
   updateSalonCustomerHealthProfileAction,
   updateSalonCustomerPreferencesAction,
+  createSalonCustomerDataRequestAction,
+  completeSalonCustomerDataRequestAction,
+  anonymizeSalonCustomerAction,
   toggleStaffMembership,
   updateMemberProfile,
 } from "./_actions/staff-clients";

@@ -19,20 +19,56 @@
         "scripts/lib/local-supabase-uat.mjs",
         "supabase/migrations/20260811145810_apt01_service_availability_resources.sql"
       ],
-      "command": ["npm", "run", "test:apt01-uat-local"],
-      "target": { "policy": "command_local" },
-      "data_access": { "policy": "local_only" },
-      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "command": [
+        "npm",
+        "run",
+        "test:apt01-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/apt01-uat"],
+        "directories": [
+          "tmp/apt01-uat"
+        ],
         "index": "tmp/apt01-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -53,20 +89,56 @@
         "scripts/lib/local-supabase-uat.mjs",
         "supabase/migrations/20260812102000_apt03_backoffice_calendar_status.sql"
       ],
-      "command": ["npm", "run", "test:apt03-uat-local"],
-      "target": { "policy": "command_local" },
-      "data_access": { "policy": "local_only" },
-      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "command": [
+        "npm",
+        "run",
+        "test:apt03-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/apt03-uat"],
+        "directories": [
+          "tmp/apt03-uat"
+        ],
         "index": "tmp/apt03-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -101,14 +173,37 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       }
     },
@@ -140,19 +235,44 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/apt04-settlement-uat"],
+        "directories": [
+          "tmp/apt04-settlement-uat"
+        ],
         "index": "tmp/apt04-settlement-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -185,14 +305,37 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       }
     },
@@ -222,15 +365,107 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
+      }
+    },
+    {
+      "id": "cmp01-privacy-local",
+      "paths": [
+        "src/app/[studioSlug]/privacy/**",
+        "src/app/(app)/dashboard/settings/privacy/**",
+        "src/lib/studio-privacy.ts",
+        "supabase/migrations/20260818210000_cmp01_pdpa_privacy_controls.sql",
+        "scripts/run-cmp01-privacy-uat-local.mjs",
+        "scripts/verify-cmp01-privacy-browser-local.mjs",
+        "scripts/sql/cmp01_privacy_uat_local_execute.sql",
+        "scripts/fixtures/cmp01-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs"
+      ],
+      "command": [
+        "npm",
+        "run",
+        "test:cmp01-privacy-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
+      "environment": {
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": [
+          "tmp/cmp01-privacy-uat"
+        ],
+        "index": "tmp/cmp01-privacy-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
       }
     },
     {
@@ -260,20 +495,56 @@
         "supabase/migrations/20260817140100_mkt01_marketing_cross_scope_constraints.sql",
         "supabase/migrations/20260817150000_mkt02_campaign_dispatch_reporting.sql"
       ],
-      "command": ["npm", "run", "test:mkt02"],
-      "target": { "policy": "command_local" },
-      "data_access": { "policy": "local_only" },
-      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "command": [
+        "npm",
+        "run",
+        "test:mkt02"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/mkt01-uat"],
+        "directories": [
+          "tmp/mkt01-uat"
+        ],
         "index": "tmp/mkt01-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -294,20 +565,56 @@
         "scripts/lib/local-supabase-uat.mjs",
         "supabase/migrations/20260818001000_studio_email_secrets.sql"
       ],
-      "command": ["npm", "run", "test:mkt02-studio-email-uat-local"],
-      "target": { "policy": "command_local" },
-      "data_access": { "policy": "local_only" },
-      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "command": [
+        "npm",
+        "run",
+        "test:mkt02-studio-email-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/mkt02-studio-email-uat"],
+        "directories": [
+          "tmp/mkt02-studio-email-uat"
+        ],
         "index": "tmp/mkt02-studio-email-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -342,20 +649,56 @@
         "supabase/migrations/20260818133000_pay02_payroll_runs.sql",
         "supabase/migrations/20260818160000_pay03_payslip_numbers.sql"
       ],
-      "command": ["npm", "run", "test:pay01-payroll-uat-local"],
-      "target": { "policy": "command_local" },
-      "data_access": { "policy": "local_only" },
-      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "command": [
+        "npm",
+        "run",
+        "test:pay01-payroll-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/pay01-payroll-uat"],
+        "directories": [
+          "tmp/pay01-payroll-uat"
+        ],
         "index": "tmp/pay01-payroll-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -389,19 +732,44 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/pos02-uat"],
+        "directories": [
+          "tmp/pos02-uat"
+        ],
         "index": "tmp/pos02-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -439,19 +807,44 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/pos03-uat"],
+        "directories": [
+          "tmp/pos03-uat"
+        ],
         "index": "tmp/pos03-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -484,19 +877,44 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/pkg01-uat"],
+        "directories": [
+          "tmp/pkg01-uat"
+        ],
         "index": "tmp/pkg01-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       }
@@ -532,25 +950,53 @@
         "policy": "local_only"
       },
       "requirements": {
-        "commands": ["node", "npm", "npx", "psql"],
-        "services": ["docker"]
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
       },
       "environment": {
-        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
-        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
-        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
-        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
         "cleanup_on_failure": false
       },
       "evidence": {
         "run_id_env": "UAT_FLOW_RUN_ID",
-        "directories": ["tmp/pos-pkg-uat"],
+        "directories": [
+          "tmp/pos-pkg-uat"
+        ],
         "index": "tmp/pos-pkg-uat/{run_id}/index.json",
         "index_schema": "uat-evidence-v1"
       },
       "concurrency": {
         "participants": 2,
-        "isolation_keys": ["identity", "fixture_ids"],
+        "isolation_keys": [
+          "identity",
+          "fixture_ids"
+        ],
         "barrier": "script_managed"
       }
     },

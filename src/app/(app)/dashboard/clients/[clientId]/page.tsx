@@ -4,11 +4,16 @@ import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import {
+  anonymizeSalonCustomerAction,
+  completeSalonCustomerDataRequestAction,
   createOrLinkTreatmentFromAppointmentAction,
+  createSalonCustomerDataRequestAction,
   recordSalonCustomerEmailConsentAction,
+  recordSalonCustomerPrivacyConsentAction,
   reviseTreatmentAction,
   upsertTreatmentFollowUpAction,
   updateMemberProfile,
+  updateSalonCustomerCoreProfileAction,
   updateSalonCustomerHealthProfileAction,
   updateSalonCustomerPreferencesAction,
 } from "@/app/(app)/dashboard/actions";
@@ -18,6 +23,8 @@ import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { getSalonCustomerSensitiveDetail, listSalonCustomersForDashboard } from "@/lib/salon-customer-sensitive";
+import { getLatestPrivacyNotice } from "@/lib/studio-privacy";
+import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { listCustomerTreatments } from "@/lib/salon-treatments";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -140,6 +147,10 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     customerId: salonCustomer.id,
     locationId: selectedLocationId ?? null,
   });
+
+  const privacyNotice = await getLatestPrivacyNotice({ studioId: activeStudioId });
+  const isAnonymized = Boolean(salonCustomer.anonymized_at);
+  const canAnonymize = Boolean(sensitiveDetail.ok && sensitiveDetail.detail.canAnonymize && !isAnonymized);
 
   const treatmentResult = await listCustomerTreatments({
     userId: user.id,
@@ -345,49 +356,64 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className={ui.h2}>Customer profile</h2>
+          {isAnonymized ? <span className={ui.badgeNeutral}>Anonymized</span> : null}
         </div>
-        {ledgerUserId ? (
-          <ServerActionToastForm action={updateMemberProfile} className="mt-3 grid gap-3 sm:grid-cols-2">
+        <ServerActionToastForm action={updateSalonCustomerCoreProfileAction} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="studio_id" value={activeStudioId} />
+          <input type="hidden" name="customer_id" value={salonCustomer.id} />
+          {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Full name</span>
+            <input name="full_name" type="text" defaultValue={salonCustomer.full_name ?? ""} className={ui.input} placeholder="Customer name" disabled={isAnonymized} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Email</span>
+            <input name="email" type="email" defaultValue={salonCustomer.email ?? ""} className={ui.input} placeholder="name@email.com" disabled={isAnonymized} />
+          </label>
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={ui.label}>Phone</span>
+            <FormPhoneField name="phone" defaultValue={salonCustomer.phone ?? ""} />
+          </label>
+          {!isAnonymized ? (
+            <div className="sm:col-span-2"><button type="submit" className={ui.btnPrimarySm}>Save customer record</button></div>
+          ) : null}
+        </ServerActionToastForm>
+        {ledgerUserId && !isAnonymized ? (
+          <ServerActionToastForm action={updateMemberProfile} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="studio_id" value={activeStudioId} />
             {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
             <input type="hidden" name="client_id" value={ledgerUserId} />
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Full name</span>
-              <input
-                name="full_name"
-                type="text"
-                defaultValue={(profile as { full_name?: string | null } | null)?.full_name ?? salonCustomer.full_name ?? ""}
-                className={ui.input}
-                placeholder="Customer name"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Phone</span>
-              <FormPhoneField name="phone" defaultValue={(profile as { phone?: string | null } | null)?.phone ?? salonCustomer.phone ?? ""} />
-            </label>
+            <input type="hidden" name="full_name" value={salonCustomer.full_name ?? ""} />
+            <input type="hidden" name="phone" value={salonCustomer.phone ?? ""} />
             <label className="flex flex-col gap-1.5 sm:col-span-2">
-              <span className={ui.label}>Notes</span>
+              <span className={ui.label}>Internal notes</span>
               <textarea
                 name="notes"
                 defaultValue={(profile as { notes?: string | null } | null)?.notes ?? ""}
                 className={ui.input}
-                rows={4}
-                placeholder="Internal notes for operations (e.g. injury, preference, follow-up)."
+                rows={3}
+                placeholder="Internal notes for operations."
                 maxLength={1000}
               />
             </label>
-            <div className="sm:col-span-2">
-              <button type="submit" className={ui.btnPrimarySm}>Save profile</button>
-            </div>
+            <div className="sm:col-span-2"><button type="submit" className={ui.btnSecondarySm}>Save notes</button></div>
           </ServerActionToastForm>
-        ) : (
-          <div className="mt-3 grid gap-2 text-sm">
-            <p className={ui.muted}>This customer is a walk-in record without a linked member account.</p>
-            <p className={ui.muted}>Name: <span className="font-medium text-stone-800 dark:text-stone-200">{salonCustomer.full_name}</span></p>
-            <p className={ui.muted}>Email: <span className="font-medium text-stone-800 dark:text-stone-200">{salonCustomer.email ?? "—"}</span></p>
-            <p className={ui.muted}>Phone: <span className="font-medium text-stone-800 dark:text-stone-200">{salonCustomer.phone ?? "—"}</span></p>
+        ) : null}
+        {canAnonymize ? (
+          <div className="mt-4">
+            <ToastConfirmForm
+              action={anonymizeSalonCustomerAction}
+              confirmMessage="This will deactivate the customer and mask name, email, phone, and health notes. It cannot be undone."
+              confirmLabel="Anonymize"
+              pendingLabel="Masking…"
+            >
+              <input type="hidden" name="studio_id" value={activeStudioId} />
+              <input type="hidden" name="customer_id" value={salonCustomer.id} />
+              {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+              <button type="submit" className={ui.btnDangerSm}>Deactivate and mask</button>
+            </ToastConfirmForm>
           </div>
-        )}
+        ) : null}
       </section>
 
       <section>
@@ -858,27 +884,86 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           </section>
 
           <section className={ui.card}>
+            <h2 className={ui.h2}>Access / correction requests</h2>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Record a customer request to see or correct their data, then close it with a note.</p>
+            {!isAnonymized ? (
+              <ServerActionToastForm action={createSalonCustomerDataRequestAction} className="mt-3 grid gap-3 sm:grid-cols-2">
+                <input type="hidden" name="studio_id" value={activeStudioId} />
+                <input type="hidden" name="customer_id" value={salonCustomer.id} />
+                {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+                <label className="flex flex-col gap-1.5"><span className={ui.label}>Request type</span><select name="request_type" className={ui.select} defaultValue="access"><option value="access">View my data</option><option value="correction">Correct my data</option></select></label>
+                <label className="flex flex-col gap-1.5 sm:col-span-2"><span className={ui.label}>Customer note</span><textarea name="customer_note" className={ui.input} rows={2} placeholder="What the customer asked for" /></label>
+                <div className="sm:col-span-2"><button type="submit" className={ui.btnPrimarySm}>Record request</button></div>
+              </ServerActionToastForm>
+            ) : null}
+            <ul className="mt-4 flex flex-col gap-2">
+              {sensitiveDetail.detail.dataRequests.map((request) => (
+                <li key={request.id} className="rounded-xl border border-stone-100 bg-white/70 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/40">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-stone-900 dark:text-stone-100">{request.request_type} · {request.status}</span>
+                    <span className={`text-xs ${ui.muted}`}><LocalTime iso={request.requested_at} /></span>
+                  </div>
+                  {request.customer_note ? <p className={`mt-1 text-xs ${ui.muted}`}>{request.customer_note}</p> : null}
+                  {request.status === "open" ? (
+                    <ServerActionToastForm action={completeSalonCustomerDataRequestAction} className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <input type="hidden" name="studio_id" value={activeStudioId} />
+                      <input type="hidden" name="customer_id" value={salonCustomer.id} />
+                      <input type="hidden" name="request_id" value={request.id} />
+                      {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+                      {request.request_type === "correction" ? (
+                        <>
+                          <label className="flex flex-col gap-1.5"><span className={ui.label}>Corrected name</span><input name="full_name" className={ui.input} defaultValue={salonCustomer.full_name ?? ""} /></label>
+                          <label className="flex flex-col gap-1.5"><span className={ui.label}>Corrected email</span><input name="email" className={ui.input} defaultValue={salonCustomer.email ?? ""} /></label>
+                          <label className="flex flex-col gap-1.5 sm:col-span-2"><span className={ui.label}>Corrected phone</span><FormPhoneField name="phone" defaultValue={salonCustomer.phone ?? ""} /></label>
+                        </>
+                      ) : null}
+                      <label className="flex flex-col gap-1.5"><span className={ui.label}>Close as</span><select name="request_status" className={ui.select} defaultValue="completed"><option value="completed">Completed</option><option value="rejected">Rejected</option></select></label>
+                      <label className="flex flex-col gap-1.5 sm:col-span-2"><span className={ui.label}>Staff note</span><textarea name="staff_note" className={ui.input} rows={2} required placeholder={request.request_type === "access" ? "Shown the profile to the customer" : "Corrected fields"} /></label>
+                      <div className="sm:col-span-2"><button type="submit" className={ui.btnPrimarySm}>Close request</button></div>
+                    </ServerActionToastForm>
+                  ) : (
+                    <p className={`mt-1 text-xs ${ui.muted}`}>{request.staff_note ?? "Closed"}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className={ui.card}>
             <h2 className={ui.h2}>Consents</h2>
-            <p className={`mt-1 text-xs ${ui.muted}`}>CRM-01 currently supports Email Marketing consent only.</p>
+            <p className={`mt-1 text-xs ${ui.muted}`}>Email marketing uses a text version. Privacy notice uses the published version label.</p>
+            {!isAnonymized && privacyNotice?.version_label ? (
+              <ServerActionToastForm action={recordSalonCustomerPrivacyConsentAction} className="mt-3 grid gap-3 sm:grid-cols-2">
+                <input type="hidden" name="studio_id" value={activeStudioId} />
+                <input type="hidden" name="customer_id" value={salonCustomer.id} />
+                {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+                <input type="hidden" name="consent_text_version" value={privacyNotice.version_label} />
+                <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
+                <label className="flex flex-col gap-1.5"><span className={ui.label}>Privacy notice</span><select name="consent_status" className={ui.select} defaultValue="granted"><option value="granted">Granted</option><option value="withdrawn">Withdrawn</option></select></label>
+                <label className="flex flex-col gap-1.5"><span className={ui.label}>Source</span><select name="consent_source" className={ui.select} defaultValue="frontdesk"><option value="frontdesk">Frontdesk</option><option value="imported">Imported</option><option value="api">API</option><option value="system">System</option></select></label>
+                <p className={`sm:col-span-2 text-xs ${ui.muted}`}>Version {privacyNotice.version_label}</p>
+                <div className="sm:col-span-2"><button type="submit" className={ui.btnPrimarySm}>Record privacy consent</button></div>
+              </ServerActionToastForm>
+            ) : null}
             <ServerActionToastForm action={recordSalonCustomerEmailConsentAction} className="mt-3 grid gap-3 sm:grid-cols-2">
               <input type="hidden" name="studio_id" value={activeStudioId} />
               <input type="hidden" name="customer_id" value={salonCustomer.id} />
               {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
               <input type="hidden" name="idempotency_key" value={crypto.randomUUID()} />
 
-              <label className="flex flex-col gap-1.5"><span className={ui.label}>Consent status</span><select name="consent_status" className={ui.select} defaultValue="granted"><option value="granted">Granted</option><option value="withdrawn">Withdrawn</option></select></label>
+              <label className="flex flex-col gap-1.5"><span className={ui.label}>Email marketing</span><select name="consent_status" className={ui.select} defaultValue="granted"><option value="granted">Granted</option><option value="withdrawn">Withdrawn</option></select></label>
               <label className="flex flex-col gap-1.5"><span className={ui.label}>Source</span><select name="consent_source" className={ui.select} defaultValue="frontdesk"><option value="frontdesk">Frontdesk</option><option value="imported">Imported</option><option value="api">API</option><option value="system">System</option></select></label>
               <label className="flex flex-col gap-1.5"><span className={ui.label}>Consent text version</span><input name="consent_text_version" className={ui.input} placeholder="email-marketing-v1.0" required /></label>
               <label className="flex flex-col gap-1.5"><span className={ui.label}>Occurred at (optional ISO datetime)</span><input name="consent_occurred_at" className={ui.input} placeholder="2026-08-12T10:00:00+08:00" /></label>
               <label className="flex flex-col gap-1.5 sm:col-span-2"><span className={ui.label}>Evidence note</span><textarea name="consent_evidence_note" className={ui.input} rows={2} /></label>
-              <div className="sm:col-span-2"><button type="submit" className={ui.btnPrimarySm}>Record consent event</button></div>
+              <div className="sm:col-span-2"><button type="submit" className={ui.btnPrimarySm}>Record email consent</button></div>
             </ServerActionToastForm>
 
             <ul className="mt-4 flex flex-col gap-2">
               {sensitiveDetail.detail.consents.map((event) => (
                 <li key={event.id} className="rounded-xl border border-stone-100 bg-white/70 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/40">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-stone-900 dark:text-stone-100">{event.status}</span>
+                    <span className="text-sm font-medium text-stone-900 dark:text-stone-100">{event.consent_key} · {event.status}</span>
                     <span className={`text-xs ${ui.muted}`}><LocalTime iso={event.occurred_at} /></span>
                   </div>
                   <p className={`mt-1 text-xs ${ui.muted}`}>source: {event.source} · text: {event.text_version} · actor role: {event.actor_role}</p>

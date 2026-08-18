@@ -10,6 +10,8 @@ import {
   listSelfEligiblePackageCredits,
   resolveSelfSalonCustomer,
 } from "@/lib/salon-appointments-self";
+import { getLatestPrivacyNotice, recordSelfPrivacyNoticeConsent } from "@/lib/studio-privacy";
+import { studioPrivacyPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -34,6 +36,9 @@ function messageFromStatus(ok: string | undefined, error: string | undefined) {
     missing_fields: "Please select location, service and slot.",
     terms_required: "Please accept the Terms & Conditions before booking.",
     terms_version_stale: "Terms & Conditions have been updated. Please review the latest version and submit again.",
+    privacy_required: "Please accept the privacy notice before booking.",
+    privacy_version_stale: "The privacy notice has been updated. Please review the latest version and submit again.",
+    privacy_consent_failed: "Could not record privacy notice consent. Please try again.",
     invalid_slot: "The selected slot is invalid.",
     forbidden: "Your account is not linked to this studio customer profile.",
     slot_conflict: "This slot was just taken. Please choose another one.",
@@ -114,6 +119,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     : null;
 
   const termsVersion = await getLatestSalonTermsVersion({ studioId: studio.id });
+  const privacyNotice = await getLatestPrivacyNotice({ studioId: studio.id });
   const packageCredits =
     selfCustomer.ok && selectedLocationId
       ? await listSelfEligiblePackageCredits({
@@ -144,6 +150,8 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || crypto.randomUUID();
     const accepted = String(formData.get("terms_accepted") ?? "") === "on";
     const termsVersionId = String(formData.get("terms_version_id") ?? "").trim();
+    const privacyAccepted = String(formData.get("privacy_accepted") ?? "") === "on";
+    const privacyNoticeVersionId = String(formData.get("privacy_notice_version_id") ?? "").trim();
     const paymentOptionRaw = String(formData.get("payment_option") ?? "free").trim();
     const paymentOption = paymentOptionRaw === "package_credit"
       || paymentOptionRaw === "online_deposit"
@@ -168,10 +176,32 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     if (!accepted || !termsVersionId) {
       redirect(`${backTo}${query.toString() ? "&" : "?"}error=terms_required`);
     }
+    if (!privacyAccepted || !privacyNoticeVersionId) {
+      redirect(`${backTo}${query.toString() ? "&" : "?"}error=privacy_required`);
+    }
 
     const latestTermsVersion = await getLatestSalonTermsVersion({ studioId });
     if (!latestTermsVersion?.id || latestTermsVersion.id !== termsVersionId) {
       redirect(`${backTo}${query.toString() ? "&" : "?"}error=terms_version_stale`);
+    }
+    const latestPrivacyNotice = await getLatestPrivacyNotice({ studioId });
+    if (!latestPrivacyNotice?.id || latestPrivacyNotice.id !== privacyNoticeVersionId) {
+      redirect(`${backTo}${query.toString() ? "&" : "?"}error=privacy_version_stale`);
+    }
+
+    const linkedCustomer = await resolveSelfSalonCustomer({ studioId, userId: actionUser.id });
+    if (!linkedCustomer.ok) {
+      redirect(`${backTo}${query.toString() ? "&" : "?"}error=forbidden`);
+    }
+    const privacyConsent = await recordSelfPrivacyNoticeConsent({
+      userId: actionUser.id,
+      studioId,
+      customerId: linkedCustomer.salonCustomerId,
+      textVersion: latestPrivacyNotice.version_label,
+      noticeVersionId: latestPrivacyNotice.id,
+    });
+    if (!privacyConsent.ok) {
+      redirect(`${backTo}${query.toString() ? "&" : "?"}error=privacy_consent_failed`);
     }
 
     const actionResult = await createSelfAppointment({
@@ -278,6 +308,8 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                 <p className={`mt-4 text-sm ${ui.muted}`}>No available slots on {selectedDate}. Try another date.</p>
               ) : !termsVersion?.id ? (
                 <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">Terms & Conditions version is missing. Please contact front desk.</p>
+              ) : !privacyNotice?.id ? (
+                <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">Privacy notice version is missing. Please contact front desk.</p>
               ) : (
                 <ul className="mt-4 space-y-2">
                   {availableSlots.map((slot) => (
@@ -302,6 +334,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                             value={`apt04-self-create:${crypto.randomUUID()}`}
                           />
                           <input type="hidden" name="terms_version_id" value={termsVersion.id} />
+                          <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
 
                           <label className="sm:col-span-2 text-xs font-medium text-stone-700 dark:text-stone-200">
                             Payment option
@@ -329,6 +362,13 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                             <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
                             <span>
                               I accept Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}.
+                            </span>
+                          </label>
+                          <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
+                            <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
+                            <span>
+                              I accept Privacy notice {privacyNotice.version_label ? `(${privacyNotice.version_label})` : ""}{" "}
+                              <a href={studioPrivacyPath(studioSlug)} className={ui.link} target="_blank" rel="noreferrer">view</a>.
                             </span>
                           </label>
                           <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Book this slot</button>

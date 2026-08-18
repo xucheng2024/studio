@@ -9,6 +9,7 @@ const flows = [
   { id: "apt04-settlement-sandbox-local", paths: ["scripts/verify-apt04-settlement-browser-local.mjs"] },
   { id: "com01-commission-local", paths: ["scripts/verify-com01-uat-browser-local.mjs"] },
   { id: "crm02-clients-local", paths: ["src/app/(app)/dashboard/clients/**"] },
+  { id: "cmp01-privacy-local", paths: ["scripts/verify-cmp01-privacy-browser-local.mjs"] },
   { id: "mkt01-marketing-local", paths: ["src/lib/marketing.ts"] },
   { id: "mkt02-studio-email-local", paths: ["scripts/verify-mkt02-studio-email-browser-local.mjs"] },
   { id: "pay01-payroll-local", paths: ["scripts/verify-pay01-payroll-browser-local.mjs"] },

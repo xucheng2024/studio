@@ -28,7 +28,8 @@ export type DashboardSettingsSection =
   | "locations"
   | "staff-invites"
   | "staff-availability"
-  | "resources";
+  | "resources"
+  | "privacy";
 
 export function studioPublicCacheTag(publicSlug: string) {
   const slug = normalizeStudioSlug(publicSlug);
@@ -143,6 +144,8 @@ function dashboardSettingsPaths(section: DashboardSettingsSection) {
       return ["/dashboard/settings/staff-availability"];
     case "resources":
       return ["/dashboard/settings/resources"];
+    case "privacy":
+      return ["/dashboard/settings", "/dashboard/settings/privacy"];
   }
 }
 

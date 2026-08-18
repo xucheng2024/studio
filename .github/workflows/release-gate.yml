@@ -62,7 +62,7 @@ jobs:
     needs: validate-commit
     strategy:
       fail-fast: false
-      max-parallel: 13
+      max-parallel: 14
       matrix:
         flow:
           - apt01-availability-local
@@ -71,6 +71,7 @@ jobs:
           - apt04-settlement-sandbox-local
           - com01-commission-local
           - crm02-clients-local
+          - cmp01-privacy-local
           - mkt01-marketing-local
           - mkt02-studio-email-local
           - pay01-payroll-local
@@ -159,6 +160,7 @@ jobs:
             apt04-settlement-sandbox-local
             com01-commission-local
             crm02-clients-local
+            cmp01-privacy-local
             mkt01-marketing-local
             mkt02-studio-email-local
             pay01-payroll-local

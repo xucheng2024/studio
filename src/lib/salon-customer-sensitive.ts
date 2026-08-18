@@ -61,6 +61,7 @@ type SalonCustomerCore = {
   preferred_location_id: string | null;
   status: string;
   source: string;
+  anonymized_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -120,6 +121,7 @@ type HealthSummaryRow = {
 
 export type SalonCustomerConsentEvent = {
   id: string;
+  consent_key: string;
   status: "granted" | "withdrawn";
   source: string;
   text_version: string;
@@ -127,6 +129,17 @@ export type SalonCustomerConsentEvent = {
   actor_id: string;
   actor_role: string;
   created_at: string;
+};
+
+export type SalonCustomerDataRequest = {
+  id: string;
+  request_type: "access" | "correction";
+  status: "open" | "completed" | "rejected";
+  customer_note: string | null;
+  staff_note: string | null;
+  requested_at: string;
+  completed_at: string | null;
+  actor_role: string;
 };
 
 export type SalonCustomerAccessAuditEntry = {
@@ -145,8 +158,10 @@ export type SensitiveCustomerDetail = {
   preferences: SalonCustomerPreferenceProfile | null;
   health: SalonCustomerHealthProfile | null;
   consents: SalonCustomerConsentEvent[];
+  dataRequests: SalonCustomerDataRequest[];
   accessAudits: SalonCustomerAccessAuditEntry[];
   canViewSensitiveAudit: boolean;
+  canAnonymize: boolean;
 };
 
 type ResolvedSensitiveAccess = {
@@ -484,7 +499,7 @@ async function resolveSensitiveCustomerAccess(params: {
   const admin = createAdminClient();
   const { data: customer, error: customerError } = await admin
     .from("salon_customers")
-    .select("id, studio_id, user_id, full_name, email, phone, preferred_location_id, status, source, created_at, updated_at")
+    .select("id, studio_id, user_id, full_name, email, phone, preferred_location_id, status, source, anonymized_at, created_at, updated_at")
     .eq("id", params.customerId)
     .eq("studio_id", params.studioId)
     .is("merged_into_id", null)
@@ -573,7 +588,7 @@ async function recordSensitiveAccessAudit(params: {
   customerId: string;
   actorId: string;
   actorRole: SensitiveActorRole;
-  action: "preference_view" | "health_view" | "consent_view" | "safety_summary_view";
+  action: "preference_view" | "health_view" | "consent_view" | "safety_summary_view" | "data_request_view";
   locationId?: string | null;
 }) {
   const admin = createAdminClient();
@@ -618,7 +633,7 @@ export async function listSalonCustomersForDashboard(params: {
 
   const { data: baseRows, error: baseError } = await admin
     .from("salon_customers")
-    .select("id, studio_id, user_id, full_name, email, phone, preferred_location_id, status, source, created_at, updated_at")
+    .select("id, studio_id, user_id, full_name, email, phone, preferred_location_id, status, source, anonymized_at, created_at, updated_at")
     .eq("studio_id", params.studioId)
     .is("merged_into_id", null)
     .order("full_name")
@@ -722,7 +737,7 @@ export async function getSalonCustomerSensitiveDetail(params: {
   const effectiveLocationId = params.locationId ?? access.access.resolvedLocationId;
 
   const admin = createAdminClient();
-  const [preferencesRes, healthRes, consentsRes] = await Promise.all([
+  const [preferencesRes, healthRes, consentsRes, requestsRes] = await Promise.all([
     admin
       .from("salon_customer_preferences")
       .select("id, preferred_services, preferred_employee_ids, preferred_location_ids, preferred_time_slots, communication_language, product_preferences, environment_preferences, contact_preference, notes, updated_at")
@@ -737,20 +752,27 @@ export async function getSalonCustomerSensitiveDetail(params: {
       .maybeSingle<SalonCustomerHealthProfile>(),
     admin
       .from("salon_customer_consents")
-      .select("id, status, source, text_version, occurred_at, actor_id, actor_role, created_at")
+      .select("id, consent_key, status, source, text_version, occurred_at, actor_id, actor_role, created_at")
       .eq("studio_id", params.studioId)
       .eq("salon_customer_id", params.customerId)
-      .eq("consent_key", "email_marketing")
-      .eq("channel", "email")
       .order("occurred_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(50)
       .returns<SalonCustomerConsentEvent[]>(),
+    admin
+      .from("salon_customer_data_requests")
+      .select("id, request_type, status, customer_note, staff_note, requested_at, completed_at, actor_role")
+      .eq("studio_id", params.studioId)
+      .eq("salon_customer_id", params.customerId)
+      .order("requested_at", { ascending: false })
+      .limit(50)
+      .returns<SalonCustomerDataRequest[]>(),
   ]);
 
   if (preferencesRes.error) throw preferencesRes.error;
   if (healthRes.error) throw healthRes.error;
   if (consentsRes.error) throw consentsRes.error;
+  if (requestsRes.error) throw requestsRes.error;
 
   const canViewSensitiveAudit = access.access.hasGlobalStudioScope && (access.access.role === "owner" || access.access.role === "manager");
   let accessAudits: SalonCustomerAccessAuditEntry[] = [];
@@ -795,6 +817,15 @@ export async function getSalonCustomerSensitiveDetail(params: {
     locationId: effectiveLocationId,
   });
 
+  await recordSensitiveAccessAudit({
+    studioId: params.studioId,
+    customerId: params.customerId,
+    actorId: params.userId,
+    actorRole: access.access.role,
+    action: "data_request_view",
+    locationId: effectiveLocationId,
+  });
+
   return {
     ok: true,
     detail: {
@@ -803,8 +834,10 @@ export async function getSalonCustomerSensitiveDetail(params: {
       preferences: preferencesRes.data,
       health: healthRes.data,
       consents: consentsRes.data ?? [],
+      dataRequests: requestsRes.data ?? [],
       accessAudits,
       canViewSensitiveAudit,
+      canAnonymize: access.access.hasGlobalStudioScope && (access.access.role === "owner" || access.access.role === "manager"),
     },
   };
 }
@@ -1152,4 +1185,187 @@ export async function mutateSalonCustomerEmailConsent(params: {
     });
     throw error;
   }
+}
+
+export async function mutateSalonCustomerPrivacyConsent(params: {
+  userId: string;
+  email?: string | null;
+  studioId: string;
+  customerId: string;
+  locationId?: string | null;
+  input: {
+    status: "granted" | "withdrawn";
+    source: "frontdesk" | "client_portal" | "imported" | "system" | "api";
+    textVersion: string;
+    noticeVersionId?: string | null;
+    evidenceNote?: string | null;
+  };
+}): Promise<ConsentMutationResult> {
+  const access = await resolveSensitiveCustomerAccess(params);
+  if (!access.ok) {
+    return { ok: false, code: access.reason === "not_found" ? "not_found" : access.reason, message: access.reason };
+  }
+  if (access.access.customer.anonymized_at) {
+    return { ok: false, code: "invalid_request", message: "Customer is anonymized." };
+  }
+  if (!params.input.textVersion.trim()) {
+    return { ok: false, code: "invalid_request", message: "privacy_version_required" };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("record_salon_customer_privacy_consent", {
+    p_studio_id: params.studioId,
+    p_salon_customer_id: params.customerId,
+    p_actor_id: params.userId,
+    p_actor_role: access.access.role,
+    p_status: params.input.status,
+    p_source: params.input.source,
+    p_text_version: params.input.textVersion.trim(),
+    p_evidence: {
+      noticeVersionId: params.input.noticeVersionId ?? null,
+      note: params.input.evidenceNote ?? null,
+    },
+    p_occurred_at: new Date().toISOString(),
+    p_location_id: params.locationId ?? access.access.resolvedLocationId,
+    p_correlation_id: null,
+    p_idempotency_key_id: null,
+    p_idempotency_claim_token: null,
+  });
+  if (error) return { ok: false, code: "invalid_request", message: error.message };
+  const response = data as { ok?: boolean; reason?: string; eventId?: string; effectiveStatus?: "granted" | "withdrawn" };
+  if (!response.ok || !response.eventId || !response.effectiveStatus) {
+    return { ok: false, code: "invalid_request", message: response.reason ?? "privacy_consent_failed" };
+  }
+  return { ok: true, eventId: response.eventId, effectiveStatus: response.effectiveStatus };
+}
+
+export async function updateSalonCustomerCoreProfile(params: {
+  userId: string;
+  email?: string | null;
+  studioId: string;
+  customerId: string;
+  locationId?: string | null;
+  patch: { fullName?: string; email?: string | null; phone?: string | null };
+}): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "invalid_request"; message?: string }> {
+  const access = await resolveSensitiveCustomerAccess(params);
+  if (!access.ok) return access;
+  if (access.access.customer.anonymized_at) {
+    return { ok: false, reason: "invalid_request", message: "Customer is anonymized." };
+  }
+
+  const update: Record<string, unknown> = {};
+  if (params.patch.fullName !== undefined) {
+    const fullName = params.patch.fullName.trim();
+    if (!fullName) return { ok: false, reason: "invalid_request", message: "full_name_required" };
+    update.full_name = fullName;
+  }
+  if (params.patch.email !== undefined) {
+    const email = params.patch.email?.trim().toLowerCase() || null;
+    update.email = email;
+  }
+  if (params.patch.phone !== undefined) {
+    const phone = params.patch.phone?.trim() || null;
+    update.phone = phone;
+  }
+  if (Object.keys(update).length === 0) {
+    return { ok: false, reason: "invalid_request", message: "empty_patch" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("salon_customers")
+    .update(update)
+    .eq("id", params.customerId)
+    .eq("studio_id", params.studioId)
+    .is("merged_into_id", null)
+    .is("anonymized_at", null);
+  if (error) return { ok: false, reason: "invalid_request", message: error.message };
+  return { ok: true };
+}
+
+export async function createSalonCustomerDataRequest(params: {
+  userId: string;
+  email?: string | null;
+  studioId: string;
+  customerId: string;
+  locationId?: string | null;
+  requestType: "access" | "correction";
+  customerNote?: string | null;
+}): Promise<{ ok: true; id: string } | { ok: false; reason: "forbidden" | "not_found" | "invalid_request"; message?: string }> {
+  const access = await resolveSensitiveCustomerAccess(params);
+  if (!access.ok) return access;
+  if (access.access.customer.anonymized_at) {
+    return { ok: false, reason: "invalid_request", message: "Customer is anonymized." };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("create_salon_customer_data_request", {
+    p_studio_id: params.studioId,
+    p_salon_customer_id: params.customerId,
+    p_actor_id: params.userId,
+    p_actor_role: access.access.role,
+    p_request_type: params.requestType,
+    p_customer_note: params.customerNote ?? null,
+    p_location_id: params.locationId ?? access.access.resolvedLocationId,
+  });
+  if (error) return { ok: false, reason: "invalid_request", message: error.message };
+  const payload = data as { ok?: boolean; id?: string };
+  if (!payload?.ok || !payload.id) return { ok: false, reason: "invalid_request", message: "create_request_failed" };
+  return { ok: true, id: payload.id };
+}
+
+export async function completeSalonCustomerDataRequest(params: {
+  userId: string;
+  email?: string | null;
+  studioId: string;
+  customerId: string;
+  requestId: string;
+  locationId?: string | null;
+  status: "completed" | "rejected";
+  staffNote: string;
+}): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "invalid_request"; message?: string }> {
+  const access = await resolveSensitiveCustomerAccess(params);
+  if (!access.ok) return access;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("complete_salon_customer_data_request", {
+    p_studio_id: params.studioId,
+    p_request_id: params.requestId,
+    p_actor_id: params.userId,
+    p_actor_role: access.access.role,
+    p_status: params.status,
+    p_staff_note: params.staffNote,
+    p_location_id: params.locationId ?? access.access.resolvedLocationId,
+  });
+  if (error) return { ok: false, reason: "invalid_request", message: error.message };
+  const payload = data as { ok?: boolean };
+  if (!payload?.ok) return { ok: false, reason: "invalid_request", message: "complete_request_failed" };
+  return { ok: true };
+}
+
+export async function anonymizeSalonCustomerRecord(params: {
+  userId: string;
+  email?: string | null;
+  studioId: string;
+  customerId: string;
+  locationId?: string | null;
+}): Promise<{ ok: true } | { ok: false; reason: "forbidden" | "not_found" | "invalid_request"; message?: string }> {
+  const access = await resolveSensitiveCustomerAccess(params);
+  if (!access.ok) return access;
+  if (!access.access.hasGlobalStudioScope || (access.access.role !== "owner" && access.access.role !== "manager")) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("anonymize_salon_customer", {
+    p_studio_id: params.studioId,
+    p_salon_customer_id: params.customerId,
+    p_actor_id: params.userId,
+    p_actor_role: access.access.role,
+    p_location_id: params.locationId ?? access.access.resolvedLocationId,
+  });
+  if (error) return { ok: false, reason: "invalid_request", message: error.message };
+  const payload = data as { ok?: boolean };
+  if (!payload?.ok) return { ok: false, reason: "invalid_request", message: "anonymize_failed" };
+  return { ok: true };
 }

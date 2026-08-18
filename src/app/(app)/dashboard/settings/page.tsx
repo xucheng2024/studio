@@ -187,6 +187,13 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
             desc="Manage the FAQ accordion shown at the bottom of your public studio page"
           />
         ) : null}
+        <SettingCard
+          as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/privacy", selectedStudioId)}
+          icon={ShieldCheck}
+          title="Privacy & data"
+          desc="Privacy notice version, retention rules, and processor list"
+        />
         {isSuperAdmin ? (
           <SettingCard
             as={DashboardAppLink}

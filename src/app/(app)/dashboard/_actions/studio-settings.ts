@@ -23,7 +23,7 @@ import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { parseDatetimeLocalAsSgt } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { setLocationOperatingHoursForWeek } from "@/lib/staff-availability";
+import { publishPrivacyNotice, updateStudioRetentionSettings, markAppointmentRetentionReviewed } from "@/lib/studio-privacy";
 import {
   hasStudioGlobalRole,
   hasStudioRole,
@@ -891,4 +891,57 @@ export async function setLocationOperatingHoursWeekAction(
 
   revalidateDashboardSettings("locations");
   return ok("Operating hours saved.");
+}
+
+export async function publishStudioPrivacyNoticeAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  if (!studioId) return err("Missing studio.");
+  const { user } = await requireUser();
+  const result = await publishPrivacyNotice({ userId: user.id, studioId });
+  if (!result.ok) return err(result.message ?? result.reason);
+  revalidateDashboardSettings("privacy");
+  const { data: studio } = await createAdminClient().from("studios").select("public_slug").eq("id", studioId).maybeSingle();
+  if (studio?.public_slug) revalidatePublicStudioPath(studio.public_slug);
+  return ok(`Privacy notice published as ${result.versionLabel}.`);
+}
+
+export async function updateStudioRetentionSettingsAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerDays = Number.parseInt(String(formData.get("customer_retention_days") ?? ""), 10);
+  const appointmentDays = Number.parseInt(String(formData.get("appointment_retention_days") ?? ""), 10);
+  if (!studioId) return err("Missing studio.");
+  const { user } = await requireUser();
+  const result = await updateStudioRetentionSettings({
+    userId: user.id,
+    studioId,
+    customerRetentionDays: customerDays,
+    appointmentRetentionDays: appointmentDays,
+  });
+  if (!result.ok) return err(result.message ?? result.reason);
+  revalidateDashboardSettings("privacy");
+  return ok("Retention rules saved.");
+}
+
+export async function markAppointmentRetentionReviewedAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const appointmentId = String(formData.get("appointment_id") ?? "").trim();
+  if (!studioId || !appointmentId) return err("Missing appointment.");
+  const { user } = await requireUser();
+  const result = await markAppointmentRetentionReviewed({
+    userId: user.id,
+    studioId,
+    appointmentId,
+  });
+  if (!result.ok) return err(result.message ?? result.reason);
+  revalidateDashboardSettings("privacy");
+  return ok("Appointment marked as retention-reviewed.");
 }

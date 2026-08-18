@@ -70,3 +70,7 @@ export function studioMePath(studioSlug: string, section = "") {
 export function studioCheckoutPath(studioSlug: string, paymentId: string) {
   return `/${studioSlug}/checkout/${paymentId}`;
 }
+
+export function studioPrivacyPath(studioSlug: string) {
+  return `/${studioSlug}/privacy`;
+}

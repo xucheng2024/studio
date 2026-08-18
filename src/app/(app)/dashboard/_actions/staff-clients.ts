@@ -16,7 +16,12 @@ import {
   type TreatmentFollowUpStatus,
 } from "@/lib/salon-treatments";
 import {
+  anonymizeSalonCustomerRecord,
+  completeSalonCustomerDataRequest,
+  createSalonCustomerDataRequest,
   mutateSalonCustomerEmailConsent,
+  mutateSalonCustomerPrivacyConsent,
+  updateSalonCustomerCoreProfile,
   updateSalonCustomerHealthProfile,
   updateSalonCustomerPreferences,
 } from "@/lib/salon-customer-sensitive";
@@ -48,7 +53,7 @@ export async function updateMemberProfile(
   const notes = notesRaw || null;
 
   if (!studioId || !clientId) return err("Missing required client or studio.");
-  const { studio, ctx } = await requireStudio(studioId || undefined);
+  const { studio, ctx, user } = await requireStudio(studioId || undefined);
   if (!studio) return err("Studio not found.");
   if (!hasStudioRole(ctx, studio.id, ["owner", "manager", "frontdesk"])) {
     return err("You do not have access to update this profile.");
@@ -114,6 +119,27 @@ export async function updateMemberProfile(
       notes,
     });
   if (error) return err("Could not save profile.");
+
+  const { data: salonRow } = await admin
+    .from("salon_customers")
+    .select("id")
+    .eq("studio_id", studio.id)
+    .eq("user_id", clientId)
+    .is("merged_into_id", null)
+    .maybeSingle<{ id: string }>();
+  if (salonRow?.id) {
+    const salonResult = await updateSalonCustomerCoreProfile({
+      userId: user.id,
+      email: user.email ?? null,
+      studioId: studio.id,
+      customerId: salonRow.id,
+      locationId,
+      patch: { fullName: fullNameRaw || undefined, phone },
+    });
+    if (!salonResult.ok && salonResult.reason !== "not_found") {
+      return err(salonResult.message ?? "Could not save studio customer record.");
+    }
+  }
 
   revalidateDashboardClientViews(clientId);
   return ok("Profile saved.");
@@ -334,6 +360,175 @@ export async function recordSalonCustomerEmailConsentAction(
 
   revalidateDashboardClientViews(customerId);
   return ok(`Consent recorded: ${result.effectiveStatus}.`);
+}
+
+export async function updateSalonCustomerCoreProfileAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+
+  if (!studioId || !customerId) return err("Missing required customer or studio.");
+  const { user } = await requireUser();
+  const result = await updateSalonCustomerCoreProfile({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    locationId,
+    patch: {
+      fullName: fullName || undefined,
+      email,
+      phone,
+    },
+  });
+  if (!result.ok) return err(result.message ?? result.reason);
+  revalidateDashboardClientViews(customerId);
+  return ok("Customer record saved.");
+}
+
+export async function recordSalonCustomerPrivacyConsentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const statusRaw = String(formData.get("consent_status") ?? "").trim();
+  const sourceRaw = String(formData.get("consent_source") ?? "").trim() || "frontdesk";
+  const textVersion = String(formData.get("consent_text_version") ?? "").trim();
+  const noticeVersionId = String(formData.get("privacy_notice_version_id") ?? "").trim() || null;
+
+  if (!studioId || !customerId) return err("Missing required customer or studio.");
+  if (statusRaw !== "granted" && statusRaw !== "withdrawn") return err("Invalid consent status.");
+  if (!textVersion) return err("Publish a privacy notice version first.");
+  if (!["frontdesk", "client_portal", "imported", "system", "api"].includes(sourceRaw)) {
+    return err("Invalid consent source.");
+  }
+
+  const { user } = await requireUser();
+  const result = await mutateSalonCustomerPrivacyConsent({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    locationId,
+    input: {
+      status: statusRaw,
+      source: sourceRaw as "frontdesk" | "client_portal" | "imported" | "system" | "api",
+      textVersion,
+      noticeVersionId,
+      evidenceNote: String(formData.get("consent_evidence_note") ?? "").trim() || null,
+    },
+  });
+  if (!result.ok) return err(result.message);
+  revalidateDashboardClientViews(customerId);
+  return ok(`Privacy notice consent recorded: ${result.effectiveStatus}.`);
+}
+
+export async function createSalonCustomerDataRequestAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const requestType = String(formData.get("request_type") ?? "").trim();
+  const customerNote = String(formData.get("customer_note") ?? "").trim() || null;
+
+  if (!studioId || !customerId) return err("Missing required customer or studio.");
+  if (requestType !== "access" && requestType !== "correction") return err("Invalid request type.");
+
+  const { user } = await requireUser();
+  const result = await createSalonCustomerDataRequest({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    locationId,
+    requestType,
+    customerNote,
+  });
+  if (!result.ok) return err(result.message ?? result.reason);
+  revalidateDashboardClientViews(customerId);
+  return ok("Data request recorded.");
+}
+
+export async function completeSalonCustomerDataRequestAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const requestId = String(formData.get("request_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  const statusRaw = String(formData.get("request_status") ?? "").trim();
+  const staffNote = String(formData.get("staff_note") ?? "").trim();
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+
+  if (!studioId || !customerId || !requestId) return err("Missing required request.");
+  if (statusRaw !== "completed" && statusRaw !== "rejected") return err("Invalid close status.");
+  if (!staffNote) return err("A staff note is required.");
+
+  const { user } = await requireUser();
+  if (statusRaw === "completed" && (fullName || email || phone)) {
+    const profileResult = await updateSalonCustomerCoreProfile({
+      userId: user.id,
+      email: user.email ?? null,
+      studioId,
+      customerId,
+      locationId,
+      patch: {
+        ...(fullName ? { fullName } : {}),
+        ...(email || phone ? { email, phone } : {}),
+      },
+    });
+    if (!profileResult.ok) return err(profileResult.message ?? profileResult.reason);
+  }
+
+  const result = await completeSalonCustomerDataRequest({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    requestId,
+    locationId,
+    status: statusRaw,
+    staffNote,
+  });
+  if (!result.ok) return err(result.message ?? result.reason);
+  revalidateDashboardClientViews(customerId);
+  return ok(statusRaw === "completed" ? "Data request completed." : "Data request rejected.");
+}
+
+export async function anonymizeSalonCustomerAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const customerId = String(formData.get("customer_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+  if (!studioId || !customerId) return err("Missing required customer or studio.");
+
+  const { user } = await requireUser();
+  const result = await anonymizeSalonCustomerRecord({
+    userId: user.id,
+    email: user.email ?? null,
+    studioId,
+    customerId,
+    locationId,
+  });
+  if (!result.ok) return err(result.message ?? result.reason);
+  revalidateDashboardClientViews(customerId);
+  revalidateDashboardSettings("privacy");
+  return ok("Customer deactivated and masked.");
 }
 
 function getIdempotencyKey(formData: FormData, fieldName = "idempotency_key") {
