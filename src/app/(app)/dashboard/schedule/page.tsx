@@ -278,7 +278,7 @@ export default async function SchedulePage({ searchParams }: Props) {
 
         <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
           <p className={`text-xs ${ui.muted}`}>
-            Attendee actions and payment/check-in operations are managed in Bookings.
+            Attendee actions and payment/check-in operations are managed in Front desk.
           </p>
         </div>
       </li>

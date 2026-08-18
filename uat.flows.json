@@ -147,6 +147,8 @@
       "id": "apt04-appointments-local",
       "paths": [
         "src/app/[studioSlug]/appointments/**",
+        "src/app/[studioSlug]/page.tsx",
+        "src/app/[studioSlug]/services/page.tsx",
         "src/app/(app)/me/appointments/**",
         "src/lib/salon-appointments.ts",
         "src/lib/salon-appointments-self.ts",
@@ -1005,14 +1007,17 @@
       "paths": [
         "scripts/run-ops-board-uat-local.mjs",
         "scripts/verify-ops-board-browser-local.mjs",
+        "scripts/verify-ops-board-static-gates.mjs",
         "scripts/sql/ops_board_uat_local_execute.sql",
         "scripts/fixtures/ops-local-identities.mjs",
         "scripts/lib/local-fixture-auth.mjs",
         "scripts/lib/local-uat-safety.mjs",
         "scripts/lib/local-supabase-uat.mjs",
         "src/app/(app)/dashboard/operations/page.tsx",
+        "src/app/(app)/dashboard/page.tsx",
         "src/app/(app)/dashboard/sessions/[id]/checkin/page.tsx",
         "src/app/api/operations/queue/route.ts",
+        "src/components/DashboardNav.tsx",
         "src/components/ops/**",
         "src/lib/ops-board-signals.ts",
         "src/lib/pending-payment-collect.ts"

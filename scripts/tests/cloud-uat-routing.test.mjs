@@ -100,7 +100,7 @@ test("routes operations board changes to the dedicated cloud UAT flow", () => {
   const result = routeCloudUatChanges(["src/app/(app)/dashboard/operations/page.tsx"], flows);
   assert.deepEqual(result.flows, ["ops-board-local"]);
   assert.equal(result.dispatch, "ops-board-local");
-  assert.deepEqual(result.fastMatrix.include, [{ flow: "ops-board-local", script: "test:local-uat-safety" }]);
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "ops-board-local", script: "test:ops-board-app" }]);
 });
 
 test("prepends the catalog sync check when a feature and catalog file both change", () => {

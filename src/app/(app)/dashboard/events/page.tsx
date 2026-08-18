@@ -173,7 +173,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               <ConfirmingSubmitButton
                 className={ui.btnDangerSm}
                 formAction={deleteEvent}
-                confirmMessage="Hide this event? Customers will no longer see it or book it on the public page. Attendee records and payments stay in Bookings."
+                confirmMessage="Hide this event? Customers will no longer see it or book it on the public page. Attendee records and payments stay in Front desk."
                 pendingText="Hiding..."
               >
                 Hide event
@@ -279,7 +279,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         {/* ── Footer hint ──────────────────────────────────────── */}
         <div className="mt-4 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
           <p className={`text-xs ${ui.muted}`}>
-            Hiding an event only removes it from the public page. Attendee actions and payment operations stay in Bookings.
+            Hiding an event only removes it from the public page. Attendee actions and payment operations stay in Front desk.
           </p>
         </div>
       </form>
@@ -301,7 +301,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Events</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <p className={ui.muted}>
-            Create and maintain standalone paid or free events here. Attendee handling stays in Bookings.
+            Create and maintain standalone paid or free events here. Attendee handling stays in Front desk.
           </p>
           <p className={`text-sm ${ui.muted}`}>
             New events are visible after saving. Add an external booking URL only when customers should book outside this app.

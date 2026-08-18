@@ -42,7 +42,10 @@ async function login(identity) {
 
 try {
   const owner = await login(OPS_LOCAL_IDENTITIES.owner);
-  await owner.page.goto(`${baseUrl}/dashboard/operations${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.goto(`${baseUrl}/dashboard${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.waitForURL((url) => url.pathname.includes("/dashboard/operations"), { timeout: 30_000 });
+  await owner.page.getByRole("link", { name: "Front desk", exact: true }).first().waitFor({ state: "visible", timeout: 15_000 });
+  await owner.page.getByRole("link", { name: "Appointments", exact: true }).first().waitFor({ state: "visible" });
   await owner.page.getByRole("heading", { name: "Ops UAT Class" }).waitFor({ state: "visible", timeout: 30_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "ops board mobile overflow");
 
@@ -80,6 +83,7 @@ try {
     run_id: runId,
     status: "passed",
     assertions: [
+      { name: "dashboard landing keeps Front desk and Appointments distinct", result: "passed" },
       { name: "live queue sits above package checks", result: "passed" },
       { name: "capacity and unpaid badges with unpaid rows first", result: "passed" },
       { name: "class and event collect-payment links", result: "passed" },

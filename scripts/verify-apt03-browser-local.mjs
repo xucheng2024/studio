@@ -60,6 +60,10 @@ async function transitionOnCard(page, card, buttonName, expectedStatus, appointm
 try {
   const owner = await login(APT_LOCAL_IDENTITIES.owner);
   const ownerQuery = `?studio_id=${studioId}&location_id=${locationL1Id}&date=${slotDate}&view=day`;
+  await owner.page.goto(`${baseUrl}/dashboard?studio_id=${studioId}&location_id=${locationL1Id}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.waitForURL((url) => url.pathname.includes("/dashboard/operations"), { timeout: 30_000 });
+  await owner.page.getByRole("link", { name: "Appointments", exact: true }).first().click();
+  await owner.page.waitForURL((url) => url.pathname.includes("/dashboard/appointments"), { timeout: 30_000 });
   await owner.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "appointments mobile overflow");
 

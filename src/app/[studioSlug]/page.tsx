@@ -324,6 +324,12 @@ export default async function StudioPublicLandingPage({ params }: Props) {
                         </p>
                       ) : null}
                       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        <Link
+                          href={`/${studio.public_slug}/appointments?service_id=${encodeURIComponent(svc.id)}`}
+                          className={`${ui.btnSecondarySm} w-full sm:w-auto`}
+                        >
+                          Book appointment
+                        </Link>
                         {paymentEnabled ? (
                           <Link href={servicePath} className={`${ui.btnPrimarySm} w-full sm:w-auto`}>
                             {paymentReady && svc.price != null && Number(svc.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(svc.price).toFixed(2)}` : "Pay now"}

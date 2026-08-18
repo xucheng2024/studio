@@ -225,7 +225,7 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
         <DashboardAppLink href="/dashboard/operations" className={ui.btnSecondarySm}>
           Back to bookings
         </DashboardAppLink>
-        <p className={ui.muted}>Open this page from the package adjustment checks on Bookings.</p>
+        <p className={ui.muted}>Open this page from the package adjustment checks on Front desk.</p>
       </div>
     );
   }

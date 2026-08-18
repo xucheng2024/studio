@@ -298,6 +298,11 @@ async function runBrowser(name, launcher, email, full = false) {
     }
 
     const session = await newAuthenticatedPage(browser, email);
+    if (full) {
+      await session.page.goto(`${BASE_URL}/${slugs.s1}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+      await session.page.getByRole("link", { name: "Book appointment" }).first().click();
+      await session.page.waitForURL((url) => url.pathname.includes("/appointments"), { timeout: 30_000 });
+    }
     await session.page.goto(bookingUrl(full ? dates.primary : dates.tertiary), { waitUntil: "domcontentloaded", timeout: 120_000 });
     assert.ok(
       await session.page.locator("option", { hasText: "APT04 UAT Signature Service" }).count() > 0,

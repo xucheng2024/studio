@@ -6,7 +6,9 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Calendar,
+  CalendarClock,
   CalendarRange,
+  ClipboardList,
   Film,
   ShoppingBag,
   BriefcaseBusiness,
@@ -19,20 +21,23 @@ import {
   Mail,
   Settings,
   Wallet,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { usePkgApprovalsOverdueBadge } from "@/components/dashboard/pkg-approvals-overdue-badge";
 import { isRouteActive, pathFromHref } from "@/lib/nav-active";
+import { ui } from "@/lib/ui";
 
 type NavLink = { href: string; label: string; icon: LucideIcon };
 
 const links: NavLink[] = [
-  { href: "/dashboard/operations", label: "Bookings", icon: LayoutDashboard },
+  { href: "/dashboard/operations", label: "Front desk", icon: ClipboardList },
+  { href: "/dashboard/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/appointments", label: "Appointments", icon: Calendar },
   { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
   { href: "/dashboard/pos",        label: "POS",        icon: ReceiptText },
   { href: "/dashboard/services",   label: "Services",   icon: BriefcaseBusiness },
-  { href: "/dashboard/schedule",   label: "Sessions",   icon: Calendar },
+  { href: "/dashboard/schedule",   label: "Sessions",   icon: CalendarClock },
   { href: "/dashboard/events",     label: "Events",     icon: CalendarRange },
   { href: "/dashboard/member-zone",label: "Member zone",icon: Film },
   { href: "/dashboard/shop",       label: "Shop",       icon: ShoppingBag },
@@ -53,6 +58,13 @@ const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor"
   instructor: ["/dashboard/appointments", "/dashboard/payroll/me"],
 };
 
+const MOBILE_PRIMARY_HREFS = [
+  "/dashboard/operations",
+  "/dashboard/appointments",
+  "/dashboard/pos",
+  "/dashboard/clients",
+];
+
 function useVisibleLinks(
   role: "owner" | "manager" | "frontdesk" | "instructor",
   superAdminNoStudioMode: boolean,
@@ -63,23 +75,17 @@ function useVisibleLinks(
     : links.filter((l) => allowed.has(l.href));
 }
 
-function prioritizeMobileLinks(visibleLinks: NavLink[]) {
-  const priority = new Map([
-    ["/dashboard/operations", 0],
-    ["/dashboard/appointments", 1],
-    ["/dashboard/payments", 1],
-    ["/dashboard/settings", 2],
-    ["/dashboard/schedule", 3],
-    ["/dashboard/clients", 4],
-    ["/dashboard/packages", 4],
-  ]);
-
-  return [...visibleLinks].sort((a, b) => {
-    const aPriority = priority.get(a.href) ?? 100;
-    const bPriority = priority.get(b.href) ?? 100;
-    if (aPriority !== bPriority) return aPriority - bPriority;
-    return visibleLinks.indexOf(a) - visibleLinks.indexOf(b);
-  });
+function splitMobileLinks(visibleLinks: NavLink[]) {
+  if (visibleLinks.length <= 4) {
+    return { primary: visibleLinks, more: [] as NavLink[] };
+  }
+  const byHref = new Map(visibleLinks.map((link) => [link.href, link]));
+  const primary = MOBILE_PRIMARY_HREFS.map((href) => byHref.get(href)).filter(
+    (link): link is NavLink => Boolean(link),
+  );
+  const primarySet = new Set(primary.map((link) => link.href));
+  const more = visibleLinks.filter((link) => !primarySet.has(link.href));
+  return { primary, more };
 }
 
 function isPayrollNavActive(pathname: string, href: string) {
@@ -95,10 +101,7 @@ function useNavState() {
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const keep = new URLSearchParams();
-  for (const key of [
-    "studio_id", "date_from", "date_to",
-    "payment_method", "q",
-  ]) {
+  for (const key of ["studio_id", "location_id"]) {
     const v = search.get(key);
     if (v) keep.set(key, v);
   }
@@ -108,6 +111,10 @@ function useNavState() {
   }, [pathname]);
 
   return { pathname, keep, pendingHref, setPendingHref };
+}
+
+function navHref(href: string, keep: URLSearchParams) {
+  return keep.toString() ? `${href}?${keep.toString()}` : href;
 }
 
 /* ── Desktop sidebar nav ─────────────────────────────────────────── */
@@ -126,7 +133,7 @@ export function DashboardNav({
     <nav className="flex flex-col gap-0.5">
       {visibleLinks.map((l) => {
         const active = isPayrollNavActive(pathname, l.href);
-        const href = keep.toString() ? `${l.href}?${keep.toString()}` : l.href;
+        const href = navHref(l.href, keep);
         const navigating = pendingHref === pathFromHref(l.href) && !active;
         const Icon = l.icon;
 
@@ -172,49 +179,130 @@ export function MobileBottomNav({
   role: "owner" | "manager" | "frontdesk" | "instructor";
   superAdminNoStudioMode?: boolean;
 }) {
-  const visibleLinks = prioritizeMobileLinks(useVisibleLinks(role, superAdminNoStudioMode));
+  const { primary, more } = splitMobileLinks(useVisibleLinks(role, superAdminNoStudioMode));
   const { pathname, keep, pendingHref, setPendingHref } = useNavState();
   const pkgApprovalsOverdueCount = usePkgApprovalsOverdueBadge();
+  const [morePath, setMorePath] = useState<string | null>(null);
+  const moreOpen = morePath === pathname;
+  const moreActive = more.some((link) => isPayrollNavActive(pathname, link.href));
+
+  useEffect(() => {
+    if (moreOpen) {
+      document.body.classList.add("menu-open");
+    } else {
+      document.body.classList.remove("menu-open");
+    }
+    return () => document.body.classList.remove("menu-open");
+  }, [moreOpen]);
+
+  const tabClass = (active: boolean, navigating: boolean) =>
+    `relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-[color,opacity] duration-100 active:opacity-70 ${
+      active
+        ? "text-teal-600 dark:text-teal-400"
+        : navigating
+          ? "text-teal-500 dark:text-teal-500"
+          : "text-stone-500 dark:text-stone-500"
+    }`;
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-stretch overflow-x-auto overscroll-x-contain border-t border-stone-200/80 bg-white/90 backdrop-blur-xl [scrollbar-width:none] md:hidden dark:border-stone-800/80 dark:bg-stone-950/90 [&::-webkit-scrollbar]:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-    >
-      {visibleLinks.map((l) => {
-        const active = isPayrollNavActive(pathname, l.href);
-        const href = keep.toString() ? `${l.href}?${keep.toString()}` : l.href;
-        const navigating = pendingHref === pathFromHref(l.href) && !active;
-        const Icon = l.icon;
+    <>
+      {moreOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden dark:bg-black/40"
+          onClick={() => setMorePath(null)}
+        />
+      ) : null}
 
-        return (
-          <Link
-            key={l.href}
-            href={href}
-            prefetch
-            onClick={() => { if (active) return; setPendingHref(pathFromHref(l.href)); }}
-            className={`relative flex min-w-[4.5rem] flex-none flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-[color,opacity] duration-100 active:opacity-70 ${
-              active
-                ? "text-teal-600 dark:text-teal-400"
-                : navigating
-                  ? "text-teal-500 dark:text-teal-500"
-                  : "text-stone-500 dark:text-stone-500"
-            }`}
+      {more.length > 0 ? (
+        <div
+          className={`fixed inset-x-0 z-50 px-3 md:hidden ${
+            moreOpen
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-2 opacity-0"
+          }`}
+          style={{ bottom: "calc(3.75rem + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <div className="max-h-[70dvh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-2 shadow-xl shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900">
+            <nav className="flex flex-col gap-0.5" aria-label="More dashboard pages">
+              {more.map((l) => {
+                const active = isPayrollNavActive(pathname, l.href);
+                const href = navHref(l.href, keep);
+                const Icon = l.icon;
+                return (
+                  <Link
+                    key={l.href}
+                    href={href}
+                    prefetch
+                    onClick={() => {
+                      setMorePath(null);
+                      if (!active) setPendingHref(pathFromHref(l.href));
+                    }}
+                    className={`${ui.linkHeaderMenu} flex items-center gap-2.5 text-base`}
+                  >
+                    <Icon size={16} className="shrink-0" strokeWidth={active ? 2.2 : 1.8} />
+                    <span>{l.label}</span>
+                    {l.href === "/dashboard/packages" && pkgApprovalsOverdueCount > 0 ? (
+                      <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                        {pkgApprovalsOverdueCount > 99 ? "99+" : pkgApprovalsOverdueCount}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      ) : null}
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-stone-200/80 bg-white/90 backdrop-blur-xl md:hidden dark:border-stone-800/80 dark:bg-stone-950/90"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        {primary.map((l) => {
+          const active = isPayrollNavActive(pathname, l.href);
+          const href = navHref(l.href, keep);
+          const navigating = pendingHref === pathFromHref(l.href) && !active;
+          const Icon = l.icon;
+
+          return (
+            <Link
+              key={l.href}
+              href={href}
+              prefetch
+              onClick={() => { if (active) return; setPendingHref(pathFromHref(l.href)); }}
+              className={tabClass(active, navigating)}
+            >
+              <Icon
+                size={20}
+                strokeWidth={active ? 2.2 : 1.7}
+                className={active ? "text-teal-600 dark:text-teal-400" : ""}
+              />
+              {l.href === "/dashboard/packages" && pkgApprovalsOverdueCount > 0 ? (
+                <span className="absolute right-2 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-amber-100 px-1 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                  {pkgApprovalsOverdueCount > 99 ? "99+" : pkgApprovalsOverdueCount}
+                </span>
+              ) : null}
+              <span>{navigating ? "…" : l.label}</span>
+            </Link>
+          );
+        })}
+        {more.length > 0 ? (
+          <button
+            type="button"
+            aria-label={moreOpen ? "Close more pages" : "More pages"}
+            aria-expanded={moreOpen}
+            onClick={() => setMorePath((current) => (current === pathname ? null : pathname))}
+            className={tabClass(moreActive || moreOpen, false)}
           >
-            <Icon
+            <MoreHorizontal
               size={20}
-              strokeWidth={active ? 2.2 : 1.7}
-              className={active ? "text-teal-600 dark:text-teal-400" : ""}
+              strokeWidth={moreActive || moreOpen ? 2.2 : 1.7}
+              className={moreActive || moreOpen ? "text-teal-600 dark:text-teal-400" : ""}
             />
-            {l.href === "/dashboard/packages" && pkgApprovalsOverdueCount > 0 ? (
-              <span className="absolute right-2 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-amber-100 px-1 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
-                {pkgApprovalsOverdueCount > 99 ? "99+" : pkgApprovalsOverdueCount}
-              </span>
-            ) : null}
-            <span>{navigating ? "…" : l.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+            <span>More</span>
+          </button>
+        ) : null}
+      </nav>
+    </>
   );
 }
