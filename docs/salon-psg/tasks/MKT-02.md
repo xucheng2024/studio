@@ -1,6 +1,6 @@
 # MKT-02：调度、Webhook 和报告
 
-状态：已验证/待上线（`mkt02-studio-email-local` Free cloud UAT 已通过）
+状态：已上线（`61dbdf0`，gate `32086736757`；Owner 确认受控测试邮件已通）
 
 负责人：Codex
 
@@ -32,7 +32,7 @@
 
 代码已上 `main`（`26b7ab7`）：Owner 在 `/dashboard/settings/email` 配置 API key / From / webhook secret；Campaign、预约通知和发票读取该 Studio 密钥；未配置返回 `email_provider_not_configured`，不回退平台 `RESEND_*`。Webhook 为 `/api/webhooks/resend/[studioId]`。
 
-远端 migration、Vercel 平台 `RESEND_WEBHOOK_SECRET`、隔离 UAT 与 2026-08-18 生产发布窗口（`61dbdf0`）已完成。任务保持“已验证/待上线”，直到 Owner 在真实 Studio 启用自己的 Resend。
+远端 migration、Vercel 平台 `RESEND_WEBHOOK_SECRET`、隔离 UAT 与 2026-08-18 生产发布窗口（`61dbdf0`）已完成。2026-08-18 Owner 确认 Surgery 店 Email settings 已启用，Marketing 受控测试邮件已收到，任务升为“已上线”。未向真实客户群发。
 
 ## 目标环境待办
 

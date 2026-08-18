@@ -18,7 +18,7 @@
 | Q13 收据和付款 | ✅ 基本满足 | 复用现有付款记录、编号、PDF Invoice 和退款；POS 完成后升级为多项目收据、退款收据/Credit Note，并显示门店、员工和付款方式。 | Yes |
 | Q14 数字支付 | ✅ 基本满足 | 继续使用 HitPay；保留现金记录。申请材料只列出生产环境真实启用、可现场完成的 HitPay 支付方式。 | Yes |
 | Q15 POS | 🟡 已上线 / 待申请截图 | in-house POS 已进入生产：客户、多服务/商品/套餐、员工、折扣、Cash/HitPay、收据、退款、作废、门店归属和日结。找零 UI 与 PDF 可点击收据仍不在本批。 | 申请截图后 Yes |
-| Q16 SMS/E-Marketing | ⚠️ 已验证/待上线 | Email E-Marketing 应用已随 `61dbdf0` 进入生产。每个 Studio 使用自己的 Resend 账号，平台不代付发送额度。待 Owner 启用该店 Resend 后 Yes。SMS、WhatsApp 不做。 | Owner 启用该店 Resend 后 Yes |
+| Q16 SMS/E-Marketing | 🟡 已上线 / 待申请截图 | Email E-Marketing 已进入生产（`61dbdf0`）。Owner 已启用 Surgery 店 Email settings，受控测试邮件已通。SMS、WhatsApp 不做。 | 申请截图后 Yes |
 | Q17 HR Management | ❌ 尚未开发 | 已确认可以使用自建 Payroll。建立员工档案和自助资料、佣金、Payroll、工资/佣金报告、CPF/SDL/SHG 规则和 MOM Itemised Payslip，并由专业人士验证计算。 | 完成后 Yes |
 | Q18 IRAS AIS | ⚪ 本次不做 | 第一版不接 IRAS AIS，也不宣称属于 IRAS Supporting Payroll Software Vendor；已确认回答 No 不影响 Q17。 | No |
 | Q19 Leave/Attendance/Roster | ⚪ 本次不做 | 预约使用的员工可用时间不描述成完整排班、考勤或请假系统。 | No |

@@ -49,7 +49,7 @@
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
 | Phase 2 | POS-04 Refund/Void/Close | 已上线 | COM-01、PKG-01 | 隔离 DB Gate 与 COM-01 浏览器退款/关班证据已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。 |
 | Phase 3 | MKT-01 Audience/Email | 已上线 | FND-02、CRM-01、POS-04 | Consent/Suppression、Audience Snapshot 与 Email Builder 已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
-| Phase 3 | MKT-02 Dispatch/Report | 已验证/待上线 | MKT-01、FND-04 | 应用已随 `61dbdf0` 进入生产。专用 Free cloud UAT `mkt02-studio-email-local` 已通过。未向真实客户群发；待该 Studio Owner 在 `/dashboard/settings/email` 启用自己的 Resend 后升“已上线”。 |
+| Phase 3 | MKT-02 Dispatch/Report | 已上线 | MKT-01、FND-04 | 2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Owner 已在 Surgery 店 Email settings 启用发送；Marketing 受控测试邮件已收到。未向真实客户群发。 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
 | Phase 3 | PAY-02 Payroll Run | 未开始 | PAY-01 | 等待依赖 |
 | Phase 3 | PAY-03 Payslip/Reports | 未开始 | PAY-02 | 等待依赖 |
@@ -87,7 +87,7 @@
 
 ## 当前建议领取顺序
 
-1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02 仍待该 Studio Owner 启用自己的 Resend。
+1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02 已上线。
 2. 下一开发项：PAY-01 仍等新加坡 Payroll 规则签字。不要猜测 CPF/SDL/SHG。支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
@@ -228,4 +228,10 @@
 - Commit：`61dbdf0`。Vercel：`dpl_BSgfYuudUEVtqxznFScZdm7hmnWd`。生产域名：`https://www.sgmystudio.com`
 - 升为“已上线”：FND-04、APT-01、APT-02、APT-03、APT-04、APT-05、CRM-01、POS-01、POS-02、POS-03、POS-04、PKG-01、PKG-02、MKT-01
 - MKT-02 保持“已验证/待上线”。应用已在生产，待该 Studio Owner 在 `/dashboard/settings/email` 启用自己的 Resend。不要用平台 `RESEND_*` 群发真实客户。
+- PAY-01 仍为“未开始”，等新加坡 Payroll 规则签字。
+
+## 2026-08-18 状态更新（MKT-02 已上线）
+
+- Owner 确认 MKT-02 可上线。Surgery 店 Email settings 已启用；From `noreply@sgmystudio.com`；Marketing `Send test` 受控测试邮件已收到。
+- 升为“已上线”。未向真实客户群发。
 - PAY-01 仍为“未开始”，等新加坡 Payroll 规则签字。
