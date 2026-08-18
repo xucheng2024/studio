@@ -1,6 +1,7 @@
 import { AlertTriangle, ShieldAlert, Users } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { StaffWhatsappLink } from "@/components/StaffWhatsappLink";
 import { ExportFormatLinks } from "@/components/dashboard/ExportFormatLinks";
 import { LocalDate } from "@/components/ui/LocalDate";
 import { LocalTime } from "@/components/ui/LocalTime";
@@ -12,6 +13,7 @@ import { badgeToneClass } from "@/lib/order-status";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
+import { customerWhatsappText, whatsappHref } from "@/lib/whatsapp";
 
 type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string; q?: string; status?: string }> };
 
@@ -264,12 +266,17 @@ export default async function ClientsPage({ searchParams }: Props) {
                   <p className={`truncate text-xs ${ui.muted}`}>{customer.email ?? account?.email ?? customer.id}</p>
                   <p className={`truncate text-xs ${ui.muted}`}>{customer.phone ?? profile?.phone ?? "No phone"}</p>
                 </div>
-                <DashboardAppLink
-                  href={`/dashboard/clients/${customer.id}?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
-                  className={ui.btnSecondarySm}
-                >
-                  Open customer
-                </DashboardAppLink>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StaffWhatsappLink
+                    href={whatsappHref(customer.phone ?? profile?.phone, customerWhatsappText(customer.full_name))}
+                  />
+                  <DashboardAppLink
+                    href={`/dashboard/clients/${customer.id}?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+                    className={ui.btnSecondarySm}
+                  >
+                    Open customer
+                  </DashboardAppLink>
+                </div>
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">

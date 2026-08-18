@@ -2,6 +2,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { AppointmentNotificationOpsPanel } from "@/components/dashboard/AppointmentNotificationOpsPanel";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
+import { StaffWhatsappLink } from "@/components/StaffWhatsappLink";
 import {
   cancelSalonAppointmentAction,
   createSalonAppointmentAction,
@@ -19,6 +20,7 @@ import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { listAppointmentsForCalendar, type AppointmentCalendarRow } from "@/lib/salon-appointments";
 import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
+import { appointmentWhatsappText, whatsappHref } from "@/lib/whatsapp";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -128,6 +130,7 @@ function groupByDate(appointments: AppointmentCalendarRow[]) {
 function AppointmentCard(props: {
   appointment: AppointmentCalendarRow;
   studioId: string;
+  customerPhone: string | null;
   canManage: boolean;
   isInstructorOnly: boolean;
   locations: Array<{ id: string; name: string }>;
@@ -143,6 +146,16 @@ function AppointmentCard(props: {
   const transitionSet = new Set<string>(transitions as readonly string[]);
   const canReschedule =
     props.canManage && ["pending", "confirmed"].includes(appointment.status);
+  const whatsappLink = whatsappHref(
+    props.customerPhone,
+    appointmentWhatsappText({
+      customerName: appointment.customer_name,
+      serviceTitle: appointment.service_title_snapshot,
+      locationName: appointment.location_name_snapshot,
+      startsAt: appointment.starts_at,
+      status: appointment.status,
+    }),
+  );
 
   return (
     <article className={`${ui.card} flex flex-col gap-3`}>
@@ -172,8 +185,9 @@ function AppointmentCard(props: {
         </p>
       ) : null}
 
-      {transitions.length > 0 ? (
+      {whatsappLink || transitions.length > 0 ? (
         <div className="flex flex-wrap gap-2">
+          <StaffWhatsappLink href={whatsappLink} />
           {transitions.filter((status) => status !== "cancelled" && status !== "no_show").map((target) => (
             <ServerActionToastForm key={target} action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
               <input type="hidden" name="studio_id" value={props.studioId} />
@@ -202,6 +216,7 @@ function AppointmentCard(props: {
             <p><span className="font-medium text-stone-700 dark:text-stone-300">Service:</span> {appointment.service_id}</p>
             <p><span className="font-medium text-stone-700 dark:text-stone-300">Employee:</span> {appointment.employee_id}</p>
             <p><span className="font-medium text-stone-700 dark:text-stone-300">Customer:</span> {appointment.salon_customer_id}</p>
+            {!whatsappLink ? <p>Add a customer phone to enable WhatsApp.</p> : null}
           </div>
 
           {props.canManage && transitionSet.has("cancelled") ? (
@@ -419,6 +434,18 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
 
   const appointments = calendarResult.ok ? calendarResult.payload.appointments : [];
   const groupedByDate = groupByDate(appointments);
+  const customerIds = [...new Set(appointments.map((appointment) => appointment.salon_customer_id))];
+  const customerPhones = new Map<string, string | null>();
+  if (customerIds.length > 0) {
+    const { data: phoneRows } = await admin
+      .from("salon_customers")
+      .select("id, phone")
+      .eq("studio_id", activeStudioId)
+      .in("id", customerIds);
+    for (const row of phoneRows ?? []) {
+      customerPhones.set(row.id, row.phone ?? null);
+    }
+  }
 
   const scopeQuery = new URLSearchParams();
   scopeQuery.set("studio_id", activeStudioId);
@@ -579,6 +606,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
                   key={appointment.id}
                   appointment={appointment}
                   studioId={activeStudioId}
+                  customerPhone={customerPhones.get(appointment.salon_customer_id) ?? null}
                   canManage={canManage}
                   isInstructorOnly={isInstructorOnly}
                   locations={locations.map((location) => ({ id: location.id, name: location.name ?? "Unnamed" }))}
@@ -614,6 +642,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
                           key={appointment.id}
                           appointment={appointment}
                           studioId={activeStudioId}
+                          customerPhone={customerPhones.get(appointment.salon_customer_id) ?? null}
                           canManage={canManage}
                           isInstructorOnly={isInstructorOnly}
                           locations={locations.map((location) => ({ id: location.id, name: location.name ?? "Unnamed" }))}
