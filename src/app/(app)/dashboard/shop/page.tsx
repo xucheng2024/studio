@@ -114,7 +114,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <details className={`chevron ${ui.card}`}>
+      <details className={`chevron ${ui.card}`} open={!products?.length}>
         <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
           <span>+ Add product</span>
           <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
@@ -316,7 +316,11 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           </div>
           );
         })}
-        {!products?.length ? <p className={`text-sm ${ui.muted}`}>No products yet.</p> : null}
+        {!products?.length ? (
+          <p className={`text-sm ${ui.muted}`}>
+            No products yet. Set stock and Restock at when you create one. Products at or below that number show under Needs restock.
+          </p>
+        ) : null}
         {(products?.length ?? 0) > 0 && visibleProducts.length === 0 ? (
           <p className={`text-sm ${ui.muted}`}>No products at or below restock level.</p>
         ) : null}
