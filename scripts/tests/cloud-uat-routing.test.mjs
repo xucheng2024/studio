@@ -17,6 +17,7 @@ const flows = [
   { id: "pos03-hitpay-sandbox-local", paths: ["scripts/verify-pos03-browser-local.mjs"] },
   { id: "pkg01-package-ledger-local", paths: ["scripts/verify-pkg01-browser-local.mjs"] },
   { id: "pos-packages-local", paths: ["src/lib/pos-sales.ts"] },
+  { id: "ops-board-local", paths: ["src/app/(app)/dashboard/operations/page.tsx", "scripts/verify-ops-board-browser-local.mjs"] },
 ];
 
 test("routes a feature change to its smallest cloud UAT flow", () => {
@@ -93,6 +94,13 @@ test("routes PKG-01 package ledger changes to the dedicated cloud UAT flow", () 
   assert.deepEqual(result.flows, ["pkg01-package-ledger-local"]);
   assert.equal(result.dispatch, "pkg01-package-ledger-local");
   assert.deepEqual(result.fastMatrix.include, [{ flow: "pkg01-package-ledger-local", script: "test:local-uat-safety" }]);
+});
+
+test("routes operations board changes to the dedicated cloud UAT flow", () => {
+  const result = routeCloudUatChanges(["src/app/(app)/dashboard/operations/page.tsx"], flows);
+  assert.deepEqual(result.flows, ["ops-board-local"]);
+  assert.equal(result.dispatch, "ops-board-local");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "ops-board-local", script: "test:local-uat-safety" }]);
 });
 
 test("prepends the catalog sync check when a feature and catalog file both change", () => {

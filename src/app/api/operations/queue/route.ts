@@ -181,6 +181,24 @@ const getQueuePayloadCached = unstable_cache(
       eventBookingsByEvent.set(booking.event_id, [...prev, booking]);
     }
 
+    const pendingEventBookingIds = eventBookings.filter((booking) => booking.status === "pending").map((booking) => booking.id);
+    const { data: pendingEventPaymentsRaw } =
+      pendingEventBookingIds.length > 0
+        ? await admin
+            .from("payments")
+            .select("id, event_booking_id, pos_sale_id, created_at")
+            .in("event_booking_id", pendingEventBookingIds)
+            .order("created_at", { ascending: false })
+        : { data: [] as Array<{ id: string; event_booking_id: string | null; pos_sale_id: string | null }> };
+    const paymentByEventBookingId = new Map<string, { payment_id: string; pos_sale_id: string | null }>();
+    for (const payment of pendingEventPaymentsRaw ?? []) {
+      if (!payment.event_booking_id || paymentByEventBookingId.has(payment.event_booking_id)) continue;
+      paymentByEventBookingId.set(payment.event_booking_id, {
+        payment_id: payment.id,
+        pos_sale_id: payment.pos_sale_id,
+      });
+    }
+
     const eventGroups: Array<{
       event_id: string;
       event_title: string;
@@ -195,6 +213,8 @@ const getQueuePayloadCached = unstable_cache(
         label: string;
         guest_email: string | null;
         status: "pending" | "booked" | "attended" | "cancelled";
+        payment_id: string | null;
+        pos_sale_id: string | null;
       }>;
     }> = [];
 
@@ -214,11 +234,14 @@ const getQueuePayloadCached = unstable_cache(
                 : booking.status === "booked"
                   ? "booked"
                   : "pending";
+          const payment = status === "pending" ? paymentByEventBookingId.get(booking.id) : undefined;
           return {
             event_booking_id: booking.id,
             label,
             guest_email: booking.guest_email ?? u?.email ?? null,
             status: status as "pending" | "booked" | "attended" | "cancelled",
+            payment_id: payment?.payment_id ?? null,
+            pos_sale_id: payment?.pos_sale_id ?? null,
           };
         })
         .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
@@ -239,7 +262,7 @@ const getQueuePayloadCached = unstable_cache(
 
     return { starting_soon_grouped: grouped, event_groups: eventGroups };
   },
-  ["operations-queue-v2"],
+  ["operations-queue-v3"],
   { revalidate: 5 },
 );
 

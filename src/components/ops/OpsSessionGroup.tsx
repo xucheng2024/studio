@@ -4,6 +4,12 @@ import { BulkCheckInButton } from "@/components/BulkCheckInButton";
 import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { CheckInToggleButton } from "@/components/CheckInToggleButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import {
+  opsAttendeeRowClass,
+  opsAttendeeSortRank,
+  opsCapacitySignal,
+  opsUnpaidAttendeeRowClass,
+} from "@/lib/ops-board-signals";
 import { collectPendingPaymentHref } from "@/lib/pending-payment-collect";
 import { ui } from "@/lib/ui";
 
@@ -41,9 +47,15 @@ export function OpsSessionGroup({
   onQueueRefresh?: () => void;
   onWalkIn?: (sessionId: string) => void;
 }) {
-  const attendedCount = group.attendees.filter((attendee) => attendee.status === "attended").length;
-  const pendingPaymentCount = group.attendees.filter((attendee) => attendee.status === "pending").length;
-  const readyIds = group.attendees
+  const attendees = [...group.attendees].sort((a, b) => {
+    const rank = opsAttendeeSortRank(a.status) - opsAttendeeSortRank(b.status);
+    if (rank !== 0) return rank;
+    return a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
+  });
+  const attendedCount = attendees.filter((attendee) => attendee.status === "attended").length;
+  const pendingPaymentCount = attendees.filter((attendee) => attendee.status === "pending").length;
+  const capacitySignal = opsCapacitySignal(group.capacity, group.spots_left);
+  const readyIds = attendees
     .filter((attendee) => attendee.status === "booked")
     .map((attendee) => attendee.booking_id);
   const startLabel = group.start_time
@@ -64,6 +76,13 @@ export function OpsSessionGroup({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{group.class_title}</h3>
             <span className={ui.badgeNeutral}>Class</span>
+            {capacitySignal === "full" ? <span className={ui.badgeRed}>Full</span> : null}
+            {capacitySignal === "almost_full" ? <span className={ui.badgeAmber}>Almost full</span> : null}
+            {pendingPaymentCount > 0 ? (
+              <span className={ui.badgeAmber}>
+                {pendingPaymentCount} unpaid
+              </span>
+            ) : null}
           </div>
           <p className={`text-sm ${ui.muted}`}>{startLabel}</p>
           {group.location_name ? (
@@ -90,16 +109,16 @@ export function OpsSessionGroup({
         </div>
       </div>
 
-      {group.attendees.length === 0 ? (
+      {attendees.length === 0 ? (
         <div className={`mt-3 ${ui.emptyState}`}>
           <p className={ui.muted}>No class bookings yet.</p>
         </div>
       ) : (
         <ul className="mt-3 flex flex-col gap-2">
-          {group.attendees.map((attendee) => (
+          {attendees.map((attendee) => (
             <li
               key={attendee.booking_id}
-              className="rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40"
+              className={attendee.status === "pending" ? opsUnpaidAttendeeRowClass : opsAttendeeRowClass}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">

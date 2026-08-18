@@ -129,6 +129,8 @@ export function OpsBoard({
             <OpsEventGroup
               key={group.event_id}
               group={group}
+              studioId={studioId}
+              locationId={locationId}
               onQueueRefresh={refreshQueue}
               onWalkIn={onWalkIn ? (eventId) => onWalkIn("event", eventId) : undefined}
             />

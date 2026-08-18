@@ -6,6 +6,11 @@ import { CheckInToggleButton } from "@/components/CheckInToggleButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { resolveSessionActorRole } from "@/lib/instructor-access";
 import { collectPendingPaymentHref } from "@/lib/pending-payment-collect";
+import {
+  opsAttendeeRowClass,
+  opsAttendeeSortRank,
+  opsUnpaidAttendeeRowClass,
+} from "@/lib/ops-board-signals";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { hasAnyRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -89,6 +94,10 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
         | "booked"
         | "attended";
     return { id: b.id, label, name, email, phone, status };
+  }).sort((a, b) => {
+    const rank = opsAttendeeSortRank(a.status) - opsAttendeeSortRank(b.status);
+    if (rank !== 0) return rank;
+    return a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
   });
 
   const pendingBookingIds = attendees.filter((a) => a.status === "pending").map((a) => a.id);
@@ -146,7 +155,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
             <span className={ui.badge}>Checked-in: {checkedInCount}</span>
             <span className={ui.badgeAmber}>Ready to check in: {readyToCheckInCount}</span>
             {pendingPaymentCount > 0 ? (
-              <span className={ui.badgeAmber}>Pending payment: {pendingPaymentCount}</span>
+              <span className={ui.badgeAmber}>{pendingPaymentCount} unpaid</span>
             ) : null}
             <BulkCheckInButton bookingIds={readyIds} />
           </div>
@@ -164,7 +173,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
               {attendees.map((a) => (
                 <li
                   key={a.id}
-                  className="rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40"
+                  className={a.status === "pending" ? opsUnpaidAttendeeRowClass : opsAttendeeRowClass}
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{a.label}</p>

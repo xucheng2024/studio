@@ -1001,6 +1001,77 @@
       }
     },
     {
+      "id": "ops-board-local",
+      "paths": [
+        "scripts/run-ops-board-uat-local.mjs",
+        "scripts/verify-ops-board-browser-local.mjs",
+        "scripts/sql/ops_board_uat_local_execute.sql",
+        "scripts/fixtures/ops-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "src/app/(app)/dashboard/operations/page.tsx",
+        "src/app/(app)/dashboard/sessions/[id]/checkin/page.tsx",
+        "src/app/api/operations/queue/route.ts",
+        "src/components/ops/**",
+        "src/lib/ops-board-signals.ts",
+        "src/lib/pending-payment-collect.ts"
+      ],
+      "command": [
+        "npm",
+        "run",
+        "test:ops-board-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
+      "environment": {
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": [
+          "tmp/ops-board-uat"
+        ],
+        "index": "tmp/ops-board-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "collect-com01-uat-evidence",
       "paths": [
         "scripts/collect-com01-uat-evidence.sh"

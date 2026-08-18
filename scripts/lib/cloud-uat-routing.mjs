@@ -22,6 +22,7 @@ export const FAST_SCRIPTS = Object.freeze({
   "pos03-hitpay-sandbox-local": "test:hitpay-merchant-mode",
   "pkg01-package-ledger-local": "test:local-uat-safety",
   "pos-packages-local": "test:pos-pkg-browser-guard",
+  "ops-board-local": "test:local-uat-safety",
 });
 
 export const CLOUD_UAT_FLOW_ORDER = Object.freeze(Object.keys(FAST_SCRIPTS));

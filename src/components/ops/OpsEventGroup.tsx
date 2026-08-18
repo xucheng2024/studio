@@ -1,7 +1,15 @@
 "use client";
 
 import { CancelEventBookingButton } from "@/components/CancelEventBookingButton";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { EventCheckInToggleButton } from "@/components/EventCheckInToggleButton";
+import {
+  opsAttendeeRowClass,
+  opsAttendeeSortRank,
+  opsCapacitySignal,
+  opsUnpaidAttendeeRowClass,
+} from "@/lib/ops-board-signals";
+import { collectPendingPaymentHref } from "@/lib/pending-payment-collect";
 import { ui } from "@/lib/ui";
 
 export type StartingSoonEventGroup = {
@@ -18,18 +26,29 @@ export type StartingSoonEventGroup = {
     label: string;
     guest_email: string | null;
     status: "pending" | "booked" | "attended" | "cancelled";
+    payment_id?: string | null;
+    pos_sale_id?: string | null;
   }>;
 };
 
 export function OpsEventGroup({
   group,
+  studioId,
+  locationId,
   onQueueRefresh,
   onWalkIn,
 }: {
   group: StartingSoonEventGroup;
+  studioId?: string | null;
+  locationId?: string | null;
   onQueueRefresh?: () => void;
   onWalkIn?: (eventId: string) => void;
 }) {
+  const attendees = [...group.attendees].sort((a, b) => {
+    const rank = opsAttendeeSortRank(a.status) - opsAttendeeSortRank(b.status);
+    if (rank !== 0) return rank;
+    return a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
+  });
   const startLabel = group.start_time
     ? `${new Date(group.start_time).toLocaleDateString("en-SG", {
         weekday: "short",
@@ -41,6 +60,8 @@ export function OpsEventGroup({
       })}`
     : "—";
   const attendedCount = Math.max(group.active_booking_count - group.pending_checkin_count, 0);
+  const pendingPaymentCount = attendees.filter((attendee) => attendee.status === "pending").length;
+  const capacitySignal = opsCapacitySignal(group.capacity, group.spots_left);
 
   return (
     <section className={ui.card}>
@@ -49,6 +70,13 @@ export function OpsEventGroup({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{group.event_title}</h3>
             <span className={ui.badgeAmber}>Event</span>
+            {capacitySignal === "full" ? <span className={ui.badgeRed}>Full</span> : null}
+            {capacitySignal === "almost_full" ? <span className={ui.badgeAmber}>Almost full</span> : null}
+            {pendingPaymentCount > 0 ? (
+              <span className={ui.badgeAmber}>
+                {pendingPaymentCount} unpaid
+              </span>
+            ) : null}
           </div>
           <p className={`text-sm ${ui.muted}`}>{startLabel}</p>
           {group.address ? <p className={`text-sm ${ui.muted}`}>{group.address}</p> : null}
@@ -57,6 +85,7 @@ export function OpsEventGroup({
             {group.capacity > 0 ? ` / ${group.capacity}` : ""}
             {group.capacity > 0 ? ` · ${group.spots_left} spots left` : ""}
             {" · "}Attended: {attendedCount} · Pending check-in: {group.pending_checkin_count}
+            {pendingPaymentCount > 0 ? ` · Pending payment: ${pendingPaymentCount}` : ""}
           </p>
         </div>
         {onWalkIn && group.spots_left > 0 ? (
@@ -68,16 +97,16 @@ export function OpsEventGroup({
         ) : null}
       </div>
 
-      {group.attendees.length === 0 ? (
+      {attendees.length === 0 ? (
         <div className={`mt-3 ${ui.emptyState}`}>
           <p className={ui.muted}>No event bookings yet.</p>
         </div>
       ) : (
         <ul className="mt-3 flex flex-col gap-2">
-          {group.attendees.map((attendee) => (
+          {attendees.map((attendee) => (
             <li
               key={attendee.event_booking_id}
-              className="rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40"
+              className={attendee.status === "pending" ? opsUnpaidAttendeeRowClass : opsAttendeeRowClass}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -116,7 +145,20 @@ export function OpsEventGroup({
                       status={attendee.status}
                       onDone={onQueueRefresh}
                     />
-                  ) : null}
+                  ) : (
+                    <DashboardAppLink
+                      href={collectPendingPaymentHref({
+                        studioId,
+                        locationId,
+                        posSaleId: attendee.pos_sale_id,
+                        paymentId: attendee.payment_id,
+                        query: attendee.guest_email ?? attendee.label,
+                      })}
+                      className={ui.btnPrimarySm}
+                    >
+                      Collect payment
+                    </DashboardAppLink>
+                  )}
                   <CancelEventBookingButton
                     eventBookingId={attendee.event_booking_id}
                     label={attendee.label}

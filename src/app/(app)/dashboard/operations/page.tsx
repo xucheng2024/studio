@@ -256,6 +256,80 @@ export default async function OperationsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Bookings</h1>
         <p className={ui.muted}>Daily front desk sales, booking, attendance, and exception handling for classes, events, and services.</p>
       </div>
+      <div className={`${ui.card} flex flex-wrap gap-3`}>
+        <DashboardLocationFilter
+          locations={locations ?? []}
+          selectedStudioId={activeStudioId}
+          selectedLocationId={selectedLocationId}
+          allowAll={canViewAllLocations}
+          accessibleLocationIds={accessibleLocationIds}
+        />
+      </div>
+      <form method="get" className={`${ui.card} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
+        <input type="hidden" name="studio_id" value={activeStudioId} />
+        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>Booking status</span>
+          <select name="session_status" className={ui.select} defaultValue={sessionStatus}>
+            <option value="all">All</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>From date</span>
+          <input type="date" name="date_from" className={ui.input} defaultValue={dateFrom} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ui.label}>To date</span>
+          <input type="date" name="date_to" className={ui.input} defaultValue={dateTo} />
+        </label>
+        <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
+          <button type="submit" className={ui.btnPrimarySm}>Apply</button>
+          <DashboardAppLink
+            href={`/dashboard/operations?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            className={ui.btnGhost}
+          >
+            Reset
+          </DashboardAppLink>
+        </div>
+      </form>
+      <OpsDesk
+        studioId={activeStudioId}
+        locationId={selectedLocationId}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        sessionStatus={sessionStatus}
+        sessions={walkinSessions}
+        events={walkinEvents}
+        services={walkinServices}
+        customers={walkinCustomers}
+        disabled={studioSuspended}
+      >
+        <section className={`${ui.card} flex flex-col gap-3`}>
+          <div className="flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
+              <ClipboardList size={17} />
+            </span>
+            <div>
+              <h2 className={ui.h2}>Front desk notes</h2>
+              <p className={ui.muted}>Quick guide for ad-hoc arrivals and payment capture.</p>
+            </div>
+          </div>
+          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+            <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
+            <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
+          </div>
+          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+            <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
+            <p className={ui.muted}>
+              {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
+                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
+                : "No scheduled sessions, events, or priced services are available right now."}
+            </p>
+          </div>
+        </section>
+      </OpsDesk>
       <section className={ui.card}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -362,80 +436,6 @@ export default async function OperationsPage({ searchParams }: Props) {
           <p className={`mt-3 text-sm ${ui.muted}`}>No checks yet. These run automatically in the background.</p>
         )}
       </section>
-      <div className={`${ui.card} flex flex-wrap gap-3`}>
-        <DashboardLocationFilter
-          locations={locations ?? []}
-          selectedStudioId={activeStudioId}
-          selectedLocationId={selectedLocationId}
-          allowAll={canViewAllLocations}
-          accessibleLocationIds={accessibleLocationIds}
-        />
-      </div>
-      <form method="get" className={`${ui.card} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
-        <input type="hidden" name="studio_id" value={activeStudioId} />
-        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Booking status</span>
-          <select name="session_status" className={ui.select} defaultValue={sessionStatus}>
-            <option value="all">All</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>From date</span>
-          <input type="date" name="date_from" className={ui.input} defaultValue={dateFrom} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>To date</span>
-          <input type="date" name="date_to" className={ui.input} defaultValue={dateTo} />
-        </label>
-        <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
-          <button type="submit" className={ui.btnPrimarySm}>Apply</button>
-          <DashboardAppLink
-            href={`/dashboard/operations?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
-            className={ui.btnGhost}
-          >
-            Reset
-          </DashboardAppLink>
-        </div>
-      </form>
-      <OpsDesk
-        studioId={activeStudioId}
-        locationId={selectedLocationId}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        sessionStatus={sessionStatus}
-        sessions={walkinSessions}
-        events={walkinEvents}
-        services={walkinServices}
-        customers={walkinCustomers}
-        disabled={studioSuspended}
-      >
-        <section className={`${ui.card} flex flex-col gap-3`}>
-          <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
-              <ClipboardList size={17} />
-            </span>
-            <div>
-              <h2 className={ui.h2}>Front desk notes</h2>
-              <p className={ui.muted}>Quick guide for ad-hoc arrivals and payment capture.</p>
-            </div>
-          </div>
-          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
-            <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
-          </div>
-          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
-            <p className={ui.muted}>
-              {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
-                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
-                : "No scheduled sessions, events, or priced services are available right now."}
-            </p>
-          </div>
-        </section>
-      </OpsDesk>
     </div>
   );
 }
