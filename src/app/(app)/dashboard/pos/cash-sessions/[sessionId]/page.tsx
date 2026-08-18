@@ -1,6 +1,5 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
-import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
-import { closePosCashSessionAction } from "@/app/(app)/dashboard/actions";
+import { CloseCashSessionForm } from "@/components/dashboard/CloseCashSessionForm";
 import { formatLocalDateTime } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
@@ -271,27 +270,13 @@ export default async function PosCashSessionDetailPage({ params, searchParams }:
       {session.status === "open" ? (
         <section className={ui.card}>
           <h2 className={ui.h2}>Close cash session</h2>
-          <p className={`mt-1 text-sm ${ui.muted}`}>Enter the physically counted cash to close this session.</p>
-          <ServerActionToastForm action={closePosCashSessionAction} className="mt-3 grid gap-3 md:grid-cols-2">
-            <input type="hidden" name="studio_id" value={studioId} />
-            <input type="hidden" name="session_id" value={session.id} />
-            <input
-              type="hidden"
-              name="idempotency_key"
-              value={`pos-cash-session-close:${session.id}:${session.updated_at}`}
-            />
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Counted cash (SGD)</span>
-              <input name="counted_cash" type="number" step="0.01" min="0" className={ui.input} required />
-            </label>
-            <label className="md:col-span-2 flex flex-col gap-1.5">
-              <span className={ui.label}>Close note</span>
-              <input name="notes" className={ui.input} placeholder="Optional discrepancy/handover note" />
-            </label>
-            <div className="md:col-span-2">
-              <button type="submit" className={ui.btnPrimary}>Close cash session</button>
-            </div>
-          </ServerActionToastForm>
+          <p className={`mt-1 text-sm ${ui.muted}`}>Confirm counted cash. A note is required only when it differs from expected.</p>
+          <CloseCashSessionForm
+            studioId={studioId}
+            sessionId={session.id}
+            idempotencyKey={`pos-cash-session-close:${session.id}:${session.updated_at}`}
+            expectedCash={Number(session.expected_cash ?? 0)}
+          />
         </section>
       ) : null}
 

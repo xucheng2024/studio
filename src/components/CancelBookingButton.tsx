@@ -9,7 +9,15 @@ import { ui } from "@/lib/ui";
 
 type Step = "idle" | "confirm" | "busy" | "error";
 
-export function CancelBookingButton({ bookingId, label }: { bookingId: string; label?: string }) {
+export function CancelBookingButton({
+  bookingId,
+  label,
+  onDone,
+}: {
+  bookingId: string;
+  label?: string;
+  onDone?: () => void;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("idle");
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -44,7 +52,8 @@ export function CancelBookingButton({ bookingId, label }: { bookingId: string; l
             });
             if (res.ok) {
               toast.success("Booking cancelled");
-              throttledRefresh(router);
+              if (onDone) onDone();
+              else throttledRefresh(router);
             } else {
               const body = await res.json().catch(() => ({}));
               setErrMsg(body.error ?? "Cancel failed. Please try again.");

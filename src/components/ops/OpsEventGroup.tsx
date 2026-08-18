@@ -24,9 +24,11 @@ export type StartingSoonEventGroup = {
 export function OpsEventGroup({
   group,
   onQueueRefresh,
+  onWalkIn,
 }: {
   group: StartingSoonEventGroup;
   onQueueRefresh?: () => void;
+  onWalkIn?: (eventId: string) => void;
 }) {
   const startLabel = group.start_time
     ? `${new Date(group.start_time).toLocaleDateString("en-SG", {
@@ -57,6 +59,13 @@ export function OpsEventGroup({
             {" · "}Attended: {attendedCount} · Pending check-in: {group.pending_checkin_count}
           </p>
         </div>
+        {onWalkIn && group.spots_left > 0 ? (
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+            <button type="button" className={ui.btnSecondarySm} onClick={() => onWalkIn(group.event_id)}>
+              Walk-in
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {group.attendees.length === 0 ? (

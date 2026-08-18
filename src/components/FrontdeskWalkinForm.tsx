@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Banknote, CircleDollarSign, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { throttledRefresh } from "@/lib/throttledRefresh";
 import { ui } from "@/lib/ui";
 
-type WalkinTarget = {
+export type WalkinTarget = {
   id: string;
   startTime?: string;
   title: string;
@@ -19,22 +19,54 @@ type WalkinTarget = {
   guestPrice: number;
 };
 
+export type WalkinCustomerOption = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+};
+
+export type WalkinPrefillRequest = {
+  bookingType: "session" | "event";
+  targetId: string;
+  nonce: number;
+};
+
+function digits(value: string | null | undefined) {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function defaultTargetId(targets: WalkinTarget[]) {
+  return targets[0]?.id ?? "";
+}
+
 export function FrontdeskWalkinForm({
   sessions,
   events,
   services,
+  customers = [],
   disabled = false,
+  prefill = null,
+  onCreated,
 }: {
   sessions: WalkinTarget[];
   events: WalkinTarget[];
   services: WalkinTarget[];
+  customers?: WalkinCustomerOption[];
   disabled?: boolean;
+  prefill?: WalkinPrefillRequest | null;
+  onCreated?: () => void;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [bookingType, setBookingType] = useState<"session" | "event" | "service">("session");
-  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [selectedTargetId, setSelectedTargetId] = useState(() => defaultTargetId(sessions));
   const [phone, setPhone] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [markCheckin, setMarkCheckin] = useState(false);
 
   const targets = bookingType === "session" ? sessions : bookingType === "event" ? events : services;
   const formDisabled = disabled || busy || targets.length === 0;
@@ -44,6 +76,40 @@ export function FrontdeskWalkinForm({
     : bookingType === "service"
       ? "Select a service"
       : "Select a session or event";
+
+  const matches = useMemo(() => {
+    const phoneDigits = digits(phone);
+    const nameNeedle = guestName.trim().toLowerCase();
+    if (nameNeedle.length < 2 && phoneDigits.length < 4) return [] as WalkinCustomerOption[];
+    return customers
+      .filter((customer) => {
+        const customerDigits = digits(customer.phone);
+        const phoneHit =
+          phoneDigits.length >= 4 &&
+          customerDigits.length >= 4 &&
+          (customerDigits.endsWith(phoneDigits.slice(-8)) || phoneDigits.endsWith(customerDigits.slice(-8)));
+        const nameHit = nameNeedle.length >= 2 && `${customer.full_name} ${customer.email ?? ""}`.toLowerCase().includes(nameNeedle);
+        return phoneHit || nameHit;
+      })
+      .slice(0, 5);
+  }, [customers, guestName, phone]);
+
+  const lastPrefillNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!prefill || prefill.nonce === lastPrefillNonceRef.current) return;
+    lastPrefillNonceRef.current = prefill.nonce;
+    const newType = prefill.bookingType;
+    const newTargets = newType === "session" ? sessions : events;
+    const nextId = newTargets.find((t) => t.id === prefill.targetId)?.id ?? defaultTargetId(newTargets);
+    // Use a timeout so all setState calls happen outside the effect body
+    window.setTimeout(() => {
+      setBookingType(newType);
+      setSelectedTargetId(nextId);
+      setMarkCheckin(true);
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => nameRef.current?.focus(), 80);
+    }, 0);
+  }, [prefill, sessions, events]);
 
   function targetLabel(t: WalkinTarget) {
     const d = t.startTime ? new Date(t.startTime) : null;
@@ -63,33 +129,53 @@ export function FrontdeskWalkinForm({
 
   function onBookingTypeChange(next: "session" | "event" | "service") {
     setBookingType(next);
-    setSelectedTargetId("");
+    const nextTargets = next === "session" ? sessions : next === "event" ? events : services;
+    setSelectedTargetId(defaultTargetId(nextTargets));
+    if (next === "service") setMarkCheckin(false);
+  }
+
+  function applyCustomer(customer: WalkinCustomerOption) {
+    setGuestName(customer.full_name);
+    setGuestEmail(customer.email ?? "");
+    if (customer.phone) setPhone(customer.phone);
+  }
+
+  function resetGuest() {
+    setGuestName("");
+    setGuestEmail("");
+    setPhone("");
+    setMarkCheckin(false);
+    setSelectedTargetId(defaultTargetId(sessions));
+    setBookingType("session");
   }
 
   return (
     <form
+      id="frontdesk-walkin"
+      ref={formRef}
       className={`${ui.card} flex flex-col gap-4`}
       onSubmit={async (e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
-        const guestEmail = String(fd.get("guest_email") ?? "").trim();
         setBusy(true);
+        const payload = {
+          booking_type: bookingType,
+          target_id: String(fd.get("target_id") ?? ""),
+          guest_name: guestName.trim(),
+          guest_email: guestEmail.trim() || undefined,
+          guest_phone: phone.trim() || null,
+          payment_method: String(fd.get("payment_method") ?? "cash"),
+          mark_checkin: markCheckin && bookingType !== "service",
+        };
         const res = await fetch("/api/frontdesk/walkin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            booking_type: bookingType,
-            target_id: String(fd.get("target_id") ?? ""),
-            guest_name: String(fd.get("guest_name") ?? ""),
-            guest_email: guestEmail || undefined,
-            guest_phone: phone.trim() || null,
-            payment_method: String(fd.get("payment_method") ?? "cash"),
-            mark_checkin: fd.get("mark_checkin") === "on",
-          }),
+          body: JSON.stringify(payload),
         });
         const body = await res.json().catch(() => ({}));
         setBusy(false);
         if (!res.ok) {
+          console.log("walk-in failed", { payload, status: res.status, body });
           const message =
             bookingType === "service"
               ? paymentErrorMessage(String(body.error ?? ""), body.error_detail)
@@ -105,8 +191,8 @@ export function FrontdeskWalkinForm({
               : "Walk-in created",
         );
         (e.currentTarget as HTMLFormElement).reset();
-        setSelectedTargetId("");
-        setPhone("");
+        resetGuest();
+        onCreated?.();
         throttledRefresh(router);
       }}
     >
@@ -191,7 +277,18 @@ export function FrontdeskWalkinForm({
 
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Guest name</span>
-          <input name="guest_name" placeholder="Walk-in guest" className={ui.input} required disabled={formDisabled} />
+          <input
+            ref={nameRef}
+            id="walkin-guest-name"
+            name="guest_name"
+            placeholder="Walk-in guest"
+            className={ui.input}
+            required
+            disabled={formDisabled}
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            autoComplete="off"
+          />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Email{bookingType === "event" || bookingType === "service" ? " (required)" : ""}</span>
@@ -202,6 +299,9 @@ export function FrontdeskWalkinForm({
             className={ui.input}
             required={bookingType === "event" || bookingType === "service"}
             disabled={formDisabled}
+            value={guestEmail}
+            onChange={(e) => setGuestEmail(e.target.value)}
+            autoComplete="off"
           />
         </label>
 
@@ -209,6 +309,23 @@ export function FrontdeskWalkinForm({
           <span className={ui.label}>Phone</span>
           <PhoneNumberInput value={phone} onChange={setPhone} disabled={formDisabled} placeholder="9123 4567" />
         </label>
+
+        {matches.length > 0 ? (
+          <div className="md:col-span-2 flex flex-col gap-1">
+            <p className={`text-xs ${ui.muted}`}>Matching customers</p>
+            {matches.map((customer) => (
+              <button
+                key={customer.id}
+                type="button"
+                className="rounded-lg px-2 py-1.5 text-left text-sm hover:bg-stone-100 dark:hover:bg-stone-800"
+                onClick={() => applyCustomer(customer)}
+              >
+                {customer.full_name}
+                <span className={`ml-2 text-xs ${ui.muted}`}>{customer.phone ?? customer.email ?? ""}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Amount</span>
@@ -229,7 +346,13 @@ export function FrontdeskWalkinForm({
         <div className="flex flex-col gap-1.5">
           <span className={ui.label}>Arrival</span>
           <div className="flex min-h-11 items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300">
-            <Toggle name="mark_checkin" aria-label="Check-in immediately" disabled={formDisabled || bookingType === "service"} />
+            <Toggle
+              name="mark_checkin"
+              aria-label="Check-in immediately"
+              disabled={formDisabled || bookingType === "service"}
+              checked={markCheckin && bookingType !== "service"}
+              onChange={setMarkCheckin}
+            />
             <span>{bookingType === "service" ? "Check-in is not used for services" : "Check-in immediately"}</span>
           </div>
         </div>

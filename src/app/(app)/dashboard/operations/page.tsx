@@ -1,8 +1,7 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
-import { FrontdeskWalkinForm } from "@/components/FrontdeskWalkinForm";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
-import { OpsBoard } from "@/components/ops/OpsBoard";
+import { OpsDesk } from "@/components/ops/OpsDesk";
 import { localISODate } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
@@ -194,6 +193,20 @@ export default async function OperationsPage({ searchParams }: Props) {
     title: service.title ?? "Service",
     guestPrice: Number(service.price ?? 0),
   }));
+  const { data: walkinCustomersRaw } = await admin
+    .from("salon_customers")
+    .select("id, full_name, phone, email")
+    .eq("studio_id", activeStudioId)
+    .eq("status", "active")
+    .is("merged_into_id", null)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+  const walkinCustomers = (walkinCustomersRaw ?? []).map((customer) => ({
+    id: customer.id,
+    full_name: customer.full_name ?? "Unnamed",
+    phone: customer.phone ?? null,
+    email: customer.email ?? null,
+  }));
 
   let opsCheckRunsQuery = admin
     .from("pkg02_ops_check_runs")
@@ -358,32 +371,6 @@ export default async function OperationsPage({ searchParams }: Props) {
           accessibleLocationIds={accessibleLocationIds}
         />
       </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] xl:items-start">
-        <FrontdeskWalkinForm sessions={walkinSessions} events={walkinEvents} services={walkinServices} disabled={studioSuspended} />
-        <section className={`${ui.card} flex flex-col gap-3`}>
-          <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
-              <ClipboardList size={17} />
-            </span>
-            <div>
-              <h2 className={ui.h2}>Front desk notes</h2>
-              <p className={ui.muted}>Quick guide for ad-hoc arrivals and payment capture.</p>
-            </div>
-          </div>
-          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
-            <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
-          </div>
-          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
-            <p className={ui.muted}>
-              {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
-                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
-                : "No scheduled sessions, events, or priced services are available right now."}
-            </p>
-          </div>
-        </section>
-      </div>
       <form method="get" className={`${ui.card} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
         <input type="hidden" name="studio_id" value={activeStudioId} />
         {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
@@ -413,13 +400,42 @@ export default async function OperationsPage({ searchParams }: Props) {
           </DashboardAppLink>
         </div>
       </form>
-      <OpsBoard
+      <OpsDesk
         studioId={activeStudioId}
         locationId={selectedLocationId}
         dateFrom={dateFrom}
         dateTo={dateTo}
         sessionStatus={sessionStatus}
-      />
+        sessions={walkinSessions}
+        events={walkinEvents}
+        services={walkinServices}
+        customers={walkinCustomers}
+        disabled={studioSuspended}
+      >
+        <section className={`${ui.card} flex flex-col gap-3`}>
+          <div className="flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
+              <ClipboardList size={17} />
+            </span>
+            <div>
+              <h2 className={ui.h2}>Front desk notes</h2>
+              <p className={ui.muted}>Quick guide for ad-hoc arrivals and payment capture.</p>
+            </div>
+          </div>
+          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+            <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
+            <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
+          </div>
+          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+            <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
+            <p className={ui.muted}>
+              {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
+                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
+                : "No scheduled sessions, events, or priced services are available right now."}
+            </p>
+          </div>
+        </section>
+      </OpsDesk>
     </div>
   );
 }

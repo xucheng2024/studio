@@ -58,7 +58,7 @@ const getQueuePayloadCached = unstable_cache(
             .from("bookings")
             .select("id, session_id, status, guest_name, guest_email, users(email)")
             .in("session_id", sessionIds)
-            .in("status", ["booked", "attended"])
+            .in("status", ["pending", "booked", "attended"])
         : { data: [] as SoonBookingRow[] };
 
     const bookings = (bookingsRaw ?? []) as SoonBookingRow[];
@@ -66,6 +66,24 @@ const getQueuePayloadCached = unstable_cache(
     for (const b of bookings) {
       const prev = bookingsBySession.get(b.session_id) ?? [];
       bookingsBySession.set(b.session_id, [...prev, b]);
+    }
+
+    const pendingBookingIds = bookings.filter((b) => b.status === "pending").map((b) => b.id);
+    const { data: pendingPaymentsRaw } =
+      pendingBookingIds.length > 0
+        ? await admin
+            .from("payments")
+            .select("id, booking_id, pos_sale_id, created_at")
+            .in("booking_id", pendingBookingIds)
+            .order("created_at", { ascending: false })
+        : { data: [] as Array<{ id: string; booking_id: string | null; pos_sale_id: string | null }> };
+    const paymentByBookingId = new Map<string, { payment_id: string; pos_sale_id: string | null }>();
+    for (const payment of pendingPaymentsRaw ?? []) {
+      if (!payment.booking_id || paymentByBookingId.has(payment.booking_id)) continue;
+      paymentByBookingId.set(payment.booking_id, {
+        payment_id: payment.id,
+        pos_sale_id: payment.pos_sale_id,
+      });
     }
 
     const grouped: Array<{
@@ -81,7 +99,9 @@ const getQueuePayloadCached = unstable_cache(
         booking_id: string;
         label: string;
         guest_email: string | null;
-        status: "booked" | "attended";
+        status: "pending" | "booked" | "attended";
+        payment_id: string | null;
+        pos_sale_id: string | null;
       }>;
     }> = [];
 
@@ -91,11 +111,16 @@ const getQueuePayloadCached = unstable_cache(
         .map((b) => {
           const u = Array.isArray(b.users) ? b.users[0] : b.users;
           const label = (b.guest_name?.trim() || u?.email?.trim() || b.guest_email?.trim() || "Guest") as string;
+          const status =
+            b.status === "attended" ? "attended" : b.status === "booked" ? "booked" : "pending";
+          const payment = status === "pending" ? paymentByBookingId.get(b.id) : undefined;
           return {
             booking_id: b.id,
             label,
             guest_email: b.guest_email ?? u?.email ?? null,
-            status: (b.status === "attended" ? "attended" : "booked") as "booked" | "attended",
+            status: status as "pending" | "booked" | "attended",
+            payment_id: payment?.payment_id ?? null,
+            pos_sale_id: payment?.pos_sale_id ?? null,
           };
         })
         .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
@@ -115,7 +140,7 @@ const getQueuePayloadCached = unstable_cache(
         location_name: locationName,
         capacity: Number((sessionRow as { capacity?: number }).capacity ?? 0),
         spots_left: Number((sessionRow as { spots_left?: number }).spots_left ?? 0),
-        total_booked: attendees.length,
+        total_booked: attendees.filter((a) => a.status === "booked" || a.status === "attended").length,
         pending_checkin_count: attendees.filter((a) => a.status === "booked").length,
         attendees,
       });
@@ -214,7 +239,7 @@ const getQueuePayloadCached = unstable_cache(
 
     return { starting_soon_grouped: grouped, event_groups: eventGroups };
   },
-  ["operations-queue-v1"],
+  ["operations-queue-v2"],
   { revalidate: 5 },
 );
 

@@ -20,12 +20,16 @@ export function OpsBoard({
   dateFrom,
   dateTo,
   sessionStatus,
+  queueEpoch = 0,
+  onWalkIn,
 }: {
   studioId: string | null;
   locationId: string | null;
   dateFrom: string;
   dateTo: string;
   sessionStatus: "all" | "scheduled" | "cancelled";
+  queueEpoch?: number;
+  onWalkIn?: (kind: "session" | "event", targetId: string) => void;
 }) {
   const [data, setData] = useState<QueueState>({
     qs: null,
@@ -64,7 +68,11 @@ export function OpsBoard({
     return () => {
       controller.abort();
     };
-  }, [qs, loadQueue]);
+  }, [qs, loadQueue, queueEpoch]);
+
+  const refreshQueue = useCallback(() => {
+    loadQueue();
+  }, [loadQueue]);
 
   const loading = data.qs !== qs;
 
@@ -103,6 +111,10 @@ export function OpsBoard({
               key={group.session_id}
               group={group}
               detailHref={`/dashboard/sessions/${group.session_id}/checkin?${qs}`}
+              studioId={studioId}
+              locationId={locationId}
+              onQueueRefresh={refreshQueue}
+              onWalkIn={onWalkIn ? (sessionId) => onWalkIn("session", sessionId) : undefined}
             />
           ))}
         </section>
@@ -114,7 +126,12 @@ export function OpsBoard({
             <p className={ui.muted}>Check-in event attendees here. Refunds still stay in Payments.</p>
           </div>
           {data.event_groups.map((group) => (
-            <OpsEventGroup key={group.event_id} group={group} onQueueRefresh={loadQueue} />
+            <OpsEventGroup
+              key={group.event_id}
+              group={group}
+              onQueueRefresh={refreshQueue}
+              onWalkIn={onWalkIn ? (eventId) => onWalkIn("event", eventId) : undefined}
+            />
           ))}
         </section>
       ) : null}

@@ -575,6 +575,29 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   unassignedCashParams.set("date_from", attentionDateFrom);
   unassignedCashParams.set("date_to", defaultDate);
 
+  const pendingHitpayTotal = pendingHitpayCount ?? 0;
+  const pendingPosCashTotal = pendingPosCashCount ?? 0;
+  const unassignedPosCashTotal = unassignedPosCashCount ?? 0;
+  const needsActionCount = pendingHitpayTotal + pendingPosCashTotal + unassignedPosCashTotal;
+  const needsActionParams = pendingHitpayTotal > 0
+    ? pendingHitpayParams
+    : pendingPosCashTotal > 0
+      ? pendingPosCashParams
+      : unassignedCashParams;
+  const isNeedsActionView = isPendingHitpayAttention || isPendingPosCashAttention || isUnassignedCashFilter;
+  const defaultDateFrom = (isPendingHitpayAttention || isPendingPosCashAttention) ? attentionDateFrom : defaultDate;
+  const hasNonDefaultFilters = Boolean(
+    sp.attention
+    || isUnassignedCashFilter
+    || cashSessionIdFilter
+    || (sp.q ?? "").trim()
+    || (sp.payment_method && !isPendingHitpayAttention && !isPendingPosCashAttention)
+    || (sp.source && !isPendingPosCashAttention && !isUnassignedCashFilter)
+    || sp.sales_channel
+    || (sp.date_from && sp.date_from !== defaultDateFrom)
+    || (sp.date_to && sp.date_to !== defaultDate),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/* ── Page header ─────────────────────────────────────────── */}
@@ -615,6 +638,13 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
 
         <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
           <DashboardAppLink
+            href={`/dashboard/payments?${needsActionParams.toString()}`}
+            className={isNeedsActionView ? ui.btnPrimarySm : ui.btnSecondarySm}
+          >
+            Needs action
+            {` · ${needsActionCount}`}
+          </DashboardAppLink>
+          <DashboardAppLink
             href={`/dashboard/payments?${pendingHitpayParams.toString()}`}
             className={isPendingHitpayAttention ? ui.btnPrimarySm : ui.btnSecondarySm}
           >
@@ -645,6 +675,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       </div>
 
+      {needsActionCount > 0 && !isNeedsActionView ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+          <DashboardAppLink href={`/dashboard/payments?${needsActionParams.toString()}`} className="font-medium underline-offset-2 hover:underline">
+            {needsActionCount} payment{needsActionCount === 1 ? "" : "s"} need action
+          </DashboardAppLink>
+        </div>
+      ) : null}
+
       <form method="get" className={`${ui.card} flex flex-col gap-4`}>
         {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
         {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
@@ -662,7 +700,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           />
         </div>
 
-        {/* ── Always-visible quick filters ─────────────────────── */}
+        <details className="grid gap-4" open={hasNonDefaultFilters || undefined}>
+          <summary className="cursor-pointer text-sm font-medium text-stone-700 dark:text-stone-200">
+            Filters
+          </summary>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Date from</span>
@@ -740,6 +781,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             Clear filters
           </DashboardAppLink>
         </div>
+        </details>
       </form>
 
       {isPendingHitpayAttention ? (

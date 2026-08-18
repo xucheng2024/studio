@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import { BulkCheckInButton } from "@/components/BulkCheckInButton";
 import { CancelBookingButton } from "@/components/CancelBookingButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { CheckInToggleButton } from "@/components/CheckInToggleButton";
 import { getDashboardScope } from "@/lib/dashboard";
 import { resolveSessionActorRole } from "@/lib/instructor-access";
+import { collectPendingPaymentHref } from "@/lib/pending-payment-collect";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { hasAnyRole } from "@/lib/rbac";
 import { ui } from "@/lib/ui";
@@ -36,7 +38,7 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
   const admin = createAdminClient();
   const { data: session } = await admin
     .from("class_sessions")
-    .select("id, start_time, class_title_snapshot, classes!inner(title, studio_id, instructor_id), locations(name)")
+    .select("id, start_time, location_id, class_title_snapshot, classes!inner(title, studio_id, instructor_id), locations(name)")
     .eq("id", id)
     .maybeSingle();
   if (!session) return <p className={ui.muted}>Session not found.</p>;
@@ -89,13 +91,33 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
     return { id: b.id, label, name, email, phone, status };
   });
 
+  const pendingBookingIds = attendees.filter((a) => a.status === "pending").map((a) => a.id);
+  const { data: pendingPaymentsRaw } =
+    pendingBookingIds.length > 0
+      ? await admin
+          .from("payments")
+          .select("id, booking_id, pos_sale_id, created_at")
+          .in("booking_id", pendingBookingIds)
+          .order("created_at", { ascending: false })
+      : { data: [] as Array<{ id: string; booking_id: string | null; pos_sale_id: string | null }> };
+  const paymentByBookingId = new Map<string, { payment_id: string; pos_sale_id: string | null }>();
+  for (const payment of pendingPaymentsRaw ?? []) {
+    if (!payment.booking_id || paymentByBookingId.has(payment.booking_id)) continue;
+    paymentByBookingId.set(payment.booking_id, {
+      payment_id: payment.id,
+      pos_sale_id: payment.pos_sale_id,
+    });
+  }
+
   const checkedInCount = attendees.filter((a) => a.status === "attended").length;
   const readyToCheckInCount = attendees.filter((a) => a.status === "booked").length;
+  const readyIds = attendees.filter((a) => a.status === "booked").map((a) => a.id);
   const pendingPaymentCount = attendees.filter((a) => a.status === "pending").length;
   const total = attendees.length;
   const dt = session.start_time ? new Date(session.start_time) : null;
   const loc = session.locations as { name?: string | null } | { name?: string | null }[] | null | undefined;
   const locationName = Array.isArray(loc) ? loc[0]?.name ?? null : loc?.name ?? null;
+  const sessionLocationId = typeof session.location_id === "string" ? session.location_id : null;
 
   const backParams = new URLSearchParams();
   if (sp.studio_id) backParams.set("studio_id", sp.studio_id);
@@ -119,13 +141,14 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
           <h1 className={ui.h1}>{(session as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Session"}</h1>
           <p className={`mt-1 ${ui.muted}`}>{dt ? <LocalTime iso={session.start_time as string} options={{ weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} /> : "—"}</p>
           {locationName ? <p className={`mt-1 ${ui.muted}`}>{locationName}</p> : null}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className={ui.badgeNeutral}>Enrolled: {total}</span>
             <span className={ui.badge}>Checked-in: {checkedInCount}</span>
             <span className={ui.badgeAmber}>Ready to check in: {readyToCheckInCount}</span>
             {pendingPaymentCount > 0 ? (
               <span className={ui.badgeAmber}>Pending payment: {pendingPaymentCount}</span>
             ) : null}
+            <BulkCheckInButton bookingIds={readyIds} />
           </div>
         </section>
 
@@ -153,10 +176,23 @@ export default async function SessionCheckinPage({ params, searchParams }: Props
                       </span>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     {a.status === "booked" || a.status === "attended" ? (
                       <CheckInToggleButton bookingId={a.id} status={a.status} />
-                    ) : null}
+                    ) : (
+                      <DashboardAppLink
+                        href={collectPendingPaymentHref({
+                          studioId,
+                          locationId: sessionLocationId ?? sp.location_id ?? null,
+                          posSaleId: paymentByBookingId.get(a.id)?.pos_sale_id ?? null,
+                          paymentId: paymentByBookingId.get(a.id)?.payment_id ?? null,
+                          query: a.email ?? a.label,
+                        })}
+                        className={ui.btnPrimarySm}
+                      >
+                        Collect payment
+                      </DashboardAppLink>
+                    )}
                     {a.status === "booked" ? <CancelBookingButton bookingId={a.id} label={a.label} /> : null}
                   </div>
                 </li>
