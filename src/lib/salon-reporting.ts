@@ -23,8 +23,26 @@ export async function getSalonReportingFacts(params: {
     p_service_id: params.serviceId ?? null,
   });
   if (error) {
-    console.error("[RPT-01] get_rpt01_reporting_facts failed", { studioId: params.studioId, message: error.message });
+    console.error("[RPT-01] get_rpt01_reporting_facts failed", {
+      studioId: params.studioId,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      locationId: params.locationId ?? null,
+      unassigned: Boolean(params.unassigned),
+      employeeId: params.employeeId ?? null,
+      serviceId: params.serviceId ?? null,
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
     throw error;
   }
+  console.log("[RPT-01] get_rpt01_reporting_facts ok", {
+    studioId: params.studioId,
+    dateFrom: params.dateFrom,
+    dateTo: params.dateTo,
+    hasData: Boolean(data),
+  });
   return normalizeReportingFacts(data);
 }

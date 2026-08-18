@@ -155,7 +155,7 @@ function GroupedColumns({ bars, title }: { bars: ChartBar[]; title: string }) {
 
 export function SalonDashboardCharts({ facts }: { facts: ReportingFacts }) {
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-3">
       <div>
         <h2 className={ui.h2}>Salon dashboard</h2>
         <p className={`mt-1 ${ui.muted}`}>

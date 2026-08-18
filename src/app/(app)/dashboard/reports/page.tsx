@@ -124,7 +124,19 @@ export default async function ReportsPage({ searchParams }: Props) {
       serviceId: serviceId || null,
     });
   } catch (error) {
-    console.error("[RPT-01] salon facts unavailable", { message: error instanceof Error ? error.message : String(error) });
+    const err = error as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[RPT-01] salon facts unavailable", {
+      studioId: activeStudioId,
+      dateFrom,
+      dateTo,
+      locationFilter,
+      employeeId: employeeId || null,
+      serviceId: serviceId || null,
+      message: err.message ?? String(error),
+      code: err.code ?? null,
+      details: err.details ?? null,
+      hint: err.hint ?? null,
+    });
   }
   const locationLabel =
     locationFilter === "__unassigned"
@@ -282,7 +294,7 @@ export default async function ReportsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       <div>
         <h1 className={ui.h1}>Reports</h1>
         <p className={`mt-1 ${ui.muted}`}>
@@ -365,10 +377,10 @@ export default async function ReportsPage({ searchParams }: Props) {
           })}
         </div>
 
-        <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <form method="get" className="flex flex-col gap-3">
           {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
           {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
-          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>From</span>
               <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
@@ -417,11 +429,13 @@ export default async function ReportsPage({ searchParams }: Props) {
                 ))}
               </select>
             </label>
+            <div className="flex items-end">
+              <button type="submit" className={`${ui.btnPrimarySm} w-full`}>Apply</button>
+            </div>
           </div>
-          <button type="submit" className={`${ui.btnPrimarySm} w-full sm:w-auto`}>Apply</button>
         </form>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className={ui.muted}>Sales export uses the same date, location, employee, service, source, and channel filters.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
+          <p className={ui.muted}>Sales export</p>
           <ExportFormatLinks baseHref={`/api/reports/business/export?${salesExportParams.toString()}`} />
         </div>
       </div>
@@ -431,9 +445,16 @@ export default async function ReportsPage({ searchParams }: Props) {
           <SalonDashboardCharts facts={salonFacts} />
           <SalonReportingFacts facts={salonFacts} />
         </>
-      ) : <p className={ui.muted}>Salon facts are unavailable until the reporting migration is applied.</p>}
+      ) : (
+        <div className={ui.card}>
+          <h2 className={ui.h2}>Salon dashboard</h2>
+          <p className={`mt-1 ${ui.muted}`}>
+            Charts could not load. Check Vercel logs for <code className={ui.code}>[RPT-01]</code>.
+          </p>
+        </div>
+      )}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className={`${ui.statCard} flex items-center gap-4`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400">
             <DollarSign size={18} />
@@ -467,27 +488,24 @@ export default async function ReportsPage({ searchParams }: Props) {
             </p>
           </div>
         </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className={`${ui.statCard} flex items-center gap-4`}>
+        <div className={`${ui.statCard} flex items-start gap-4`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
             <Package size={18} />
           </span>
-          <div>
+          <div className="min-w-0">
             <p className={`text-xs font-medium ${ui.muted}`}>Deferred value</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-violet-800 dark:text-violet-200 sm:text-2xl">
               {deferredCurrency} {deferredSummary.totalValue.toFixed(2)}
             </p>
             <p className={`mt-1 text-xs ${ui.muted}`}>
-              {deferredSummary.totalCredits} unconsumed credits · {deferredSummary.customerCount} customers · {deferredSummary.packageCount} package types · {deferredSummary.rowCount} package rows
+              {deferredSummary.totalCredits} credits · {deferredSummary.customerCount} customers · {deferredSummary.packageCount} packages
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               <DashboardAppLink href={`/dashboard/reports?${deferredCustomerDetailParams.toString()}`} className={ui.btnSecondarySm}>
-                Customer details
+                Customers
               </DashboardAppLink>
               <DashboardAppLink href={`/dashboard/reports?${deferredPackageDetailParams.toString()}`} className={ui.btnSecondarySm}>
-                Package details
+                Packages
               </DashboardAppLink>
             </div>
           </div>
@@ -683,7 +701,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <div className={`${ui.statCard} flex items-center gap-4`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
             <CalendarRange size={18} />
