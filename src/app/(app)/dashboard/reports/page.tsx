@@ -1,6 +1,7 @@
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { SalonDashboardCharts } from "@/components/dashboard/SalonDashboardCharts";
+import { ExportFormatLinks } from "@/components/dashboard/ExportFormatLinks";
 import { SalonReportingFacts } from "@/components/dashboard/SalonReportingFacts";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
@@ -266,6 +267,11 @@ export default async function ReportsPage({ searchParams }: Props) {
   if (deferredPackageId) deferredExportParams.set("deferred_package_id", deferredPackageId);
   if (deferredKeyword) deferredExportParams.set("deferred_q", deferredKeyword);
 
+  const salesExportParams = new URLSearchParams(commonReportParams);
+  salesExportParams.set("kind", "sales");
+  if (employeeId) salesExportParams.set("employee_id", employeeId);
+  if (serviceId) salesExportParams.set("service_id", serviceId);
+
   const deferredResetParams = new URLSearchParams(commonReportParams);
   deferredResetParams.set("deferred_view", deferredView);
 
@@ -414,6 +420,10 @@ export default async function ReportsPage({ searchParams }: Props) {
           </div>
           <button type="submit" className={`${ui.btnPrimarySm} w-full sm:w-auto`}>Apply</button>
         </form>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className={ui.muted}>Sales export uses the same date, location, employee, service, source, and channel filters.</p>
+          <ExportFormatLinks baseHref={`/api/reports/business/export?${salesExportParams.toString()}`} />
+        </div>
       </div>
 
       {salonFacts ? (

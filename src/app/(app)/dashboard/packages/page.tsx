@@ -2,6 +2,7 @@ import { createPackage } from "@/app/(app)/dashboard/actions";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { PackageLifecycleRow } from "@/components/dashboard/PackageLifecycleRow";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ExportFormatLinks } from "@/components/dashboard/ExportFormatLinks";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
@@ -81,13 +82,20 @@ export default async function PackagesPage({ searchParams }: Props) {
           New packages are live once saved. Copy a package link to sell it directly, or remove it from sales later to stop new purchases.
         </p>
         <div className="mt-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
               Back to sessions
             </DashboardAppLink>
             <DashboardAppLink href={approvalsHref} className={ui.btnSecondarySm}>
               Package approvals
             </DashboardAppLink>
+            <ExportFormatLinks
+              baseHref={`/api/reports/business/export?${new URLSearchParams({
+                kind: "packages",
+                studio_id: studioId,
+                ...(selectedLocationId ? { location_id: selectedLocationId } : {}),
+              }).toString()}`}
+            />
           </div>
         </div>
         {canEdit ? (

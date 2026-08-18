@@ -1,5 +1,10 @@
 export type ExportFormat = "csv" | "tsv" | "xlsx" | "xml";
 
+export function parseExportFormat(value: string | null | undefined): ExportFormat {
+  const requested = (value ?? "").toLowerCase();
+  return requested === "tsv" || requested === "xlsx" || requested === "xml" ? requested : "csv";
+}
+
 export type ExportCapConfig = {
   heavyFormats?: ExportFormat[];
   standardCap?: number;

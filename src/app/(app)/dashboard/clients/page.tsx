@@ -1,6 +1,7 @@
 import { AlertTriangle, ShieldAlert, Users } from "lucide-react";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { ExportFormatLinks } from "@/components/dashboard/ExportFormatLinks";
 import { LocalDate } from "@/components/ui/LocalDate";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
@@ -207,13 +208,22 @@ export default async function ClientsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Customers</h1>
         <p className={`mt-1 ${ui.muted}`}>Studio-scoped customer roster (`salon_customers`) with safe health alert flags.</p>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <DashboardAppLink
             href={`/dashboard/clients/follow-ups?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
             className={ui.btnSecondarySm}
           >
             Follow-up queue
           </DashboardAppLink>
+          <ExportFormatLinks
+            baseHref={`/api/reports/business/export?${new URLSearchParams({
+              kind: "customers",
+              studio_id: activeStudioId,
+              ...(selectedLocationId ? { location_id: selectedLocationId } : {}),
+              ...(sp.q ? { q: sp.q } : {}),
+              ...(statusFilter ? { status: statusFilter } : {}),
+            }).toString()}`}
+          />
         </div>
       </div>
 
