@@ -105,4 +105,11 @@ export {
 } from "./_actions/pkg-approvals";
 export type { Pkg02ApprovalActionResult } from "./_actions/pkg-approvals";
 
-export { savePayrollProfileAction, updateOwnPayrollContactAction } from "./_actions/payroll";
+export {
+  savePayrollProfileAction,
+  updateOwnPayrollContactAction,
+  createPayrollRunAction,
+  savePayrollRunEmployeeInputsAction,
+  recalculatePayrollRunAction,
+  transitionPayrollRunAction,
+} from "./_actions/payroll";

@@ -1,4 +1,7 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
+import { SubmitButton } from "@/components/SubmitButton";
+import { createPayrollRunAction } from "@/app/(app)/dashboard/actions";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import {
   isOwnerPayrollRole,
@@ -6,6 +9,7 @@ import {
   listStudioEmployeesForPayroll,
   profileToInput,
 } from "@/lib/payroll-profiles";
+import { listPayrollRuns } from "@/lib/payroll-runs";
 import { officialRuleSnapshot, validateProfileForFinalise } from "@/lib/statutory-payroll";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -32,7 +36,10 @@ export default async function PayrollPage({ searchParams }: Props) {
   }
 
   const employees = await listStudioEmployeesForPayroll(studioId);
-  const profiles = await listCurrentPayrollProfiles(studioId);
+  const [profiles, runs] = await Promise.all([
+    listCurrentPayrollProfiles(studioId),
+    listPayrollRuns(studioId),
+  ]);
   const profileByEmployeeId = new Map(profiles.map((row) => [row.employee_id, row]));
   const rows = employees.map((employee) => {
     const profile = profileByEmployeeId.get(employee.id) ?? null;
@@ -45,9 +52,44 @@ export default async function PayrollPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Payroll</h1>
         <p className={`mt-1 ${ui.muted}`}>
-          Restricted employee profiles and official CPF Board / MOM rules. Payroll runs and payslips come later.
+          Restricted profiles, official CPF Board / MOM rules, and monthly Draft → Finalise → Paid / Voided runs.
         </p>
       </div>
+
+      <ServerActionToastForm action={createPayrollRunAction} className={`${ui.card} flex flex-col gap-3 sm:flex-row sm:items-end`}>
+        <input type="hidden" name="studio_id" value={studioId} />
+        <label className="flex min-w-40 flex-1 flex-col gap-1.5">
+          <span className={ui.label}>New draft month</span>
+          <input className={ui.input} type="month" name="period_month" required />
+        </label>
+        <SubmitButton className={ui.btnPrimary}>Create draft</SubmitButton>
+      </ServerActionToastForm>
+
+      <section>
+        <h2 className={`${ui.h2} mb-3`}>Runs</h2>
+        {runs.length ? (
+          <div className="overflow-x-auto rounded-2xl border border-stone-200 dark:border-stone-800">
+            <table className="min-w-full text-sm">
+              <thead><tr className="text-left text-stone-500"><th className="p-3">Month</th><th className="p-3">Status</th><th className="p-3">SDL</th></tr></thead>
+              <tbody>
+                {runs.map((run) => (
+                  <tr key={run.id} className="border-t border-stone-200 dark:border-stone-800">
+                    <td className="p-3">
+                      <DashboardAppLink href={`/dashboard/payroll/runs/${run.id}`} className="font-medium underline-offset-2 hover:underline">
+                        {run.period_start.slice(0, 7)}
+                      </DashboardAppLink>
+                    </td>
+                    <td className="p-3 capitalize">{run.status}</td>
+                    <td className="p-3">{run.company_sdl_sgd ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className={ui.muted}>No payroll runs yet.</p>
+        )}
+      </section>
 
       <section className={ui.card}>
         <h2 className={ui.h2}>Official rule version</h2>

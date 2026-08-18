@@ -45,6 +45,7 @@ export type PeriodInputs = {
   overtimeHours?: string | null;
   contractOvertimeAmountSgd?: string | null;
   unpaidAbsenceDays?: string | null;
+  unpaidAbsenceSgd?: string | null;
   allowanceSgd?: string | null;
   bonusSgd?: string | null;
   otherDeductionSgd?: string | null;
@@ -393,5 +394,151 @@ export function officialRuleSnapshot() {
     incomplete_month: {
       formula: "monthly_gross / working_days_in_month * days_actually_worked",
     },
+  };
+}
+
+export type PayrollWageClass = "ow" | "aw" | "none" | "employer";
+
+export type PayrollComputedLine = {
+  code: string;
+  amountCents: number;
+  wageClass: PayrollWageClass;
+};
+
+export function monthEndFromStart(periodStart: string): string | null {
+  const start = parseIsoDate(periodStart);
+  if (!start || start.d !== 1) return null;
+  const lastDay = new Date(Date.UTC(start.y, start.m, 0)).getUTCDate();
+  return `${String(start.y).padStart(4, "0")}-${String(start.m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+}
+
+export function companySdlCentsFromEmployees(perEmployeeSdlCents: number[]) {
+  const sum = perEmployeeSdlCents.reduce((total, value) => total + value, 0);
+  return Math.floor(sum / 100) * 100;
+}
+
+export function computeEmployeePayrollRun(params: {
+  profile: PayrollProfileInput;
+  period: PeriodInputs;
+}): {
+  lines: PayrollComputedLine[];
+  blockers: Blocker[];
+  grossCents: number;
+  deductionCents: number;
+  netCents: number;
+  employeeCpfCents: number;
+  employerCpfCents: number;
+  sdlCents: number;
+  shgCents: number;
+  owCents: number;
+  awCents: number;
+} {
+  const blockers = validateProfileForFinalise(params.profile);
+  const periodEnd = monthEndFromStart(params.period.periodStart);
+  if (!periodEnd) blockers.push({ code: "invalid_period_start", message: "Payroll period must start on the first day of a calendar month." });
+
+  let basicCents = 0;
+  if (params.profile.salaryType === "hourly") {
+    const rate = toCents(params.profile.basicPaySgd);
+    const hours = Number(params.period.hoursWorked);
+    if (rate == null) blockers.push({ code: "missing_basic_pay", message: "Hourly rate is required." });
+    if (!Number.isFinite(hours) || hours < 0) {
+      blockers.push({ code: "missing_hours_worked", message: "Owner must enter hours worked for hourly employees." });
+    } else if (rate != null) {
+      basicCents = Math.round(rate * hours);
+    }
+  } else if (params.profile.salaryType === "monthly") {
+    const hasIncomplete = Boolean(params.period.workingDaysInMonth || params.period.daysActuallyWorked);
+    if (hasIncomplete) {
+      const incomplete = computeIncompleteMonthPayCents({
+        monthlyGrossSgd: params.profile.basicPaySgd ?? "",
+        workingDaysInMonth: params.period.workingDaysInMonth,
+        daysActuallyWorked: params.period.daysActuallyWorked,
+      });
+      blockers.push(...incomplete.blockers);
+      basicCents = incomplete.payCents;
+    } else {
+      basicCents = toCents(params.profile.basicPaySgd) ?? 0;
+    }
+  }
+
+  const overtimeCovered = params.profile.eaPart4OvertimeCovered && params.profile.salaryType === "monthly";
+  const overtime = computeStatutoryOvertimeCents({
+    covered: overtimeCovered,
+    isWorkman: params.profile.isWorkman,
+    monthlyBasicSgd: params.profile.salaryType === "monthly" ? params.profile.basicPaySgd : null,
+    overtimeHours: params.period.overtimeHours,
+    contractOvertimeAmountSgd: params.period.contractOvertimeAmountSgd,
+  });
+  if (params.profile.eaPart4OvertimeCovered && params.profile.salaryType === "hourly" && Number(params.period.overtimeHours) > 0 && !params.period.contractOvertimeAmountSgd) {
+    blockers.push({
+      code: "hourly_overtime_needs_contract_amount",
+      message: "Hourly staff are not computed on the MOM monthly overtime formula. Enter the contract overtime amount.",
+    });
+  }
+  blockers.push(...overtime.blockers);
+
+  const commissionCents = toCents(params.period.commissionSgd) ?? 0;
+  const allowanceCents = toCents(params.period.allowanceSgd) ?? 0;
+  const bonusCents = toCents(params.period.bonusSgd) ?? 0;
+  const unpaidCents = toCents(params.period.unpaidAbsenceSgd) ?? 0;
+  const otherDeductionCents = toCents(params.period.otherDeductionSgd) ?? 0;
+  if (unpaidCents > basicCents + allowanceCents + overtime.overtimeCents + commissionCents) {
+    blockers.push({ code: "unpaid_absence_exceeds_ordinary_wages", message: "Unpaid absence cannot exceed ordinary wages for the month." });
+  }
+
+  const lines: PayrollComputedLine[] = [
+    { code: params.profile.salaryType === "hourly" ? "hourly_wages" : (params.period.workingDaysInMonth || params.period.daysActuallyWorked ? "incomplete_month" : "basic"), amountCents: basicCents, wageClass: "ow" },
+    { code: "commission", amountCents: commissionCents, wageClass: "ow" },
+    { code: "allowance", amountCents: allowanceCents, wageClass: "ow" },
+    { code: "overtime", amountCents: overtime.overtimeCents, wageClass: "ow" },
+    { code: "bonus", amountCents: bonusCents, wageClass: "aw" },
+    { code: "unpaid_absence", amountCents: unpaidCents, wageClass: "ow" },
+    { code: "other_deduction", amountCents: otherDeductionCents, wageClass: "none" },
+  ].filter((line) => line.amountCents !== 0 || line.code === "basic" || line.code === "hourly_wages" || line.code === "incomplete_month");
+
+  const owCents = Math.max(0, basicCents + commissionCents + allowanceCents + overtime.overtimeCents - unpaidCents);
+  const awCents = bonusCents;
+  const cpf = evaluateCpf({
+    profile: params.profile,
+    periodStart: params.period.periodStart,
+    ordinaryWagesSgd: fromCents(owCents),
+    additionalWagesSgd: fromCents(awCents),
+    yearToDateOwSubjectToCpfSgd: params.period.yearToDateOwSubjectToCpfSgd,
+  });
+  blockers.push(...cpf.blockers);
+
+  const sdlWagesCents = owCents + awCents;
+  const sdl = computeSdlCents(fromCents(sdlWagesCents));
+  blockers.push(...sdl.blockers);
+  const shg = computeShgCents({
+    fund: params.profile.shgFund,
+    mode: params.profile.shgMode,
+    customAmountSgd: params.profile.shgCustomAmountSgd,
+    proofNote: params.profile.shgProofNote,
+    totalWagesSgd: fromCents(sdlWagesCents),
+  });
+  blockers.push(...shg.blockers);
+
+  if (cpf.employeeCents) lines.push({ code: "employee_cpf", amountCents: cpf.employeeCents, wageClass: "none" });
+  if (cpf.employerCents) lines.push({ code: "employer_cpf", amountCents: cpf.employerCents, wageClass: "employer" });
+  if (sdl.sdlCents) lines.push({ code: "sdl", amountCents: sdl.sdlCents, wageClass: "employer" });
+  if (shg.shgCents) lines.push({ code: "shg", amountCents: shg.shgCents, wageClass: "none" });
+
+  const uniqueBlockers = [...new Map(blockers.map((item) => [item.code, item])).values()];
+  const grossCents = basicCents + commissionCents + allowanceCents + overtime.overtimeCents + bonusCents;
+  const deductionCents = unpaidCents + otherDeductionCents + cpf.employeeCents + shg.shgCents;
+  return {
+    lines,
+    blockers: uniqueBlockers,
+    grossCents,
+    deductionCents,
+    netCents: grossCents - deductionCents,
+    employeeCpfCents: cpf.employeeCents,
+    employerCpfCents: cpf.employerCents,
+    sdlCents: sdl.sdlCents,
+    shgCents: shg.shgCents,
+    owCents,
+    awCents,
   };
 }

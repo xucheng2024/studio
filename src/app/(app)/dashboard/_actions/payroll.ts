@@ -6,6 +6,7 @@ import {
   savePayrollProfileVersion,
   updateOwnEmployeeContact,
 } from "@/lib/payroll-profiles";
+import { createPayrollDraftRun, recalculatePayrollRun, transitionPayrollRun } from "@/lib/payroll-runs";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import type { ResidencyStatus, SalaryType, ShgFund, ShgMode } from "@/lib/statutory-payroll";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
@@ -16,6 +17,18 @@ function text(raw: FormDataEntryValue | null) {
 
 function optionalText(raw: FormDataEntryValue | null) {
   return text(raw) || null;
+}
+
+async function requireOwner(studioId: string) {
+  const { user } = await requireUser();
+  const { ctx, studioIds } = await getDashboardScopeForRoles(
+    { userId: user.id, email: user.email, studioId, locationId: null },
+    ["owner"],
+  );
+  if (!studioIds.includes(studioId) || !isOwnerPayrollRole({ isSuperAdmin: ctx.isSuperAdmin, memberships: ctx.memberships, studioId })) {
+    return { ok: false as const, user };
+  }
+  return { ok: true as const, user };
 }
 
 function optionalEnum<T extends string>(raw: FormDataEntryValue | null, allowed: readonly T[]): T | null {
@@ -42,21 +55,13 @@ export async function savePayrollProfileAction(
   const effectiveFrom = text(formData.get("effective_from"));
   if (!studioId || !employeeId) return err("Select an employee.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) return err("Provide a valid effective date.");
-
-  const { user } = await requireUser();
-  const { ctx, studioIds } = await getDashboardScopeForRoles(
-    { userId: user.id, email: user.email, studioId, locationId: null },
-    ["owner"],
-  );
-  if (!studioIds.includes(studioId) || !isOwnerPayrollRole({ isSuperAdmin: ctx.isSuperAdmin, memberships: ctx.memberships, studioId })) {
-    return err("Only studio owners can maintain payroll profiles.");
-  }
-
+  const access = await requireOwner(studioId);
+  if (!access.ok) return err("Only studio owners can maintain payroll profiles.");
   try {
     const result = await savePayrollProfileVersion({
       studioId,
       employeeId,
-      actorId: user.id,
+      actorId: access.user.id,
       values: {
         job_title: optionalText(formData.get("job_title")),
         date_of_birth: optionalText(formData.get("date_of_birth")),
@@ -112,5 +117,114 @@ export async function updateOwnPayrollContactAction(
       message: error instanceof Error ? error.message : String(error),
     });
     return err("Could not update contact details.");
+  }
+}
+
+export async function createPayrollRunAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = text(formData.get("studio_id"));
+  const month = text(formData.get("period_month"));
+  if (!studioId || !/^\d{4}-\d{2}$/.test(month)) return err("Choose a payroll month.");
+  const access = await requireOwner(studioId);
+  if (!access.ok) return err("Only studio owners can create payroll runs.");
+  try {
+    const runId = await createPayrollDraftRun({
+      studioId,
+      actorId: access.user.id,
+      periodStart: `${month}-01`,
+    });
+    revalidatePath("/dashboard/payroll");
+    revalidatePath(`/dashboard/payroll/runs/${runId}`);
+    return ok("Draft payroll run created.");
+  } catch (error) {
+    console.error("[PAY-02] createPayrollRunAction failed", { studioId, message: error instanceof Error ? error.message : String(error) });
+    return err(error instanceof Error && error.message.includes("duplicate") ? "An active run already exists for that month." : "Could not create the payroll run.");
+  }
+}
+
+export async function savePayrollRunEmployeeInputsAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = text(formData.get("studio_id"));
+  const runId = text(formData.get("run_id"));
+  const employeeId = text(formData.get("employee_id"));
+  if (!studioId || !runId || !employeeId) return err("Select an employee.");
+  const access = await requireOwner(studioId);
+  if (!access.ok) return err("Only studio owners can edit payroll runs.");
+  try {
+    await recalculatePayrollRun({
+      studioId,
+      actorId: access.user.id,
+      runId,
+      inputPatch: {
+        employee_id: employeeId,
+        working_days_in_month: optionalText(formData.get("working_days_in_month")),
+        days_actually_worked: optionalText(formData.get("days_actually_worked")),
+        hours_worked: optionalText(formData.get("hours_worked")),
+        overtime_hours: optionalText(formData.get("overtime_hours")),
+        contract_overtime_sgd: optionalText(formData.get("contract_overtime_sgd")),
+        allowance_sgd: optionalText(formData.get("allowance_sgd")),
+        bonus_sgd: optionalText(formData.get("bonus_sgd")),
+        unpaid_absence_sgd: optionalText(formData.get("unpaid_absence_sgd")),
+        other_deduction_sgd: optionalText(formData.get("other_deduction_sgd")),
+        input_note: optionalText(formData.get("input_note")),
+      },
+    });
+    revalidatePath(`/dashboard/payroll/runs/${runId}`);
+    return ok("Employee inputs saved and the draft recalculated.");
+  } catch (error) {
+    console.error("[PAY-02] savePayrollRunEmployeeInputsAction failed", { runId, message: error instanceof Error ? error.message : String(error) });
+    return err("Could not save payroll inputs.");
+  }
+}
+
+export async function recalculatePayrollRunAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = text(formData.get("studio_id"));
+  const runId = text(formData.get("run_id"));
+  if (!studioId || !runId) return err("Missing payroll run.");
+  const access = await requireOwner(studioId);
+  if (!access.ok) return err("Only studio owners can recalculate payroll.");
+  try {
+    await recalculatePayrollRun({ studioId, actorId: access.user.id, runId });
+    revalidatePath(`/dashboard/payroll/runs/${runId}`);
+    return ok("Draft recalculated from current profiles and commission entries.");
+  } catch (error) {
+    console.error("[PAY-02] recalculatePayrollRunAction failed", { runId, message: error instanceof Error ? error.message : String(error) });
+    return err("Could not recalculate the payroll run.");
+  }
+}
+
+export async function transitionPayrollRunAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = text(formData.get("studio_id"));
+  const runId = text(formData.get("run_id"));
+  const toStatus = text(formData.get("to_status"));
+  if (!studioId || !runId || !["finalised", "paid", "voided"].includes(toStatus)) return err("Choose a payroll action.");
+  const access = await requireOwner(studioId);
+  if (!access.ok) return err("Only studio owners can change payroll status.");
+  try {
+    await transitionPayrollRun({
+      studioId,
+      actorId: access.user.id,
+      runId,
+      toStatus: toStatus as "finalised" | "paid" | "voided",
+      paidOn: optionalText(formData.get("paid_on")),
+      paymentReference: optionalText(formData.get("payment_reference")),
+      voidReason: optionalText(formData.get("void_reason")),
+    });
+    revalidatePath("/dashboard/payroll");
+    revalidatePath(`/dashboard/payroll/runs/${runId}`);
+    return ok(toStatus === "finalised" ? "Payroll finalised." : toStatus === "paid" ? "Payroll marked paid." : "Payroll voided.");
+  } catch (error) {
+    console.error("[PAY-02] transitionPayrollRunAction failed", { runId, toStatus, message: error instanceof Error ? error.message : String(error) });
+    return err(error instanceof Error ? error.message.replace(/^.*finalise blocked: /i, "Finalise blocked: ") : "Could not update payroll status.");
   }
 }
