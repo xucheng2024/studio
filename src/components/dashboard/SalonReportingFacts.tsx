@@ -53,6 +53,14 @@ export function SalonReportingFacts({ facts }: { facts: ReportingFacts }) {
         <p className={`mt-1 ${ui.muted}`}>
           Database aggregates for {facts.from} to {facts.to}. Inventory and loyalty stay 0.
         </p>
+        {facts.sales.yoy.current_net === 0
+          && facts.appointment_outcome.closed.completed
+            + facts.appointment_outcome.closed.cancelled
+            + facts.appointment_outcome.closed.no_show === 0 ? (
+          <p className={`mt-2 text-xs ${ui.muted}`}>
+            No closed appointments or paid POS sales in this range. Complete a POS sale or close an appointment, then Apply.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

@@ -84,6 +84,8 @@ export type PosSaleDetail = {
     paid_at: string | null;
     verified_by: string | null;
     verified_by_email: string | null;
+    invoice_number: string | null;
+    invoice_status: string | null;
   }>;
 };
 
@@ -107,6 +109,8 @@ type PosPaymentSnapshot = {
   verified_at: string | null;
   paid_at: string | null;
   verified_by: string | null;
+  invoice_number: string | null;
+  invoice_status: string | null;
 };
 
 function computePaymentProgress(input: {
@@ -340,7 +344,7 @@ export async function getPosSaleDetailForDashboard(params: {
 
   const { data: paymentRows, error: paymentError } = await admin
     .from("payments")
-    .select("id, pos_sale_id, status, amount, currency, payment_method, cash_session_id, reference_code, created_at, verified_at, paid_at, verified_by")
+    .select("id, pos_sale_id, status, amount, currency, payment_method, cash_session_id, reference_code, created_at, verified_at, paid_at, verified_by, invoice_number, invoice_status")
     .eq("studio_id", access.access.studioId)
     .eq("pos_sale_id", params.saleId)
     .order("created_at", { ascending: false });
@@ -374,6 +378,8 @@ export async function getPosSaleDetailForDashboard(params: {
     paid_at: payment.paid_at,
     verified_by: payment.verified_by,
     verified_by_email: payment.verified_by ? (verifiedByMap.get(payment.verified_by) ?? null) : null,
+    invoice_number: payment.invoice_number,
+    invoice_status: payment.invoice_status,
   }));
 
   const latestCashPaid = payments.find((payment) => payment.status === "paid" && payment.payment_method === "cash") ?? null;

@@ -362,6 +362,95 @@ export async function sendInvoiceNotice(params: {
   });
 }
 
+export async function sendPayslipNotice(params: {
+  studioId: string;
+  to: string;
+  studioName: string;
+  studioEmail?: string | null;
+  employeeName: string;
+  payslipNumber: string;
+  periodStart: string;
+  periodEnd: string;
+  netSalary: string;
+  pdfBase64: string;
+}) {
+  const studioNameSafe = escHtml(params.studioName);
+  const studioEmailSafe = params.studioEmail ? escHtml(params.studioEmail) : null;
+  const employeeNameSafe = escHtml(params.employeeName);
+  const payslipNumberSafe = escHtml(params.payslipNumber);
+  const periodSafe = escHtml(`${params.periodStart} to ${params.periodEnd}`);
+  const netSafe = escHtml(`SGD ${params.netSalary}`);
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#0d9488;padding:28px 32px;">
+            <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">${studioNameSafe}</p>
+            <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:0.5px;text-transform:uppercase;">Payslip ${payslipNumberSafe}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 20px;font-size:15px;color:#111827;">Hi ${employeeNameSafe},</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
+              Your itemised payslip is attached as a PDF. A short summary is included below.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;margin-bottom:24px;">
+              <tr>
+                <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Payslip No.</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;font-weight:600;text-align:right;border-bottom:1px solid #e5e7eb;">${payslipNumberSafe}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Period</td>
+                <td style="padding:10px 16px;font-size:13px;color:#111827;text-align:right;border-bottom:1px solid #e5e7eb;">${periodSafe}</td>
+              </tr>
+              <tr style="background:#0d9488;">
+                <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff;">Net salary</td>
+                <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff;text-align:right;">${netSafe}</td>
+              </tr>
+            </table>
+            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+              This payslip was sent by <strong style="color:#6b7280;">${studioNameSafe}</strong>${studioEmailSafe ? ` (${studioEmailSafe})` : ""}.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  return sendEmail({
+    studioId: params.studioId,
+    to: params.to,
+    subject: `Payslip ${params.payslipNumber} from ${params.studioName}`,
+    text: [
+      `Hi ${params.employeeName},`,
+      "",
+      "Your itemised payslip is attached as a PDF.",
+      "",
+      `Payslip No: ${params.payslipNumber}`,
+      `Period: ${params.periodStart} to ${params.periodEnd}`,
+      `Net salary: SGD ${params.netSalary}`,
+      "",
+      `This payslip was issued by ${params.studioName}.`,
+    ].join("\n"),
+    html,
+    attachments: [
+      {
+        filename: `Payslip_${params.payslipNumber}.pdf`,
+        content: params.pdfBase64,
+        type: "application/pdf",
+        encoding: "base64",
+      },
+    ],
+  });
+}
+
 export async function sendPurchaseConfirmation(params: {
   to: string;
   buyerName: string | null | undefined;

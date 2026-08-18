@@ -2,9 +2,11 @@ import "server-only";
 
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { getOwnEmployeeForPayroll, isOwnerPayrollRole } from "@/lib/payroll-profiles";
+import { sendPayslipNotice } from "@/lib/email";
 import { writeStrongAudit } from "@/lib/strong-audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildPayslipModel, type PayslipModel } from "@/lib/payslip-model";
+import { renderPayslipPdf } from "@/lib/payslip-pdf";
 import type { PayrollRunEmployeeRow, PayrollRunRow } from "@/lib/payroll-runs";
 
 const PUBLISHED = ["finalised", "paid"] as const;
@@ -37,14 +39,14 @@ async function loadSnapshot(runEmployeeId: string) {
   if (!run || run.studio_id !== row.studio_id) return null;
   const { data: employee, error: employeeError } = await admin
     .from("employees")
-    .select("id, display_name, employee_number, user_id")
+    .select("id, display_name, employee_number, user_id, email")
     .eq("id", row.employee_id)
     .eq("studio_id", row.studio_id)
     .maybeSingle();
   if (employeeError) throw employeeError;
   const { data: studio, error: studioError } = await admin
     .from("studios")
-    .select("id, name")
+    .select("id, name, public_contact_email")
     .eq("id", row.studio_id)
     .maybeSingle();
   if (studioError) throw studioError;
@@ -64,8 +66,9 @@ async function loadSnapshot(runEmployeeId: string) {
   return {
     row: row as PayrollRunEmployeeRow & { payslip_number: string | null; studio_id: string },
     run: run as Pick<PayrollRunRow, "id" | "studio_id" | "period_start" | "period_end" | "status" | "rule_version_id" | "paid_on">,
-    employee: employee as { id: string; display_name: string; employee_number: string | null; user_id: string | null } | null,
+    employee: employee as { id: string; display_name: string; employee_number: string | null; user_id: string | null; email: string | null } | null,
     studioName: (studio as { name?: string } | null)?.name ?? "Studio",
+    studioEmail: (studio as { public_contact_email?: string | null } | null)?.public_contact_email ?? null,
     profile: (profile as { salary_type?: string | null; basic_pay_sgd?: string | null } | null) ?? null,
     lines: (lines ?? []) as Array<{ item_code: string; amount_sgd: string }>,
   };
@@ -172,4 +175,82 @@ export async function listPublishedPayslipsForEmployee(params: { studioId: strin
       paidOn: (run.paid_on as string | null) ?? null,
     }];
   });
+}
+
+export type SendPayslipEmailFailure =
+  | "not_found"
+  | "forbidden"
+  | "recipient_not_found"
+  | "email_not_configured"
+  | "send_failed";
+
+export async function sendPublishedPayslipEmail(params: {
+  runEmployeeId: string;
+  userId: string;
+  email?: string | null;
+}): Promise<
+  | { ok: true; payslipNumber: string; toEmail: string }
+  | { ok: false; reason: SendPayslipEmailFailure }
+> {
+  const access = await resolvePayslipForUser(params);
+  if (!access.ok) return access;
+  const snapshot = await loadSnapshot(params.runEmployeeId);
+  if (!snapshot?.employee || !snapshot.row.payslip_number) return { ok: false, reason: "not_found" };
+  const { ctx } = await getDashboardScopeForRoles(
+    { userId: params.userId, email: params.email ?? null, studioId: snapshot.run.studio_id, locationId: null },
+    ["owner"],
+  );
+  const owner = isOwnerPayrollRole({
+    isSuperAdmin: ctx.isSuperAdmin,
+    memberships: ctx.memberships,
+    studioId: snapshot.run.studio_id,
+  });
+
+  let toEmail = snapshot.employee.email?.trim() || null;
+  if (!toEmail && snapshot.employee.user_id) {
+    const admin = createAdminClient();
+    const { data: user } = await admin
+      .from("users")
+      .select("email")
+      .eq("id", snapshot.employee.user_id)
+      .maybeSingle();
+    toEmail = user?.email?.trim() || null;
+  }
+  if (!toEmail) return { ok: false, reason: "recipient_not_found" };
+
+  const pdfBuffer = await renderPayslipPdf(access.model);
+  const mailResult = await sendPayslipNotice({
+    studioId: snapshot.run.studio_id,
+    to: toEmail,
+    studioName: snapshot.studioName,
+    studioEmail: snapshot.studioEmail,
+    employeeName: snapshot.employee.display_name,
+    payslipNumber: snapshot.row.payslip_number,
+    periodStart: snapshot.run.period_start,
+    periodEnd: snapshot.run.period_end,
+    netSalary: access.model.netSalary,
+    pdfBase64: Buffer.from(pdfBuffer).toString("base64"),
+  });
+  if (mailResult.skipped) {
+    if (mailResult.error === "email_provider_not_configured") {
+      return { ok: false, reason: "email_not_configured" };
+    }
+    console.error("[PAY-03] payslip email failed", {
+      runEmployeeId: params.runEmployeeId,
+      reason: mailResult.error ?? "send_failed",
+    });
+    return { ok: false, reason: "send_failed" };
+  }
+
+  await writeStrongAudit({
+    studioId: snapshot.run.studio_id,
+    actorType: "user",
+    actorId: params.userId,
+    actorRole: owner ? "owner" : "employee",
+    action: "payroll_payslip_emailed",
+    targetType: "payroll_run_employee",
+    targetId: params.runEmployeeId,
+    afterState: { payslip_number: snapshot.row.payslip_number },
+  });
+  return { ok: true, payslipNumber: snapshot.row.payslip_number, toEmail };
 }

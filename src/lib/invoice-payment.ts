@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-
+import { formatPosInvoiceLineItem } from "@/lib/invoice-pos-line";
 function toISODateLabel(value: string | null | undefined) {
   const d = value ? new Date(value) : new Date();
   const day = String(d.getUTCDate()).padStart(2, "0");
@@ -22,6 +22,7 @@ export type InvoicePaymentRow = {
   member_zone_lesson_id?: string | null;
   shop_product_id?: string | null;
   service_id?: string | null;
+  pos_sale_id?: string | null;
   amount: number | null;
   currency: string | null;
   status: string | null;
@@ -73,6 +74,7 @@ export async function loadInvoicePayment(paymentId: string) {
       member_zone_lesson_id,
       shop_product_id,
       service_id,
+      pos_sale_id,
       amount,
       currency,
       status,
@@ -185,6 +187,37 @@ export async function resolveInvoicePayload(
   } else if (payment.service_id) {
     const { data: service } = await admin.from("studio_services").select("title").eq("id", payment.service_id).maybeSingle();
     if (service?.title?.trim()) lineItem = `Service: ${service.title.trim()}`;
+  } else if (payment.pos_sale_id || payment.source === "pos_sale") {
+    const saleId = payment.pos_sale_id;
+    if (saleId) {
+      const { data: sale } = await admin
+        .from("pos_sales")
+        .select("id, salon_customer_id, sale_number, receipt_number")
+        .eq("id", saleId)
+        .maybeSingle();
+      if (sale?.salon_customer_id) {
+        const { data: customer } = await admin
+          .from("salon_customers")
+          .select("full_name, email")
+          .eq("id", sale.salon_customer_id)
+          .maybeSingle();
+        if (customer?.full_name?.trim()) customerName = customer.full_name.trim();
+        if (customer?.email?.trim()) customerEmail = customer.email.trim();
+      }
+      const { data: itemRows } = await admin
+        .from("pos_sale_items")
+        .select("item_name_snapshot")
+        .eq("sale_id", saleId)
+        .order("line_number", { ascending: true })
+        .limit(8);
+      lineItem = formatPosInvoiceLineItem({
+        receiptNumber: sale?.receipt_number ?? null,
+        saleNumber: sale?.sale_number ?? null,
+        itemNames: (itemRows ?? []).map((row) => String(row.item_name_snapshot ?? "")),
+      });
+    } else {
+      lineItem = "POS sale";
+    }
   } else if (payment.member_zone_lesson_id) {
     const { data: lesson } = await admin
       .from("member_zone_lessons")

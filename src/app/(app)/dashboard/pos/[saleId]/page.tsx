@@ -3,6 +3,7 @@ import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { PosHitpayPaymentButton } from "@/components/dashboard/PosHitpayPaymentButton";
+import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { completePosCashSaleAction, refundPosSaleItemsAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getPosSaleDetailForDashboard } from "@/lib/pos-sales-read";
@@ -300,6 +301,14 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
                         </DashboardAppLink>
                         {activeStudioSlug && payment.status === "pending" && (payment.payment_method ?? "").toLowerCase() === "hitpay" ? (
                           <SyncHitpayPaymentButton paymentId={payment.id} studioSlug={activeStudioSlug} />
+                        ) : null}
+                        {payment.invoice_status !== "void" && Number(payment.amount ?? 0) > 0 ? (
+                          <InvoiceSendButton
+                            paymentId={payment.id}
+                            invoiceNumber={payment.invoice_number}
+                            previewMode={payment.status === "paid" || Boolean(payment.invoice_number) ? "invoice" : "draft"}
+                            allowSend={payment.status === "paid"}
+                          />
                         ) : null}
                       </div>
                     </td>

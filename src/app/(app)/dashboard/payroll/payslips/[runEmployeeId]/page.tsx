@@ -1,5 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { PayslipPrintButton } from "@/components/dashboard/PayslipPrintButton";
+import { PayslipSendButton } from "@/components/dashboard/PayslipSendButton";
 import { PayslipSheet } from "@/components/dashboard/PayslipSheet";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { isOwnerPayrollRole } from "@/lib/payroll-profiles";
@@ -30,6 +31,7 @@ export default async function PayslipPage({ params }: Props) {
         <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>{owner ? "← Payroll" : "← My pay"}</DashboardAppLink>
         <PayslipPrintButton />
         <a className={ui.btnPrimarySm} href={`/api/payroll/payslip/${runEmployeeId}/pdf`}>Download PDF</a>
+        <PayslipSendButton runEmployeeId={runEmployeeId} />
       </div>
       <PayslipSheet model={result.model} />
     </div>
