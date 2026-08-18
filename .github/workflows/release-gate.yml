@@ -62,7 +62,7 @@ jobs:
     needs: validate-commit
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 13
       matrix:
         flow:
           - apt01-availability-local
@@ -73,6 +73,7 @@ jobs:
           - crm02-clients-local
           - mkt01-marketing-local
           - mkt02-studio-email-local
+          - pay01-payroll-local
           - pos02-cash-receipt-local
           - pos03-hitpay-sandbox-local
           - pkg01-package-ledger-local
@@ -160,6 +161,7 @@ jobs:
             crm02-clients-local
             mkt01-marketing-local
             mkt02-studio-email-local
+            pay01-payroll-local
             pos02-cash-receipt-local
             pos03-hitpay-sandbox-local
             pkg01-package-ledger-local

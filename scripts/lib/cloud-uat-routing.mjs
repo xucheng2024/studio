@@ -16,6 +16,7 @@ export const FAST_SCRIPTS = Object.freeze({
   "crm02-clients-local": "test:crm02-app",
   "mkt01-marketing-local": "test:mkt02-marketing-contract",
   "mkt02-studio-email-local": "test:mkt02-marketing-contract",
+  "pay01-payroll-local": "test:pay01-app",
   "pos02-cash-receipt-local": "test:local-uat-safety",
   "pos03-hitpay-sandbox-local": "test:hitpay-merchant-mode",
   "pkg01-package-ledger-local": "test:local-uat-safety",

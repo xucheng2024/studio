@@ -11,6 +11,7 @@ const flows = [
   { id: "crm02-clients-local", paths: ["src/app/(app)/dashboard/clients/**"] },
   { id: "mkt01-marketing-local", paths: ["src/lib/marketing.ts"] },
   { id: "mkt02-studio-email-local", paths: ["scripts/verify-mkt02-studio-email-browser-local.mjs"] },
+  { id: "pay01-payroll-local", paths: ["scripts/verify-pay01-payroll-browser-local.mjs"] },
   { id: "pos02-cash-receipt-local", paths: ["scripts/verify-pos02-browser-local.mjs"] },
   { id: "pos03-hitpay-sandbox-local", paths: ["scripts/verify-pos03-browser-local.mjs"] },
   { id: "pkg01-package-ledger-local", paths: ["scripts/verify-pkg01-browser-local.mjs"] },
@@ -63,6 +64,13 @@ test("routes MKT-02 studio email changes to the dedicated cloud UAT flow", () =>
   assert.deepEqual(result.flows, ["mkt02-studio-email-local"]);
   assert.equal(result.dispatch, "mkt02-studio-email-local");
   assert.deepEqual(result.fastMatrix.include, [{ flow: "mkt02-studio-email-local", script: "test:mkt02-marketing-contract" }]);
+});
+
+test("routes PAY-01 payroll changes to the dedicated cloud UAT flow", () => {
+  const result = routeCloudUatChanges(["scripts/verify-pay01-payroll-browser-local.mjs"], flows);
+  assert.deepEqual(result.flows, ["pay01-payroll-local"]);
+  assert.equal(result.dispatch, "pay01-payroll-local");
+  assert.deepEqual(result.fastMatrix.include, [{ flow: "pay01-payroll-local", script: "test:pay01-app" }]);
 });
 
 test("routes POS-02 cash/receipt changes to the dedicated cloud UAT flow", () => {

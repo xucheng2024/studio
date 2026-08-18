@@ -61,6 +61,7 @@
     "test:mkt02-studio-email-uat-local": "node scripts/run-mkt02-studio-email-uat-local.mjs",
     "test:pay01-app": "node --experimental-strip-types --test scripts/tests/pay01-statutory-rules.test.ts",
     "test:pay02-app": "node --experimental-strip-types --test scripts/tests/pay02-payroll-run.test.ts",
+    "test:pay01-payroll-uat-local": "node scripts/run-pay01-payroll-uat-local.mjs",
     "test:pos-pkg-uat-local": "node scripts/run-pos-pkg-uat-local.mjs",
     "test:uat-cloud-vm": "node scripts/run-cloud-vm-uat.mjs",
     "test:uat-github": "node scripts/run-github-hosted-uat.mjs",

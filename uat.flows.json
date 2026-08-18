@@ -313,6 +313,45 @@
       }
     },
     {
+      "id": "pay01-payroll-local",
+      "paths": [
+        "src/app/(app)/dashboard/payroll/**",
+        "src/app/(app)/dashboard/_actions/payroll.ts",
+        "src/components/dashboard/PayrollSalaryFields.tsx",
+        "src/lib/payroll-profiles.ts",
+        "src/lib/payroll-runs.ts",
+        "src/lib/statutory-payroll.ts",
+        "scripts/run-pay01-payroll-uat-local.mjs",
+        "scripts/verify-pay01-payroll-browser-local.mjs",
+        "scripts/sql/pay01_payroll_uat_local_execute.sql",
+        "scripts/fixtures/pay01-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs",
+        "scripts/tests/pay01-statutory-rules.test.ts",
+        "scripts/tests/pay02-payroll-run.test.ts",
+        "supabase/migrations/20260818120000_pay01_payroll_profile_statutory_rules.sql",
+        "supabase/migrations/20260818133000_pay02_payroll_runs.sql"
+      ],
+      "command": ["npm", "run", "test:pay01-payroll-uat-local"],
+      "target": { "policy": "command_local" },
+      "data_access": { "policy": "local_only" },
+      "requirements": { "commands": ["node", "npm", "npx", "psql"], "services": ["docker"] },
+      "environment": {
+        "start": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "start"],
+        "ready": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "ready"],
+        "inspect": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "inspect"],
+        "cleanup": ["node", "scripts/manage-cloud-vm-uat-environment.mjs", "cleanup"],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": ["tmp/pay01-payroll-uat"],
+        "index": "tmp/pay01-payroll-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "pos02-cash-receipt-local",
       "paths": [
         "src/app/(app)/dashboard/pos/[saleId]/page.tsx",
