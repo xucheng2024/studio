@@ -62,6 +62,7 @@
     "test:pay01-app": "node --experimental-strip-types --test scripts/tests/pay01-statutory-rules.test.ts scripts/tests/pay02-payroll-run.test.ts scripts/tests/pay03-payslip.test.ts",
     "test:pay02-app": "node --experimental-strip-types --test scripts/tests/pay02-payroll-run.test.ts",
     "test:pay03-app": "node --experimental-strip-types --test scripts/tests/pay03-payslip.test.ts",
+    "test:rpt01-app": "node --experimental-strip-types --test scripts/tests/rpt01-reporting-facts.test.ts",
     "test:pay01-payroll-uat-local": "node scripts/run-pay01-payroll-uat-local.mjs",
     "test:pos-pkg-uat-local": "node scripts/run-pos-pkg-uat-local.mjs",
     "test:uat-cloud-vm": "node scripts/run-cloud-vm-uat.mjs",

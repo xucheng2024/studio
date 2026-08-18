@@ -1,5 +1,6 @@
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { SalonReportingFacts } from "@/components/dashboard/SalonReportingFacts";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { dayRangeEndExclusiveIso, dayRangeStartIso, localISODate } from "@/lib/date";
 import {
@@ -15,6 +16,7 @@ import {
   revenueByOrderType,
   type RevenuePaymentRow,
 } from "@/lib/revenue-summary";
+import { getSalonReportingFacts } from "@/lib/salon-reporting";
 import { PAYMENT_SALES_CHANNEL_FILTER_OPTIONS, PAYMENT_SOURCE_FILTER_OPTIONS } from "@/lib/payment-filter-options";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,6 +32,8 @@ type Props = {
     date_to?: string;
     source?: string;
     sales_channel?: string;
+    employee_id?: string;
+    service_id?: string;
     deferred_view?: string;
     deferred_customer_id?: string;
     deferred_package_id?: string;
@@ -88,6 +92,8 @@ export default async function ReportsPage({ searchParams }: Props) {
   const dateTo = sp.date_to ?? bounds.to;
   const source = sp.source ?? "";
   const salesChannel = sp.sales_channel ?? "";
+  const employeeId = sp.employee_id ?? "";
+  const serviceId = sp.service_id ?? "";
   const deferredView = sp.deferred_view === "package" ? "package" : "customer";
   const deferredCustomerId = sp.deferred_customer_id ?? "";
   const deferredPackageId = sp.deferred_package_id ?? "";
@@ -100,6 +106,24 @@ export default async function ReportsPage({ searchParams }: Props) {
     .eq("studio_id", activeStudioId)
     .eq("is_active", true)
     .order("name");
+  const [{ data: reportEmployees }, { data: reportServices }] = await Promise.all([
+    admin.from("employees").select("id, display_name").eq("studio_id", activeStudioId).order("display_name"),
+    admin.from("studio_services").select("id, title").eq("studio_id", activeStudioId).eq("is_active", true).order("title"),
+  ]);
+  let salonFacts = null as Awaited<ReturnType<typeof getSalonReportingFacts>> | null;
+  try {
+    salonFacts = await getSalonReportingFacts({
+      studioId: activeStudioId,
+      dateFrom,
+      dateTo,
+      locationId: locationFilter === "__unassigned" ? null : locationFilter,
+      unassigned: locationFilter === "__unassigned",
+      employeeId: employeeId || null,
+      serviceId: serviceId || null,
+    });
+  } catch (error) {
+    console.error("[RPT-01] salon facts unavailable", { message: error instanceof Error ? error.message : String(error) });
+  }
   const locationLabel =
     locationFilter === "__unassigned"
       ? "Studio-level / unassigned"
@@ -314,6 +338,8 @@ export default async function ReportsPage({ searchParams }: Props) {
             if (locationFilter) params.set("location_id", locationFilter);
             if (source) params.set("source", source);
             if (salesChannel) params.set("sales_channel", salesChannel);
+            if (employeeId) params.set("employee_id", employeeId);
+            if (serviceId) params.set("service_id", serviceId);
             params.set("date_from", from);
             params.set("date_to", to);
             return (
@@ -335,7 +361,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
           {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
-          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-4">
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-3 lg:grid-cols-6">
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>From</span>
               <input type="date" name="date_from" defaultValue={dateFrom} className={`${ui.input} whitespace-nowrap`} />
@@ -366,10 +392,30 @@ export default async function ReportsPage({ searchParams }: Props) {
                 ))}
               </select>
             </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={`${ui.label} whitespace-nowrap`}>Employee</span>
+              <select name="employee_id" defaultValue={employeeId} className={ui.select}>
+                <option value="">All</option>
+                {(reportEmployees ?? []).map((employee) => (
+                  <option key={employee.id} value={employee.id}>{employee.display_name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={`${ui.label} whitespace-nowrap`}>Service</span>
+              <select name="service_id" defaultValue={serviceId} className={ui.select}>
+                <option value="">All</option>
+                {(reportServices ?? []).map((service) => (
+                  <option key={service.id} value={service.id}>{service.title}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <button type="submit" className={`${ui.btnPrimarySm} w-full sm:w-auto`}>Apply</button>
         </form>
       </div>
+
+      {salonFacts ? <SalonReportingFacts facts={salonFacts} /> : <p className={ui.muted}>Salon facts are unavailable until the reporting migration is applied.</p>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className={`${ui.statCard} flex items-center gap-4`}>
