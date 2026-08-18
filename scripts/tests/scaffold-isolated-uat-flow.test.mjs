@@ -55,6 +55,7 @@ test("scaffolds catalog lists and fixture stubs in a disposable root", () => {
   assert.deepEqual(catalog.options.slice(0, -2), catalog.order);
   assert.deepEqual(catalog.matrix, catalog.order);
   assert.deepEqual(catalog.release, catalog.order);
+  assert.deepEqual(catalog.releaseMatrix, catalog.order);
   assert.equal(catalog.maxParallel, catalog.order.length);
   assert.equal(catalog.scripts[id], "test:local-uat-safety");
   for (const rel of result.files) assert.equal(fs.existsSync(path.join(root, rel)), true);

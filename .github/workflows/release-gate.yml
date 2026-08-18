@@ -60,8 +60,25 @@ jobs:
 
   cloud-vm-uat:
     needs: validate-commit
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        flow:
+          - apt01-availability-local
+          - apt03-calendar-local
+          - apt04-appointments-local
+          - apt04-settlement-sandbox-local
+          - com01-commission-local
+          - crm02-clients-local
+          - mkt01-marketing-local
+          - mkt02-studio-email-local
+          - pos02-cash-receipt-local
+          - pos03-hitpay-sandbox-local
+          - pkg01-package-ledger-local
+          - pos-packages-local
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 15
     steps:
       - name: Check out fixed release commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -126,8 +143,9 @@ jobs:
         if: steps.supabase-cache.outputs.cache-hit == 'true'
         run: node scripts/cache-github-uat-images.mjs restore
 
-      - name: Run all isolated local UAT flows
+      - name: Run isolated local UAT flow
         env:
+          SELECTED_FLOW: ${{ matrix.flow }}
           UAT_SUPABASE_EXCLUDE: realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
           POS03_HITPAY_API_KEY: ${{ secrets.POS03_HITPAY_API_KEY }}
           POS03_HITPAY_WEBHOOK_SALT: ${{ secrets.POS03_HITPAY_WEBHOOK_SALT }}
@@ -151,17 +169,18 @@ jobs:
             echo "::error::Release UAT flow catalog is empty."
             exit 1
           fi
-          for flow in "${flows[@]}"; do
-            echo "::group::GitHub-hosted UAT ${flow}"
-            node scripts/run-github-hosted-uat.mjs --flow "$flow"
-            echo "::endgroup::"
-          done
+          if [[ ! " ${flows[*]} " =~ " ${SELECTED_FLOW} " ]]; then
+            echo "::error::Unknown release UAT flow: ${SELECTED_FLOW}"
+            exit 1
+          fi
+          echo "::notice::GitHub-hosted UAT ${SELECTED_FLOW} on a fresh runner"
+          node scripts/run-github-hosted-uat.mjs --flow "$SELECTED_FLOW"
 
       - name: Upload compact UAT reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cloud-vm-uat-${{ github.run_id }}-${{ github.run_attempt }}
+          name: cloud-vm-uat-${{ matrix.flow }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             tmp/github-uat/**
             tmp/release-gate/**

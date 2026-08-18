@@ -6,7 +6,7 @@ The candidate is built with Vercel's Production environment but deployed with `-
 
 ## Required infrastructure
 
-First release uses GitHub-hosted `ubuntu-24.04` for isolated Docker UAT. Each catalog flow starts and stops its own local Supabase so fixture Auth IDs do not collide. A self-hosted Cloud VM is optional later capacity, not required to run this gate.
+First release uses GitHub-hosted `ubuntu-24.04` for isolated Docker UAT. Each catalog flow runs on a fresh runner so leftover Auth fixture volumes cannot collide. A self-hosted Cloud VM is optional later capacity, not required to run this gate.
 
 The workflow accepts only a full 40-character SHA reachable from `origin/main`.
 

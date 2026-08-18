@@ -111,11 +111,16 @@ export function extractCatalog(root) {
     .match(/flows=\(\n((?:[ \t]+[a-z0-9-]+\n)+)[ \t]+\)/)[1]
     .trim()
     .split(/\s+/);
+  const releaseMatrix = read(root, ".github/workflows/release-gate.yml")
+    .match(/\n {6}matrix:\n {8}flow:\n((?: {10}- [a-z0-9-]+\n)+)/)[1]
+    .trim()
+    .split(/\n/)
+    .map((line) => line.replace(/^ *- /, "").trim());
   const manifest = JSON.parse(read(root, "uat.flows.json"));
   const isolated = (manifest.flows ?? [])
     .filter((flow) => flow.target?.policy === "command_local" && flow.data_access?.policy === "local_only")
     .map((flow) => flow.id);
-  return { scripts, order: Object.keys(scripts), options, matrix, maxParallel, release, isolated };
+  return { scripts, order: Object.keys(scripts), options, matrix, maxParallel, release, releaseMatrix, isolated };
 }
 
 function renderFastScripts(scripts, order) {
@@ -141,7 +146,9 @@ function applyCatalogFiles(root, { id, after, fastScript, names, npmScript }) {
 
   let release = read(root, ".github/workflows/release-gate.yml");
   const flowsBlock = order.map((flow) => `            ${flow}`).join("\n");
+  const matrixBlock = order.map((flow) => `          - ${flow}`).join("\n");
   release = release.replace(/flows=\(\n(?:[ \t]+[a-z0-9-]+\n)+[ \t]+\)/, `flows=(\n${flowsBlock}\n          )`);
+  release = release.replace(/\n {6}matrix:\n {8}flow:\n(?: {10}- [a-z0-9-]+\n)+/, `\n      matrix:\n        flow:\n${matrixBlock}\n`);
   write(root, ".github/workflows/release-gate.yml", release);
 
   const manifest = JSON.parse(read(root, "uat.flows.json"));

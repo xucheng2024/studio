@@ -30,6 +30,15 @@ function extractReleaseGateFlows(workflow) {
   return match[1].trim().split(/\s+/);
 }
 
+function extractReleaseGateMatrix(workflow) {
+  const match = workflow.match(/\n {6}matrix:\n {8}flow:\n((?: {10}- [a-z0-9-]+\n)+)/);
+  if (!match) throw new Error("release-gate matrix flow list missing");
+  return match[1]
+    .trim()
+    .split("\n")
+    .map((line) => line.replace(/^ *- /, "").trim());
+}
+
 test("isolated cloud UAT catalogs share one flow-id list", () => {
   const manifest = JSON.parse(fs.readFileSync("uat.flows.json", "utf8"));
   const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
@@ -43,6 +52,8 @@ test("isolated cloud UAT catalogs share one flow-id list", () => {
   assert.deepEqual(options.slice(-2), ["all", "all-batched"]);
   assert.deepEqual(extractAllMatrix(freeCloud), expected);
   assert.deepEqual(extractReleaseGateFlows(releaseGate), expected);
+  assert.deepEqual(extractReleaseGateMatrix(releaseGate), expected);
+  assert.match(releaseGate, new RegExp(`max-parallel:\\s*${expected.length}\\b`));
   assert.match(freeCloud, new RegExp(`max-parallel:\\s*${expected.length}\\b`));
   assert.match(packageJson.scripts?.[CATALOG_FAST_SCRIPT] ?? "", /cloud-uat-catalog\.test\.mjs/);
   for (const script of Object.values(FAST_SCRIPTS)) {
