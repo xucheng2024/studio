@@ -43,7 +43,12 @@ try {
   const query = `?studio_id=${studioId}&location_id=${locationId}`;
   const owner = await login(POS_LOCAL_IDENTITIES.owner);
 
-  await owner.page.goto(`${baseUrl}/dashboard/pos/cash-sessions${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.goto(`${baseUrl}/dashboard${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.waitForURL((url) => url.pathname.includes("/dashboard/operations"), { timeout: 30_000 });
+  await owner.page.getByRole("link", { name: "POS", exact: true }).first().click();
+  await owner.page.waitForURL((url) => url.pathname.includes("/dashboard/pos"), { timeout: 30_000 });
+  await owner.page.getByRole("link", { name: "Cash sessions", exact: true }).click();
+  await owner.page.waitForURL((url) => url.pathname.includes("/dashboard/pos/cash-sessions"), { timeout: 30_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "cash-session mobile overflow");
   await owner.page.getByLabel("Opening float (SGD)").fill("50.00");
   await owner.page.getByLabel("Notes").fill("POS-02 local cash collection");

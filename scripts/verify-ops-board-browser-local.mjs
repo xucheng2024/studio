@@ -64,12 +64,17 @@ try {
   const classCollect = sessionRows.first().getByRole("link", { name: "Collect payment" });
   await classCollect.waitFor({ state: "visible" });
   assert.match(await classCollect.getAttribute("href"), new RegExp(`payment_id=${classPaymentId}`));
+  assert.match(await classCollect.getAttribute("href"), /\/dashboard\/payments/);
 
   const eventCard = owner.page.getByRole("heading", { level: 3, name: "Ops UAT Event", exact: true }).locator("xpath=ancestor::section[1]");
   await eventCard.getByText("1 unpaid", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
   const eventCollect = eventCard.getByRole("link", { name: "Collect payment" });
   await eventCollect.waitFor({ state: "visible" });
   assert.match(await eventCollect.getAttribute("href"), new RegExp(`payment_id=${eventPaymentId}`));
+  await classCollect.click();
+  await owner.page.waitForURL((url) => (
+    url.pathname.includes("/dashboard/payments") && url.searchParams.get("payment_id") === classPaymentId
+  ), { timeout: 30_000 });
   await owner.context.close();
 
   const instructor = await login(OPS_LOCAL_IDENTITIES.instructor);
@@ -86,7 +91,7 @@ try {
       { name: "dashboard landing keeps Front desk and Appointments distinct", result: "passed" },
       { name: "live queue sits above package checks", result: "passed" },
       { name: "capacity and unpaid badges with unpaid rows first", result: "passed" },
-      { name: "class and event collect-payment links", result: "passed" },
+      { name: "class collect-payment opens Payments for payment_id-only rows", result: "passed" },
       { name: "instructor cannot open operations board", result: "passed" },
     ],
   }, null, 2)}\n`);

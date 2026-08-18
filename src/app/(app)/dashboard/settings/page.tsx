@@ -46,9 +46,10 @@ function SettingCard({
 
 type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string }> };
 
-function scopedHref(path: string, selectedStudioId: string | null) {
+function scopedHref(path: string, selectedStudioId: string | null, selectedLocationId: string | null) {
   const p = new URLSearchParams();
   if (selectedStudioId) p.set("studio_id", selectedStudioId);
+  if (selectedLocationId) p.set("location_id", selectedLocationId);
   const q = p.toString();
   return q ? `${path}?${q}` : path;
 }
@@ -62,12 +63,13 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
   if (!user) return null;
   const isSuperAdmin = isSuperAdminEmail(user.email);
 
-  const { ctx, studioIds, selectedStudioId } = await getDashboardScope({
+  const { ctx, studioIds, selectedStudioId, selectedLocationId } = await getDashboardScope({
     userId: user.id,
     email: user.email,
     studioId: sp.studio_id ?? null,
-    locationId: null,
+    locationId: sp.location_id ?? null,
   });
+  const locationId = selectedLocationId ?? sp.location_id ?? null;
   if (studioIds.length === 0 && !isSuperAdmin) return <p className={ui.muted}>Create a studio first.</p>;
   if (!selectedStudioId && studioIds.length > 1) {
     return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
@@ -113,35 +115,35 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
       <div className="grid gap-3 sm:grid-cols-2">
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/public-profile", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, locationId)}
           icon={Building2}
           title="Studio profile"
           desc="Edit public intro, media, social links, and contact details"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/booking", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/booking", selectedStudioId, locationId)}
           icon={CalendarDays}
           title="Booking settings"
           desc="Connect Cal.com, save the event URL, and control booking on your public page"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId, locationId)}
           icon={Globe}
           title="Custom domain"
           desc="Connect your own domain, review DNS instructions, and verify activation"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/payments", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/payments", selectedStudioId, locationId)}
           icon={CreditCard}
           title="Payment settings"
           desc="Enter studio HitPay credentials, check platform readiness, and enable checkout"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/email", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/email", selectedStudioId, locationId)}
           icon={Mail}
           title="Email settings"
           desc="Enter this studio Resend API key, From address, and webhook secret"
@@ -149,7 +151,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
-            href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId)}
+            href={scopedHref("/dashboard/settings/staff-invites", selectedStudioId, locationId)}
             icon={Users}
             title="Staff & roles"
             desc="Create invite links, assign roles, and manage access"
@@ -157,14 +159,14 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         ) : null}
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/staff-availability", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/staff-availability", selectedStudioId, locationId)}
           icon={CalendarDays}
           title="Staff availability"
           desc="Set employee working hours and one-off availability exceptions"
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/resources", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/resources", selectedStudioId, locationId)}
           icon={BriefcaseBusiness}
           title="Resources"
           desc="Manage rooms, beds, and equipment for each location"
@@ -172,7 +174,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         {canManageStudio ? (
           <SettingCard
             as={DashboardAppLink}
-            href={scopedHref("/dashboard/settings/locations", selectedStudioId)}
+            href={scopedHref("/dashboard/settings/locations", selectedStudioId, locationId)}
             icon={MapPin}
             title="Locations"
             desc="Edit locations (owner) and weekly operating hours (owner/manager)"
@@ -181,7 +183,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         {isStudioOwner ? (
           <SettingCard
             as={DashboardAppLink}
-            href={scopedHref("/dashboard/settings/faqs", selectedStudioId)}
+            href={scopedHref("/dashboard/settings/faqs", selectedStudioId, locationId)}
             icon={HelpCircle}
             title="Public FAQs"
             desc="Manage the FAQ accordion shown at the bottom of your public studio page"
@@ -189,7 +191,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         ) : null}
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/privacy", selectedStudioId)}
+          href={scopedHref("/dashboard/settings/privacy", selectedStudioId, locationId)}
           icon={ShieldCheck}
           title="Privacy & data"
           desc="Privacy notice version, retention rules, and processor list"

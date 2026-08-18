@@ -19,11 +19,18 @@ try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     await context.addCookies(await createLocalSessionCookies({ supabaseUrl, anonKey, serviceRoleKey, identity, baseUrl }));
     const page = await context.newPage();
-    await page.goto(`${baseUrl}/dashboard/clients?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.goto(`${baseUrl}/dashboard?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.waitForURL((url) => url.pathname.includes("/dashboard/operations"), { timeout: 30000 });
+    await page.getByRole("link", { name: "Customers", exact: true }).first().click();
+    await page.waitForURL((url) => url.pathname.includes("/dashboard/clients") && !url.pathname.includes("/follow-ups"), { timeout: 30000 });
     await page.getByText("CRM local customer", { exact: false }).first().waitFor({ state: "visible", timeout: 30000 });
     const body = await page.locator("body").innerText();
     assert.match(body, /CRM local customer/, `${role} can read scoped client`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${role} mobile overflow`);
+    await page.getByRole("link", { name: "Follow-up queue" }).click();
+    await page.waitForURL((url) => url.pathname.includes("/dashboard/clients/follow-ups"), { timeout: 30000 });
+    await page.getByText("Follow-up queue", { exact: false }).first().waitFor({ state: "visible", timeout: 30000 });
+    assert.match(await page.locator("body").innerText(), /Follow-up queue/);
     const customerId = "c2000000-0000-4000-8000-000000000301";
     await page.goto(`${baseUrl}/dashboard/clients/${customerId}?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.getByRole("navigation", { name: "Customer profile sections" }).waitFor({ state: "visible", timeout: 30000 });
@@ -38,9 +45,6 @@ try {
     await page.getByRole("link", { name: /^Follow-up/ }).click();
     await page.getByRole("heading", { name: "Follow-up" }).waitFor({ state: "visible", timeout: 30000 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${role} section overflow`);
-    await page.goto(`${baseUrl}/dashboard/clients/follow-ups?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120000 });
-    await page.getByText("Follow-up queue", { exact: false }).first().waitFor({ state: "visible", timeout: 30000 });
-    assert.match(await page.locator("body").innerText(), /Follow-up queue/);
     await context.close();
   }
 } finally { await browser.close(); }
