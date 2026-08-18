@@ -61,7 +61,7 @@ jobs:
   cloud-vm-uat:
     needs: validate-commit
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - name: Check out fixed release commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -151,7 +151,11 @@ jobs:
             echo "::error::Release UAT flow catalog is empty."
             exit 1
           fi
-          node scripts/run-github-hosted-uat.mjs --flow all-batched
+          for flow in "${flows[@]}"; do
+            echo "::group::GitHub-hosted UAT ${flow}"
+            node scripts/run-github-hosted-uat.mjs --flow "$flow"
+            echo "::endgroup::"
+          done
 
       - name: Upload compact UAT reports
         if: always()
