@@ -22,6 +22,7 @@ import {
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 import { parseDatetimeLocalAsSgt } from "@/lib/date";
+import { setLocationOperatingHoursForWeek } from "@/lib/staff-availability";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publishPrivacyNotice, updateStudioRetentionSettings, markAppointmentRetentionReviewed } from "@/lib/studio-privacy";
 import {
