@@ -18,6 +18,7 @@ import {
   BarChart2,
   Mail,
   Settings,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { isRouteActive, pathFromHref } from "@/lib/nav-active";
@@ -39,15 +40,17 @@ const links: NavLink[] = [
   { href: "/dashboard/memberships",label: "Memberships",icon: Repeat },
   { href: "/dashboard/clients",    label: "Customers",  icon: Users },
   { href: "/dashboard/marketing",  label: "Marketing",  icon: Mail },
+  { href: "/dashboard/payroll",    label: "Payroll",    icon: Wallet },
+  { href: "/dashboard/payroll/me", label: "My pay",     icon: Wallet },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },
 ];
 
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor", string[]> = {
-  owner:     links.map((l) => l.href),
-  manager:   links.map((l) => l.href),
-  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/packages/approvals", "/dashboard/memberships", "/dashboard/clients"],
-  instructor: ["/dashboard/appointments"],
+  owner:     links.map((l) => l.href).filter((href) => href !== "/dashboard/payroll/me"),
+  manager:   links.map((l) => l.href).filter((href) => href !== "/dashboard/payroll" && href !== "/dashboard/payroll/me"),
+  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/packages/approvals", "/dashboard/memberships", "/dashboard/clients", "/dashboard/payroll/me"],
+  instructor: ["/dashboard/appointments", "/dashboard/payroll/me"],
 };
 
 function useVisibleLinks(
@@ -77,6 +80,13 @@ function prioritizeMobileLinks(visibleLinks: NavLink[]) {
     if (aPriority !== bPriority) return aPriority - bPriority;
     return visibleLinks.indexOf(a) - visibleLinks.indexOf(b);
   });
+}
+
+function isPayrollNavActive(pathname: string, href: string) {
+  if (href === "/dashboard/payroll" && (pathname === "/dashboard/payroll/me" || pathname.startsWith("/dashboard/payroll/me/"))) {
+    return false;
+  }
+  return isRouteActive(pathname, href);
 }
 
 function useNavState() {
@@ -148,7 +158,7 @@ export function DashboardNav({
   return (
     <nav className="flex flex-col gap-0.5">
       {visibleLinks.map((l) => {
-        const active = isRouteActive(pathname, l.href);
+        const active = isPayrollNavActive(pathname, l.href);
         const href = keep.toString() ? `${l.href}?${keep.toString()}` : l.href;
         const navigating = pendingHref === pathFromHref(l.href) && !active;
         const Icon = l.icon;
@@ -205,7 +215,7 @@ export function MobileBottomNav({
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {visibleLinks.map((l) => {
-        const active = isRouteActive(pathname, l.href);
+        const active = isPayrollNavActive(pathname, l.href);
         const href = keep.toString() ? `${l.href}?${keep.toString()}` : l.href;
         const navigating = pendingHref === pathFromHref(l.href) && !active;
         const Icon = l.icon;

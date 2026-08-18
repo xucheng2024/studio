@@ -104,3 +104,5 @@ export {
   submitPkg02AdjustmentRequestAction,
 } from "./_actions/pkg-approvals";
 export type { Pkg02ApprovalActionResult } from "./_actions/pkg-approvals";
+
+export { savePayrollProfileAction, updateOwnPayrollContactAction } from "./_actions/payroll";

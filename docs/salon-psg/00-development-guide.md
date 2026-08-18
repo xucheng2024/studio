@@ -71,7 +71,7 @@
 - 等待付款的 Pending Appointment 必须有 `expires_at` 并由幂等任务释放。
 - POS Sale：`draft`、`pending_payment`、`paid`、`partially_refunded`、`refunded`、`voided`。
 - Payment 状态沿用现有标准值，不为新模块创建同义状态。
-- Payroll：`draft`、`reviewed`、`approved`、`paid`、`voided`。
+- Payroll：`draft`、`finalised`、`paid`、`voided`。
 - Campaign：`draft`、`scheduled`、`sending`、`completed`、`cancelled`、`failed`。
 
 状态值在数据库使用小写 snake_case；界面可以显示易懂标签。所有状态转换必须有允许列表、操作者、时间和不可修改的历史记录。
