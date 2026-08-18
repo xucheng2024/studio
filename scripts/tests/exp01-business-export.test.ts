@@ -39,7 +39,7 @@ test("EXP-01 customer export keeps page search/status filters and drops safety f
   const table = customerExportTable(rows);
   assert.equal(table.rows.length, 1);
   assert.equal(table.rows[0][1], "Ada");
-  assert.equal(table.headers.includes("allergies"), false);
+  assert.equal((table.headers as string[]).includes("allergies"), false);
   assert.equal(JSON.stringify(table.rows).includes("safety"), false);
 });
 

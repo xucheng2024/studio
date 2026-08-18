@@ -4,7 +4,7 @@ import { paymentOrderType, type PaymentOrderType } from "@/lib/payment-classific
 /** Rows used for Gross / Refunds / Net (bucketed by finance-effective timestamp). */
 export type RevenuePaymentRow = {
   status: string;
-  amount: unknown;
+  amount?: unknown;
   created_at?: string | null;
   paid_at?: string | null;
   verified_at?: string | null;
