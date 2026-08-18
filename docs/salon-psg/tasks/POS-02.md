@@ -1,6 +1,6 @@
 # POS-02：现金收款闭环（Batch 1 + Batch 2）
 
-状态：已验证/待上线（Batch 1/2；专用 Free cloud UAT 已通过）
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 负责人：Codex
 

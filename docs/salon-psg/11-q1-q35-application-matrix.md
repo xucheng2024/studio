@@ -9,16 +9,16 @@
 | Q1 云端及多设备 | ✅ 基本满足 | Yes | 保持响应式 Web/PWA 和云端单一数据源；准备桌面、平板/手机浏览器及同账号数据同步截图。PWA 不在这里宣称为独立 Mobile App。 |
 | Q2 多门店集中管理 | 🟡 部分满足 | Yes | `FND-01`、`FND-03` 完成员工多门店和服务发布基础；还需 `APT-01`/`APT-02`、`POS-01` 和 `RPT-01`/`RPT-02` 分别保证预约、销售真实归店以及单店/全部门店汇总。全部完成并通过越权测试后才能判定 Q2 满足。 |
 | Q3 Dashboard / Reports | ❌ 不满足 | Yes | 完成 `RPT-01`、`RPT-02`：四个真实互动图表，公共筛选同时作用；并提供 Appointment Outcome、Outlet/Service/Retail/YoY Sales、New/Repeat Retention、FOV、Employee/Commission 和 Package Balance Value 报表。Inventory、Loyalty 按未启用模块填 0。 |
-| Q4 Appointment Scheduling | 🟡 已验证/待上线 | Yes | `APT-01` 至 `APT-03` 已实现一对一 Salon Appointment、员工时间、房间/床位/设备、跨门店冲突、状态、取消/改期和原子占用；2026-08-17 隔离 Free cloud UAT 已覆盖 APT-01 角色拒绝/390px 配置写入与 APT-03 日历主路径/跨门店拒绝。待生产发布窗口与申请截图后确认满足。现有课程 Session 不作为证据。 |
-| Q5–Q6 Online Booking | 🟡 模块存在但不完整 | Yes | 完成 `APT-05` 与分段 `APT-04`：先交付安全登录、实时档期、客户本人预约/取消/改期和 Terms，再联合 `PKG-01`、`POS-03` 接入 Package Credits、订金或全额付款及通知。 |
-| Q7 Customer Management | 🟡 已实现待证据收口 | Yes | `FND-02`、`CRM-01`、`CRM-02` 已覆盖 Studio-scoped Customer、偏好、过敏、健康/禁忌、疗程历史、Follow-up、Consent 和敏感权限；CRM-02 已上线，补齐 CRM-01 最终上线状态与申请截图后确认满足。 |
+| Q4 Appointment Scheduling | 🟡 已上线 / 待申请截图 | Yes | `APT-01` 至 `APT-03` 已进入生产（`61dbdf0`，gate `32086736757`）。隔离 Free cloud UAT 已覆盖 APT-01 角色拒绝/390px 配置写入与 APT-03 日历主路径/跨门店拒绝。申请截图后确认满足。现有课程 Session 不作为证据。 |
+| Q5–Q6 Online Booking | 🟡 已上线 / 待申请截图 | Yes | `APT-04`、`APT-05` 已进入生产（`61dbdf0`）。覆盖安全登录、实时档期、客户本人预约/取消、Package Credits 与订金 Sandbox。申请截图与现场演示后确认满足。 |
+| Q7 Customer Management | 🟡 已上线 / 待申请截图 | Yes | `FND-02`、`CRM-01`、`CRM-02` 已进入生产。覆盖 Studio-scoped Customer、偏好、过敏、健康/禁忌、疗程历史、Follow-up、Consent 和敏感权限。申请截图后确认满足。 |
 | Q8 实时同步 | ✅ 基础满足 | Yes | Supabase 继续作为单一数据源；所有新模块写入同一业务数据关系。准备两个设备同时更新客户、预约或销售并即时看到一致结果的演示证据。 |
 | Q9–Q10 Loyalty | ⚪ 本次不做 | No（Q10 不触发） | Membership、Package 和简单 Credits 不描述成 Loyalty Points。若 Q9 回答 No，避免触发 Q10 的积分、兑换、等级等强制功能。 |
-| Q11–Q12 Package | 🟡 模块存在但不完整 | 完成后 Yes | 保留现有 Class Pass、公开购买、HitPay 和 Booking 扣减；先以 `POS-01` 统一 Package Sale Item，再由 `PKG-01`、`PKG-02` 增加 Salon Customer/Service/Location、opening-balance 迁移、余额与价值 Ledger、人工调整、maker-checker 审批和完整审计。未完成前不能填 Yes。 |
+| Q11–Q12 Package | 🟡 已上线 / 待申请截图 | 完成后 Yes | `PKG-01`、`PKG-02` 已进入生产（`61dbdf0`）。覆盖 Salon Customer/Service/Location、opening-balance Ledger、maker-checker 审批。部分 package refund 与 Guest `user_id is null` 发放仍不在范围。申请截图后确认满足。 |
 | Q13 收据和付款记录 | ✅ 基本满足 | Yes | 现有 Payment、编号、PDF Invoice 和退款可复用；完成 POS 后提供多项目 Receipt、Refund Receipt/Credit Note、门店/员工/付款方式和审计。 |
 | Q14 数字支付 | ✅ 基本满足 | Yes | 使用现有 HitPay 和 Cash；申请材料只列出生产环境真实启用并可现场完成的 HitPay 支付方式，保留 Webhook、同步及退款证据。 |
-| Q15 POS | 🟡 部分满足 | Yes | 复用现有 Payment、HitPay、Invoice、Service/Shop/Package 购买基础，完成 `POS-01` 至 `POS-04`：客户、多服务/商品/套餐购物车、员工、折扣、Cash/HitPay、收据、退款/作废、库存与 Package 联动、门店归属和日结。申报为 in-house POS。 |
-| Q16 SMS / E-Marketing | ⚠️ 已验证/待上线 | Yes（路径已确认） | `MKT-01`、`MKT-02` 已实现 VIP/常客/长期未到店、Email Builder、图片/CTA、立即或预约发送、Resend Webhook、重试、成功率、点击率和退订。每个 Studio 在 Email settings 配置自己的 Resend。隔离 UAT `mkt02-studio-email-local` 已通过（run `32046926360`）。SMS、WhatsApp 不做。 |
+| Q15 POS | 🟡 已上线 / 待申请截图 | Yes | `POS-01` 至 `POS-04` 已进入生产（`61dbdf0`）。找零 UI、PDF/可点击收据与 Void 点击证据仍不在本批。申请截图与现场演示后确认满足。 |
+| Q16 SMS / E-Marketing | ⚠️ 已验证/待上线 | Yes（路径已确认） | `MKT-01` 已上线。`MKT-02` 应用已随 `61dbdf0` 进入生产；待该 Studio Owner 在 Email settings 启用自己的 Resend 后升“已上线”。SMS、WhatsApp 不做。 |
 | Q17 HR Management | ❌ 尚未开发 | Yes（自建已确认） | 已确认可使用 in-house Payroll。完成 `FND-01`、`COM-01`、`PAY-01` 至 `PAY-03`：员工档案、自助更新、佣金、Payroll、报告、MOM Itemised Payslip 和法定规则版本，并由专业人士验证计算。 |
 | Q18 IRAS AIS | ⚪ 本次不做 | No | 已确认 Q18 回答 No 不影响 Q17。不得宣称在 IRAS Supporting Payroll Software Vendors 名单中。 |
 | Q19 Leave / Attendance / Roster | ⚪ 本次不做 | No | 员工工作时间只用于 Appointment Availability，不描述成完整 Roster、Attendance 或 Leave Management。 |
@@ -35,8 +35,8 @@
 ## 当前代码证据摘要
 
 - Q3：`src/app/(app)/dashboard/reports/page.tsx` 当前主要为过滤器、数字卡和 Revenue 表格，没有四个 Salon 图表。
-- Q7：客户详情已包含 CRM-01 敏感资料和 CRM-02 Treatment/Follow-up；仍需统一保存最终生产验收与申请截图证据。
-- Q11–Q12：现有 `packages` / `client_packages`、公开购买、HitPay Paid 发放和 Class Booking consume/return 可复用，但余额仍以可变 `credits_left` 为主，缺 Salon Customer/Service 适用关系、append-only Ledger、调整审批和 deferred value。
+- Q7：客户详情已包含 CRM-01 敏感资料和 CRM-02 Treatment/Follow-up；2026-08-18 已进入生产（`61dbdf0`）。仍需申请截图。
+- Q11–Q12：`PKG-01`/`PKG-02` 已进入生产，含 append-only Ledger 与 maker-checker。部分 package refund 与 Guest `user_id is null` 发放仍不在范围；仍需申请截图。
 - Q17：`src/app/(app)/dashboard/staff/page.tsx` 当前管理账号角色和访问权，不是 Employee HR/Payroll 主档。
 - Q28：当前可见的正式业务导出主要是 `/api/payments/export` CSV，尚未形成跨模块、多格式 Export Service。
 - Q30：仓库中没有发现可以替代合资格第三方 VA/PT 报告的材料；内部安全检查或自动扫描不能冒充 Q30 报告。

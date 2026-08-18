@@ -1,14 +1,14 @@
 # APT-05：Appointment Email Notifications
 
-状态：已实现（MVP）/待生产联调
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 负责人：Codex
 
 开始日期：2026-08-12
 
-完成日期：
+完成日期：2026-08-18
 
-Commit / Release：未提交
+Commit / Release：`61dbdf0`（gate `32086736757`）
 
 ## 1. 目标
 

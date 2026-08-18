@@ -1,6 +1,6 @@
 # PKG-01：Package Ledger（opening balance + 事件账本）
 
-状态：已验证/待上线（专用 Free cloud UAT 已通过）
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 负责人：待分配
 

@@ -1,6 +1,6 @@
 # APT-04：客户自助预约（Phase 1）
 
-状态：已验证/待上线（Phase 1 可验收；Phase 2 专用 Free cloud Sandbox UAT 已通过）
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 负责人：Codex（编码 Agent）
 
@@ -190,7 +190,7 @@ Commit / Release：`909db75`（Phase 1 隔离 UAT）
 
 ## 11. 2026-08-14 Phase 2 实施（Package Credits / 在线订金 / 在线全款）
 
-状态：已验证/待上线（不等于已上线）
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 ### 11.1 本轮新增能力
 

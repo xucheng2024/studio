@@ -32,7 +32,7 @@
 
 代码已上 `main`（`26b7ab7`）：Owner 在 `/dashboard/settings/email` 配置 API key / From / webhook secret；Campaign、预约通知和发票读取该 Studio 密钥；未配置返回 `email_provider_not_configured`，不回退平台 `RESEND_*`。Webhook 为 `/api/webhooks/resend/[studioId]`。
 
-远端 migration、Vercel 平台 `RESEND_WEBHOOK_SECRET`、以及隔离 UAT 已完成。生产上线前仍待 Owner 在真实 Studio 启用自己的 Resend。
+远端 migration、Vercel 平台 `RESEND_WEBHOOK_SECRET`、隔离 UAT 与 2026-08-18 生产发布窗口（`61dbdf0`）已完成。任务保持“已验证/待上线”，直到 Owner 在真实 Studio 启用自己的 Resend。
 
 ## 目标环境待办
 

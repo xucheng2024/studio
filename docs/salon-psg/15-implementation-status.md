@@ -22,7 +22,7 @@
 | FND-01 | 已上线 | 已存在 `employees`、`employee_locations`、迁移冲突表、Studio 一致性约束、唯一用户/Instructor 关联、单一主要门店、RLS/RPC 和 `src/lib/employees.ts` | `522ef18` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。 |
 | FND-02 | 已上线 | 已存在 `salon_customers`、迁移冲突、Merge Audit、Studio 引用校验、Guest Link/Merge RPC、RLS 和 `src/lib/salon-customers.ts` | `6ba056e` | 本轮只核对代码和 Commit 存在，没有重新执行历史上线测试。健康资料仍属于 CRM-01。 |
 | FND-03 | 已上线 | 已存在 `service_locations` Migration 和 `src/lib/service-locations.ts`，包含发布范围、停用、覆盖值、审计及权限入口 | `6c40e3d`，`main` / `origin/main` | Migration 已返回 `service_location_rows_created: 47`。总部默认时长/缓冲由 APT-01 在建立 Salon Availability 契约时补充，不回退 FND-03。 |
-| FND-04 | 已验证/待上线 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | `75caa06`，已进入 `main` | 已修复 051 历史 dump 本地重放阻断，并在完整 migration 历史重放后通过 `test:apt02-idempotency-faults`。待发布窗口后升“已上线”。 |
+| FND-04 | 已上线 | 已存在 `strong_audit_logs`（Append-only 强审计）、`business_idempotency_keys`（Studio-scoped Claim/Complete/Fail）、`provider_events`（Provider/Event-ID 去重）Migration 及 `src/lib/strong-audit.ts`、`idempotency.ts`、`provider-events.ts` | `61dbdf0`，gate `32086736757` | 2026-08-18 生产发布窗口已 promote 至 `www.sgmystudio.com`（`dpl_BSgfYuudUEVtqxznFScZdm7hmnWd`）。 |
 
 详细记录见 [FND-01](./tasks/FND-01.md)、[FND-02](./tasks/FND-02.md)、[FND-03](./tasks/FND-03.md)、[FND-04](./tasks/FND-04.md)、[APT-02](./tasks/APT-02.md)。
 
@@ -33,23 +33,23 @@
 | Phase 0 | FND-01 Employee | 已上线 | 无 | 作为后续员工数据契约，不重做 |
 | Phase 0 | FND-02 Customer | 已上线 | 无 | 作为后续客户数据契约，不重做 |
 | Phase 0 | FND-03 Service/Location | 已上线 | FND-01 | 作为后续门店服务契约，不重做 |
-| Phase 0 | FND-04 Audit/Idempotency | 已验证/待上线 | 无 | 已修复 051 历史 dump 的本地重放阻断，并在完整 migration 历史重放后通过 `test:apt02-idempotency-faults`；可供 APT-02/PKG-01/POS-01/MKT-02/PAY-02 复用 |
-| Phase 1 | APT-01 Availability/Resources | 已验证/待上线 | FND-01、FND-03 | 静态门禁、resolver 与 DB rollback 已通过；专用 Free cloud UAT `apt01-availability-local` 已通过（run `32006999542`，`apt01_local_uat_ok`）。覆盖 390px Owner 写入 defaults/resource/hours，以及 Frontdesk/Instructor 配置页拒绝。历史全量覆盖传播与故障注入仍不在本批；待发布窗口后升“已上线”。 |
-| Phase 1 | APT-02 Appointment Transaction | 已验证/待上线 | APT-01、FND-02、FND-04 | 已完成 APT-02 数据模型、原子 create/reschedule/cancel/expire、员工/资源冲突约束、状态历史、Terms 接受证据基础与 TS 库封装；并完成复审问题闭环（跨门店改期双门店权限、Instructor 读取收敛、幂等 claim token fencing+重放结构一致、失败状态持久化路径、改期原因落库、23P01 资源冲突映射）；`test:apt02-db-foundation`、`test:apt02-concurrency`、`test:apt02-idempotency-faults`、`npx tsc --noEmit` 通过 |
-| Phase 1 | APT-03 Backoffice Calendar | 已验证/待上线 | APT-02 | DB/契约门禁已通过；专用 Free cloud UAT `apt03-calendar-local` 已通过（run `32008529292`，`apt03_local_uat_ok`）。覆盖 390px create→confirm→check-in→start→complete、Instructor 仅见本人、Frontdesk 跨门店 L2 card 拒绝。日历服务选项改为 `studio_services.title`；待发布窗口后升“已上线”。 |
-| Phase 1 | CRM-01 Sensitive Customer Data | 已验证/待上线 | FND-02 | 已部署 Production；隔离 Studio 的预检、Manager/Frontdesk booking-only 允许、Instructor 直访拒绝、390px 移动端及“拒绝不写成功访问审计”均已通过。上线窗口前由业务方抽样复核真实门店 Owner/Global Manager 与动态门店关系。 |
+| Phase 0 | FND-04 Audit/Idempotency | 已上线 | 无 | 2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）；可供 APT-02/PKG-01/POS-01/MKT-02/PAY-02 复用 |
+| Phase 1 | APT-01 Availability/Resources | 已上线 | FND-01、FND-03 | 静态门禁、resolver 与 DB rollback 已通过；专用 Free cloud UAT `apt01-availability-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。历史全量覆盖传播与故障注入仍不在本批。 |
+| Phase 1 | APT-02 Appointment Transaction | 已上线 | APT-01、FND-02、FND-04 | 原子 create/reschedule/cancel/expire、冲突约束与幂等故障注入已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
+| Phase 1 | APT-03 Backoffice Calendar | 已上线 | APT-02 | 专用 Free cloud UAT `apt03-calendar-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
+| Phase 1 | CRM-01 Sensitive Customer Data | 已上线 | FND-02 | 隔离 Studio 预检与角色矩阵已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
 | Phase 1 | CRM-02 Treatment/Follow-up | 已上线 | APT-03、CRM-01 | Migration、应用层与队列 UI 已部署 Production；`test:crm02-app`、`test:crm02-db`、TypeScript、ESLint 通过；生产浏览器验收覆盖 Owner、Global Manager、Location Manager、Frontdesk、Instructor、混合角色及 390px 移动端，DB 断言覆盖预约前置条件、幂等重放、审计脱敏和 follow-up queue；人工业务流验收通过 |
-| Phase 1 | APT-05 Email Notifications | 已验证/待上线 | APT-03 | 已完成通知队列表、入队/claim/complete/fail/list/retry RPC、Cron Worker、后台日志与手动重试入口；`test:apt05`、`test:apt03`、`npx tsc --noEmit` 通过，等待生产窗口发布与监控接入 |
-| Phase 2 | POS-01 Sale/Cart | 已验证/待上线 | FND-01、FND-02、FND-03、FND-04 | 已完成 POS sale/item 事实层、幂等写入 RPC、去收款主路径（锁单后 payment 关联）与支付进度读模型；`test:pos01-db`、`test:pos01-e2e`、`npx tsc --noEmit` 通过，待生产窗口发布 |
-| Phase 2 | PKG-01 Package Ledger | 已验证/待上线 | FND-02、FND-03、FND-04、POS-01 | 目标 migration 已对齐；2 条历史正余额已完成 opening Ledger 回填。专用 Free cloud UAT `pkg01-package-ledger-local` 已通过（run `32027455067`，`pkg01_local_uat_ok`）。覆盖 390px 现金收款发放 `purchase_grant`、客户 ledger 可见 credits、整项退款 `refund_reversal` 与 Instructor POS 拒绝；待发布窗口后升“已上线”。 |
-| Phase 2 | POS-02 Cash/Receipt | 已验证/待上线 | POS-01 | DB Gate、目标 migration 与 Batch 1/2 专用 Free cloud UAT 已通过（`pos02-cash-receipt-local`，run `32002949749`，`pos02_local_uat_ok`）。覆盖现金班次开启、现金收款、Sale/Payment 原子 paid、receipt number 展示、Instructor 越权拒绝与 390px。找零 UI 与 PDF/可点击收据仍不在 Batch 1/2 范围；待发布窗口后升“已上线”。 |
-| Phase 2 | POS-03 HitPay | 已验证/待上线 | POS-01 | Merchant Key-only 与 Batch 2 恢复加固已落地；专用 Free cloud UAT `pos03-hitpay-sandbox-local` 已通过（run `32004577210`，`pos03_local_uat_ok`，Sandbox `api.sandbox.hit-pay.com`）。覆盖 create、pending sync、签名 webhook paid、重放幂等、无效签名 401、已付后再 sync。未在 Production 造支付数据；待发布窗口后升“已上线”。 |
-| Phase 2 | PKG-02 Package Approval | 已验证/待上线 | PKG-01 | DB Gate、目标 migration 与 `pos-packages-local` Free cloud UAT 已通过（run `32003377267`，`pos_pkg_local_uat_ok`）。覆盖 390px draft/submit、并发 checker 批准单一转换、Ledger apply、拒绝路径与 Instructor 拒绝访问；待发布窗口后升“已上线”。 |
-| Phase 2 | APT-04 Self Booking | 已验证/待上线 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | Phase 1 隔离 UAT 已通过。Phase 2 Package Credits / 在线订金专用 Free cloud UAT `apt04-settlement-sandbox-local` 已通过（run `32032684540`，`apt04_settlement_local_uat_ok`，Sandbox `api.sandbox.hit-pay.com`）。覆盖 390px 自助预约、package consume、cancel_return、deposit checkout、Continue payment、签名 webhook `deposit_paid` 与重放幂等。`online_full` 仍由 `test:apt04-db` 覆盖。未在 Production 造支付数据；待发布窗口后升“已上线”。 |
+| Phase 1 | APT-05 Email Notifications | 已上线 | APT-03 | 通知队列与 Cron Worker 已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。未配置 Studio Resend 时发送失败并显示 email provider not configured。 |
+| Phase 2 | POS-01 Sale/Cart | 已上线 | FND-01、FND-02、FND-03、FND-04 | POS sale/item 事实层已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
+| Phase 2 | PKG-01 Package Ledger | 已上线 | FND-02、FND-03、FND-04、POS-01 | 专用 Free cloud UAT `pkg01-package-ledger-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。部分 package refund 与 Guest `user_id is null` 发放仍不在本项范围。 |
+| Phase 2 | POS-02 Cash/Receipt | 已上线 | POS-01 | 专用 Free cloud UAT `pos02-cash-receipt-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。找零 UI 与 PDF/可点击收据仍不在 Batch 1/2 范围。 |
+| Phase 2 | POS-03 HitPay | 已上线 | POS-01 | 专用 Free cloud UAT `pos03-hitpay-sandbox-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。未在 Production 造支付数据。 |
+| Phase 2 | PKG-02 Package Approval | 已上线 | PKG-01 | `pos-packages-local` Free cloud UAT 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
+| Phase 2 | APT-04 Self Booking | 已上线 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | Phase 2 专用 Free cloud UAT `apt04-settlement-sandbox-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。未在 Production 造支付数据。 |
 | Phase 2 | COM-01 Commission | 已上线 | POS-02、POS-03、CRM-02 | 生产 Migration 与应用已发布；`test:com01-db`、真实 HitPay Sandbox 支付/退款、隔离本地 Supabase UAT、角色/交易最终状态浏览器断言和 DB 只读证据均通过（`RUN_ID=COM01-UAT-LOCAL-V2-20260814-182536`）；未在 Production 造测试财务数据 |
-| Phase 2 | POS-04 Refund/Void/Close | 已验证/待上线（Batch 1/2/3 已完成） | COM-01、PKG-01 | 2026-08-16 已在隔离 Docker/Postgres 重跑 `test:pos04-db`（部分退款、现金班次、RPC 幂等均通过）；隔离本地 COM-01 浏览器 UAT 已真实提交全额退款与关班表单，并核验佣金反向分录、现金差异、审计和最终页面。浏览器 UAT 不会隐式回退生产；Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。待发布窗口及目标环境发布证据。 |
-| Phase 3 | MKT-01 Audience/Email | 已验证/待上线 | FND-02、CRM-01、POS-04 | 已发布 Consent/Suppression、Audience Snapshot、固定 Email Builder、测试邮件和一键退订；专用隔离本地 UAT 已通过 |
-| Phase 3 | MKT-02 Dispatch/Report | 已验证/待上线 | MKT-01、FND-04 | per-studio Resend 已上 `main`（`26b7ab7`）。专用 Free cloud UAT `mkt02-studio-email-local` 已通过（run `32046926360`，`mkt02_studio_email_local_uat_ok`）。覆盖 Owner Email settings 启用、密钥不回显、Instructor 拒绝、未配置 webhook 401、旧路由 410、签名 Delivered、重放幂等、未知 studio 401、390px。未向真实客户群发；待发布窗口及该 Studio Owner 启用自己的 Resend 后升“已上线”。 |
+| Phase 2 | POS-04 Refund/Void/Close | 已上线 | COM-01、PKG-01 | 隔离 DB Gate 与 COM-01 浏览器退款/关班证据已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。 |
+| Phase 3 | MKT-01 Audience/Email | 已上线 | FND-02、CRM-01、POS-04 | Consent/Suppression、Audience Snapshot 与 Email Builder 已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
+| Phase 3 | MKT-02 Dispatch/Report | 已验证/待上线 | MKT-01、FND-04 | 应用已随 `61dbdf0` 进入生产。专用 Free cloud UAT `mkt02-studio-email-local` 已通过。未向真实客户群发；待该 Studio Owner 在 `/dashboard/settings/email` 启用自己的 Resend 后升“已上线”。 |
 | Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
 | Phase 3 | PAY-02 Payroll Run | 未开始 | PAY-01 | 等待依赖 |
 | Phase 3 | PAY-03 Payslip/Reports | 未开始 | PAY-02 | 等待依赖 |
@@ -87,8 +87,8 @@
 
 ## 当前建议领取顺序
 
-1. Phase 1 浏览器证据缺口（APT-01 / APT-03）已用隔离 Free cloud UAT 收口。进入 Phase 3 前仍需生产发布窗口，才能把 APT-02/04/05、CRM-01、POS-02/03、PKG-01/02、POS-04、MKT-01/02 等“已验证/待上线”升为“已上线”。
-2. 下一开发项：PAY-01 仍等 Payroll 规则签字。并行：发布窗口；生产 Owner 在 Email settings 启用该店自己的 Resend。支付相关验证只用 HitPay Sandbox。
+1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02 仍待该 Studio Owner 启用自己的 Resend。
+2. 下一开发项：PAY-01 仍等新加坡 Payroll 规则签字。不要猜测 CPF/SDL/SHG。支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -221,3 +221,11 @@
 - 新增 `scripts/scaffold-isolated-uat-flow.mjs`：一次写入 fixture stubs 与 Free cloud UAT / release-gate / `FAST_SCRIPTS` 目录。
 - 新增 flow 用 `--write`，再补 verifier 断言，然后 `npm run test:cloud-uat-options`。
 - 业务状态不变。下一开发项仍是 PAY-01（等规则签字）；并行发布窗口与生产 Owner 启用该店 Resend。
+
+## 2026-08-18 状态更新（生产发布窗口）
+
+- GitHub Studio release gate 通过并 promote：https://github.com/xucheng2024/studio/actions/runs/32086736757
+- Commit：`61dbdf0`。Vercel：`dpl_BSgfYuudUEVtqxznFScZdm7hmnWd`。生产域名：`https://www.sgmystudio.com`
+- 升为“已上线”：FND-04、APT-01、APT-02、APT-03、APT-04、APT-05、CRM-01、POS-01、POS-02、POS-03、POS-04、PKG-01、PKG-02、MKT-01
+- MKT-02 保持“已验证/待上线”。应用已在生产，待该 Studio Owner 在 `/dashboard/settings/email` 启用自己的 Resend。不要用平台 `RESEND_*` 群发真实客户。
+- PAY-01 仍为“未开始”，等新加坡 Payroll 规则签字。

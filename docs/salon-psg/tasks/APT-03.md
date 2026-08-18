@@ -1,6 +1,6 @@
 # APT-03：Backoffice Appointment Calendar 与状态操作
 
-状态：已验证/待上线（专用 Free cloud UAT 已通过）
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 负责人：Codex
 

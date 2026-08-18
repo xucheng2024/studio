@@ -9,16 +9,16 @@
 | Q1 云端/多设备 | ✅ 基本满足 | 继续使用云端响应式 Web/PWA，准备桌面、平板和手机浏览器截图，并演示同一账号的数据同步。 | Yes |
 | Q2 多门店集中管理 | 🟡 部分满足 | 保留现有 Location；增加服务发布到全部/指定门店、员工多门店归属、所有业务强制记录门店，以及单店/全部门店合并报表。 | 完成后 Yes |
 | Q3 Dashboard/Reports | ❌ 不满足 | 建立至少4张互动图表，统一使用日期、门店、员工、服务筛选；增加预约结果、门店/服务/商品销售、YoY、新客/留存/FOV、员工业绩/佣金及套餐余额价值报表。 | 完成后 Yes |
-| Q4 Appointment Scheduling | 🟡 已验证/待上线 | 一对一美容预约日历、员工时间、房间/床位/设备、冲突与状态操作已实现；APT-01/APT-03 隔离 Free cloud UAT（角色拒绝、390px 日历主路径）已通过。待生产发布窗口与申请截图后填 Yes。现有团课 Session 只保留，不作为证据。 | 完成发布后 Yes |
-| Q5–Q6 Booking | 🟡 模块存在但不完整 | 分段完成客户安全登录、实时档期、本人预约/取消/改期和 T&C，再接入升级后的 Salon Package Credits 与 POS/HitPay 订金或全额付款。 | 完成后 Yes |
-| Q7 Customer Management | 🟡 已实现待证据收口 | 客户身份、偏好、过敏、健康/禁忌、Treatment、Follow-up、Consent、敏感权限和审计已实现；补 CRM-01 最终上线状态与申请截图。 | 完成证据后 Yes |
+| Q4 Appointment Scheduling | 🟡 已上线 / 待申请截图 | 一对一美容预约日历、员工时间、房间/床位/设备、冲突与状态操作已进入生产（`61dbdf0`）。APT-01/APT-03 隔离 Free cloud UAT 已通过。申请截图后填 Yes。现有团课 Session 只保留，不作为证据。 | 申请截图后 Yes |
+| Q5–Q6 Booking | 🟡 已上线 / 待申请截图 | 客户安全登录、实时档期、本人预约/取消、Package Credits 与订金已进入生产。申请截图与现场演示后填 Yes。 | 申请截图后 Yes |
+| Q7 Customer Management | 🟡 已上线 / 待申请截图 | 客户身份、偏好、过敏、健康/禁忌、Treatment、Follow-up、Consent、敏感权限和审计已进入生产（含 CRM-01）。申请截图后填 Yes。 | 申请截图后 Yes |
 | Q8 实时同步 | ✅ 基本满足 | 继续使用 Supabase 单一数据源；所有新模块写入同一套客户、预约、销售数据。准备两台设备同步修改和查看的演示。 | Yes |
 | Q9–Q10 Loyalty | ⚪ 本次不做 | 不开发积分、兑换和会员等级；现有 Membership、Package 不描述成 Loyalty Programme。Q9 回答 No 后不会进入 Q10。 | Q9 No |
-| Q11–Q12 Package | 🟡 模块存在但不完整 | 保留现有 Class Pass、公开购买、HitPay、客户余额和 Class Booking 核销；先接入统一 POS Sale，再增加 Salon Service/Location、opening-balance 迁移、余额/价值流水、人工调整申请、双人审批和完整审计。 | 完成后 Q11 Yes、Q12 Yes |
+| Q11–Q12 Package | 🟡 已上线 / 待申请截图 | `PKG-01`/`PKG-02` 已进入生产：Salon Service/Location、opening-balance Ledger、人工调整申请和双人审批。部分 refund 与 Guest 发放仍不在范围。 | 申请截图后 Q11 Yes、Q12 Yes |
 | Q13 收据和付款 | ✅ 基本满足 | 复用现有付款记录、编号、PDF Invoice 和退款；POS 完成后升级为多项目收据、退款收据/Credit Note，并显示门店、员工和付款方式。 | Yes |
 | Q14 数字支付 | ✅ 基本满足 | 继续使用 HitPay；保留现金记录。申请材料只列出生产环境真实启用、可现场完成的 HitPay 支付方式。 | Yes |
-| Q15 POS | 🟡 部分满足 | 将现有 Front Desk Walk-in、Payment、HitPay、Invoice、Service/Shop/Package 购买基础统一为 in-house POS：客户、多服务/商品/套餐、员工、折扣、Cash/HitPay、收据、退款、作废、门店归属和日结。 | 完成后 Yes |
-| Q16 SMS/E-Marketing | ⚠️ 已验证/待上线 | 已确认本题是 OR。Email E-Marketing 已实现 VIP、常客、长期未到店分群，Email 标题、图片和预约按钮，立即/预约发送、成功率、点击率、退订、Webhook 和重试。每个 Studio 使用自己的 Resend 账号（`26b7ab7`），平台不代付发送额度。隔离 UAT 已通过。SMS、WhatsApp 不做。 | 发布窗口后 Owner 启用该店 Resend 后 Yes |
+| Q15 POS | 🟡 已上线 / 待申请截图 | in-house POS 已进入生产：客户、多服务/商品/套餐、员工、折扣、Cash/HitPay、收据、退款、作废、门店归属和日结。找零 UI 与 PDF 可点击收据仍不在本批。 | 申请截图后 Yes |
+| Q16 SMS/E-Marketing | ⚠️ 已验证/待上线 | Email E-Marketing 应用已随 `61dbdf0` 进入生产。每个 Studio 使用自己的 Resend 账号，平台不代付发送额度。待 Owner 启用该店 Resend 后 Yes。SMS、WhatsApp 不做。 | Owner 启用该店 Resend 后 Yes |
 | Q17 HR Management | ❌ 尚未开发 | 已确认可以使用自建 Payroll。建立员工档案和自助资料、佣金、Payroll、工资/佣金报告、CPF/SDL/SHG 规则和 MOM Itemised Payslip，并由专业人士验证计算。 | 完成后 Yes |
 | Q18 IRAS AIS | ⚪ 本次不做 | 第一版不接 IRAS AIS，也不宣称属于 IRAS Supporting Payroll Software Vendor；已确认回答 No 不影响 Q17。 | No |
 | Q19 Leave/Attendance/Roster | ⚪ 本次不做 | 预约使用的员工可用时间不描述成完整排班、考勤或请假系统。 | No |

@@ -1,6 +1,6 @@
 # APT-02：Salon Appointment Atomic Transaction Foundation
 
-状态：已验证/待上线
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 负责人：Codex
 

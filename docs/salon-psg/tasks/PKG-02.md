@@ -1,6 +1,6 @@
 # PKG-02：套餐调整审批与部分退款回冲
 
-状态：已验证/待上线（专用 Free cloud UAT 已通过）
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 Commit / Release：`f18bb4c`、`02d4aee`、`9283eb6`、`30f652c`、`bf80d06`、`cf3291f`、`09f9fb1`；未上线
 

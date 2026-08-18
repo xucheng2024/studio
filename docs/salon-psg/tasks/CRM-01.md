@@ -1,6 +1,6 @@
 # CRM-01：客户敏感资料与 Consent
 
-状态：已验证/待上线
+状态：已上线（`61dbdf0`，gate `32086736757`）
 
 负责人：Codex
 
@@ -8,7 +8,7 @@
 
 完成日期：2026-08-12
 
-Commit / Release：`f8a67d6`、`5ac7300`、`5758eac`、`bdb40df`；已部署至 Production，等待上线窗口确认
+Commit / Release：`f8a67d6`、`5ac7300`、`5758eac`、`bdb40df`、`61dbdf0`；2026-08-18 生产发布窗口已 promote（gate `32086736757`）
 
 ## 1. 目标
 
