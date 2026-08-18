@@ -206,6 +206,7 @@ export async function listPosSalesForDashboard(params: {
   email?: string | null;
   studioId: string;
   locationId?: string | null;
+  salonCustomerId?: string | null;
   status?: "draft" | "pending_payment" | "paid" | "partially_refunded" | "refunded" | "voided";
   limit?: number;
   offset?: number;
@@ -231,6 +232,12 @@ export async function listPosSalesForDashboard(params: {
     .range(offset, offset + limit - 1);
 
   if (params.status) query = query.eq("status", params.status);
+  if (params.salonCustomerId) {
+    if (!UUID_PATTERN.test(params.salonCustomerId)) {
+      return { ok: false, code: "invalid_request", message: "Invalid customer." };
+    }
+    query = query.eq("salon_customer_id", params.salonCustomerId);
+  }
   if (params.locationId) {
     query = query.eq("location_id", params.locationId);
   } else if (!access.access.hasGlobalLocationScope) {

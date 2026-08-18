@@ -4,7 +4,8 @@ import { ToastConfirmForm } from "@/components/ToastConfirmForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { PosHitpayPaymentButton } from "@/components/dashboard/PosHitpayPaymentButton";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
-import { completePosCashSaleAction, refundPosSaleItemsAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
+import { completePosCashSaleAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
+import { PosRefundForm } from "@/components/dashboard/PosRefundForm";
 import { formatLocalDateTime } from "@/lib/date";
 import { getPosSaleDetailForDashboard } from "@/lib/pos-sales-read";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -44,6 +45,13 @@ function paymentMethodLabel(method: string | null | undefined) {
   if (m === "free") return "Free";
   if (!method) return "-";
   return method;
+}
+
+function formatQty(value: number) {
+  if (Number.isInteger(value) || Math.abs(value - Math.round(value)) < 0.0005) {
+    return String(Math.round(value));
+  }
+  return String(value);
 }
 
 export default async function PosSaleDetailPage({ params, searchParams }: Props) {
@@ -113,103 +121,79 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <DashboardAppLink href={`/dashboard/pos?${backQuery.toString()}`} className={ui.btnSecondarySm}>
-          Back to POS list
+          Back to POS
         </DashboardAppLink>
         <span className={`${ui.badgeNeutral} capitalize`}>{toStatusLabel(sale.status)}</span>
       </div>
 
       <section className={ui.card}>
-        <h1 className={ui.h1}>POS sale detail</h1>
-        <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <dt className={`text-xs ${ui.muted}`}>Sale</dt>
-            <dd className="font-medium text-stone-900 dark:text-stone-100">{sale.sale_number ?? sale.id}</dd>
+            <h1 className={ui.h1}>{sale.sale_number ?? sale.id.slice(0, 8)}</h1>
+            <p className={`mt-1 ${ui.muted}`}>
+              {sale.customer_name ?? "Walk-in"} · {sale.location_name ?? "Location"} · {sale.currency} {Number(sale.total_amount).toFixed(2)}
+            </p>
+            {sale.receipt_number ? (
+              <p className="mt-1 text-sm font-medium text-teal-800 dark:text-teal-300">Receipt {sale.receipt_number}</p>
+            ) : null}
           </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Receipt</dt>
-            <dd>{sale.receipt_number ?? "-"}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Customer</dt>
-            <dd>{sale.customer_name ?? "Walk-in"}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Location</dt>
-            <dd>{sale.location_name ?? sale.location_id}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Created</dt>
-            <dd>{formatLocalDateTime(sale.created_at)}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Locked</dt>
-            <dd>{sale.locked_at ? formatLocalDateTime(sale.locked_at) : "-"}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Submitted</dt>
-            <dd>{sale.submitted_at ? formatLocalDateTime(sale.submitted_at) : "-"}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Paid</dt>
-            <dd>{sale.paid_at ? formatLocalDateTime(sale.paid_at) : "-"}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Cash collected at</dt>
-            <dd>{sale.cash_collected_at ? formatLocalDateTime(sale.cash_collected_at) : "-"}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Cash collected by</dt>
-            <dd>{sale.cash_collected_by ?? "-"}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Cash session</dt>
-            <dd>
-              {sale.cash_session_id ? (
-                <DashboardAppLink
-                  href={`/dashboard/pos/cash-sessions/${sale.cash_session_id}?studio_id=${studioId}&location_id=${sale.location_id}`}
-                  className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
-                >
-                  {sale.cash_session_id}
-                </DashboardAppLink>
-              ) : (
-                "-"
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Payment progress</dt>
-            <dd>{toPaymentProgressLabel(sale.payment_progress.status)}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Subtotal</dt>
-            <dd>{sale.currency} {Number(sale.subtotal_amount).toFixed(2)}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Discount</dt>
-            <dd>{sale.currency} {Number(sale.discount_amount).toFixed(2)}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Tax</dt>
-            <dd>{sale.currency} {Number(sale.tax_amount).toFixed(2)}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Total</dt>
-            <dd className="font-semibold text-stone-900 dark:text-stone-100">{sale.currency} {Number(sale.total_amount).toFixed(2)}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Refunded</dt>
-            <dd>{sale.currency} {Number(sale.refunded_amount).toFixed(2)}</dd>
-          </div>
-          <div>
-            <dt className={`text-xs ${ui.muted}`}>Note</dt>
-            <dd>{sale.note ?? "-"}</dd>
-          </div>
-        </dl>
-        <p className={`mt-3 text-xs ${ui.muted}`}>
-          Status source: sale lifecycle uses <span className={ui.code}>pos_sales.status</span>; payment progress is read from linked
-          <span className={ui.code}> payments.pos_sale_id </span>
-          and reconciled with sale status.
-        </p>
+          {sale.status === "draft" || sale.status === "pending_payment" ? (
+            <DashboardAppLink
+              href={`/dashboard/pos?studio_id=${studioId}&location_id=${sale.location_id}&sale_id=${sale.id}`}
+              className={ui.btnSecondarySm}
+            >
+              Continue in cashier
+            </DashboardAppLink>
+          ) : null}
+        </div>
+        <details className="mt-4 rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-800">
+          <summary className="cursor-pointer text-sm font-medium text-stone-700 dark:text-stone-300">Sale details</summary>
+          <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Created</dt>
+              <dd>{formatLocalDateTime(sale.created_at)}</dd>
+            </div>
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Paid</dt>
+              <dd>{sale.paid_at ? formatLocalDateTime(sale.paid_at) : "-"}</dd>
+            </div>
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Payment progress</dt>
+              <dd>{toPaymentProgressLabel(sale.payment_progress.status)}</dd>
+            </div>
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Subtotal</dt>
+              <dd>{sale.currency} {Number(sale.subtotal_amount).toFixed(2)}</dd>
+            </div>
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Discount</dt>
+              <dd>{sale.currency} {Number(sale.discount_amount).toFixed(2)}</dd>
+            </div>
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Refunded</dt>
+              <dd>{sale.currency} {Number(sale.refunded_amount).toFixed(2)}</dd>
+            </div>
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Cash session</dt>
+              <dd>
+                {sale.cash_session_id ? (
+                  <DashboardAppLink
+                    href={`/dashboard/pos/cash-sessions/${sale.cash_session_id}?studio_id=${studioId}&location_id=${sale.location_id}`}
+                    className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+                  >
+                    Open session
+                  </DashboardAppLink>
+                ) : (
+                  "-"
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className={`text-xs ${ui.muted}`}>Note</dt>
+              <dd>{sale.note ?? "-"}</dd>
+            </div>
+          </dl>
+        </details>
         <div className="mt-3 flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/payments?${paymentQuery.toString()}`} className={ui.btnSecondarySm}>
             Open payment record
@@ -320,121 +304,40 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
         )}
       </section>
 
-      <section className={`${ui.card} overflow-x-auto`}>
+      <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className={ui.h2}>Sale items</h2>
           {canRefundItems ? (
-            <span className={`text-xs ${ui.muted}`}>Select rows and fill either qty or amount to refund.</span>
+            <span className={`text-xs ${ui.muted}`}>Select a row and enter qty or amount.</span>
           ) : null}
         </div>
         {items.length === 0 ? (
           <p className={`mt-3 ${ui.muted}`}>No items yet.</p>
         ) : canRefundItems ? (
-          <ServerActionToastForm action={refundPosSaleItemsAction} className="mt-3 flex flex-col gap-3">
-            <input type="hidden" name="studio_id" value={studioId} />
-            <input type="hidden" name="sale_id" value={sale.id} />
-            <input type="hidden" name="idempotency_key" value={`pos-refund-items:${sale.id}:${sale.updated_at}`} />
-
-            <label className="flex max-w-xl flex-col gap-1 text-xs text-stone-700 dark:text-stone-300">
-              <span>Refund reason (optional)</span>
-              <input
-                type="text"
-                name="reason"
-                maxLength={240}
-                placeholder="e.g. service quality issue"
-                className="min-h-9 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none focus:border-teal-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-              />
-            </label>
-
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:text-stone-400">
-                  <th className="px-3 py-2">Refund</th>
-                  <th className="px-3 py-2">Line</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Item</th>
-                  <th className="px-3 py-2">Qty</th>
-                  <th className="px-3 py-2">Refunded qty</th>
-                  <th className="px-3 py-2">Remaining qty</th>
-                  <th className="px-3 py-2">Total</th>
-                  <th className="px-3 py-2">Refunded</th>
-                  <th className="px-3 py-2">Remaining</th>
-                  <th className="px-3 py-2">Input qty</th>
-                  <th className="px-3 py-2">Input amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => {
-                  const remainingQty = Math.max(0, Number(item.quantity) - Number(item.refunded_quantity));
-                  const remainingAmount = Math.max(0, Number(item.total_amount) - Number(item.refunded_amount));
-                  const isFullyRefunded = remainingAmount <= 0.0001;
-                  return (
-                    <tr key={item.id} className="border-b border-stone-100 align-top last:border-b-0 dark:border-stone-900">
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          name="refund_item_id"
-                          value={item.id}
-                          disabled={isFullyRefunded}
-                          className="h-4 w-4 rounded border-stone-300 text-teal-600 focus:ring-teal-500 disabled:opacity-50 dark:border-stone-700"
-                        />
-                      </td>
-                      <td className="px-3 py-2">{item.line_number}</td>
-                      <td className="px-3 py-2 capitalize">{item.item_type}</td>
-                      <td className="px-3 py-2">{item.item_name_snapshot}</td>
-                      <td className="px-3 py-2">{Number(item.quantity).toFixed(3)}</td>
-                      <td className="px-3 py-2">{Number(item.refunded_quantity).toFixed(3)}</td>
-                      <td className="px-3 py-2">{remainingQty.toFixed(3)}</td>
-                      <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.total_amount).toFixed(2)}</td>
-                      <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.refunded_amount).toFixed(2)}</td>
-                      <td className="px-3 py-2">{item.item_currency_snapshot} {remainingAmount.toFixed(2)}</td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          name={`refund_qty__${item.id}`}
-                          min="0"
-                          step="0.001"
-                          placeholder="Qty"
-                          disabled={isFullyRefunded}
-                          className="min-h-8 w-24 rounded-md border border-stone-300 bg-white px-2 text-xs text-stone-900 outline-none focus:border-teal-500 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          name={`refund_amount__${item.id}`}
-                          min="0"
-                          step="0.01"
-                          placeholder="Amount"
-                          disabled={isFullyRefunded}
-                          className="min-h-8 w-24 rounded-md border border-stone-300 bg-white px-2 text-xs text-stone-900 outline-none focus:border-teal-500 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className={`text-xs ${ui.muted}`}>
-                Tips: fill only one field per selected row. Full refund is auto-marked on payment when sale reaches refunded.
-              </p>
-              <button type="submit" className={ui.btnDangerSm}>Refund items</button>
-            </div>
-          </ServerActionToastForm>
+          <PosRefundForm
+            studioId={studioId}
+            saleId={sale.id}
+            idempotencyKey={`pos-refund-items:${sale.id}:${sale.updated_at}`}
+            items={items.map((item) => ({
+              id: item.id,
+              line_number: item.line_number,
+              item_type: item.item_type,
+              item_name_snapshot: item.item_name_snapshot,
+              item_currency_snapshot: item.item_currency_snapshot,
+              quantity: Number(item.quantity),
+              refunded_quantity: Number(item.refunded_quantity),
+              total_amount: Number(item.total_amount),
+              refunded_amount: Number(item.refunded_amount),
+            }))}
+          />
         ) : (
           <table className="mt-3 min-w-full text-sm">
             <thead>
               <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:text-stone-400">
-                <th className="px-3 py-2">Line</th>
-                <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2">Item</th>
                 <th className="px-3 py-2">Qty</th>
-                <th className="px-3 py-2">Refunded qty</th>
                 <th className="px-3 py-2">Unit</th>
                 <th className="px-3 py-2">Discount</th>
-                <th className="px-3 py-2">Tax</th>
                 <th className="px-3 py-2">Total</th>
                 <th className="px-3 py-2">Refunded</th>
               </tr>
@@ -442,14 +345,13 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
             <tbody>
               {items.map((item) => (
                 <tr key={item.id} className="border-b border-stone-100 align-top last:border-b-0 dark:border-stone-900">
-                  <td className="px-3 py-2">{item.line_number}</td>
-                  <td className="px-3 py-2 capitalize">{item.item_type}</td>
-                  <td className="px-3 py-2">{item.item_name_snapshot}</td>
-                  <td className="px-3 py-2">{Number(item.quantity).toFixed(3)}</td>
-                  <td className="px-3 py-2">{Number(item.refunded_quantity).toFixed(3)}</td>
+                  <td className="px-3 py-2">
+                    <p>{item.item_name_snapshot}</p>
+                    <p className={`text-xs capitalize ${ui.muted}`}>{item.item_type}</p>
+                  </td>
+                  <td className="px-3 py-2">{formatQty(Number(item.quantity))}</td>
                   <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.unit_price_amount).toFixed(2)}</td>
                   <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.discount_amount).toFixed(2)}</td>
-                  <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.tax_amount).toFixed(2)}</td>
                   <td className="px-3 py-2 font-medium">{item.item_currency_snapshot} {Number(item.total_amount).toFixed(2)}</td>
                   <td className="px-3 py-2">{item.item_currency_snapshot} {Number(item.refunded_amount).toFixed(2)}</td>
                 </tr>

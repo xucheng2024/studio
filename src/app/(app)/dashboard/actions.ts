@@ -20,18 +20,26 @@ export {
 export type { BookingSettingsResult, CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult } from "./_actions/studio-settings";
 
 export {
-  updateServiceAvailabilityDefaultsAction,
+  copyServiceBookingSetupAction,
   setServiceEligibleEmployeesAction,
+  setServicePublishScopeAction,
   setServiceResourceRequirementsAction,
+  updateServiceAvailabilityDefaultsAction,
 } from "./_actions/service-availability";
 
 export {
+  copyEmployeeWorkingHoursToStaffAction,
   createAvailabilityExceptionAction,
   deleteAvailabilityExceptionAction,
   setEmployeeWorkingHoursWeekAction,
 } from "./_actions/staff-availability";
 
-export { setSalonResourceActiveAction, upsertSalonResourceAction } from "./_actions/salon-resources";
+export {
+  bulkCreateSalonResourcesAction,
+  copySalonResourcesToLocationAction,
+  setSalonResourceActiveAction,
+  upsertSalonResourceAction,
+} from "./_actions/salon-resources";
 
 export {
   createClassTemplate,
@@ -96,6 +104,7 @@ export {
   closePosCashSessionAction,
   completePosCashSaleAction,
   createPosSaleDraftAction,
+  createPosSalonCustomerAction,
   lockPosSaleAction,
   openPosCashSessionAction,
   proceedPosSaleToPaymentAction,
@@ -103,7 +112,13 @@ export {
   upsertPosSaleItemAction,
   voidPosSaleAction,
 } from "./_actions/pos-sales";
-export type { PosProceedToPaymentResult } from "./_actions/pos-sales";
+export type {
+  PosCashCompleteResult,
+  PosCustomerCreateResult,
+  PosDraftResult,
+  PosItemResult,
+  PosProceedToPaymentResult,
+} from "./_actions/pos-sales";
 
 export {
   applyPkg02AdjustmentRequestAction,
@@ -121,6 +136,7 @@ export {
   updateOwnPayrollContactAction,
   createPayrollRunAction,
   savePayrollRunEmployeeInputsAction,
+  copyPreviousPayrollAttendanceAction,
   recalculatePayrollRunAction,
   transitionPayrollRunAction,
 } from "./_actions/payroll";

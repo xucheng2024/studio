@@ -56,13 +56,7 @@ export function PosProceedToPaymentForm(props: {
     lastMessageRef.current = key;
     if (state.ok) {
       toast.success(state.message);
-      const q = new URLSearchParams();
-      q.set("studio_id", props.studioId);
-      if (props.locationId) q.set("location_id", props.locationId);
-      q.set("sales_channel", "frontdesk");
-      if (state.payment_id) q.set("payment_id", state.payment_id);
-      if (state.payment_reference_code) q.set("q", state.payment_reference_code);
-      router.push(`/dashboard/payments?${q.toString()}`);
+      router.refresh();
       return;
     }
     toast.error(state.message);

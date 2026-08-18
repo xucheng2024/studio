@@ -1,6 +1,7 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
+import { PayrollProfileFields } from "@/components/dashboard/PayrollProfileFields";
 import { PayrollSalaryFields } from "@/components/dashboard/PayrollSalaryFields";
 import { savePayrollProfileAction } from "@/app/(app)/dashboard/actions";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
@@ -74,6 +75,8 @@ export default async function PayrollEmployeePage({ params, searchParams }: Prop
         <input type="hidden" name="studio_id" value={studioId} />
         <input type="hidden" name="employee_id" value={employee.id} />
         <h2 className={`${ui.h2} md:col-span-2`}>New profile version</h2>
+
+        <p className={`${ui.sectionHeader} md:col-span-2`}>Identity</p>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Job title</span>
           <input className={ui.input} name="job_title" defaultValue={profile?.job_title ?? ""} />
@@ -86,63 +89,26 @@ export default async function PayrollEmployeePage({ params, searchParams }: Prop
           <span className={ui.label}>Date of birth</span>
           <input className={ui.input} name="date_of_birth" type="date" defaultValue={profile?.date_of_birth ?? ""} />
         </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Residency</span>
-          <select className={ui.select} name="residency_status" defaultValue={profile?.residency_status ?? ""}>
-            <option value="">Select</option>
-            <option value="citizen">Singapore citizen</option>
-            <option value="pr">PR</option>
-            <option value="foreigner">Foreigner</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>PR granted on</span>
-          <input className={ui.input} name="pr_granted_on" type="date" defaultValue={profile?.pr_granted_on ?? ""} />
-        </label>
-        <PayrollSalaryFields
-          defaultSalaryType={profile?.salary_type ?? ""}
-          defaultBasicPay={profile?.basic_pay_sgd ?? ""}
-          defaultWeeklyHours={profile?.weekly_hours ?? ""}
-        />
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>SHG fund</span>
-          <select className={ui.select} name="shg_fund" defaultValue={profile?.shg_fund ?? ""}>
-            <option value="">Select</option>
-            <option value="cdac">CDAC</option>
-            <option value="ecf">ECF</option>
-            <option value="mbmf">MBMF</option>
-            <option value="sinda">SINDA</option>
-            <option value="none">None / not set</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>SHG mode</span>
-          <select className={ui.select} name="shg_mode" defaultValue={profile?.shg_mode ?? "standard"}>
-            <option value="standard">Standard band</option>
-            <option value="opt_out">Opt out</option>
-            <option value="custom_amount">Custom amount</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Custom SHG amount</span>
-          <input className={ui.input} name="shg_custom_amount_sgd" type="number" min="0" step="0.01" defaultValue={profile?.shg_custom_amount_sgd ?? ""} />
-        </label>
-        <label className="flex flex-col gap-1.5 md:col-span-2">
-          <span className={ui.label}>SHG proof note</span>
-          <textarea className={ui.input} name="shg_proof_note" rows={2} defaultValue={profile?.shg_proof_note ?? ""} />
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="cpf_full_rate_elected" defaultChecked={Boolean(profile?.cpf_full_rate_elected)} />
-          CPF full-rate election recorded
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="ea_part4_overtime_covered" defaultChecked={Boolean(profile?.ea_part4_overtime_covered)} />
-          Employment Act Part 4 overtime
-        </label>
-        <label className="flex items-center gap-2 text-sm md:col-span-2">
-          <input type="checkbox" name="is_workman" defaultChecked={Boolean(profile?.is_workman)} />
-          Workman (overtime cap $4,500)
-        </label>
+        <PayrollProfileFields
+          defaultResidency={profile?.residency_status ?? ""}
+          defaultPrGrantedOn={profile?.pr_granted_on ?? ""}
+          defaultShgFund={profile?.shg_fund ?? ""}
+          defaultShgMode={profile?.shg_mode ?? "standard"}
+          defaultShgCustomAmount={profile?.shg_custom_amount_sgd ?? ""}
+          defaultShgProofNote={profile?.shg_proof_note ?? ""}
+          defaultCpfFullRate={Boolean(profile?.cpf_full_rate_elected)}
+          defaultEaPart4={Boolean(profile?.ea_part4_overtime_covered)}
+          defaultIsWorkman={Boolean(profile?.is_workman)}
+        >
+          <p className={`${ui.sectionHeader} md:col-span-2`}>Pay</p>
+          <PayrollSalaryFields
+            defaultSalaryType={profile?.salary_type ?? ""}
+            defaultBasicPay={profile?.basic_pay_sgd ?? ""}
+            defaultWeeklyHours={profile?.weekly_hours ?? ""}
+          />
+          <p className={`${ui.sectionHeader} md:col-span-2`}>Statutory</p>
+        </PayrollProfileFields>
+
         <div className="md:col-span-2">
           <SubmitButton className={ui.btnPrimary}>Save new version</SubmitButton>
         </div>

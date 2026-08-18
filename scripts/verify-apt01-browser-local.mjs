@@ -76,7 +76,8 @@ try {
 
   await owner.page.goto(`${baseUrl}/dashboard/settings/staff-availability${query}&employee_id=${employeeId}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "staff availability mobile overflow");
-  await owner.page.getByLabel("Monday").fill("09:00-18:00");
+  await owner.page.getByLabel("Monday start").fill("09:00");
+  await owner.page.getByLabel("Monday end").fill("18:00");
   await owner.page.getByRole("button", { name: "Save working hours" }).click();
   await waitForToast(owner.page, "Working hours saved.");
   await waitForLocalDatabaseState(async () => {

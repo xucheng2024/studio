@@ -11,6 +11,7 @@ import {
   upsertPosSaleItem,
   voidPosSale,
 } from "@/lib/pos-sales";
+import { createPosSalonCustomer } from "@/lib/salon-customers";
 import { recordPosOperationFailure } from "@/lib/pos-operation-observability";
 import { mapPosMutationMessage } from "@/lib/pos-error-message";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
@@ -18,6 +19,31 @@ import { err, ok, requireUser, type DashboardFormResult } from "./shared";
 export type PosProceedToPaymentResult = DashboardFormResult & {
   payment_id?: string;
   payment_reference_code?: string | null;
+};
+
+export type PosDraftResult = DashboardFormResult & {
+  sale_id?: string;
+};
+
+export type PosItemResult = DashboardFormResult & {
+  sale_id?: string;
+  item_id?: string;
+  line_number?: number;
+  sale_total_amount?: number;
+  item_total_amount?: number;
+};
+
+export type PosCashCompleteResult = DashboardFormResult & {
+  payment_id?: string;
+  receipt_number?: string | null;
+  sale_status?: string;
+};
+
+export type PosCustomerCreateResult = DashboardFormResult & {
+  customer_id?: string;
+  full_name?: string;
+  phone?: string | null;
+  email?: string | null;
 };
 
 function asNumberOrNull(raw: FormDataEntryValue | null) {
@@ -69,9 +95,9 @@ function parseRefundItems(formData: FormData) {
 }
 
 export async function createPosSaleDraftAction(
-  _prevState: DashboardFormResult | null,
+  _prevState: PosDraftResult | null,
   formData: FormData,
-): Promise<DashboardFormResult> {
+): Promise<PosDraftResult> {
   const studioId = String(formData.get("studio_id") ?? "").trim();
   const locationId = String(formData.get("location_id") ?? "").trim();
   const salonCustomerId = String(formData.get("salon_customer_id") ?? "").trim() || null;
@@ -93,16 +119,26 @@ export async function createPosSaleDraftAction(
   });
 
   if (!result.ok) {
+    console.log("createPosSaleDraftAction failed", {
+      code: result.code,
+      message: result.message,
+      studioId,
+      locationId,
+    });
     return err(mapPosMutationMessage(result.code, result.message || "Could not create POS draft."));
   }
 
-  return ok(result.payload.already_completed ? "POS draft already created." : "POS draft created.");
+  return {
+    ok: true,
+    message: result.payload.already_completed ? "POS draft already created." : "POS draft created.",
+    sale_id: result.payload.sale_id,
+  };
 }
 
 export async function upsertPosSaleItemAction(
-  _prevState: DashboardFormResult | null,
+  _prevState: PosItemResult | null,
   formData: FormData,
-): Promise<DashboardFormResult> {
+): Promise<PosItemResult> {
   const studioId = String(formData.get("studio_id") ?? "").trim();
   const saleId = String(formData.get("sale_id") ?? "").trim();
   const itemTypeRaw = String(formData.get("item_type") ?? "").trim().toLowerCase();
@@ -135,10 +171,77 @@ export async function upsertPosSaleItemAction(
   });
 
   if (!result.ok) {
+    console.log("upsertPosSaleItemAction failed", {
+      code: result.code,
+      message: result.message,
+      studioId,
+      saleId,
+      itemType,
+    });
     return err(mapPosMutationMessage(result.code, result.message || "Could not save POS item."));
   }
 
-  return ok(result.payload.item_action === "updated" ? "POS item updated." : "POS item created.");
+  return {
+    ok: true,
+    message: result.payload.item_action === "updated" ? "POS item updated." : "POS item created.",
+    sale_id: result.payload.sale_id,
+    item_id: result.payload.item_id,
+    line_number: result.payload.line_number,
+    sale_total_amount: result.payload.sale_total_amount,
+    item_total_amount: result.payload.item_total_amount,
+  };
+}
+
+export async function createPosSalonCustomerAction(
+  _prevState: PosCustomerCreateResult | null,
+  formData: FormData,
+): Promise<PosCustomerCreateResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim() || null;
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+
+  if (!studioId || !locationId) {
+    return err("Missing required fields: studio and location.");
+  }
+
+  const { user } = await requireUser();
+  const result = await createPosSalonCustomer({
+    userId: user.id,
+    studioId,
+    locationId,
+    input: { fullName, email, phone },
+  });
+
+  if (!result.ok) {
+    console.log("createPosSalonCustomerAction failed", {
+      reason: result.reason,
+      message: result.message,
+      studioId,
+      locationId,
+    });
+    if (result.reason === "invalid_request" && result.message === "full_name_required") {
+      return err("Customer name is required.");
+    }
+    if (result.reason === "invalid_request" && result.message === "contact_required") {
+      return err("Add a phone number or email.");
+    }
+    if (result.reason === "forbidden") return err("You do not have permission to create a customer.");
+    return err(result.message || "Could not create customer.");
+  }
+
+  const duplicateNote = result.duplicateCandidates.length > 0
+    ? " Possible duplicate found — not merged."
+    : "";
+  return {
+    ok: true,
+    message: `Customer saved.${duplicateNote}`,
+    customer_id: result.customer.id,
+    full_name: result.customer.full_name,
+    phone: result.customer.phone,
+    email: result.customer.email,
+  };
 }
 
 export async function lockPosSaleAction(
@@ -218,7 +321,7 @@ export async function proceedPosSaleToPaymentAction(
 export async function completePosCashSaleAction(
   _prevState: DashboardFormResult | null,
   formData: FormData,
-): Promise<DashboardFormResult> {
+): Promise<PosCashCompleteResult> {
   const studioId = String(formData.get("studio_id") ?? "").trim();
   const saleId = String(formData.get("sale_id") ?? "").trim();
   const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || null;
@@ -236,13 +339,22 @@ export async function completePosCashSaleAction(
   });
 
   if (!result.ok) {
+    console.log("completePosCashSaleAction failed", {
+      code: result.code,
+      message: result.message,
+      studioId,
+      saleId,
+    });
     return err(mapPosMutationMessage(result.code, result.message || "Could not confirm cash payment."));
   }
 
-  if (result.payload.already_paid) {
-    return ok("Cash payment already confirmed.");
-  }
-  return ok("Cash payment confirmed.");
+  return {
+    ok: true,
+    message: result.payload.already_paid ? "Cash payment already confirmed." : "Cash payment confirmed.",
+    payment_id: result.payload.payment_id,
+    receipt_number: result.payload.receipt_number,
+    sale_status: result.payload.sale_status,
+  };
 }
 
 export async function voidPosSaleAction(
@@ -300,6 +412,10 @@ export async function refundPosSaleItemsAction(
 
   if (!studioId || !saleId) {
     return err("Missing required fields: studio and sale.");
+  }
+
+  if (!reason) {
+    return err("Refund reason is required.");
   }
 
   const parsedItems = parseRefundItems(formData);

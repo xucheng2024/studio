@@ -27,6 +27,7 @@ import {
 } from "@/lib/salon-customer-sensitive";
 import { isStudioContractSuspended } from "@/lib/studio-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseDatetimeLocalAsSgt } from "@/lib/date";
 import {
   assertLocationInStudio,
   DashboardFormResult,
@@ -37,6 +38,22 @@ import {
   requireStudio,
   requireUser,
 } from "./shared";
+
+function formCsv(formData: FormData, name: string) {
+  const many = formData.getAll(name).map((value) => String(value).trim()).filter(Boolean);
+  if (many.length > 0) return many.join(", ");
+  return String(formData.get(name) ?? "");
+}
+
+function isoFromDatetimeLocalOrNow(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return new Date().toISOString();
+  const sgt = parseDatetimeLocalAsSgt(trimmed);
+  if (sgt) return sgt.toISOString();
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return new Date().toISOString();
+}
 
 export async function updateMemberProfile(
   _prevState: DashboardFormResult | null,
@@ -259,8 +276,8 @@ export async function updateSalonCustomerPreferencesAction(
     reason,
     input: {
       preferredServices: String(formData.get("preferred_services") ?? ""),
-      preferredEmployeeIds: String(formData.get("preferred_employee_ids") ?? ""),
-      preferredLocationIds: String(formData.get("preferred_location_ids") ?? ""),
+      preferredEmployeeIds: formCsv(formData, "preferred_employee_ids"),
+      preferredLocationIds: formCsv(formData, "preferred_location_ids"),
       preferredTimeSlots: String(formData.get("preferred_time_slots") ?? ""),
       communicationLanguage: String(formData.get("communication_language") ?? ""),
       productPreferences: String(formData.get("product_preferences") ?? ""),
@@ -305,7 +322,7 @@ export async function updateSalonCustomerHealthProfileAction(
       patchTestRequired: String(formData.get("patch_test_required") ?? "") === "true",
       patchTestDate: String(formData.get("patch_test_date") ?? ""),
       patchTestResult: String(formData.get("patch_test_result") ?? ""),
-      lastConfirmedAt: String(formData.get("last_confirmed_at") ?? ""),
+      lastConfirmedAt: isoFromDatetimeLocalOrNow(String(formData.get("last_confirmed_at") ?? "")),
     },
   });
 
@@ -325,7 +342,10 @@ export async function recordSalonCustomerEmailConsentAction(
   const statusRaw = String(formData.get("consent_status") ?? "").trim();
   const sourceRaw = String(formData.get("consent_source") ?? "").trim();
   const textVersion = String(formData.get("consent_text_version") ?? "").trim();
-  const occurredAt = String(formData.get("consent_occurred_at") ?? "").trim() || null;
+  const occurredRaw = String(formData.get("consent_occurred_at") ?? "").trim();
+  const occurredAt = occurredRaw
+    ? (parseDatetimeLocalAsSgt(occurredRaw)?.toISOString() ?? occurredRaw)
+    : new Date().toISOString();
   const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim() || crypto.randomUUID();
 
   if (!studioId || !customerId) return err("Missing required customer or studio.");

@@ -94,6 +94,7 @@ assertPerActionAuthAndGuard("service-availability actions", serviceActions, [
   "updateStudioServiceAvailabilityDefaults",
   "setServiceEmployeeEligibilities",
   "setServiceResourceRequirements",
+  "setServicePublishScope",
 ]);
 assertPerActionAuthAndGuard("staff-availability actions", staffActions, [
   "setEmployeeWorkingHoursForWeek",

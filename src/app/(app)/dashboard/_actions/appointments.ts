@@ -361,6 +361,6 @@ export async function chargeSalonAppointmentAction(
 
   revalidatePath("/dashboard/appointments");
   revalidatePath("/dashboard/pos");
-  const query = new URLSearchParams({ studio_id: studioId, location_id: locationId });
-  redirect(`/dashboard/pos/${draft.payload.sale_id}?${query.toString()}`);
+  const query = new URLSearchParams({ studio_id: studioId, location_id: locationId, sale_id: draft.payload.sale_id });
+  redirect(`/dashboard/pos?${query.toString()}`);
 }

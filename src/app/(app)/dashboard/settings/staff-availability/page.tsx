@@ -1,9 +1,10 @@
 import {
   createAvailabilityExceptionAction,
   deleteAvailabilityExceptionAction,
-  setEmployeeWorkingHoursWeekAction,
 } from "@/app/(app)/dashboard/actions";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { StaffWorkingHoursSetup } from "@/components/dashboard/StaffWorkingHoursSetup";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
@@ -12,32 +13,30 @@ import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import {
   listEmployeeAvailabilityExceptions,
-  listEmployeeWorkingHours,
-  type EmployeeWorkingHours,
+  listLocationOperatingHours,
 } from "@/lib/staff-availability";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
+import {
+  emptyWeekHours,
+  formatWeekHoursSummary,
+  operatingHoursToWeekDays,
+  workingHoursToWeekDays,
+  type WeekDayHours,
+} from "@/lib/week-hours";
 
 type Props = {
   searchParams: Promise<{ studio_id?: string; location_id?: string; employee_id?: string }>;
 };
 
-const WEEKDAYS = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-] as const;
-
-function formatIntervalsForWeekday(hours: EmployeeWorkingHours[], weekday: number): string {
-  return hours
-    .filter((row) => row.weekday === weekday)
-    .map((row) => `${row.starts_at.slice(0, 5)}-${row.ends_at.slice(0, 5)}`)
-    .join(", ");
+function scopedStaffHref(studioId: string, locationId: string, employeeId: string) {
+  const params = new URLSearchParams({
+    studio_id: studioId,
+    location_id: locationId,
+    employee_id: employeeId,
+  });
+  return `/dashboard/settings/staff-availability?${params.toString()}`;
 }
 
 export default async function StaffAvailabilityPage({ searchParams }: Props) {
@@ -72,7 +71,7 @@ export default async function StaffAvailabilityPage({ searchParams }: Props) {
   const header = (
     <div>
       <h1 className={ui.h1}>Staff availability</h1>
-      <p className={`mt-1 ${ui.muted}`}>Set employee working hours and one-off availability exceptions per location.</p>
+      <p className={`mt-1 ${ui.muted}`}>Set weekly hours once per location, then copy them to other staff.</p>
     </div>
   );
   const locationFilter = (
@@ -98,30 +97,57 @@ export default async function StaffAvailabilityPage({ searchParams }: Props) {
   }
 
   const admin = createAdminClient();
-  const { data: employeeLocationRows } = await admin
-    .from("employee_locations")
-    .select("employee_id, employees(id, display_name, employment_status)")
-    .eq("studio_id", studioId)
-    .eq("location_id", selectedLocationId)
-    .eq("is_active", true);
+  const [{ data: employeeLocationRows }, { data: hourRows }, hoursResult] = await Promise.all([
+    admin
+      .from("employee_locations")
+      .select("employee_id, employees(id, display_name, employment_status)")
+      .eq("studio_id", studioId)
+      .eq("location_id", selectedLocationId)
+      .eq("is_active", true),
+    admin
+      .from("employee_working_hours")
+      .select("employee_id, weekday, starts_at, ends_at")
+      .eq("studio_id", studioId)
+      .eq("location_id", selectedLocationId)
+      .eq("is_active", true),
+    listLocationOperatingHours({
+      userId: user.id,
+      email: user.email,
+      studioId,
+      locationId: selectedLocationId,
+    }),
+  ]);
 
-  type EmployeeOption = { id: string; display_name: string };
+  type EmployeeOption = { id: string; display_name: string; days: WeekDayHours[] };
+  const hoursByEmployee = new Map<string, Array<{ weekday: number; starts_at: string; ends_at: string }>>();
+  for (const row of hourRows ?? []) {
+    const list = hoursByEmployee.get(row.employee_id) ?? [];
+    list.push(row);
+    hoursByEmployee.set(row.employee_id, list);
+  }
+
   const employees: EmployeeOption[] = (employeeLocationRows ?? [])
     .map((row) => {
       const employee = (Array.isArray(row.employees) ? row.employees[0] : row.employees) as
         | { id: string; display_name: string; employment_status: string }
         | null;
       return employee && employee.employment_status === "active"
-        ? { id: employee.id, display_name: employee.display_name }
+        ? {
+            id: employee.id,
+            display_name: employee.display_name,
+            days: workingHoursToWeekDays(hoursByEmployee.get(employee.id) ?? []),
+          }
         : null;
     })
     .filter((e): e is EmployeeOption => e !== null)
     .sort((a, b) => a.display_name.localeCompare(b.display_name));
 
-  const employeeId = sp.employee_id && employees.some((e) => e.id === sp.employee_id) ? sp.employee_id : null;
+  const employeeId = sp.employee_id && employees.some((e) => e.id === sp.employee_id) ? sp.employee_id : employees[0]?.id ?? null;
+  const selectedEmployee = employees.find((employee) => employee.id === employeeId) ?? null;
+  const locationDays = hoursResult.ok ? operatingHoursToWeekDays(hoursResult.hours) : emptyWeekHours();
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex max-w-4xl flex-col gap-6">
       {header}
       {locationFilter}
 
@@ -130,37 +156,46 @@ export default async function StaffAvailabilityPage({ searchParams }: Props) {
           No employees are assigned to this location yet. Assign employees to this location from the Staff page first.
         </p>
       ) : (
-        <form method="GET" className={`${ui.card} flex flex-wrap items-end gap-3`}>
-          <input type="hidden" name="studio_id" value={studioId} />
-          <input type="hidden" name="location_id" value={selectedLocationId} />
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Employee</span>
-            <select name="employee_id" defaultValue={employeeId ?? ""} className={ui.select}>
-              <option value="" disabled>
-                Choose an employee
-              </option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.display_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="submit" className={ui.btnSecondarySm}>
-            View
-          </button>
-        </form>
-      )}
+        <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
+          <div className={ui.card}>
+            <p className={ui.sectionHeader}>Staff</p>
+            <ul className="mt-3 grid gap-1">
+              {employees.map((employee) => {
+                const selected = employee.id === employeeId;
+                return (
+                  <li key={employee.id}>
+                    <DashboardAppLink
+                      href={scopedStaffHref(studioId, selectedLocationId, employee.id)}
+                      className={`block rounded-xl px-3 py-2 ${
+                        selected
+                          ? "bg-teal-50 text-teal-900 dark:bg-teal-950/40 dark:text-teal-100"
+                          : "hover:bg-stone-50 dark:hover:bg-stone-800/60"
+                      }`}
+                    >
+                      <span className="block truncate text-sm font-medium">{employee.display_name}</span>
+                      <span className={`block truncate text-xs ${ui.muted}`}>{formatWeekHoursSummary(employee.days)}</span>
+                    </DashboardAppLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
-      {employeeId ? (
-        <EmployeeAvailabilityPanel
-          userId={user.id}
-          email={user.email}
-          studioId={studioId}
-          locationId={selectedLocationId}
-          employeeId={employeeId}
-        />
-      ) : null}
+          {selectedEmployee ? (
+            <EmployeeAvailabilityPanel
+              userId={user.id}
+              email={user.email}
+              studioId={studioId}
+              locationId={selectedLocationId}
+              employeeId={selectedEmployee.id}
+              employeeName={selectedEmployee.display_name}
+              defaultDays={selectedEmployee.days}
+              locationDays={locationDays}
+              otherEmployees={employees.filter((employee) => employee.id !== selectedEmployee.id)}
+            />
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -171,57 +206,44 @@ async function EmployeeAvailabilityPanel(props: {
   studioId: string;
   locationId: string;
   employeeId: string;
+  employeeName: string;
+  defaultDays: WeekDayHours[];
+  locationDays: WeekDayHours[];
+  otherEmployees: Array<{ id: string; display_name: string; days: WeekDayHours[] }>;
 }) {
-  const [hoursResult, exceptionsResult] = await Promise.all([
-    listEmployeeWorkingHours({
-      userId: props.userId,
-      email: props.email,
-      studioId: props.studioId,
-      employeeId: props.employeeId,
-      locationId: props.locationId,
-    }),
-    listEmployeeAvailabilityExceptions({
-      userId: props.userId,
-      email: props.email,
-      studioId: props.studioId,
-      employeeId: props.employeeId,
-    }),
-  ]);
-
-  const hours = hoursResult.ok ? hoursResult.hours : [];
+  const exceptionsResult = await listEmployeeAvailabilityExceptions({
+    userId: props.userId,
+    email: props.email,
+    studioId: props.studioId,
+    employeeId: props.employeeId,
+  });
   const exceptions = exceptionsResult.ok ? exceptionsResult.exceptions : [];
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <div className={ui.card}>
-        <h2 className={ui.h2}>Weekly working hours at this location</h2>
+        <h2 className={ui.h2}>{props.employeeName}</h2>
         <p className={`mt-1 text-xs ${ui.muted}`}>
-          Format: HH:MM-HH:MM, comma separated for multiple periods (e.g. 09:00-12:00, 13:00-18:00). Leave blank for a
-          day the employee does not work.
+          Leave a day empty if they do not work. Add a break for split shifts. Copy or apply before saving.
         </p>
-        <ServerActionToastForm action={setEmployeeWorkingHoursWeekAction} className="mt-4 grid gap-3">
-          <input type="hidden" name="studio_id" value={props.studioId} />
-          <input type="hidden" name="location_id" value={props.locationId} />
-          <input type="hidden" name="employee_id" value={props.employeeId} />
-          {WEEKDAYS.map((weekday) => (
-            <label key={weekday.value} className="grid grid-cols-3 items-center gap-2 sm:grid-cols-4">
-              <span className={`${ui.label} col-span-1`}>{weekday.label}</span>
-              <input
-                name={`weekday_${weekday.value}`}
-                defaultValue={formatIntervalsForWeekday(hours, weekday.value)}
-                placeholder="09:00-17:00"
-                className={`${ui.input} col-span-2 sm:col-span-3`}
-              />
-            </label>
-          ))}
-          <SubmitButton className={`${ui.btnPrimary} w-full sm:w-fit`} pendingText="Saving...">
-            Save working hours
-          </SubmitButton>
-        </ServerActionToastForm>
+        <div className="mt-4">
+          <StaffWorkingHoursSetup
+            key={props.employeeId}
+            studioId={props.studioId}
+            locationId={props.locationId}
+            employeeId={props.employeeId}
+            defaultDays={props.defaultDays}
+            locationDays={props.locationDays}
+            otherEmployees={props.otherEmployees}
+          />
+        </div>
       </div>
 
-      <div className={ui.card}>
-        <h2 className={ui.h2}>Availability exceptions</h2>
+      <details className={`chevron ${ui.card}`}>
+        <summary className="cursor-pointer text-sm font-medium text-stone-900 dark:text-stone-100">
+          Availability exceptions
+          {exceptions.length > 0 ? ` (${exceptions.length})` : ""}
+        </summary>
         <p className={`mt-1 text-xs ${ui.muted}`}>
           Temporary blocked or extra-available time (break, leave, training, meeting, overtime, other). This is
           booking availability only, not a leave/attendance record.
@@ -312,7 +334,7 @@ async function EmployeeAvailabilityPanel(props: {
             </SubmitButton>
           </ServerActionToastForm>
         </details>
-      </div>
-    </>
+      </details>
+    </div>
   );
 }

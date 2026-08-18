@@ -48,6 +48,50 @@ export async function setEmployeeWorkingHoursWeekAction(
   return ok("Working hours saved.");
 }
 
+export async function copyEmployeeWorkingHoursToStaffAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const { user } = await requireUser();
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const employeeId = String(formData.get("employee_id") ?? "").trim();
+  const locationId = String(formData.get("location_id") ?? "").trim();
+  if (!studioId || !employeeId || !locationId) return err("Please fill the required fields.");
+
+  const weekPayload: Array<{ weekday: number; intervals: Array<{ starts_at: string; ends_at: string }> }> = [];
+  for (const weekday of WEEKDAYS) {
+    const ranges = parseTimeRangeList(formData.get(`weekday_${weekday}`));
+    if (ranges === null) {
+      return err(`Invalid time range for ${WEEKDAY_LABELS[weekday]}. Use HH:MM-HH:MM, comma separated.`);
+    }
+    weekPayload.push({
+      weekday,
+      intervals: ranges.map((range) => ({ starts_at: range.start, ends_at: range.end })),
+    });
+  }
+  if (weekPayload.every((day) => day.intervals.length === 0)) {
+    return err("Set working hours before copying them to other staff.");
+  }
+
+  const targetIds = [...new Set(formData.getAll("target_employee_ids").map((value) => String(value).trim()).filter(Boolean))]
+    .filter((id) => id !== employeeId);
+  if (targetIds.length === 0) return err("Select at least one other employee.");
+
+  for (const targetEmployeeId of targetIds) {
+    const result = await setEmployeeWorkingHoursForWeek({
+      userId: user.id,
+      studioId,
+      employeeId: targetEmployeeId,
+      locationId,
+      days: weekPayload,
+    });
+    if (!result.ok) return err(result.message ?? "Could not copy working hours.");
+  }
+
+  revalidateDashboardSettings("staff-availability");
+  return ok(`Working hours copied to ${targetIds.length} staff.`);
+}
+
 export async function createAvailabilityExceptionAction(
   _prevState: DashboardFormResult | null,
   formData: FormData,

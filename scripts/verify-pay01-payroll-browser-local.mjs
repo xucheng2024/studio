@@ -87,11 +87,8 @@ try {
     });
   }
   await owner.page.getByRole("button", { name: "Create draft" }).click();
-  await owner.page.getByRole("link", { name: "2026-08" }).waitFor({ state: "visible", timeout: 30_000 });
-  console.log("pay01_owner_draft_created");
-
-  await owner.page.getByRole("link", { name: "2026-08" }).click();
   await owner.page.getByRole("heading", { name: "2026-08 payroll" }).waitFor({ state: "visible", timeout: 30_000 });
+  console.log("pay01_owner_draft_created");
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "payroll run mobile overflow");
   const runBody = await owner.page.locator("body").innerText();
   console.log("pay01_run_body", runBody.slice(0, 800));
@@ -135,6 +132,8 @@ try {
   assert.equal(Number(runEmployee.shg_sgd), 0.5);
   assert.deepEqual(runEmployee.blocker_codes, []);
 
+  await owner.page.getByRole("button", { name: "Finalise" }).click();
+  await owner.page.getByText("Finalise locks this month.", { exact: false }).waitFor({ state: "visible", timeout: 15_000 });
   await owner.page.getByRole("button", { name: "Finalise" }).click();
   console.log("pay03_finalise_clicked");
 

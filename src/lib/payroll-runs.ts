@@ -211,11 +211,19 @@ export async function createPayrollDraftRun(params: { studioId: string; actorId:
   return runId;
 }
 
+export async function getPreviousPublishedPayrollRun(studioId: string, beforePeriodStart: string) {
+  const runs = await listPayrollRuns(studioId);
+  return runs.find((run) =>
+    (run.status === "finalised" || run.status === "paid") && run.period_start < beforePeriodStart,
+  ) ?? null;
+}
+
 export async function recalculatePayrollRun(params: {
   studioId: string;
   actorId: string;
   runId: string;
   inputPatch?: Partial<PayrollRunEmployeeRow> & { employee_id: string };
+  copyAttendanceFromRunId?: string;
 }) {
   const run = await getPayrollRun(params.studioId, params.runId);
   if (!run) throw new Error("payroll run not found");
@@ -254,6 +262,19 @@ export async function recalculatePayrollRun(params: {
       }),
       ...params.inputPatch,
     });
+  }
+  if (params.copyAttendanceFromRunId) {
+    const sourceRows = await listPayrollRunEmployees(params.copyAttendanceFromRunId);
+    for (const source of sourceRows) {
+      const current = existingById.get(source.employee_id);
+      if (!current) continue;
+      existingById.set(source.employee_id, {
+        ...current,
+        working_days_in_month: source.working_days_in_month,
+        days_actually_worked: source.days_actually_worked,
+        hours_worked: source.hours_worked,
+      });
+    }
   }
 
   const payload = [];

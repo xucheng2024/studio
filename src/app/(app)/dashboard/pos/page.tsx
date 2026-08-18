@@ -1,12 +1,12 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
-import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
-import { ToastConfirmForm } from "@/components/ToastConfirmForm";
-import { PosProceedToPaymentForm } from "@/components/dashboard/PosProceedToPaymentForm";
-import { proceedPosSaleToPaymentAction, voidPosSaleAction } from "@/app/(app)/dashboard/actions";
+import { PosCashierWorkspace, type PosCashierSale, type PosCatalogItem } from "@/components/dashboard/PosCashierWorkspace";
+import { PosSalesHistory, type PosSaleStatusFilter } from "@/components/dashboard/PosSalesHistory";
+import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
+import { openPosCashSessionAction } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
-import { listPosSalesForDashboard } from "@/lib/pos-sales-read";
+import { getPosSaleDetailForDashboard, listPosSalesForDashboard } from "@/lib/pos-sales-read";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -22,34 +22,13 @@ const STATUS_OPTIONS = [
   "voided",
 ] as const;
 
-type PosSaleStatusFilter = (typeof STATUS_OPTIONS)[number];
-
-function toStatusLabel(status: string) {
-  return status.replaceAll("_", " ");
-}
-
-function toPaymentProgressLabel(status: string) {
-  switch (status) {
-    case "pending":
-      return "Pending payment";
-    case "paid":
-      return "Paid";
-    case "partially_refunded":
-      return "Partially refunded";
-    case "refunded":
-      return "Refunded";
-    case "failed_or_expired":
-      return "Failed/expired";
-    default:
-      return "No payment";
-  }
-}
-
 type Props = {
   searchParams: Promise<{
     studio_id?: string;
     location_id?: string;
     status?: PosSaleStatusFilter;
+    tab?: string;
+    sale_id?: string;
   }>;
 };
 
@@ -80,6 +59,7 @@ export default async function PosSalesPage({ searchParams }: Props) {
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const admin = createAdminClient();
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
+  const tab = sp.tab === "history" ? "history" : "sell";
 
   const { data: locations } = await supabase
     .from("locations")
@@ -98,9 +78,25 @@ export default async function PosSalesPage({ searchParams }: Props) {
       ? (normalizedLocations.find((location) => location.id === effectiveLocationId)?.name ?? "Current location")
       : null;
 
-  const { data: openCashSession } =
+  const selectedStatus = STATUS_OPTIONS.includes((sp.status ?? "all") as PosSaleStatusFilter)
+    ? (sp.status ?? "all")
+    : "all";
+
+  const [
+    cashSessionResult,
+    salesResult,
+    studioResult,
+    customersResult,
+    serviceLocationsResult,
+    servicesResult,
+    productsResult,
+    packagesResult,
+    employeeLocationsResult,
+    cashierEmployeeResult,
+    saleDetailResult,
+  ] = await Promise.all([
     effectiveLocationId
-      ? await admin
+      ? admin
           .from("pos_cash_sessions")
           .select("id, opened_at, opening_float, status")
           .eq("studio_id", activeStudioId)
@@ -109,20 +105,80 @@ export default async function PosSalesPage({ searchParams }: Props) {
           .order("opened_at", { ascending: false })
           .limit(1)
           .maybeSingle()
-      : { data: null as { id: string; opened_at: string; opening_float: number; status: string } | null };
-
-  const selectedStatus = STATUS_OPTIONS.includes((sp.status ?? "all") as PosSaleStatusFilter)
-    ? (sp.status ?? "all")
-    : "all";
-
-  const salesResult = await listPosSalesForDashboard({
-    userId: user.id,
-    email: user.email ?? null,
-    studioId: activeStudioId,
-    locationId: effectiveLocationId,
-    status: selectedStatus === "all" ? undefined : selectedStatus,
-    limit: 100,
-  });
+      : Promise.resolve({ data: null as { id: string; opened_at: string; opening_float: number; status: string } | null }),
+    listPosSalesForDashboard({
+      userId: user.id,
+      email: user.email ?? null,
+      studioId: activeStudioId,
+      locationId: effectiveLocationId,
+      status: selectedStatus === "all" ? undefined : selectedStatus,
+      limit: 100,
+    }),
+    admin.from("studios").select("public_slug").eq("id", activeStudioId).maybeSingle(),
+    admin
+      .from("salon_customers")
+      .select("id, full_name, phone, email")
+      .eq("studio_id", activeStudioId)
+      .eq("status", "active")
+      .is("merged_into_id", null)
+      .order("updated_at", { ascending: false })
+      .limit(200),
+    effectiveLocationId
+      ? admin
+          .from("service_locations")
+          .select("service_id, price_override, duration_override_minutes, is_enabled")
+          .eq("studio_id", activeStudioId)
+          .eq("location_id", effectiveLocationId)
+          .eq("is_enabled", true)
+      : Promise.resolve({ data: [] as Array<{ service_id: string; price_override: number | null; duration_override_minutes: number | null; is_enabled: boolean }> }),
+    admin
+      .from("studio_services")
+      .select("id, title, price, is_active, default_duration_minutes")
+      .eq("studio_id", activeStudioId)
+      .eq("is_active", true)
+      .order("title"),
+    admin
+      .from("shop_products")
+      .select("id, title, price, stock_qty, is_active")
+      .eq("studio_id", activeStudioId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false }),
+    effectiveLocationId
+      ? admin
+          .from("packages")
+          .select("id, name, price, credits, location_id, is_active")
+          .eq("studio_id", activeStudioId)
+          .eq("is_active", true)
+          .is("deleted_at", null)
+          .or(`location_id.is.null,location_id.eq.${effectiveLocationId}`)
+          .order("name")
+      : Promise.resolve({ data: [] as Array<{ id: string; name: string; price: number | null; credits: number | null; location_id: string | null; is_active: boolean }> }),
+    effectiveLocationId
+      ? admin
+          .from("employee_locations")
+          .select("employee_id, employees!inner(id, display_name, employment_status)")
+          .eq("studio_id", activeStudioId)
+          .eq("location_id", effectiveLocationId)
+          .eq("is_active", true)
+      : Promise.resolve({ data: [] as Array<{ employee_id: string; employees: { id: string; display_name: string; employment_status: string } | { id: string; display_name: string; employment_status: string }[] | null }> }),
+    admin
+      .from("employees")
+      .select("id, display_name")
+      .eq("studio_id", activeStudioId)
+      .eq("user_id", user.id)
+      .eq("employment_status", "active")
+      .maybeSingle<{ id: string; display_name: string }>(),
+    sp.sale_id
+      ? getPosSaleDetailForDashboard({
+          userId: user.id,
+          email: user.email ?? null,
+          studioId: activeStudioId,
+          saleId: sp.sale_id,
+          locationId: effectiveLocationId,
+        })
+      : Promise.resolve(null),
+  ]);
 
   if (!salesResult.ok) {
     if (salesResult.code === "forbidden") {
@@ -131,13 +187,8 @@ export default async function PosSalesPage({ searchParams }: Props) {
     return <p className={ui.error}>Could not load POS sales: {salesResult.message}</p>;
   }
 
-  const { data: activeStudio } = await admin
-    .from("studios")
-    .select("public_slug")
-    .eq("id", activeStudioId)
-    .maybeSingle();
-  const activeStudioSlug = activeStudio?.public_slug?.trim() ?? null;
-
+  const openCashSession = cashSessionResult.data;
+  const activeStudioSlug = studioResult.data?.public_slug?.trim() ?? null;
   const latestPaymentIds = [...new Set(
     salesResult.sales
       .map((sale) => sale.payment_progress.latest_payment_id)
@@ -154,198 +205,178 @@ export default async function PosSalesPage({ searchParams }: Props) {
     (latestPaymentsRaw ?? []).map((payment) => [payment.id, payment]),
   );
 
+  const serviceLocationRows = serviceLocationsResult.data ?? [];
+  const enabledServiceIds = new Map(serviceLocationRows.map((row) => [row.service_id, row]));
+  const catalog: PosCatalogItem[] = [];
+  for (const service of servicesResult.data ?? []) {
+    const locationRow = enabledServiceIds.get(service.id);
+    if (serviceLocationRows.length > 0 && !locationRow) continue;
+    const price = Number(locationRow?.price_override ?? service.price ?? 0);
+    const duration = Number(locationRow?.duration_override_minutes ?? service.default_duration_minutes ?? 0);
+    catalog.push({
+      type: "service",
+      id: service.id,
+      name: service.title ?? "Service",
+      price: Number.isFinite(price) ? price : 0,
+      currency: "SGD",
+      meta: duration > 0 ? `${duration} min` : "",
+      stockQty: null,
+    });
+  }
+  for (const product of productsResult.data ?? []) {
+    catalog.push({
+      type: "product",
+      id: product.id,
+      name: product.title ?? "Product",
+      price: Number(product.price ?? 0),
+      currency: "SGD",
+      meta: product.stock_qty == null ? "" : `Stock ${product.stock_qty}`,
+      stockQty: product.stock_qty == null ? null : Number(product.stock_qty),
+    });
+  }
+  for (const pkg of packagesResult.data ?? []) {
+    catalog.push({
+      type: "package",
+      id: pkg.id,
+      name: pkg.name ?? "Package",
+      price: Number(pkg.price ?? 0),
+      currency: "SGD",
+      meta: pkg.credits != null ? `${pkg.credits} credits` : "",
+      stockQty: null,
+    });
+  }
+
+  const employees = (employeeLocationsResult.data ?? []).flatMap((row) => {
+    const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+    if (!employee || employee.employment_status !== "active") return [];
+    return [{ id: employee.id, display_name: employee.display_name ?? "Staff" }];
+  });
+  const cashierEmployee = cashierEmployeeResult.data;
+  if (cashierEmployee && !employees.some((employee) => employee.id === cashierEmployee.id)) {
+    employees.unshift({ id: cashierEmployee.id, display_name: cashierEmployee.display_name ?? "Me" });
+  }
+
+  let initialSale: PosCashierSale | null = null;
+  if (saleDetailResult && saleDetailResult.ok) {
+    const { sale, items, payments } = saleDetailResult.detail;
+    initialSale = {
+      id: sale.id,
+      status: sale.status,
+      salonCustomerId: sale.salon_customer_id,
+      customerName: sale.customer_name,
+      totalAmount: Number(sale.total_amount),
+      currency: sale.currency,
+      receiptNumber: sale.receipt_number,
+      items: items.map((item) => ({
+        id: item.id,
+        lineNumber: item.line_number,
+        type: item.item_type,
+        catalogId: item.service_id ?? item.product_id ?? item.package_id ?? item.id,
+        name: item.item_name_snapshot,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unit_price_amount),
+        discount: Number(item.discount_amount),
+        employeeId: item.employee_id,
+        currency: item.item_currency_snapshot,
+        appointmentId: item.salon_appointment_id,
+      })),
+      payments: payments.map((payment) => ({
+        id: payment.id,
+        status: payment.status,
+        payment_method: payment.payment_method,
+        invoice_number: payment.invoice_number,
+        invoice_status: payment.invoice_status,
+        amount: Number(payment.amount),
+      })),
+    };
+  }
+
   const scopeQuery = new URLSearchParams();
   scopeQuery.set("studio_id", activeStudioId);
   if (effectiveLocationId) scopeQuery.set("location_id", effectiveLocationId);
+  const sellQuery = new URLSearchParams(scopeQuery.toString());
+  const historyQuery = new URLSearchParams(scopeQuery.toString());
+  historyQuery.set("tab", "history");
+  if (selectedStatus !== "all") historyQuery.set("status", selectedStatus);
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className={`${ui.card} flex flex-wrap gap-3`}>
-        <DashboardAppLink
-          href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`}
-          className={ui.btnSecondarySm}
-        >
-          Cash sessions
-        </DashboardAppLink>
+    <div className="flex flex-col gap-5">
+      <section className={`${ui.card} flex flex-wrap items-end gap-3`}>
         <DashboardLocationFilter
           locations={normalizedLocations}
           selectedStudioId={activeStudioId}
           selectedLocationId={effectiveLocationId}
-          allowAll={canViewAllLocations}
+          allowAll={tab === "history" && canViewAllLocations}
           accessibleLocationIds={accessibleLocationIds}
           allLabel="All POS locations"
         />
-
-        <form method="get" className="flex min-w-52 flex-col gap-1.5">
-          <input type="hidden" name="studio_id" value={activeStudioId} />
-          {effectiveLocationId ? <input type="hidden" name="location_id" value={effectiveLocationId} /> : null}
-          <span className={ui.label}>Status</span>
-          <select name="status" className={ui.select} defaultValue={selectedStatus}>
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>{toStatusLabel(status)}</option>
-            ))}
-          </select>
-          <button type="submit" className={ui.btnSecondarySm}>Apply</button>
-        </form>
-      </section>
-
-      <section>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className={ui.h1}>POS sales</h1>
-          <DashboardAppLink
-            href={`/dashboard/pos/runbook?studio_id=${activeStudioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}`}
-            className={ui.btnSecondarySm}
-          >
-            Cash session guide
+        <div className="flex flex-wrap gap-2">
+          <DashboardAppLink href={`/dashboard/pos?${sellQuery.toString()}`} className={tab === "sell" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            Sell
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/pos?${historyQuery.toString()}`} className={tab === "history" ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            History
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`} className={ui.btnGhost}>
+            Cash sessions
           </DashboardAppLink>
         </div>
-        <p className={`mt-1 ${ui.muted}`}>
-          Draft and completed counter sales. {salesResult.totalCount} record{salesResult.totalCount === 1 ? "" : "s"}.
-        </p>
-        <div className="mt-3">
-          {!effectiveLocationId ? (
-            <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-200">
-              Select a location to show current open cash-session status before collecting POS cash.
-              <DashboardAppLink href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`} className="ml-1 underline">Open cash sessions</DashboardAppLink>
-            </div>
-          ) : openCashSession ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-              <p className="font-medium">{locationNameForStatus} has an open cash session.</p>
-              <p className="mt-1 text-xs sm:text-sm">
-                Session {openCashSession.id} opened {formatLocalDateTime(openCashSession.opened_at)} · opening float SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)}.
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
-              <p className="font-medium">{locationNameForStatus} has no open cash session.</p>
-              <p className="mt-1 text-xs sm:text-sm">
-                Open a cash session first to avoid trial-and-error when confirming POS cash payments.
-                <DashboardAppLink href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`} className="ml-1 underline">Open now</DashboardAppLink>
-              </p>
-            </div>
-          )}
-        </div>
       </section>
 
-      {salesResult.sales.length === 0 ? (
-        <section className={ui.card}>
-          <p className={ui.muted}>No POS sales in this scope.</p>
-        </section>
+      {effectiveLocationId ? (
+        openCashSession ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+            {locationNameForStatus} open · SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)} float · {formatLocalDateTime(openCashSession.opened_at)}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+            <p className="font-medium">{locationNameForStatus} has no open cash session.</p>
+            <ServerActionToastForm action={openPosCashSessionAction} className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="studio_id" value={activeStudioId} />
+              <input type="hidden" name="location_id" value={effectiveLocationId} />
+              <input type="hidden" name="idempotency_key" value={`pos-cash-session-open:${activeStudioId}:${effectiveLocationId}:${crypto.randomUUID()}`} />
+              <label className="flex min-w-32 flex-col gap-1">
+                <span className="text-xs">Opening float</span>
+                <input name="opening_float" type="number" step="0.01" min="0" defaultValue="0.00" className={ui.input} />
+              </label>
+              <button type="submit" className={ui.btnPrimarySm}>Open cash session</button>
+            </ServerActionToastForm>
+          </div>
+        )
       ) : (
-        <section className={`${ui.card} overflow-x-auto`}>
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:text-stone-400">
-                <th className="px-3 py-2">Sale</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Payment progress</th>
-                <th className="px-3 py-2">Customer</th>
-                <th className="px-3 py-2">Location</th>
-                <th className="px-3 py-2">Total</th>
-                <th className="px-3 py-2">Created</th>
-                <th className="px-3 py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {salesResult.sales.map((sale) => {
-                const detailQuery = new URLSearchParams(scopeQuery.toString());
-                const paymentQuery = new URLSearchParams(scopeQuery.toString());
-                paymentQuery.set("source", "pos_sale");
-                paymentQuery.set("q", sale.id);
-                if (sale.payment_progress.latest_payment_id) {
-                  paymentQuery.set("payment_id", sale.payment_progress.latest_payment_id);
-                }
-                return (
-                  <tr key={sale.id} className="border-b border-stone-100 align-top last:border-b-0 dark:border-stone-900">
-                    <td className="px-3 py-2">
-                      <DashboardAppLink
-                        href={`/dashboard/pos/${sale.id}?${detailQuery.toString()}`}
-                        className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
-                      >
-                        {sale.sale_number ?? sale.id.slice(0, 8)}
-                      </DashboardAppLink>
-                    </td>
-                    <td className="px-3 py-2 capitalize">{toStatusLabel(sale.status)}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-medium text-stone-800 dark:text-stone-200">
-                          {toPaymentProgressLabel(sale.payment_progress.status)}
-                        </span>
-                        <span className={`text-[11px] ${ui.muted}`}>
-                          {sale.payment_progress.payment_count > 0
-                            ? `${sale.payment_progress.payment_count} payment record${sale.payment_progress.payment_count === 1 ? "" : "s"}`
-                            : "No payment record yet"}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">{sale.customer_name ?? "Walk-in"}</td>
-                    <td className="px-3 py-2">{sale.location_name ?? sale.location_id.slice(0, 8)}</td>
-                    <td className="px-3 py-2">{sale.currency} {Number(sale.total_amount).toFixed(2)}</td>
-                    <td className="px-3 py-2">{formatLocalDateTime(sale.created_at)}</td>
-                    <td className="px-3 py-2">
-                      {sale.status === "draft" ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <PosProceedToPaymentForm
-                            action={proceedPosSaleToPaymentAction}
-                            studioId={activeStudioId}
-                            locationId={effectiveLocationId}
-                            saleId={sale.id}
-                            idempotencyKey={`pos-lock:${sale.id}:${sale.updated_at}`}
-                            ctaLabel="Proceed to payment"
-                          />
-                          <ToastConfirmForm
-                            action={voidPosSaleAction}
-                            confirmMessage="Void this draft sale?"
-                            confirmLabel="Void"
-                            pendingLabel="Voiding…"
-                          >
-                            <input type="hidden" name="studio_id" value={activeStudioId} />
-                            <input type="hidden" name="sale_id" value={sale.id} />
-                            <input type="hidden" name="reason" value="voided_from_pos_list" />
-                            <input type="hidden" name="idempotency_key" value={`pos-void-list:${sale.id}:${sale.updated_at}`} />
-                            <button type="submit" className={ui.btnDangerSm}>Void</button>
-                          </ToastConfirmForm>
-                        </div>
-                      ) : sale.status === "pending_payment" ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <DashboardAppLink
-                            href={`/dashboard/payments?${paymentQuery.toString()}`}
-                            className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
-                          >
-                            Go to payment
-                          </DashboardAppLink>
-                          {(() => {
-                            const latestPaymentId = sale.payment_progress.latest_payment_id;
-                            if (!activeStudioSlug || !latestPaymentId) return null;
-                            const latestPayment = latestPaymentById.get(latestPaymentId);
-                            if (!latestPayment) return null;
-                            const method = String(latestPayment.payment_method ?? "").toLowerCase();
-                            if (method !== "hitpay" || !latestPayment.gateway_payment_id) return null;
-                            return <SyncHitpayPaymentButton paymentId={latestPaymentId} studioSlug={activeStudioSlug} compact />;
-                          })()}
-                          <ToastConfirmForm
-                            action={voidPosSaleAction}
-                            confirmMessage="Void this pending-payment sale?"
-                            confirmLabel="Void"
-                            pendingLabel="Voiding…"
-                          >
-                            <input type="hidden" name="studio_id" value={activeStudioId} />
-                            <input type="hidden" name="sale_id" value={sale.id} />
-                            <input type="hidden" name="reason" value="voided_from_pos_list" />
-                            <input type="hidden" name="idempotency_key" value={`pos-void-list:${sale.id}:${sale.updated_at}`} />
-                            <button type="submit" className={ui.btnDangerSm}>Void</button>
-                          </ToastConfirmForm>
-                        </div>
-                      ) : (
-                        <span className={`text-xs ${ui.muted}`}>Locked/closed</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
+        <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-200">
+          Select a location to sell and track the cash session.
+        </div>
+      )}
+
+      {tab === "history" ? (
+        <PosSalesHistory
+          studioId={activeStudioId}
+          locationId={effectiveLocationId}
+          selectedStatus={selectedStatus}
+          sales={salesResult.sales}
+          totalCount={salesResult.totalCount}
+          studioSlug={activeStudioSlug}
+          latestPaymentById={latestPaymentById}
+        />
+      ) : (
+        <PosCashierWorkspace
+          studioId={activeStudioId}
+          locationId={effectiveLocationId}
+          locationIds={normalizedLocations.map((location) => location.id)}
+          locationName={locationNameForStatus}
+          studioSlug={activeStudioSlug}
+          catalog={catalog}
+          customers={(customersResult.data ?? []).map((customer) => ({
+            id: customer.id,
+            full_name: customer.full_name ?? "Unnamed",
+            phone: customer.phone ?? null,
+            email: customer.email ?? null,
+          }))}
+          employees={employees}
+          cashierEmployeeId={cashierEmployeeResult.data?.id ?? null}
+          initialSale={initialSale}
+        />
       )}
     </div>
   );

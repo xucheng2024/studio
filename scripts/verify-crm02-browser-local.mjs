@@ -24,6 +24,20 @@ try {
     const body = await page.locator("body").innerText();
     assert.match(body, /CRM local customer/, `${role} can read scoped client`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${role} mobile overflow`);
+    const customerId = "c2000000-0000-4000-8000-000000000301";
+    await page.goto(`${baseUrl}/dashboard/clients/${customerId}?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.getByRole("navigation", { name: "Customer profile sections" }).waitFor({ state: "visible", timeout: 30000 });
+    const detailBody = await page.locator("body").innerText();
+    for (const label of ["Overview", "Health", "Appointments", "Treatments", "Purchases", "Follow-up", "Consent", "Audit"]) {
+      assert.match(detailBody, new RegExp(label), `${role} sees ${label} section`);
+    }
+    assert.match(detailBody, /Customer profile/, `${role} defaults to Overview`);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${role} detail overflow`);
+    await page.getByRole("link", { name: /^Health/ }).click();
+    await page.getByRole("heading", { name: "Health & safety" }).waitFor({ state: "visible", timeout: 30000 });
+    await page.getByRole("link", { name: /^Follow-up/ }).click();
+    await page.getByRole("heading", { name: "Follow-up" }).waitFor({ state: "visible", timeout: 30000 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${role} section overflow`);
     await page.goto(`${baseUrl}/dashboard/clients/follow-ups?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.getByText("Follow-up queue", { exact: false }).first().waitFor({ state: "visible", timeout: 30000 });
     assert.match(await page.locator("body").innerText(), /Follow-up queue/);

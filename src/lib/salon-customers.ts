@@ -1,6 +1,7 @@
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import {
   requireGlobalStaffScope,
+  requireStaffScope,
   type StaffScopeFailureReason,
 } from "@/lib/scope";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -235,6 +236,64 @@ export async function createSalonCustomer(params: {
       source: params.input.source,
       status: params.input.status ?? "active",
       preferred_location_id: params.input.preferredLocationId ?? null,
+    })
+    .select("*")
+    .single<SalonCustomer>();
+  if (error) return { ok: false, reason: "invalid_request", message: error.message };
+
+  const duplicateCandidates = await recordDuplicateCandidates({
+    studioId: params.studioId,
+    customerId: customer.id,
+    email,
+    phone,
+  });
+
+  return { ok: true, customer, duplicateCandidates };
+}
+
+const POS_CUSTOMER_ROLES = ["owner", "manager", "frontdesk"] as const;
+
+export async function createPosSalonCustomer(params: {
+  userId: string;
+  studioId: string;
+  locationId: string;
+  input: {
+    fullName: string;
+    email?: string | null;
+    phone?: string | null;
+  };
+}): Promise<
+  | { ok: true; customer: SalonCustomer; duplicateCandidates: SalonCustomerDuplicateCandidate[] }
+  | { ok: false; reason: StaffScopeFailureReason | "invalid_request"; message?: string }
+> {
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: params.locationId,
+    roles: [...POS_CUSTOMER_ROLES],
+  });
+  if (!scope.ok) return scope;
+
+  const fullName = params.input.fullName.trim();
+  if (!fullName) return { ok: false, reason: "invalid_request", message: "full_name_required" };
+
+  const email = normalizeEmail(params.input.email);
+  const phone = normalizePhone(params.input.phone);
+  if (!email && !phone) {
+    return { ok: false, reason: "invalid_request", message: "contact_required" };
+  }
+
+  const admin = createAdminClient();
+  const { data: customer, error } = await admin
+    .from("salon_customers")
+    .insert({
+      studio_id: params.studioId,
+      full_name: fullName,
+      email,
+      phone,
+      source: "walk_in" satisfies SalonCustomerSource,
+      status: "active" satisfies SalonCustomerStatus,
+      preferred_location_id: params.locationId,
     })
     .select("*")
     .single<SalonCustomer>();

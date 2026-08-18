@@ -10,6 +10,7 @@ import {
   profileToInput,
 } from "@/lib/payroll-profiles";
 import { listPayrollRuns } from "@/lib/payroll-runs";
+import { payrollStatusBadgeClass, payrollStatusLabel, previousSgtMonth } from "@/lib/payroll-ui";
 import { officialRuleSnapshot, validateProfileForFinalise } from "@/lib/statutory-payroll";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -45,7 +46,12 @@ export default async function PayrollPage({ searchParams }: Props) {
     const profile = profileByEmployeeId.get(employee.id) ?? null;
     return { employee, profile, blockers: validateProfileForFinalise(profileToInput(profile)) };
   });
+  const blocked = rows.filter((row) => row.blockers.length);
+  const readyCount = rows.length - blocked.length;
+  const firstBlocked = blocked[0]?.employee;
   const rules = officialRuleSnapshot();
+  const targetMonth = previousSgtMonth();
+  const targetRun = runs.find((run) => run.period_start.startsWith(targetMonth) && run.status !== "voided") ?? null;
 
   return (
     <div className="flex max-w-4xl flex-col gap-6">
@@ -54,19 +60,49 @@ export default async function PayrollPage({ searchParams }: Props) {
           <h1 className={ui.h1}>Payroll</h1>
           <DashboardAppLink href="/dashboard/payroll/reports" className={ui.btnSecondarySm}>Reports</DashboardAppLink>
         </div>
-        <p className={`mt-1 ${ui.muted}`}>
-          Restricted profiles, official CPF Board / MOM rules, and monthly Draft → Finalise → Paid / Voided runs.
-        </p>
+        <p className={`mt-1 ${ui.muted}`}>Monthly Owner run: Draft, review, Finalise, then Paid or Void.</p>
       </div>
 
-      <ServerActionToastForm action={createPayrollRunAction} className={`${ui.card} flex flex-col gap-3 sm:flex-row sm:items-end`}>
-        <input type="hidden" name="studio_id" value={studioId} />
-        <label className="flex min-w-40 flex-1 flex-col gap-1.5">
-          <span className={ui.label}>New draft month</span>
-          <input className={ui.input} type="month" name="period_month" required />
-        </label>
-        <SubmitButton className={ui.btnPrimary}>Create draft</SubmitButton>
-      </ServerActionToastForm>
+      <section className={`${ui.card} flex flex-col gap-4`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className={ui.h2}>{targetMonth}</h2>
+            <p className={`mt-1 ${ui.muted}`}>
+              {targetRun
+                ? `${payrollStatusLabel(targetRun.status)} run is ready to open.`
+                : "Create a draft for last month, then review before Finalise."}
+            </p>
+          </div>
+          {targetRun ? (
+            <DashboardAppLink href={`/dashboard/payroll/runs/${targetRun.id}`} className={ui.btnPrimarySm}>
+              Open {targetMonth}
+            </DashboardAppLink>
+          ) : null}
+        </div>
+        {rows.length ? (
+          <p className="text-sm text-stone-700 dark:text-stone-300">
+            {readyCount} ready / {blocked.length} blocked
+            {firstBlocked ? (
+              <>
+                {" · "}
+                <DashboardAppLink href={`/dashboard/payroll/${firstBlocked.id}`} className={ui.link}>
+                  Fix {firstBlocked.display_name}
+                </DashboardAppLink>
+              </>
+            ) : null}
+          </p>
+        ) : (
+          <p className={ui.muted}>No employees yet. Add staff from Staff Access first.</p>
+        )}
+        <ServerActionToastForm action={createPayrollRunAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <input type="hidden" name="studio_id" value={studioId} />
+          <label className="flex min-w-40 flex-1 flex-col gap-1.5">
+            <span className={ui.label}>New draft month</span>
+            <input className={ui.input} type="month" name="period_month" required defaultValue={targetMonth} />
+          </label>
+          <SubmitButton className={targetRun ? ui.btnSecondary : ui.btnPrimary}>Create draft</SubmitButton>
+        </ServerActionToastForm>
+      </section>
 
       <section>
         <h2 className={`${ui.h2} mb-3`}>Runs</h2>
@@ -82,7 +118,9 @@ export default async function PayrollPage({ searchParams }: Props) {
                         {run.period_start.slice(0, 7)}
                       </DashboardAppLink>
                     </td>
-                    <td className="p-3 capitalize">{run.status}</td>
+                    <td className="p-3">
+                      <span className={payrollStatusBadgeClass(run.status)}>{payrollStatusLabel(run.status)}</span>
+                    </td>
                     <td className="p-3">{run.company_sdl_sgd ?? "—"}</td>
                   </tr>
                 ))}
@@ -92,18 +130,6 @@ export default async function PayrollPage({ searchParams }: Props) {
         ) : (
           <p className={ui.muted}>No payroll runs yet.</p>
         )}
-      </section>
-
-      <section className={ui.card}>
-        <h2 className={ui.h2}>Official rule version</h2>
-        <p className={`mt-2 text-sm ${ui.muted}`}>
-          {rules.id} · verified {rules.verified_at} · effective from {rules.source_effective_from}. Unknown official cases block Finalise.
-        </p>
-        <ul className="mt-3 space-y-1 text-sm text-stone-700 dark:text-stone-300">
-          <li>CPF OW ceiling ${rules.cpf.ow_monthly_ceiling_sgd} · annual ceiling ${rules.cpf.annual_salary_ceiling_sgd}</li>
-          <li>SDL 0.25% · min ${rules.sdl.min_sgd} · max ${rules.sdl.max_sgd}</li>
-          <li>No NRIC or bank account fields. Wage amounts stay off Staff Access.</li>
-        </ul>
       </section>
 
       <section>
@@ -131,7 +157,15 @@ export default async function PayrollPage({ searchParams }: Props) {
                     <td className="p-3">{employee.employee_number || "—"}</td>
                     <td className="p-3 capitalize">{profile?.residency_status ?? "—"}</td>
                     <td className="p-3">{profile?.salary_type ? `${profile.salary_type} ${profile.basic_pay_sgd ?? ""}`.trim() : "—"}</td>
-                    <td className="p-3">{blockers.length ? `${blockers.length} missing` : "Ready"}</td>
+                    <td className="p-3">
+                      {blockers.length ? (
+                        <DashboardAppLink href={`/dashboard/payroll/${employee.id}`} className={ui.badgeAmber}>
+                          {blockers.length} missing
+                        </DashboardAppLink>
+                      ) : (
+                        <span className={ui.badge}>Ready</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -141,6 +175,10 @@ export default async function PayrollPage({ searchParams }: Props) {
           <p className={ui.muted}>No employees yet. Add staff from Staff Access first.</p>
         )}
       </section>
+
+      <p className={ui.muted}>
+        {rules.id} · CPF OW ${rules.cpf.ow_monthly_ceiling_sgd} · SDL 0.25%. Unknown official cases block Finalise.
+      </p>
     </div>
   );
 }

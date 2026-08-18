@@ -1,12 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   isOwnerPayrollRole,
   savePayrollProfileVersion,
   updateOwnEmployeeContact,
 } from "@/lib/payroll-profiles";
-import { createPayrollDraftRun, recalculatePayrollRun, transitionPayrollRun } from "@/lib/payroll-runs";
+import {
+  createPayrollDraftRun,
+  getPreviousPublishedPayrollRun,
+  getPayrollRun,
+  recalculatePayrollRun,
+  transitionPayrollRun,
+} from "@/lib/payroll-runs";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import type { ResidencyStatus, SalaryType, ShgFund, ShgMode } from "@/lib/statutory-payroll";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
@@ -129,19 +136,20 @@ export async function createPayrollRunAction(
   if (!studioId || !/^\d{4}-\d{2}$/.test(month)) return err("Choose a payroll month.");
   const access = await requireOwner(studioId);
   if (!access.ok) return err("Only studio owners can create payroll runs.");
+  let runId = "";
   try {
-    const runId = await createPayrollDraftRun({
+    runId = await createPayrollDraftRun({
       studioId,
       actorId: access.user.id,
       periodStart: `${month}-01`,
     });
     revalidatePath("/dashboard/payroll");
     revalidatePath(`/dashboard/payroll/runs/${runId}`);
-    return ok("Draft payroll run created.");
   } catch (error) {
     console.error("[PAY-02] createPayrollRunAction failed", { studioId, message: error instanceof Error ? error.message : String(error) });
     return err(error instanceof Error && error.message.includes("duplicate") ? "An active run already exists for that month." : "Could not create the payroll run.");
   }
+  redirect(`/dashboard/payroll/runs/${runId}?studio_id=${encodeURIComponent(studioId)}`);
 }
 
 export async function savePayrollRunEmployeeInputsAction(
@@ -178,6 +186,34 @@ export async function savePayrollRunEmployeeInputsAction(
   } catch (error) {
     console.error("[PAY-02] savePayrollRunEmployeeInputsAction failed", { runId, message: error instanceof Error ? error.message : String(error) });
     return err("Could not save payroll inputs.");
+  }
+}
+
+export async function copyPreviousPayrollAttendanceAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = text(formData.get("studio_id"));
+  const runId = text(formData.get("run_id"));
+  if (!studioId || !runId) return err("Missing payroll run.");
+  const access = await requireOwner(studioId);
+  if (!access.ok) return err("Only studio owners can edit payroll runs.");
+  try {
+    const run = await getPayrollRun(studioId, runId);
+    if (!run) return err("Payroll run not found.");
+    const previous = await getPreviousPublishedPayrollRun(studioId, run.period_start);
+    if (!previous) return err("No previous published run to copy from.");
+    await recalculatePayrollRun({
+      studioId,
+      actorId: access.user.id,
+      runId,
+      copyAttendanceFromRunId: previous.id,
+    });
+    revalidatePath(`/dashboard/payroll/runs/${runId}`);
+    return ok("Copied last month's days and hours, then recalculated.");
+  } catch (error) {
+    console.error("[PAY-02] copyPreviousPayrollAttendanceAction failed", { runId, message: error instanceof Error ? error.message : String(error) });
+    return err("Could not copy last month's days and hours.");
   }
 }
 
