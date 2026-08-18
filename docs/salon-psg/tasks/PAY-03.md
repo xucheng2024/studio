@@ -1,6 +1,6 @@
 # PAY-03: Itemised payslips and payroll reports
 
-Status: in progress
+Status: live (`aa67b42` / `060eaf6`; isolated UAT `pay01-payroll-local` run `32098859457`)
 
 ## Scope
 
@@ -13,3 +13,8 @@ Status: in progress
 ## Out of scope
 
 Payslip email, IR8A/AIS, GIRO, invented statutory rates, Finalise of real Surgery staff.
+
+## Verification
+
+- Passed: `test:pay03-app`.
+- Passed: Free cloud UAT `pay01-payroll-local` https://github.com/xucheng2024/studio/actions/runs/32098859457 — fixture Finalise, MOM payslip fields, instructor own slip, manager denied, reports page, 390×844.

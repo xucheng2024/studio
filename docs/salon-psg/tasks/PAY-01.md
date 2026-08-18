@@ -87,4 +87,4 @@ Employee 自助功能只开放本人 Email、电话更新和已发布 Payslip �
 
 ## 剩余工作
 
-Payslip 查看/打印/PDF、员工本人查看已发布工资单、Payroll/Commission/Statutory 报表属于 PAY-03，不在本项。
+Payslip 查看/打印/PDF、员工本人查看和报表已在 PAY-03 完成。

@@ -19,7 +19,7 @@
 | Q14 数字支付 | ✅ 基本满足 | Yes | 使用现有 HitPay 和 Cash；申请材料只列出生产环境真实启用并可现场完成的 HitPay 支付方式，保留 Webhook、同步及退款证据。 |
 | Q15 POS | 🟡 已上线 / 待申请截图 | Yes | `POS-01` 至 `POS-04` 已进入生产（`61dbdf0`）。找零 UI、PDF/可点击收据与 Void 点击证据仍不在本批。申请截图与现场演示后确认满足。 |
 | Q16 SMS / E-Marketing | 🟡 已上线 / 待申请截图 | Yes（路径已确认） | `MKT-01`、`MKT-02` 已进入生产（`61dbdf0`）。Owner 已启用 Surgery 店 Email settings，受控测试邮件已通。SMS、WhatsApp 不做。申请截图后确认满足。 |
-| Q17 HR Management | 🟡 档案/跑批已上线 / 缺 Payslip | Yes（自建已确认） | `FND-01`、`COM-01`、`PAY-01`、`PAY-02` 已上线。仍需 `PAY-03`：MOM Itemised Payslip、员工本人查看、Payroll/Commission/Statutory 报表。 |
+| Q17 HR Management | 🟡 已上线 / 待申请截图 | Yes（自建已确认） | `FND-01`、`COM-01`、`PAY-01` 至 `PAY-03` 已上线：受限薪资档案、四状态跑批、MOM Itemised Payslip、员工本人查看、Payroll/Commission/Statutory 报表。申请截图后确认满足。 |
 | Q18 IRAS AIS | ⚪ 本次不做 | No | 已确认 Q18 回答 No 不影响 Q17。不得宣称在 IRAS Supporting Payroll Software Vendors 名单中。 |
 | Q19 Leave / Attendance / Roster | ⚪ 本次不做 | No | 员工工作时间只用于 Appointment Availability，不描述成完整 Roster、Attendance 或 Leave Management。 |
 | Q20–Q23 Inventory | ⚪ 建议不触发 | Q20 No；Q21–Q23 不触发 | `shop_products.stock_qty` 和 POS 商品扣减仅作为基础商品数量，不申报完整 Inventory。避免触发库存主档、Journal、Warehouse、实时集成和低库存提醒全部强制要求。 |
@@ -37,7 +37,7 @@
 - Q3：`src/app/(app)/dashboard/reports/page.tsx` 当前主要为过滤器、数字卡和 Revenue 表格，没有四个 Salon 图表。
 - Q7：客户详情已包含 CRM-01 敏感资料和 CRM-02 Treatment/Follow-up；2026-08-18 已进入生产（`61dbdf0`）。仍需申请截图。
 - Q11–Q12：`PKG-01`/`PKG-02` 已进入生产，含 append-only Ledger 与 maker-checker。部分 package refund 与 Guest `user_id is null` 发放仍不在范围；仍需申请截图。
-- Q17：Owner `/dashboard/payroll` 与员工 `/dashboard/payroll/me` 已上线；隔离 UAT `pay01-payroll-local` 已通过。Staff Access 仍只管角色。Payslip/报表仍属 PAY-03。
+- Q17：Owner `/dashboard/payroll`、员工 `/dashboard/payroll/me` 与 Payslip/报表已上线；隔离 UAT `pay01-payroll-local` 已通过。Staff Access 仍只管角色。
 - Q28：`/api/reports/deferred/export` 已有四格式，`/api/payments/export` 已有 CSV；缺口是把同一 builder 安全扩到核心业务数据，不是从零建设 Export Service。
 - Q30：仓库中没有发现可以替代合资格第三方 VA/PT 报告的材料；内部安全检查或自动扫描不能冒充 Q30 报告。
 

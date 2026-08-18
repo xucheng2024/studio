@@ -211,7 +211,7 @@
 - 非目标：银行 GIRO、IRAS 提交。
 - Gate：Finalised 后不能静默重算；规则或员工变化不改历史 Run。
 
-### PAY-03 Payslip 与报告
+### PAY-03 Payslip 与报告 — 已上线
 
 - 依赖：PAY-02。
 - 必做：MOM Itemised Payslip 打印/PDF、员工本人查看、Payroll Summary、Commission Report、合并 Statutory Contribution Summary，并复用 Q28 四格式导出。
@@ -221,8 +221,8 @@
 ### Phase 3 Gate
 
 - Q16 完整 Email E-Marketing 可演示，不依赖 SMS；演示 Studio 使用自己的 Resend 账号，平台不代付发送额度。
-- Q17 自建 Payroll 档案与跑批已上线；Payslip 和报告仍待 PAY-03。Q18 保持 No。
-- 预计剩余 Phase 3 工作：PAY-03 约 1–2 工程师周；外部 Payroll 复核为可选项，不计入交付 Gate。
+- Q17 自建 Payroll 档案、跑批、Payslip 和报告已上线。Q18 保持 No。
+- 预计剩余工作转入 Phase 4；外部 Payroll 复核为可选项，不计入交付 Gate。
 
 ## 7. Phase 4：Reports、Compliance 和申请收口
 
@@ -292,9 +292,8 @@
 
 ## 9. 总体工作量和完成定义
 
-截至 2026-08-18，Phase 0–2、Marketing、PAY-01 和 PAY-02 已上线。按本次收缩后的剩余范围，约 **5–9 个工程师周**：
+截至 2026-08-18，Phase 0–3 Payroll 已上线。按本次收缩后的剩余范围，约 **4–7 个工程师周**：
 
-- PAY-03：约 1–2 周
 - RPT-01、RPT-02、EXP-01：约 2–3 周
 - CMP-01、PSG-01 产品控制与证据：约 2–4 周
 
