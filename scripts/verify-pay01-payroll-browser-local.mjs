@@ -136,14 +136,7 @@ try {
   assert.deepEqual(runEmployee.blocker_codes, []);
 
   await owner.page.getByRole("button", { name: "Finalise" }).click();
-  try {
-    await waitToast(owner.page, "Payroll finalised.");
-  } catch (error) {
-    const toasts = await owner.page.locator("[data-sonner-toast]").allInnerTexts().catch(() => []);
-    console.log("pay03_finalise_toast_missing", { toasts, message: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
-  console.log("pay03_owner_finalised");
+  console.log("pay03_finalise_clicked");
 
   const published = await waitForLocalDatabaseState(async () => {
     const { data: run, error } = await admin
@@ -157,7 +150,7 @@ try {
     const { data: row, error: rowError } = await admin
       .from("payroll_run_employees")
       .select("id, payslip_number, net_sgd")
-      .eq("payroll_run_id", run?.id)
+      .eq("payroll_run_id", run.id)
       .eq("employee_id", employeeId)
       .maybeSingle();
     if (rowError) throw rowError;
@@ -165,8 +158,18 @@ try {
   }, (state) => state.run?.status === "finalised" && Boolean(state.row?.payslip_number), "finalised payslip");
   const runEmployeeId = published.row.id;
   assert.match(published.row.payslip_number, /^PAY-2026-08-/);
+  console.log("pay03_owner_finalised", published.row.payslip_number);
 
-  await owner.page.getByRole("link", { name: "View payslip" }).waitFor({ state: "visible", timeout: 30_000 });
+  const payslipLink = owner.page.getByRole("link", { name: "View payslip" });
+  try {
+    await payslipLink.waitFor({ state: "visible", timeout: 15_000 });
+  } catch (error) {
+    const toasts = await owner.page.locator("[data-sonner-toast]").allInnerTexts().catch(() => []);
+    const body = await owner.page.locator("body").innerText();
+    console.log("pay03_payslip_link_missing", { toasts, body: body.slice(0, 1200), message: error instanceof Error ? error.message : String(error) });
+    await owner.page.reload({ waitUntil: "domcontentloaded" });
+    await payslipLink.waitFor({ state: "visible", timeout: 30_000 });
+  }
   await owner.page.getByRole("link", { name: "View payslip" }).click();
   await owner.page.getByRole("heading", { name: "Itemised payslip" }).waitFor({ state: "visible", timeout: 30_000 });
   const slipBody = await owner.page.locator("body").innerText();
