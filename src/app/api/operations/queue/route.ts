@@ -155,7 +155,10 @@ const getQueuePayloadCached = unstable_cache(
       .order("start_time", { ascending: true })
       .limit(150);
 
-    const { data: events } = await eventsQuery;
+    const { data: events, error: eventsError } = await eventsQuery;
+    if (eventsError) {
+      console.log("operations queue events query failed", eventsError.message);
+    }
     const eventIds = (events ?? []).map((eventRow) => eventRow.id);
 
     const eventBookingStatuses =
@@ -165,14 +168,17 @@ const getQueuePayloadCached = unstable_cache(
           ? ["pending", "booked", "attended"]
           : ["pending", "booked", "attended", "cancelled"];
 
-    const { data: eventBookingsRaw } =
+    const { data: eventBookingsRaw, error: eventBookingsError } =
       eventIds.length > 0
         ? await admin
             .from("event_bookings")
-            .select("id, event_id, status, guest_name, guest_email, users(email)")
+            .select("id, event_id, status, guest_name, guest_email, users!client_id(email)")
             .in("event_id", eventIds)
             .in("status", eventBookingStatuses)
-        : { data: [] as SoonEventBookingRow[] };
+        : { data: [] as SoonEventBookingRow[], error: null };
+    if (eventBookingsError) {
+      console.log("operations queue event bookings query failed", eventBookingsError.message);
+    }
 
     const eventBookings = (eventBookingsRaw ?? []) as SoonEventBookingRow[];
     const eventBookingsByEvent = new Map<string, SoonEventBookingRow[]>();
@@ -262,7 +268,7 @@ const getQueuePayloadCached = unstable_cache(
 
     return { starting_soon_grouped: grouped, event_groups: eventGroups };
   },
-  ["operations-queue-v3"],
+  ["operations-queue-v4"],
   { revalidate: 5 },
 );
 

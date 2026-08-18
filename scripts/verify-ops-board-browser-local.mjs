@@ -63,6 +63,7 @@ try {
   assert.match(await classCollect.getAttribute("href"), new RegExp(`payment_id=${classPaymentId}`));
 
   const eventCard = owner.page.locator("section").filter({ has: owner.page.getByRole("heading", { name: "Ops UAT Event" }) });
+  await owner.page.getByRole("heading", { name: "Ops UAT Event" }).waitFor({ state: "visible", timeout: 15_000 });
   await eventCard.getByText("1 unpaid", { exact: true }).waitFor({ state: "visible" });
   const eventCollect = eventCard.getByRole("link", { name: "Collect payment" });
   await eventCollect.waitFor({ state: "visible" });
