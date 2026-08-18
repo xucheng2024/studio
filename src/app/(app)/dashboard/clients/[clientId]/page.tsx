@@ -90,7 +90,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
     return <p className={ui.muted}>You do not have access to this page.</p>;
   }
   if (!selectedStudioId && studioIds.length > 1) {
-    return <p className={ui.muted}>Select a studio in the left sidebar to view this customer&apos;s ledger.</p>;
+    return <p className={ui.muted}>Select a studio in the left sidebar to view this customer.</p>;
   }
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
@@ -340,10 +340,10 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
         </DashboardAppLink>
         <div className="mb-3">
           <DashboardAppLink href={approvalsBaseHref} className={ui.btnSecondarySm}>
-            Package approvals
+            Adjust credits
           </DashboardAppLink>
         </div>
-        <h1 className={ui.h1}>Package ledger</h1>
+        <h1 className={ui.h1}>{salonCustomer.full_name?.trim() || profile?.full_name?.trim() || "Customer"}</h1>
         <p className={`mt-1 ${ui.muted}`}>
           {salonCustomer.email ?? clientUser?.email ?? salonCustomer.phone ?? salonCustomer.id}
         </p>
@@ -781,7 +781,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 text-amber-600 dark:text-amber-400" size={16} />
               <div>
-                <h2 className={`${ui.h2} text-amber-900 dark:text-amber-100`}>Sensitive Information Notice</h2>
+                <h2 className={`${ui.h2} text-amber-900 dark:text-amber-100`}>Sensitive information</h2>
                 <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
                   Health & safety data is sensitive. Access is role-scoped, audited, and must only be used for service safety.
                 </p>
@@ -848,7 +848,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           </section>
 
           <section className={ui.card}>
-            <h2 className={ui.h2}>Health & Safety</h2>
+            <h2 className={ui.h2}>Health & safety</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {sensitiveDetail.detail.safety.hasHealthAlert ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
@@ -973,7 +973,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           </section>
 
           <section className={ui.card}>
-            <div className="flex items-center gap-2"><Lock size={15} className="text-stone-500" /><h2 className={ui.h2}>Sensitive Access Audit</h2></div>
+            <div className="flex items-center gap-2"><Lock size={15} className="text-stone-500" /><h2 className={ui.h2}>Sensitive access log</h2></div>
             {sensitiveDetail.detail.canViewSensitiveAudit ? (
               <ul className="mt-3 flex flex-col gap-2">
                 {sensitiveDetail.detail.accessAudits.map((audit) => (

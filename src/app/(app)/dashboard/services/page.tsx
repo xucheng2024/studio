@@ -97,7 +97,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
     <div className="flex max-w-5xl flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className={ui.h1}>Service setup</h1>
+          <h1 className={ui.h1}>Services</h1>
           <p className={ui.muted}>Create and maintain the public services shown on /{studio.public_slug}.</p>
           <p className={`mt-1 text-sm ${ui.muted}`}>
             Visible services appear on the public page. Enable enquiry for contact requests, or enable payment for checkout when a price is set.

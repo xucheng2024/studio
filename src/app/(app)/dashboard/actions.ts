@@ -106,9 +106,11 @@ export type { PosProceedToPaymentResult } from "./_actions/pos-sales";
 
 export {
   applyPkg02AdjustmentRequestAction,
+  approveAndApplyPkg02AdjustmentRequestAction,
   approvePkg02AdjustmentRequestAction,
   createPkg02AdjustmentRequestAction,
   rejectPkg02AdjustmentRequestAction,
+  submitPkg02AdjustmentForApprovalAction,
   submitPkg02AdjustmentRequestAction,
 } from "./_actions/pkg-approvals";
 export type { Pkg02ApprovalActionResult } from "./_actions/pkg-approvals";

@@ -298,9 +298,7 @@ export default async function ReportsPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Reports</h1>
         <p className={`mt-1 ${ui.muted}`}>
-          {locationLabel} · Revenue uses{" "}
-          <code className={ui.code}>verified_at</code> or <code className={ui.code}>paid_at</code> for paid records and{" "}
-          <code className={ui.code}>refunded_at</code> for refunds, grouped by your local calendar day.
+          {locationLabel} · Revenue is counted on the day a payment was confirmed or refunded, in your local timezone.
         </p>
       </div>
 
@@ -447,9 +445,9 @@ export default async function ReportsPage({ searchParams }: Props) {
         </>
       ) : (
         <div className={ui.card}>
-          <h2 className={ui.h2}>Salon dashboard</h2>
+          <h2 className={ui.h2}>Overview</h2>
           <p className={`mt-1 ${ui.muted}`}>
-            Charts could not load. Check Vercel logs for <code className={ui.code}>[RPT-01]</code>.
+            Charts could not load. Try again, or contact support if this continues.
           </p>
         </div>
       )}

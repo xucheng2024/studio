@@ -94,20 +94,15 @@ try {
   const frontdesk = await login(POS_LOCAL_IDENTITIES.frontdesk);
   const approvalsUrl = `${baseUrl}/dashboard/packages/approvals?studio_id=${studioId}&location_id=${locationId}&client_package_id=${clientPackageId}`;
   await frontdesk.page.goto(approvalsUrl, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  await frontdesk.page.getByLabel("Delta credits").fill("-2");
-  await frontdesk.page.getByLabel("Value delta (SGD)").fill("-20.00");
+  await frontdesk.page.getByLabel("Credit change").fill("-2");
   await frontdesk.page.getByLabel("Reason").fill("POS local concurrent approval");
-  await frontdesk.page.getByRole("button", { name: "Create draft" }).click();
-  await waitForToast(frontdesk.page, "Adjustment request draft created.");
+  await frontdesk.page.getByRole("button", { name: "Submit for approval" }).click();
+  await waitForToast(frontdesk.page, "Submitted for approval.");
   const requestOne = await waitForLocalDatabaseState(async () => {
     const { data, error } = await admin.from("pkg02_adjustment_requests").select("*").eq("studio_id", studioId).eq("reason", "POS local concurrent approval").single();
     if (error) throw error;
     return data;
-  }, (row) => row?.status === "draft", "package adjustment draft");
-  await frontdesk.page.goto(`${approvalsUrl}&request_id=${requestOne.id}`, { waitUntil: "domcontentloaded" });
-  await frontdesk.page.getByRole("button", { name: "Submit" }).click();
-  await waitForToast(frontdesk.page, "Adjustment request submitted for checker approval.");
-  await waitForRow("pkg02_adjustment_requests", requestOne.id, (row) => row.status === "submitted" && row.version === 2, "package request submit");
+  }, (row) => row?.status === "submitted", "package adjustment submit");
 
   const checkerA = await login(POS_LOCAL_IDENTITIES.manager);
   const checkerB = await login(POS_LOCAL_IDENTITIES.manager);
@@ -117,22 +112,18 @@ try {
     checkerB.page.goto(requestUrl, { waitUntil: "domcontentloaded" }),
   ]);
   await Promise.all([
-    checkerA.page.getByRole("button", { name: "Approve" }).waitFor({ state: "visible", timeout: 30_000 }),
-    checkerB.page.getByRole("button", { name: "Approve" }).waitFor({ state: "visible", timeout: 30_000 }),
+    checkerA.page.getByRole("button", { name: "Approve and apply" }).waitFor({ state: "visible", timeout: 30_000 }),
+    checkerB.page.getByRole("button", { name: "Approve and apply" }).waitFor({ state: "visible", timeout: 30_000 }),
   ]);
   await Promise.all([
-    checkerA.page.getByRole("button", { name: "Approve" }).click(),
-    checkerB.page.getByRole("button", { name: "Approve" }).click(),
+    checkerA.page.getByRole("button", { name: "Approve and apply" }).click(),
+    checkerB.page.getByRole("button", { name: "Approve and apply" }).click(),
   ]);
-  await waitForRow("pkg02_adjustment_requests", requestOne.id, (row) => row.status === "approved" && row.version === 3, "concurrent package approval");
+  await waitForRow("pkg02_adjustment_requests", requestOne.id, (row) => row.status === "applied", "concurrent package approve and apply");
   const { count: approvalCount, error: approvalCountError } = await admin.from("pkg02_approval_logs").select("id", { count: "exact", head: true }).eq("request_id", requestOne.id).eq("action", "approved");
   if (approvalCountError) throw approvalCountError;
   assert.equal(approvalCount, 1, "concurrent checker clicks create one approval transition");
 
-  await checkerA.page.goto(requestUrl, { waitUntil: "domcontentloaded" });
-  await checkerA.page.getByRole("button", { name: "Apply to ledger" }).click();
-  await waitForToast(checkerA.page, "Adjustment applied to package ledger.");
-  await waitForRow("pkg02_adjustment_requests", requestOne.id, (row) => row.status === "applied" && row.version === 4, "package adjustment apply");
   const { data: appliedPackage, error: packageError } = await admin.from("client_packages").select("credits_left").eq("id", clientPackageId).single();
   if (packageError) throw packageError;
   assert.equal(appliedPackage.credits_left, 8);
@@ -141,24 +132,20 @@ try {
   assert.equal(ledgerCount, 1, "approved request creates one ledger entry");
 
   await frontdesk.page.goto(approvalsUrl, { waitUntil: "domcontentloaded" });
-  await frontdesk.page.getByLabel("Delta credits").fill("-1");
-  await frontdesk.page.getByLabel("Value delta (SGD)").fill("-10.00");
+  await frontdesk.page.getByLabel("Credit change").fill("-1");
   await frontdesk.page.getByLabel("Reason").fill("POS local rejection path");
-  await frontdesk.page.getByRole("button", { name: "Create draft" }).click();
-  await waitForToast(frontdesk.page, "Adjustment request draft created.");
+  await frontdesk.page.getByRole("button", { name: "Submit for approval" }).click();
+  await waitForToast(frontdesk.page, "Submitted for approval.");
   const requestTwo = await waitForLocalDatabaseState(async () => {
     const { data, error } = await admin.from("pkg02_adjustment_requests").select("*").eq("studio_id", studioId).eq("reason", "POS local rejection path").single();
     if (error) throw error;
     return data;
-  }, (row) => row?.status === "draft", "package rejection draft");
-  await frontdesk.page.goto(`${approvalsUrl}&request_id=${requestTwo.id}`, { waitUntil: "domcontentloaded" });
-  await frontdesk.page.getByRole("button", { name: "Submit" }).click();
-  await waitForToast(frontdesk.page, "Adjustment request submitted for checker approval.");
+  }, (row) => row?.status === "submitted", "package rejection submit");
   await checkerA.page.goto(`${approvalsUrl}&request_id=${requestTwo.id}`, { waitUntil: "domcontentloaded" });
   await checkerA.page.getByPlaceholder("Rejection reason", { exact: true }).fill("Insufficient local evidence");
   await checkerA.page.getByRole("button", { name: "Reject" }).click();
-  await waitForToast(checkerA.page, "Adjustment request rejected.");
-  await waitForRow("pkg02_adjustment_requests", requestTwo.id, (row) => row.status === "rejected" && row.version === 3, "package rejection");
+  await waitForToast(checkerA.page, "Request rejected.");
+  await waitForRow("pkg02_adjustment_requests", requestTwo.id, (row) => row.status === "rejected", "package rejection");
 
   const instructor = await login(POS_LOCAL_IDENTITIES.instructor);
   await instructor.page.goto(`${baseUrl}/dashboard/pos${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });

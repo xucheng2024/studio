@@ -1,20 +1,20 @@
 import type { PkgApprovalErrorCode } from "@/lib/pkg-approvals";
 
 const PKG_APPROVAL_MESSAGES: Record<PkgApprovalErrorCode, string> = {
-  forbidden: "Access denied for this step. Use an owner/manager checker account; maker cannot self-approve/apply.",
+  forbidden: "You cannot approve or apply your own request. Ask another owner or manager.",
   studio_not_found: "Studio not found.",
   studio_suspended: "Studio contract is suspended.",
-  invalid_request: "Invalid approval request. Check fields and status.",
-  not_found: "Adjustment request not found. Refresh list and retry from latest state.",
-  idempotency_conflict: "Idempotency replay mismatch detected. Start a new apply attempt from the latest request state.",
-  idempotency_in_progress: "Apply is already processing. Wait a few seconds, refresh, then retry once.",
-  idempotency_permanently_failed: "Previous apply attempt is permanently failed. Re-run apply with a new request key.",
-  concurrency_conflict: "Request state changed by another user. Refresh list, reopen the request, then retry.",
-  unknown: "Unknown approval error. Retry shortly, or contact support if it persists.",
+  invalid_request: "This request cannot be updated. Check the fields and status, then try again.",
+  not_found: "This request was not found. Refresh the list and try again.",
+  idempotency_conflict: "This apply attempt does not match the latest request. Refresh and apply again.",
+  idempotency_in_progress: "Credits are already being applied. Wait a few seconds, refresh, then try once.",
+  idempotency_permanently_failed: "The last apply attempt failed. Refresh the request and apply again.",
+  concurrency_conflict: "Someone else updated this request. Refresh the list and try again.",
+  unknown: "Could not complete this step. Try again shortly, or contact support if it continues.",
 };
 
 export const PKG_APPROVAL_SELF_ACTION_BLOCKED_MESSAGE =
-  "Access denied: maker cannot self-approve/apply. Use another owner/manager checker account.";
+  "You cannot approve or apply a request you created. Ask another owner or manager.";
 
 export function getPkgApprovalMessage(code: PkgApprovalErrorCode, fallback: string) {
   return PKG_APPROVAL_MESSAGES[code] ?? fallback;

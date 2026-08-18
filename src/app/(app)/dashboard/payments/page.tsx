@@ -579,7 +579,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
     <div className="flex flex-col gap-6">
       {/* ── Page header ─────────────────────────────────────────── */}
       <div>
-        <h1 className={ui.h1}>Payment records</h1>
+        <h1 className={ui.h1}>Payments</h1>
         <p className={`mt-1 ${ui.muted}`}>Check incoming payments, export records, and view action history.</p>
         <p className={`mt-1 text-sm ${ui.muted}`}>
           Use Sync HitPay before manual changes when a customer says they paid. HitPay refunds are attempted automatically; other refund methods are recorded after you process them outside this app.
@@ -758,7 +758,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <p className="mt-1 text-xs sm:text-sm">
             Paid/refunded POS cash without cash session (last 7 days): {typeof unassignedPosCashCount === "number" ? unassignedPosCashCount : "-"}.
             <DashboardAppLink href={`/dashboard/payments?${unassignedCashParams.toString()}`} className="ml-1 underline">
-              Open anomaly filter
+              Open unassigned cash
             </DashboardAppLink>
             {cashSessionIdFilter ? ` · Viewing cash session: ${cashSessionIdFilter}` : ""}
           </p>
@@ -768,47 +768,47 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className={ui.h2}>Payments/POS exceptions (24h)</h2>
-            <p className={ui.muted}>Ops fallback board for webhook and POS void/refund failures.</p>
+            <h2 className={ui.h2}>Payment issues (last 24 hours)</h2>
+            <p className={ui.muted}>Failed HitPay updates, voids, and refunds.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <DashboardAppLink
               href={`/dashboard/payments/runbook?studio_id=${activeStudioId}${locationFilter ? `&location_id=${locationFilter}` : ""}`}
               className={ui.btnSecondarySm}
             >
-              Pending-payment SOP
+              Pending payment guide
             </DashboardAppLink>
             <DashboardAppLink
               href={`/dashboard/pos/runbook?studio_id=${activeStudioId}${locationFilter ? `&location_id=${locationFilter}` : ""}`}
               className={ui.btnSecondarySm}
             >
-              POS-04 SOP
+              Cash session guide
             </DashboardAppLink>
           </div>
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
-            <p className={`text-xs ${ui.muted}`}>invalid_signature</p>
+            <p className={`text-xs ${ui.muted}`}>Invalid payment signature</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{webhookFailureCounts.get("invalid_signature") ?? 0}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
-            <p className={`text-xs ${ui.muted}`}>provider_event_claim_failed</p>
+            <p className={`text-xs ${ui.muted}`}>Payment event not recorded</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{webhookFailureCounts.get("provider_event_claim_failed") ?? 0}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
-            <p className={`text-xs ${ui.muted}`}>complete_pos_hitpay_sale_failed</p>
+            <p className={`text-xs ${ui.muted}`}>Sale could not be marked paid</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{webhookFailureCounts.get("complete_pos_hitpay_sale_failed") ?? 0}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
-            <p className={`text-xs ${ui.muted}`}>void_pos_sale_failed</p>
+            <p className={`text-xs ${ui.muted}`}>Void failed</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{posFailureCounts.get("void_pos_sale_failed") ?? 0}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
-            <p className={`text-xs ${ui.muted}`}>refund_pos_sale_failed</p>
+            <p className={`text-xs ${ui.muted}`}>Refund failed</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{posFailureCounts.get("refund_pos_sale_failed") ?? 0}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-3 py-2 dark:border-stone-800 dark:bg-stone-900/50">
-            <p className={`text-xs ${ui.muted}`}>refund_pos_sale_items_failed</p>
+            <p className={`text-xs ${ui.muted}`}>Item refund failed</p>
             <p className="mt-1 text-lg font-semibold text-stone-900 dark:text-stone-100">{posFailureCounts.get("refund_pos_sale_items_failed") ?? 0}</p>
           </div>
         </div>
@@ -832,7 +832,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             ))}
           </ul>
         ) : (
-          <p className={`mt-3 text-sm ${ui.muted}`}>No tracked payment/POS exceptions in the last 24 hours.</p>
+          <p className={`mt-3 text-sm ${ui.muted}`}>No payment issues in the last 24 hours.</p>
         )}
       </section>
 

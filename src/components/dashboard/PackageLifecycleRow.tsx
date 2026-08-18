@@ -16,6 +16,7 @@ export function PackageLifecycleRow({
   shareSlug,
   canEdit,
   canCopyLink,
+  isActive,
   initial,
   locations,
 }: {
@@ -24,6 +25,7 @@ export function PackageLifecycleRow({
   shareSlug: string | null;
   canEdit: boolean;
   canCopyLink: boolean;
+  isActive: boolean;
   initial: {
     name: string;
     credits: number;
@@ -113,7 +115,10 @@ export function PackageLifecycleRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
             <div className="min-w-0">
-              <p className="font-medium text-stone-900 dark:text-stone-100">{initial.name}</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <p className="font-medium text-stone-900 dark:text-stone-100">{initial.name}</p>
+                <span className={isActive ? ui.badge : ui.badgeAmber}>{isActive ? "Active" : "Hidden"}</span>
+              </div>
               {initial.credits != null || initial.price != null || initial.expiry_days != null ? (
                 <p className={`mt-0.5 text-xs ${ui.muted}`}>
                   {initial.credits != null ? `${initial.credits} class passes` : ""}

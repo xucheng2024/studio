@@ -49,9 +49,9 @@ export function SalonReportingFacts({ facts }: { facts: ReportingFacts }) {
   return (
     <section className="flex flex-col gap-6">
       <div>
-        <h2 className={ui.h2}>Salon facts</h2>
+        <h2 className={ui.h2}>Summary</h2>
         <p className={`mt-1 ${ui.muted}`}>
-          Database aggregates for {facts.from} to {facts.to}. Inventory and loyalty stay 0.
+          Numbers for {facts.from} to {facts.to}.
         </p>
         {facts.sales.yoy.current_net === 0
           && facts.appointment_outcome.closed.completed
@@ -77,7 +77,7 @@ export function SalonReportingFacts({ facts }: { facts: ReportingFacts }) {
         <div className={ui.card}>
           <p className={ui.muted}>Unique customers</p>
           <p className="mt-1 text-xl font-semibold">{facts.customers.unique_customers}</p>
-          <p className={`mt-1 text-sm ${ui.muted}`}>FOV {visitFov == null ? "N/A" : visitFov.toFixed(2)}</p>
+          <p className={`mt-1 text-sm ${ui.muted}`}>Visits per customer {visitFov == null ? "N/A" : visitFov.toFixed(2)}</p>
         </div>
       </div>
 

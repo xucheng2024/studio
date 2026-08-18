@@ -196,11 +196,11 @@ export default async function PosSalesPage({ searchParams }: Props) {
             href={`/dashboard/pos/runbook?studio_id=${activeStudioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}`}
             className={ui.btnSecondarySm}
           >
-            POS-04 SOP
+            Cash session guide
           </DashboardAppLink>
         </div>
         <p className={`mt-1 ${ui.muted}`}>
-          Unified POS draft/locked sales. Total {salesResult.totalCount} record{salesResult.totalCount === 1 ? "" : "s"}.
+          Draft and completed counter sales. {salesResult.totalCount} record{salesResult.totalCount === 1 ? "" : "s"}.
         </p>
         <div className="mt-3">
           {!effectiveLocationId ? (

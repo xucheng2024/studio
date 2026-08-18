@@ -82,7 +82,7 @@ export default async function DashboardMemberZonePage({ searchParams }: Props) {
     <div className="flex max-w-5xl flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className={ui.h1}>Member zone setup</h1>
+          <h1 className={ui.h1}>Member zone</h1>
           <p className={ui.muted}>Create series and lessons for free, member-only, paid-only, or member-or-paid media learning.</p>
         </div>
         {publicHref ? (

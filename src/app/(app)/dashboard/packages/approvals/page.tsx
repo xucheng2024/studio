@@ -1,11 +1,11 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
-import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { PackagesLocationBar } from "@/components/dashboard/PackagesLocationBar";
+import { Pkg02NewAdjustmentForm } from "@/components/dashboard/Pkg02NewAdjustmentForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   applyPkg02AdjustmentRequestAction,
-  approvePkg02AdjustmentRequestAction,
-  createPkg02AdjustmentRequestAction,
+  approveAndApplyPkg02AdjustmentRequestAction,
   rejectPkg02AdjustmentRequestAction,
   submitPkg02AdjustmentRequestAction,
 } from "@/app/(app)/dashboard/actions";
@@ -74,6 +74,23 @@ function hoursDiffFromNow(value: string | null | undefined, now: Date) {
   const diffMs = now.getTime() - dt.getTime();
   if (diffMs < 0) return 0;
   return diffMs / (1000 * 60 * 60);
+}
+
+function statusLabel(status: ApprovalStatus) {
+  switch (status) {
+    case "draft":
+      return "Draft";
+    case "submitted":
+      return "Pending";
+    case "approved":
+      return "Approved";
+    case "rejected":
+      return "Rejected";
+    case "applied":
+      return "Applied";
+    default:
+      return status;
+  }
 }
 
 function statusBadgeClass(status: ApprovalStatus) {
@@ -158,15 +175,21 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
 
   const rawStatusFilter = asSingleValue(sp.status);
   const statusFilter = STATUS_VALUES.includes(rawStatusFilter as ApprovalStatus) ? (rawStatusFilter as ApprovalStatus) : "";
+  const rawView = asSingleValue(sp.view);
+  const hasExplicitView = VIEW_VALUES.includes(rawView as QuickView);
+  const keyword = asSingleValue(sp.q).trim();
+  const requestIdFilter = asSingleValue(sp.request_id).trim();
+  const backlogOnly = asSingleValue(sp.backlog_only) === "1";
   const requestedClientPackageId = asSingleValue(sp.client_package_id).trim();
   const rawSortKey = asSingleValue(sp.sort);
   const sortKey = SORT_VALUES.includes(rawSortKey as SortKey) ? (rawSortKey as SortKey) : "created_desc";
   const sortMeta = SORT_META[sortKey];
-  const rawView = asSingleValue(sp.view);
-  const quickView = VIEW_VALUES.includes(rawView as QuickView) ? (rawView as QuickView) : "all";
-  const keyword = asSingleValue(sp.q).trim();
-  const requestIdFilter = asSingleValue(sp.request_id).trim();
-  const backlogOnly = asSingleValue(sp.backlog_only) === "1";
+  const defaultView: QuickView = canChecker ? "my_pending" : "my_initiated";
+  const quickView: QuickView = hasExplicitView
+    ? (rawView as QuickView)
+    : backlogOnly || requestIdFilter || requestedClientPackageId || statusFilter
+      ? "all"
+      : defaultView;
   const backlogHours = Math.min(24 * 30, asPositiveInt(sp.backlog_hours, DEFAULT_BACKLOG_HOURS));
   const now = new Date();
   const pageSizeCandidate = asPositiveInt(sp.page_size, DEFAULT_PAGE_SIZE);
@@ -281,7 +304,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
 
   let packageOptionsQuery = admin
     .from("client_packages")
-    .select("id, client_id, credits_left, package_name_snapshot, created_at, packages!inner(id, name, studio_id, location_id)")
+    .select("id, client_id, credits_left, package_name_snapshot, created_at, packages!inner(id, name, studio_id, location_id, price, credits)")
     .in("packages.studio_id", [activeStudioId])
     .order("created_at", { ascending: false })
     .limit(120);
@@ -296,7 +319,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   if (requestedClientPackageId && !packageOptions.some((row) => row.id === requestedClientPackageId)) {
     const { data: requestedPackageRows } = await admin
       .from("client_packages")
-      .select("id, client_id, credits_left, package_name_snapshot, created_at, packages!inner(id, name, studio_id, location_id)")
+      .select("id, client_id, credits_left, package_name_snapshot, created_at, packages!inner(id, name, studio_id, location_id, price, credits)")
       .eq("id", requestedClientPackageId)
       .in("packages.studio_id", [activeStudioId])
       .limit(1);
@@ -322,6 +345,22 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
 
   const packageUserEmailById = new Map((packageUsers ?? []).map((row) => [row.id, row.email ?? "-"]));
   const packageUserNameById = new Map((packageProfiles ?? []).map((row) => [row.id, row.full_name ?? "-"]));
+  const adjustmentOptions = packageOptions.map((row) => {
+    const packageRow = asNested<{ name: string | null; price: number | null; credits: number | null }>(
+      row.packages as
+        | { name: string | null; price: number | null; credits: number | null }
+        | { name: string | null; price: number | null; credits: number | null }[]
+        | null,
+    );
+    const clientLabel = packageUserNameById.get(row.client_id) ?? packageUserEmailById.get(row.client_id) ?? row.client_id;
+    const credits = Number(packageRow?.credits);
+    const price = Number(packageRow?.price);
+    return {
+      id: row.id,
+      label: `${packageRow?.name ?? row.package_name_snapshot ?? "Package"} · ${clientLabel} · credits left ${row.credits_left}`,
+      unitValue: Number.isFinite(credits) && credits > 0 && Number.isFinite(price) ? price / credits : null,
+    };
+  });
 
   const baseQueryParams = {
     studio_id: activeStudioId,
@@ -350,98 +389,30 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   const prevPageHref = buildApprovalsHref({ page: String(page - 1) });
   const nextPageHref = buildApprovalsHref({ page: String(page + 1) });
 
-  const backParams = buildParams({
-    studio_id: activeStudioId,
-    location_id: selectedLocationId ?? undefined,
-  });
-  const backHref = `/dashboard/packages?${backParams.toString()}`;
-
   return (
     <div className="flex flex-col gap-8">
-      <div className={`${ui.card} flex flex-wrap gap-3`}>
-        <DashboardLocationFilter
-          locations={locationRows ?? []}
-          selectedStudioId={activeStudioId}
-          selectedLocationId={selectedLocationId}
-          allowAll={canViewAllLocations}
-          accessibleLocationIds={accessibleLocationIds}
-        />
-      </div>
+      <PackagesLocationBar
+        locations={locationRows ?? []}
+        selectedStudioId={activeStudioId}
+        selectedLocationId={selectedLocationId}
+        allowAll={canViewAllLocations}
+        accessibleLocationIds={accessibleLocationIds}
+      />
 
       <div>
-        <h1 className={ui.h1}>Package approvals</h1>
-        <p className={`mt-2 ${ui.lead}`}>Maker-Checker workflow for manual package credit adjustments.</p>
-        <div className="mt-3">
-          <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-            Back to packages
-          </DashboardAppLink>
-        </div>
+        <p className={ui.lead}>Maker-checker credit adjustments for already-sold class passes.</p>
       </div>
 
       {canMaker ? (
-        <details className={`chevron ${ui.card}`} open>
-          <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
-            <span>+ New adjustment request</span>
-            <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Draft starts at status = draft</span>
-          </summary>
-          <ServerActionToastForm action={createPkg02AdjustmentRequestAction} className="mt-4 grid gap-3 lg:grid-cols-2">
-            <input type="hidden" name="studio_id" value={activeStudioId} />
-            <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
-
-            <label className="flex flex-col gap-1.5 lg:col-span-2">
-              <span className={ui.label}>Client package</span>
-              <select name="client_package_id" required className={ui.select} defaultValue={prefilledClientPackageId}>
-                <option value="" disabled>
-                  Select a client package
-                </option>
-                {packageOptions.map((row) => {
-                  const packageRow = asNested<{ id: string; name: string | null }>(
-                    row.packages as { id: string; name: string | null } | { id: string; name: string | null }[] | null,
-                  );
-                  const clientLabel = packageUserNameById.get(row.client_id) ?? packageUserEmailById.get(row.client_id) ?? row.client_id;
-                  return (
-                    <option key={row.id} value={row.id}>
-                      {packageRow?.name ?? row.package_name_snapshot ?? "Package"} · {clientLabel} · credits left {row.credits_left}
-                    </option>
-                  );
-                })}
-              </select>
-              {prefilledClientPackageId ? <p className={`text-xs ${ui.muted}`}>Prefilled from package details link.</p> : null}
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Delta credits</span>
-              <input name="requested_delta_credits" type="number" required className={ui.input} placeholder="-2" />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Value delta (SGD)</span>
-              <input name="requested_value_delta_amount" type="number" step="0.01" className={ui.input} placeholder="-20.00" />
-            </label>
-
-            <label className="flex flex-col gap-1.5 lg:col-span-2">
-              <span className={ui.label}>Reason</span>
-              <textarea name="reason" required className={ui.input} rows={3} placeholder="Describe why this manual adjustment is needed." />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Currency</span>
-              <input name="currency" defaultValue="SGD" className={ui.input} />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Salon customer (optional)</span>
-              <input name="salon_customer_id" className={ui.input} placeholder="UUID (optional)" />
-            </label>
-
-            <SubmitButton className={`${ui.btnPrimary} w-full lg:col-span-2 lg:w-fit`} pendingText="Creating draft...">
-              Create draft
-            </SubmitButton>
-          </ServerActionToastForm>
-        </details>
+        <Pkg02NewAdjustmentForm
+          studioId={activeStudioId}
+          locationId={selectedLocationId}
+          options={adjustmentOptions}
+          prefilledClientPackageId={prefilledClientPackageId}
+        />
       ) : (
         <div className={ui.card}>
-          <p className={ui.muted}>You do not have maker permission to create adjustment requests.</p>
+          <p className={ui.muted}>You cannot create credit adjustments.</p>
         </div>
       )}
 
@@ -459,66 +430,71 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
           href={quickMyInitiatedHref}
           className={quickView === "my_initiated" ? ui.btnPrimarySm : ui.btnSecondarySm}
         >
-          My initiated
+          Requested by me
         </DashboardAppLink>
         <DashboardAppLink href={quickApprovedBacklogHref} className={backlogOnly ? ui.btnPrimarySm : ui.btnSecondarySm}>
-          Approved backlog
+          Approved, not applied
         </DashboardAppLink>
       </div>
 
-      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-6`}>
+      <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-2`}>
         <input type="hidden" name="studio_id" value={activeStudioId} />
         <input type="hidden" name="location_id" value={selectedLocationId ?? ""} />
         <input type="hidden" name="view" value={quickView} />
+        {backlogOnly ? <input type="hidden" name="backlog_only" value="1" /> : null}
+        {prefilledClientPackageId ? (
+          <input type="hidden" name="client_package_id" value={prefilledClientPackageId} />
+        ) : null}
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className={ui.label}>Search</span>
           <input name="q" defaultValue={keyword} className={ui.input} placeholder="Reason / rejection reason" />
         </label>
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className={ui.label}>Request ID</span>
-          <input name="request_id" defaultValue={requestIdFilter} className={ui.input} placeholder="Exact request UUID" />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Status</span>
-          <select name="status" className={ui.select} defaultValue={statusFilter} disabled={quickView === "my_pending"}>
-            <option value="">All</option>
-            {STATUS_VALUES.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Sort</span>
-          <select name="sort" className={ui.select} defaultValue={sortKey}>
-            {SORT_VALUES.map((key) => (
-              <option key={key} value={key}>
-                {SORT_META[key].label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Page size</span>
-          <select name="page_size" className={ui.select} defaultValue={String(pageSize)}>
-            {PAGE_SIZE_VALUES.map((value) => (
-              <option key={value} value={String(value)}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Backlog hours</span>
-          <input name="backlog_hours" type="number" min={1} max={720} defaultValue={String(backlogHours)} className={ui.input} />
-        </label>
-        <label className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-700">
-          <input name="backlog_only" type="checkbox" value="1" defaultChecked={backlogOnly} />
-          <span className={`text-sm ${ui.muted}`}>Only approved overdue</span>
-        </label>
-        <div className="flex items-end sm:col-span-6">
-          <SubmitButton className={`${ui.btnSecondary} w-full`} pendingText="Filtering...">
+        <details className="chevron sm:col-span-2">
+          <summary className="cursor-pointer text-sm font-medium text-stone-700 dark:text-stone-300">More filters</summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-6">
+            <label className="flex flex-col gap-1.5 sm:col-span-2">
+              <span className={ui.label}>Request ID</span>
+              <input name="request_id" defaultValue={requestIdFilter} className={ui.input} placeholder="Exact request UUID" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Status</span>
+              <select name="status" className={ui.select} defaultValue={statusFilter} disabled={quickView === "my_pending"}>
+                <option value="">All</option>
+                {STATUS_VALUES.map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Sort</span>
+              <select name="sort" className={ui.select} defaultValue={sortKey}>
+                {SORT_VALUES.map((key) => (
+                  <option key={key} value={key}>
+                    {SORT_META[key].label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Page size</span>
+              <select name="page_size" className={ui.select} defaultValue={String(pageSize)}>
+                {PAGE_SIZE_VALUES.map((value) => (
+                  <option key={value} value={String(value)}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Backlog hours</span>
+              <input name="backlog_hours" type="number" min={1} max={720} defaultValue={String(backlogHours)} className={ui.input} />
+            </label>
+          </div>
+        </details>
+        <div className="flex items-end sm:col-span-2">
+          <SubmitButton className={`${ui.btnSecondary} w-full sm:w-fit`} pendingText="Filtering...">
             Apply filters
           </SubmitButton>
         </div>
@@ -562,19 +538,18 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
       </div>
 
       <div className={`${ui.card} flex flex-wrap items-center justify-between gap-2 text-sm`}>
-        <div>
-          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Approved backlog monitor</p>
-          <p className={ui.muted}>Approved for ≥ {backlogHours}h and not yet applied.</p>
-        </div>
-        <span
-          className={
-            approvedBacklogCount > 0
-              ? "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-300"
-              : "inline-flex items-center rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-900 dark:border-teal-800/60 dark:bg-teal-950/60 dark:text-teal-100"
-          }
-        >
-          {approvedBacklogCount.toLocaleString()} overdue
-        </span>
+        <p className={ui.muted}>
+          {approvedBacklogCount > 0
+            ? `${approvedBacklogCount.toLocaleString()} approved requests waiting to apply (≥ ${backlogHours}h).`
+            : `No approved backlog over ${backlogHours}h.`}
+        </p>
+        {approvedBacklogCount > 0 ? (
+          <DashboardAppLink href={quickApprovedBacklogHref} className={ui.btnSecondarySm}>
+            Open backlog
+          </DashboardAppLink>
+        ) : (
+          <span className={ui.badge}>0 overdue</span>
+        )}
       </div>
 
       {approvalRows.length === 0 ? (
@@ -609,38 +584,39 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
               <li key={row.id} className={itemClass}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{packageRow?.name ?? "Package"}</p>
-                    <p className={`text-xs ${ui.muted}`}>Request {row.id} · Client package {row.client_package_id}</p>
+                    <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      {customerRow?.full_name ?? customerRow?.email ?? "Customer"} · {packageRow?.name ?? "Package"}
+                    </p>
+                    <p className={`text-xs ${ui.muted}`}>
+                      {row.requested_delta_credits > 0 ? "+" : ""}
+                      {row.requested_delta_credits} credits
+                      {row.requested_value_delta_amount != null ? ` · ${row.requested_value_delta_amount} ${row.currency}` : ""}
+                    </p>
                     {isApprovedBacklog && approvedAgeHours != null ? (
                       <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
                         Backlog alert: approved for {Math.floor(approvedAgeHours)}h (threshold {backlogHours}h)
                       </p>
                     ) : null}
                   </div>
-                  <span className={statusBadgeClass(status)}>{status}</span>
+                  <span className={statusBadgeClass(status)}>{statusLabel(status)}</span>
                 </div>
 
-                <div className="grid gap-2 text-sm text-stone-700 dark:text-stone-300 sm:grid-cols-2 lg:grid-cols-3">
-                  <p>Customer: {customerRow?.full_name ?? customerRow?.email ?? row.salon_customer_id}</p>
-                  <p>Location: {locationRow?.name ?? "All"}</p>
-                  <p>Delta credits: {row.requested_delta_credits}</p>
-                  <p>
-                    Value delta: {row.requested_value_delta_amount ?? "-"} {row.currency}
-                  </p>
-                  <p>Maker: {actorEmailById.get(row.maker_user_id) ?? row.maker_user_id}</p>
-                  <p>Checker: {row.checker_user_id ? (actorEmailById.get(row.checker_user_id) ?? row.checker_user_id) : "-"}</p>
-                  <p>Version: {row.version}</p>
-                  <p>Created: {formatDateTime(row.created_at)}</p>
-                  <p>Updated: {formatDateTime(row.updated_at)}</p>
-                </div>
-
-                {row.reason ? <p className={`text-sm ${ui.muted}`}>Reason: {row.reason}</p> : null}
+                {row.reason ? <p className={`text-sm ${ui.muted}`}>{row.reason}</p> : null}
                 {row.rejection_reason ? <p className="text-sm text-red-600 dark:text-red-400">Rejection reason: {row.rejection_reason}</p> : null}
-                {row.applied_ledger_entry_id ? <p className={`text-xs ${ui.muted}`}>Ledger entry: {row.applied_ledger_entry_id}</p> : null}
 
-                {timelineRows.length ? (
-                  <details>
-                    <summary className={`cursor-pointer text-xs ${ui.muted}`}>Approval timeline ({timelineRows.length})</summary>
+                <details>
+                  <summary className={`cursor-pointer text-xs ${ui.muted}`}>Details</summary>
+                  <div className="mt-2 grid gap-2 text-sm text-stone-700 dark:text-stone-300 sm:grid-cols-2">
+                    <p>Location: {locationRow?.name ?? "All"}</p>
+                    <p>Maker: {actorEmailById.get(row.maker_user_id) ?? row.maker_user_id}</p>
+                    <p>Checker: {row.checker_user_id ? (actorEmailById.get(row.checker_user_id) ?? row.checker_user_id) : "-"}</p>
+                    <p>Created: {formatDateTime(row.created_at)}</p>
+                    {row.applied_ledger_entry_id ? (
+                      <p className={`text-xs ${ui.muted} sm:col-span-2`}>Ledger entry: {row.applied_ledger_entry_id}</p>
+                    ) : null}
+                    <p className={`font-mono text-[11px] ${ui.muted} sm:col-span-2`}>Request {row.id}</p>
+                  </div>
+                  {timelineRows.length ? (
                     <ul className="mt-2 space-y-2">
                       {timelineRows.map((timelineRow) => {
                         const actor = timelineRow.actor_id ? (actorEmailById.get(timelineRow.actor_id) ?? timelineRow.actor_id) : "system";
@@ -657,8 +633,8 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
                         );
                       })}
                     </ul>
-                  </details>
-                ) : null}
+                  ) : null}
+                </details>
 
                 <div className="grid gap-2 lg:grid-cols-2">
                   {showSubmit ? (
@@ -675,13 +651,13 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
 
                   {showCheckerDecision ? (
                     <div className="flex flex-wrap items-end gap-2">
-                      <ServerActionToastForm action={approvePkg02AdjustmentRequestAction} className="flex flex-wrap items-end gap-2">
+                      <ServerActionToastForm action={approveAndApplyPkg02AdjustmentRequestAction} className="flex flex-wrap items-end gap-2">
                         <input type="hidden" name="studio_id" value={activeStudioId} />
                         <input type="hidden" name="request_id" value={row.id} />
                         <input type="hidden" name="expected_version" value={String(row.version)} />
-                        <input type="hidden" name="note" value="approved from dashboard approvals" />
+                        <input type="hidden" name="note" value="approved and applied from dashboard approvals" />
                         <SubmitButton className={ui.btnPrimarySm} pendingText="Approving..." disabled={isSelfRequest}>
-                          Approve
+                          Approve and apply
                         </SubmitButton>
                       </ServerActionToastForm>
 
@@ -703,9 +679,8 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
                       <input type="hidden" name="studio_id" value={activeStudioId} />
                       <input type="hidden" name="request_id" value={row.id} />
                       <input type="hidden" name="expected_version" value={String(row.version)} />
-                      <input type="hidden" name="idempotency_key" value={`pkg02-apply:${row.id}:${row.version}:${crypto.randomUUID()}`} />
+                      <input type="hidden" name="idempotency_key" value={`pkg02-apply:${row.id}:${row.version}`} />
                       <input type="hidden" name="correlation_id" value={`pkg02-dashboard-apply:${row.id}:${row.version}`} />
-                      <input name="note" className={ui.input} placeholder="Apply note (optional)" />
                       <SubmitButton className={ui.btnPrimarySm} pendingText="Applying..." disabled={isSelfRequest}>
                         Apply to ledger
                       </SubmitButton>

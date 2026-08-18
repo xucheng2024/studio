@@ -51,7 +51,7 @@ export default async function StudioBookingSettingsPage({ searchParams }: Props)
     <div className="flex max-w-5xl flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className={ui.h1}>Booking Settings</h1>
+          <h1 className={ui.h1}>Booking settings</h1>
           <p className={ui.muted}>Connect Cal.com and control how booking appears on /{studio.public_slug}.</p>
         </div>
         <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId)} className={ui.btnSecondarySm}>

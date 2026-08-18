@@ -298,7 +298,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         />
       </div>
       <div>
-        <h1 className={ui.h1}>Event setup</h1>
+        <h1 className={ui.h1}>Events</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <p className={ui.muted}>
             Create and maintain standalone paid or free events here. Attendee handling stays in Bookings.

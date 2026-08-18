@@ -94,7 +94,7 @@ export default async function DashboardShopPage({ searchParams }: Props) {
     <div className="flex max-w-5xl flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className={ui.h1}>Shop setup</h1>
+          <h1 className={ui.h1}>Shop</h1>
           <p className={ui.muted}>Sell merchandise on your public studio page. Paid orders use HitPay, while free orders skip payment and still collect a shipping address.</p>
           <p className={`mt-1 text-sm ${ui.muted}`}>
             Products are visible after creation unless hidden later. Stock is reduced at online checkout when a quantity is set.

@@ -99,7 +99,7 @@ try {
       if (check.allowed) {
         await pageContains(page, `${BASE_URL}${posPath}`, "POS sales", { heading: true });
         await pageContains(page, `${BASE_URL}/dashboard/pos/cash-sessions?${params}`, "Cash sessions", { heading: true });
-        await pageContains(page, `${BASE_URL}/dashboard/packages/approvals?${params}`, "Package approvals", { heading: true });
+        await pageContains(page, `${BASE_URL}/dashboard/packages/approvals?${params}`, "Packages", { heading: true });
       } else {
         await pageContains(page, `${BASE_URL}${posPath}`, "You do not have access to POS sales");
         await pageContains(page, `${BASE_URL}/dashboard/pos/cash-sessions?${params}`, "You do not have access to cash sessions");

@@ -21,6 +21,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { usePkgApprovalsOverdueBadge } from "@/components/dashboard/pkg-approvals-overdue-badge";
 import { isRouteActive, pathFromHref } from "@/lib/nav-active";
 
 type NavLink = { href: string; label: string; icon: LucideIcon };
@@ -36,7 +37,6 @@ const links: NavLink[] = [
   { href: "/dashboard/member-zone",label: "Member zone",icon: Film },
   { href: "/dashboard/shop",       label: "Shop",       icon: ShoppingBag },
   { href: "/dashboard/packages",   label: "Packages",   icon: Package },
-  { href: "/dashboard/packages/approvals", label: "Package Approvals", icon: Package },
   { href: "/dashboard/memberships",label: "Memberships",icon: Repeat },
   { href: "/dashboard/clients",    label: "Customers",  icon: Users },
   { href: "/dashboard/marketing",  label: "Marketing",  icon: Mail },
@@ -49,7 +49,7 @@ const links: NavLink[] = [
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor", string[]> = {
   owner:     links.map((l) => l.href).filter((href) => href !== "/dashboard/payroll/me"),
   manager:   links.map((l) => l.href).filter((href) => href !== "/dashboard/payroll" && href !== "/dashboard/payroll/me"),
-  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/packages/approvals", "/dashboard/memberships", "/dashboard/clients", "/dashboard/payroll/me"],
+  frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients", "/dashboard/payroll/me"],
   instructor: ["/dashboard/appointments", "/dashboard/payroll/me"],
 };
 
@@ -71,7 +71,7 @@ function prioritizeMobileLinks(visibleLinks: NavLink[]) {
     ["/dashboard/settings", 2],
     ["/dashboard/schedule", 3],
     ["/dashboard/clients", 4],
-    ["/dashboard/packages/approvals", 4],
+    ["/dashboard/packages", 4],
   ]);
 
   return [...visibleLinks].sort((a, b) => {
@@ -110,39 +110,6 @@ function useNavState() {
   return { pathname, keep, pendingHref, setPendingHref };
 }
 
-function usePkgApprovalsOverdueBadge() {
-  const search = useSearchParams();
-  const pathname = usePathname();
-  const [count, setCount] = useState(0);
-
-  const studioId = search.get("studio_id") ?? "";
-  const locationId = search.get("location_id") ?? "";
-
-  useEffect(() => {
-    let mounted = true;
-    const params = new URLSearchParams();
-    if (studioId) params.set("studio_id", studioId);
-    if (locationId) params.set("location_id", locationId);
-
-    void fetch(`/api/dashboard/nav/pkg02-backlog${params.toString() ? `?${params.toString()}` : ""}`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((json: unknown) => {
-        if (!mounted || !json || typeof json !== "object") return;
-        const parsed = Number((json as { overdueCount?: unknown }).overdueCount ?? 0);
-        setCount(Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0);
-      })
-      .catch(() => {
-        if (mounted) setCount(0);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [studioId, locationId, pathname]);
-
-  return count;
-}
-
 /* ── Desktop sidebar nav ─────────────────────────────────────────── */
 export function DashboardNav({
   role,
@@ -179,7 +146,7 @@ export function DashboardNav({
           >
             <Icon size={15} className="shrink-0" strokeWidth={active ? 2.2 : 1.8} />
             <span>{navigating ? `${l.label}…` : l.label}</span>
-            {l.href === "/dashboard/packages/approvals" && pkgApprovalsOverdueCount > 0 ? (
+            {l.href === "/dashboard/packages" && pkgApprovalsOverdueCount > 0 ? (
               <span
                 className={`ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
                   active
@@ -239,7 +206,7 @@ export function MobileBottomNav({
               strokeWidth={active ? 2.2 : 1.7}
               className={active ? "text-teal-600 dark:text-teal-400" : ""}
             />
-            {l.href === "/dashboard/packages/approvals" && pkgApprovalsOverdueCount > 0 ? (
+            {l.href === "/dashboard/packages" && pkgApprovalsOverdueCount > 0 ? (
               <span className="absolute right-2 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-amber-100 px-1 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
                 {pkgApprovalsOverdueCount > 99 ? "99+" : pkgApprovalsOverdueCount}
               </span>

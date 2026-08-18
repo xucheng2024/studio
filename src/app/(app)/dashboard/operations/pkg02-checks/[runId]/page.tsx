@@ -62,23 +62,23 @@ const CHECK_CONFIG: {
 }[] = [
   {
     key: "self_approval_or_apply",
-    label: "Self approval / apply",
-    description: "Maker and checker must not be the same user.",
+    label: "Same-person action",
+    description: "The person who requested a credit change cannot approve or apply it.",
   },
   {
     key: "approved_not_applied_backlog",
-    label: "Approved backlog",
-    description: "Approved requests waiting too long before apply.",
+    label: "Waiting to apply",
+    description: "Approved credit changes that have not been applied yet.",
   },
   {
     key: "applied_missing_manual_adjustment_ledger",
-    label: "Missing ledger",
-    description: "Applied requests without valid manual_adjustment ledger entry.",
+    label: "Missing credit record",
+    description: "A credit change was marked applied but the customer balance was not updated.",
   },
   {
     key: "manual_adjustment_reconcile_diff",
-    label: "Reconcile diff",
-    description: "Applied request payload differs from mapped ledger entry.",
+    label: "Credit mismatch",
+    description: "The applied credits do not match what was approved."
   },
 ];
 
@@ -223,9 +223,9 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
     return (
       <div className="flex flex-col gap-4">
         <DashboardAppLink href="/dashboard/operations" className={ui.btnSecondarySm}>
-          Back to operations
+          Back to bookings
         </DashboardAppLink>
-        <p className={ui.muted}>Missing or inaccessible studio scope. Open this page from PKG-02 ops trend table.</p>
+        <p className={ui.muted}>Open this page from the package adjustment checks on Bookings.</p>
       </div>
     );
   }
@@ -250,10 +250,10 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/operations?${backQuery}`} className={ui.btnSecondarySm}>
-            Back to operations
+            Back to bookings
           </DashboardAppLink>
         </div>
-        <p className={ui.muted}>Run not found for current studio scope.</p>
+        <p className={ui.muted}>This check was not found for the current studio.</p>
       </div>
     );
   }
@@ -263,9 +263,9 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
     return (
       <div className="flex flex-col gap-4">
         <DashboardAppLink href={`/dashboard/operations?${backQuery}`} className={ui.btnSecondarySm}>
-          Back to operations
-        </DashboardAppLink>
-        <p className={ui.error}>You do not have location access to view this run detail.</p>
+            Back to bookings
+          </DashboardAppLink>
+          <p className={ui.error}>You do not have access to this location.</p>
       </div>
     );
   }
@@ -280,22 +280,22 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           <DashboardAppLink href={`/dashboard/operations?${backQuery}`} className={ui.btnSecondarySm}>
-            Back to operations
+            Back to bookings
           </DashboardAppLink>
           <DashboardAppLink href={`/dashboard/packages/approvals?${approvalsBacklogQuery.toString()}`} className={ui.btnSecondarySm}>
-            Open approval backlog
+            Open waiting adjustments
           </DashboardAppLink>
         </div>
         <span className={run.has_anomaly ? ui.badgeAmber : ui.badge}>
-          {run.has_anomaly ? "Anomaly detected" : "No anomaly"}
+          {run.has_anomaly ? "Needs review" : "All clear"}
         </span>
       </div>
 
       <section className={ui.card}>
-        <h1 className={ui.h1}>PKG-02 check run detail</h1>
+        <h1 className={ui.h1}>Package adjustment check</h1>
         <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className={`text-xs ${ui.muted}`}>Run ID</dt>
+            <dt className={`text-xs ${ui.muted}`}>Check ID</dt>
             <dd className="break-all font-mono text-xs text-stone-900 dark:text-stone-100">{run.id}</dd>
           </div>
           <div>
@@ -315,11 +315,11 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
             <dd>{run.backlog_threshold_hours}</dd>
           </div>
           <div>
-            <dt className={`text-xs ${ui.muted}`}>Notify status</dt>
+            <dt className={`text-xs ${ui.muted}`}>Alert status</dt>
             <dd>{run.notify_status}</dd>
           </div>
           <div className="sm:col-span-2 lg:col-span-2">
-            <dt className={`text-xs ${ui.muted}`}>Notify reason</dt>
+            <dt className={`text-xs ${ui.muted}`}>Alert reason</dt>
             <dd className="break-all">{run.notify_reason ?? "-"}</dd>
           </div>
         </dl>
@@ -361,9 +361,9 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
                     <tr className="border-b border-stone-100 text-left text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
                       <th className="py-2 pr-4 font-medium">Request ID</th>
                       <th className="py-2 pr-4 font-medium">Status</th>
-                      <th className="py-2 pr-4 font-medium">Maker / Checker</th>
-                      <th className="py-2 pr-4 font-medium">Package / Ledger</th>
-                      <th className="py-2 pr-4 font-medium">Delta</th>
+                      <th className="py-2 pr-4 font-medium">Requested / approved by</th>
+                      <th className="py-2 pr-4 font-medium">Package / credit record</th>
+                      <th className="py-2 pr-4 font-medium">Credit change</th>
                       <th className="py-2 font-medium">Updated</th>
                     </tr>
                   </thead>
@@ -385,17 +385,17 @@ export default async function Pkg02OpsCheckRunDetailPage({ params, searchParams 
                         </td>
                         <td className="py-2.5 pr-4 align-top text-stone-700 dark:text-stone-300">{sample.status}</td>
                         <td className="py-2.5 pr-4 align-top text-xs text-stone-700 dark:text-stone-300">
-                          <p className="break-all">maker: {sample.maker_user_id}</p>
-                          <p className="break-all">checker: {sample.checker_user_id ?? "-"}</p>
+                          <p className="break-all">Requested by: {sample.maker_user_id}</p>
+                          <p className="break-all">Approved by: {sample.checker_user_id ?? "-"}</p>
                         </td>
                         <td className="py-2.5 pr-4 align-top text-xs text-stone-700 dark:text-stone-300">
-                          <p className="break-all">pkg: {sample.client_package_id}</p>
-                          <p className="break-all">ledger: {sample.applied_ledger_entry_id ?? "-"}</p>
+                          <p className="break-all">Package: {sample.client_package_id}</p>
+                          <p className="break-all">Credit record: {sample.applied_ledger_entry_id ?? "-"}</p>
                         </td>
                         <td className="py-2.5 pr-4 align-top text-xs text-stone-700 dark:text-stone-300">
-                          <p>credits: {sample.requested_delta_credits}</p>
+                          <p>Credits: {sample.requested_delta_credits}</p>
                           <p>
-                            value: {sample.currency} {sample.requested_value_delta_amount == null ? "-" : sample.requested_value_delta_amount}
+                            Amount: {sample.currency} {sample.requested_value_delta_amount == null ? "-" : sample.requested_value_delta_amount}
                           </p>
                         </td>
                         <td className="py-2.5 align-top text-xs text-stone-700 dark:text-stone-300">

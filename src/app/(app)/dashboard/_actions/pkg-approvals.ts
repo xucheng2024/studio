@@ -4,6 +4,7 @@ import {
   applyPkg02AdjustmentRequest,
   createPkg02AdjustmentRequest,
   decidePkg02AdjustmentRequest,
+  resolvePkg02ValueDelta,
   submitPkg02AdjustmentRequest,
   type PkgApprovalErrorCode,
 } from "@/lib/pkg-approvals";
@@ -72,7 +73,7 @@ export async function createPkg02AdjustmentRequestAction(
   }
 
   return {
-    ...ok("Adjustment request draft created."),
+    ...ok("Draft saved."),
     request_id: result.payload.request_id,
     status: result.payload.status,
     version: result.payload.version,
@@ -106,7 +107,7 @@ export async function submitPkg02AdjustmentRequestAction(
   }
 
   return {
-    ...ok("Adjustment request submitted for checker approval."),
+    ...ok("Submitted for approval."),
     request_id: result.payload.request_id,
     status: result.payload.status,
     version: result.payload.version,
@@ -141,7 +142,7 @@ export async function approvePkg02AdjustmentRequestAction(
   }
 
   return {
-    ...ok("Adjustment request approved."),
+    ...ok("Request approved."),
     request_id: result.payload.request_id,
     status: result.payload.status,
     version: result.payload.version,
@@ -178,7 +179,7 @@ export async function rejectPkg02AdjustmentRequestAction(
   }
 
   return {
-    ...ok("Adjustment request rejected."),
+    ...ok("Request rejected."),
     request_id: result.payload.request_id,
     status: result.payload.status,
     version: result.payload.version,
@@ -216,10 +217,128 @@ export async function applyPkg02AdjustmentRequestAction(
   }
 
   return {
-    ...ok(result.payload.already_applied ? "Adjustment already applied." : "Adjustment applied to package ledger."),
+    ...ok("Credits applied."),
     request_id: result.payload.request_id,
     status: result.payload.status,
     version: result.payload.version,
     ledger_entry_id: result.payload.ledger_entry_id,
+  };
+}
+
+export async function submitPkg02AdjustmentForApprovalAction(
+  _prevState: Pkg02ApprovalActionResult | null,
+  formData: FormData,
+): Promise<Pkg02ApprovalActionResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const clientPackageId = String(formData.get("client_package_id") ?? "").trim();
+  const requestedDeltaCredits = parseInteger(formData.get("requested_delta_credits"));
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+  const locationId = String(formData.get("location_id") ?? "").trim() || null;
+
+  if (!studioId || !clientPackageId || requestedDeltaCredits == null || requestedDeltaCredits === 0) {
+    return err("Missing required fields: studio, package, and non-zero delta credits.");
+  }
+
+  const { user } = await requireUser();
+  const requestedValueDeltaAmount = await resolvePkg02ValueDelta({
+    studioId,
+    clientPackageId,
+    requestedDeltaCredits,
+  });
+  const created = await createPkg02AdjustmentRequest({
+    userId: user.id,
+    studioId,
+    clientPackageId,
+    requestedDeltaCredits,
+    requestedValueDeltaAmount,
+    reason,
+    currency: "SGD",
+    locationId,
+    metadata: {
+      source: "dashboard_submit_for_approval",
+    },
+  });
+
+  if (!created.ok) {
+    return err(mapPkgApprovalMessage(created.code, created.message || "Could not create adjustment request."));
+  }
+
+  const submitted = await submitPkg02AdjustmentRequest({
+    userId: user.id,
+    studioId,
+    requestId: created.payload.request_id,
+    expectedVersion: created.payload.version,
+    note: "submitted from dashboard approvals",
+  });
+
+  if (!submitted.ok) {
+    return {
+      ...ok("Draft saved. Submit it from the queue."),
+      request_id: created.payload.request_id,
+      status: created.payload.status,
+      version: created.payload.version,
+    };
+  }
+
+  return {
+    ...ok("Submitted for approval."),
+    request_id: submitted.payload.request_id,
+    status: submitted.payload.status,
+    version: submitted.payload.version,
+  };
+}
+
+export async function approveAndApplyPkg02AdjustmentRequestAction(
+  _prevState: Pkg02ApprovalActionResult | null,
+  formData: FormData,
+): Promise<Pkg02ApprovalActionResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const requestId = String(formData.get("request_id") ?? "").trim();
+  const expectedVersion = parseInteger(formData.get("expected_version"));
+  const note = String(formData.get("note") ?? "").trim() || "approved and applied from dashboard";
+
+  if (!studioId || !requestId) {
+    return err("Missing required fields: studio and request.");
+  }
+
+  const { user } = await requireUser();
+  const decided = await decidePkg02AdjustmentRequest({
+    userId: user.id,
+    studioId,
+    requestId,
+    decision: "approved",
+    expectedVersion,
+    note,
+  });
+
+  if (!decided.ok) {
+    return err(mapPkgApprovalMessage(decided.code, decided.message || "Could not approve adjustment request."));
+  }
+
+  const applied = await applyPkg02AdjustmentRequest({
+    userId: user.id,
+    studioId,
+    requestId,
+    expectedVersion: decided.payload.version,
+    idempotencyKey: `pkg02-approve-apply:${requestId}:${decided.payload.version}`,
+    correlationId: `pkg02-dashboard-approve-apply:${requestId}:${decided.payload.version}`,
+    note,
+  });
+
+  if (!applied.ok) {
+    return {
+      ...ok("Approved. Apply credits from the waiting list."),
+      request_id: decided.payload.request_id,
+      status: decided.payload.status,
+      version: decided.payload.version,
+    };
+  }
+
+  return {
+    ...ok(applied.payload.already_applied ? "Credits already applied." : "Approved and credits applied."),
+    request_id: applied.payload.request_id,
+    status: applied.payload.status,
+    version: applied.payload.version,
+    ledger_entry_id: applied.payload.ledger_entry_id,
   };
 }

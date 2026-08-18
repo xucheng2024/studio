@@ -1,7 +1,6 @@
 import { createPackage } from "@/app/(app)/dashboard/actions";
-import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { PackageLifecycleRow } from "@/components/dashboard/PackageLifecycleRow";
-import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { PackagesLocationBar } from "@/components/dashboard/PackagesLocationBar";
 import { ExportFormatLinks } from "@/components/dashboard/ExportFormatLinks";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -54,49 +53,32 @@ export default async function PackagesPage({ searchParams }: Props) {
   const canEdit = hasStudioRole(ctx, studioId, ["owner", "manager"]);
   const canCopyLink = hasStudioRole(ctx, studioId, ["owner", "manager", "frontdesk"]);
 
-  const backParams = new URLSearchParams();
-  if (selectedStudioId) backParams.set("studio_id", selectedStudioId);
-  if (selectedLocationId) backParams.set("location_id", selectedLocationId);
-  const backHref = `/dashboard/schedule${backParams.toString() ? `?${backParams.toString()}` : ""}`;
-  const approvalsHref = `/dashboard/packages/approvals${backParams.toString() ? `?${backParams.toString()}` : ""}`;
-
   const locsForStudio = (locationRows ?? []).filter((l) => l.studio_id === studioId);
 
   return (
     <div className="flex flex-col gap-8">
-      <div className={`${ui.card} flex flex-wrap gap-3`}>
-        <DashboardLocationFilter
-          locations={locationRows ?? []}
-          selectedStudioId={studioId}
-          selectedLocationId={selectedLocationId}
-          allowAll={canViewAllLocations}
-          accessibleLocationIds={accessibleLocationIds}
-        />
-      </div>
+      <PackagesLocationBar
+        locations={locationRows ?? []}
+        selectedStudioId={studioId}
+        selectedLocationId={selectedLocationId}
+        allowAll={canViewAllLocations}
+        accessibleLocationIds={accessibleLocationIds}
+      />
       <div>
-        <h1 className={ui.h1}>Packages</h1>
-        <p className={`mt-2 ${ui.lead}`}>
+        <p className={ui.lead}>
           Create and share class pass packs. Single-visit pricing is set per session in Sessions.
         </p>
         <p className={`mt-1 text-sm ${ui.muted}`}>
           New packages are live once saved. Copy a package link to sell it directly, or remove it from sales later to stop new purchases.
         </p>
         <div className="mt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
-              Back to sessions
-            </DashboardAppLink>
-            <DashboardAppLink href={approvalsHref} className={ui.btnSecondarySm}>
-              Package approvals
-            </DashboardAppLink>
-            <ExportFormatLinks
-              baseHref={`/api/reports/business/export?${new URLSearchParams({
-                kind: "packages",
-                studio_id: studioId,
-                ...(selectedLocationId ? { location_id: selectedLocationId } : {}),
-              }).toString()}`}
-            />
-          </div>
+          <ExportFormatLinks
+            baseHref={`/api/reports/business/export?${new URLSearchParams({
+              kind: "packages",
+              studio_id: studioId,
+              ...(selectedLocationId ? { location_id: selectedLocationId } : {}),
+            }).toString()}`}
+          />
         </div>
         {canEdit ? (
           <details className={`chevron ${ui.card} mt-5 w-full max-w-xl`} id="create-package">
@@ -155,6 +137,7 @@ export default async function PackagesPage({ searchParams }: Props) {
                 shareSlug={p.share_slug ?? null}
                 canEdit={canEdit}
                 canCopyLink={canCopyLink}
+                isActive={Boolean(p.is_active)}
                 initial={{
                   name: p.name,
                   credits: p.credits,

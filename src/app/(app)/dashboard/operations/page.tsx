@@ -246,14 +246,14 @@ export default async function OperationsPage({ searchParams }: Props) {
       <section className={ui.card}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className={ui.h2}>PKG-02 ops checks</h2>
-            <p className={ui.muted}>Latest cron check trend for maker/checker approval guardrails.</p>
+            <h2 className={ui.h2}>Package adjustment checks</h2>
+            <p className={ui.muted}>Automatic checks for class-pass changes that still need a second person.</p>
           </div>
           <DashboardAppLink
             href={`/dashboard/packages/approvals?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&backlog_only=1`}
             className={ui.btnSecondarySm}
           >
-            Open approval backlog
+            Open waiting adjustments
           </DashboardAppLink>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -262,13 +262,13 @@ export default async function OperationsPage({ searchParams }: Props) {
             <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{latestCheckedAtLabel ?? "No run yet"}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className={`text-xs ${ui.muted}`}>Latest backlog</p>
+            <p className={`text-xs ${ui.muted}`}>Waiting too long</p>
             <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
               {latestOpsRun ? `${latestOpsRun.approved_not_applied_backlog_count} (≥${latestOpsRun.backlog_threshold_hours}h)` : "-"}
             </p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className={`text-xs ${ui.muted}`}>Anomaly runs (last {opsCheckRuns.length || 0})</p>
+            <p className={`text-xs ${ui.muted}`}>Checks with issues (last {opsCheckRuns.length || 0})</p>
             <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
               {opsCheckRuns.length ? `${anomalyRunsCount}/${opsCheckRuns.length}` : "-"}
             </p>
@@ -276,15 +276,15 @@ export default async function OperationsPage({ searchParams }: Props) {
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className={`text-xs ${ui.muted}`}>Notify sent (last {opsCheckRuns.length || 0})</p>
+            <p className={`text-xs ${ui.muted}`}>Alerts sent (last {opsCheckRuns.length || 0})</p>
             <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{opsCheckRuns.length ? notifySentRunsCount : "-"}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className={`text-xs ${ui.muted}`}>Notify skipped</p>
+            <p className={`text-xs ${ui.muted}`}>Alerts skipped</p>
             <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{opsCheckRuns.length ? notifySkippedRunsCount : "-"}</p>
           </div>
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className={`text-xs ${ui.muted}`}>Notify failed</p>
+            <p className={`text-xs ${ui.muted}`}>Alerts failed</p>
             <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{opsCheckRuns.length ? notifyFailedRunsCount : "-"}</p>
           </div>
         </div>
@@ -294,11 +294,11 @@ export default async function OperationsPage({ searchParams }: Props) {
               <thead>
                 <tr className="border-b border-stone-100 text-left text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
                   <th className="py-2 pr-4 font-medium">Checked</th>
-                  <th className="py-2 pr-4 font-medium">Self approval</th>
-                  <th className="py-2 pr-4 font-medium">Approved backlog</th>
-                  <th className="py-2 pr-4 font-medium">Missing ledger</th>
-                  <th className="py-2 pr-4 font-medium">Reconcile diff</th>
-                  <th className="py-2 pr-4 font-medium">Notify</th>
+                  <th className="py-2 pr-4 font-medium">Same-person action</th>
+                  <th className="py-2 pr-4 font-medium">Waiting to apply</th>
+                  <th className="py-2 pr-4 font-medium">Missing credit record</th>
+                  <th className="py-2 pr-4 font-medium">Credit mismatch</th>
+                  <th className="py-2 pr-4 font-medium">Alert</th>
                   <th className="py-2 font-medium">Status</th>
                   <th className="py-2 font-medium">Details</th>
                 </tr>
@@ -324,11 +324,11 @@ export default async function OperationsPage({ searchParams }: Props) {
                     <td className="py-2.5">
                       {row.has_anomaly ? (
                         <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-300">
-                          anomaly
+                          Needs review
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800 dark:border-teal-900/50 dark:bg-teal-950/50 dark:text-teal-300">
-                          ok
+                          OK
                         </span>
                       )}
                     </td>
@@ -346,7 +346,7 @@ export default async function OperationsPage({ searchParams }: Props) {
             </table>
           </div>
         ) : (
-          <p className={`mt-3 text-sm ${ui.muted}`}>No PKG-02 ops run recorded yet. Wait for cron or trigger dry run once.</p>
+          <p className={`mt-3 text-sm ${ui.muted}`}>No checks yet. These run automatically in the background.</p>
         )}
       </section>
       <div className={`${ui.card} flex flex-wrap gap-3`}>

@@ -64,7 +64,7 @@ export default async function StudioCustomDomainPage({ searchParams }: Props) {
     <div className="flex max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className={ui.h1}>Custom Domain</h1>
+          <h1 className={ui.h1}>Custom domain</h1>
           <p className={ui.muted}>Connect your own domain to /{studio.public_slug} and verify the live setup.</p>
         </div>
         <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId)} className={ui.btnSecondarySm}>

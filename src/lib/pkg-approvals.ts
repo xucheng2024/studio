@@ -45,7 +45,7 @@ function mapPkgRpcError(error: { code?: string; message?: string }): {
   code: PkgApprovalErrorCode;
   message: string;
 } {
-  const message = error.message ?? "Unknown PKG-02 approval error";
+  const message = error.message ?? "Unknown approval error";
   if (!error.code) return { code: "unknown", message };
 
   switch (error.code) {
@@ -269,4 +269,27 @@ export async function applyPkg02AdjustmentRequest(params: {
   }
 
   return { ok: true, payload: data as Pkg02ApplyPayload };
+}
+
+export async function resolvePkg02ValueDelta(params: {
+  studioId: string;
+  clientPackageId: string;
+  requestedDeltaCredits: number;
+}): Promise<number | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("client_packages")
+    .select("id, packages!inner(price, credits, studio_id)")
+    .eq("id", params.clientPackageId)
+    .maybeSingle();
+  if (!data) return null;
+
+  const packageRow = Array.isArray(data.packages) ? data.packages[0] : data.packages;
+  if (!packageRow || packageRow.studio_id !== params.studioId) return null;
+
+  const credits = Number(packageRow.credits);
+  const price = Number(packageRow.price);
+  if (!Number.isFinite(credits) || credits <= 0 || !Number.isFinite(price)) return null;
+
+  return Math.round((price / credits) * params.requestedDeltaCredits * 100) / 100;
 }
