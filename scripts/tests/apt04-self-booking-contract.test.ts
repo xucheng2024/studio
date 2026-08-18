@@ -143,3 +143,14 @@ test("payment cron also sweeps pending salon appointments", () => {
   assert.equal(route.includes('admin.rpc("expire_pending_salon_appointments"'), true);
   assert.equal(route.includes("expiredAppointments"), true);
 });
+
+test("APT-04 local UAT seeds privacy notice and accepts it before booking", () => {
+  const appointmentsUat = read("scripts/verify-apt04-uat-local.mjs");
+  const settlementSql = read("scripts/sql/apt04_settlement_uat_local_execute.sql");
+  const settlementBrowser = read("scripts/verify-apt04-settlement-browser-local.mjs");
+
+  assert.equal(appointmentsUat.includes("salon_privacy_notice_versions"), true);
+  assert.equal(appointmentsUat.includes('input[name="privacy_accepted"]'), true);
+  assert.equal(settlementSql.includes("insert into public.salon_privacy_notice_versions"), true);
+  assert.equal(settlementBrowser.includes('input[name="privacy_accepted"]'), true);
+});

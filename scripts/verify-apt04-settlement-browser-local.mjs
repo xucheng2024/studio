@@ -110,6 +110,7 @@ async function bookFirstSlot(page, paymentOption) {
   }
   await paymentSelect.selectOption(paymentOption);
   await form.locator('input[name="terms_accepted"]').check();
+  await form.locator('input[name="privacy_accepted"]').check();
   console.log("[apt04-settlement-uat] submitting slot", { paymentOption });
   await form.getByRole("button", { name: "Book this slot" }).click();
   await followStreamingRedirect(page);

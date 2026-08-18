@@ -203,6 +203,15 @@ await upsert("salon_terms_versions", [{
   is_active: true,
   published_at: new Date().toISOString(),
 }], { onConflict: "id" });
+await upsert("salon_privacy_notice_versions", [{
+  id: crypto.randomUUID(),
+  studio_id: ids.studio1,
+  version_label: `${RUN_ID}-privacy-v1`,
+  content_hash: `${RUN_ID}-privacy-v1`,
+  content_snapshot: { title: "APT04 UAT Privacy", body: "UAT-only privacy notice. No production data." },
+  is_active: true,
+  published_at: new Date().toISOString(),
+}], { onConflict: "id" });
 
 async function authCookies(email) {
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email });
@@ -264,6 +273,7 @@ async function bookFirstAvailable(page) {
   const form = forms.first();
   const startsAt = await form.locator('input[name="slot_starts_at"]').inputValue();
   await form.locator('input[name="terms_accepted"]').check();
+  await form.locator('input[name="privacy_accepted"]').check();
   await form.getByRole("button", { name: "Book this slot" }).click();
   await page.waitForURL((url) => url.searchParams.get("ok") === "booked", { timeout: 30_000 });
   return startsAt;
@@ -309,6 +319,7 @@ async function runBrowser(name, launcher, email, full = false) {
 
       const staleForm = session.page.locator('form:has(input[name="slot_starts_at"])').first();
       await staleForm.locator('input[name="terms_accepted"]').check();
+      await staleForm.locator('input[name="privacy_accepted"]').check();
       const termsV2Id = crypto.randomUUID();
       const { error: termsError } = await admin.from("salon_terms_versions").insert({
         id: termsV2Id,

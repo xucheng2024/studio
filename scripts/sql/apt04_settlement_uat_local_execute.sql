@@ -116,6 +116,18 @@ begin
     now()
   );
 
+  insert into public.salon_privacy_notice_versions (
+    studio_id, version_label, content_hash, content_snapshot, is_active, published_at
+  )
+  values (
+    v_studio,
+    'apt04-settlement-privacy-v1',
+    'apt04-settlement-privacy-hash-v1',
+    '{"title":"APT-04 settlement privacy","body":"UAT-only privacy notice. No production data."}'::jsonb,
+    true,
+    now()
+  );
+
   insert into public.packages (id, studio_id, name, credits, price, location_id, type, is_active, expiry_days)
   values (v_package, v_studio, 'APT-04 settlement pack', 6, 120, v_location, 'class_pack', true, 30);
 
