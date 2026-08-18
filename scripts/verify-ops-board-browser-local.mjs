@@ -52,7 +52,7 @@ try {
   assert.ok(classIdx >= 0, "class sessions heading");
   assert.ok(pkgIdx > classIdx, "package checks sit below the live queue");
 
-  const sessionCard = owner.page.locator("section").filter({ has: owner.page.getByRole("heading", { name: "Ops UAT Class" }) });
+  const sessionCard = owner.page.getByRole("heading", { level: 3, name: "Ops UAT Class", exact: true }).locator("xpath=ancestor::section[1]");
   await sessionCard.getByText("Almost full", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
   await sessionCard.getByText("1 unpaid", { exact: true }).waitFor({ state: "visible" });
   const sessionRows = sessionCard.locator("li");
@@ -62,9 +62,8 @@ try {
   await classCollect.waitFor({ state: "visible" });
   assert.match(await classCollect.getAttribute("href"), new RegExp(`payment_id=${classPaymentId}`));
 
-  const eventCard = owner.page.locator("section").filter({ has: owner.page.getByRole("heading", { name: "Ops UAT Event" }) });
-  await owner.page.getByRole("heading", { name: "Ops UAT Event" }).waitFor({ state: "visible", timeout: 15_000 });
-  await eventCard.getByText("1 unpaid", { exact: true }).waitFor({ state: "visible" });
+  const eventCard = owner.page.getByRole("heading", { level: 3, name: "Ops UAT Event", exact: true }).locator("xpath=ancestor::section[1]");
+  await eventCard.getByText("1 unpaid", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
   const eventCollect = eventCard.getByRole("link", { name: "Collect payment" });
   await eventCollect.waitFor({ state: "visible" });
   assert.match(await eventCollect.getAttribute("href"), new RegExp(`payment_id=${eventPaymentId}`));
