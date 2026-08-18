@@ -50,7 +50,7 @@ function scope(query) {
 
 async function countRows(table, configure = (query) => query) {
   let query = admin.from(table).select("id", { count: "exact", head: true });
-  query = scope(query);
+  if (table !== "client_packages") query = scope(query);
   query = configure(query);
   const { count, error } = await query;
   if (error) throw new Error(`${table}: ${describeError(error)}`);
@@ -159,15 +159,18 @@ async function main() {
     throw new Error(`client_package_ledger_entries links: ${describeError(packageLedgerLinksError)}`);
   }
   const ledgerClientPackageIds = new Set((packageLedgerLinks ?? []).map((row) => row.client_package_id));
-  const positivePackagesMissingLedger = (positiveClientPackages ?? [])
-    .filter((row) => !ledgerClientPackageIds.has(row.id)).length;
-
   const packageIds = [...new Set((positiveClientPackages ?? []).map((row) => row.package_id))];
-  const clientIds = [...new Set((positiveClientPackages ?? []).map((row) => row.client_id))];
   const { data: packageRows, error: packageRowsError } = packageIds.length > 0
     ? await admin.from("packages").select("id, studio_id").in("id", packageIds)
     : { data: [], error: null };
   if (packageRowsError) throw new Error(`packages opening-balance mapping: ${describeError(packageRowsError)}`);
+  const packageStudioById = new Map((packageRows ?? []).map((row) => [row.id, row.studio_id]));
+  const scopedPositivePackages = (positiveClientPackages ?? []).filter((row) =>
+    !studioId || packageStudioById.get(row.package_id) === studioId,
+  );
+  const clientIds = [...new Set(scopedPositivePackages.map((row) => row.client_id))];
+  const positivePackagesMissingLedger = scopedPositivePackages
+    .filter((row) => !ledgerClientPackageIds.has(row.id)).length;
   const { data: customerRows, error: customerRowsError } = clientIds.length > 0
     ? await admin
         .from("salon_customers")
@@ -177,11 +180,10 @@ async function main() {
     : { data: [], error: null };
   if (customerRowsError) throw new Error(`salon_customers opening-balance mapping: ${describeError(customerRowsError)}`);
 
-  const packageStudioById = new Map((packageRows ?? []).map((row) => [row.id, row.studio_id]));
   let openingBalanceMappable = 0;
   let openingBalanceMissingCustomer = 0;
   let openingBalanceAmbiguousCustomer = 0;
-  for (const clientPackage of positiveClientPackages ?? []) {
+  for (const clientPackage of scopedPositivePackages) {
     if (ledgerClientPackageIds.has(clientPackage.id)) continue;
     const packageStudioId = packageStudioById.get(clientPackage.package_id);
     const matches = (customerRows ?? []).filter(
