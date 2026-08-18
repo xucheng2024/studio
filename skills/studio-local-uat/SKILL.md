@@ -42,6 +42,14 @@ Studio's first-release Docker UAT path is **GitHub Actions Free cloud UAT**, not
 - Record browser screenshots only when they add useful evidence; automated assertions are the primary result.
 - Do not use broad exploratory browser clicking. Inspect the failing flow only.
 
+### Staff daily-nav walk
+
+When a staff browser verifier covers a primary dashboard destination (Front desk, Appointments, POS, Customers), open `/dashboard` with the fixture `studio_id` / `location_id`, wait for Front desk (`/dashboard/operations`), then click that tab. Do not `goto` the destination as a substitute for the click.
+
+For nested screens (customer detail, Follow-up queue, cash sessions), click the in-page link from the parent page. Do not use a prefix-active nav tab to leave a nested route: `isRouteActive` treats `/dashboard/clients/:id` as Customers, so that tab is already active.
+
+Keep existing assertions after the extra clicks. Do not add Follow-up as a top-level nav item or merge Front desk / POS / Payments into one cashier.
+
 ## Combine database and browser evidence
 
 Use this sequence when a change spans a Supabase migration or RPC state machine and a user-visible flow:
