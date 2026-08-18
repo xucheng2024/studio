@@ -53,9 +53,9 @@
 | Phase 3 | PAY-01 Compensation/Rules | 已上线 | 已上线 FND-01、COM-01、FND-04；官方规则基线 | Owner Payroll Profile、员工 Email/电话自助更新、CPF Board 2026 HTML 全费率/SDL/SHG 与 MOM 不足月/加班公式已落地。专用 Free cloud UAT `pay01-payroll-local` 已通过。PDF-only 档位仍阻止 Finalise。 |
 | Phase 3 | PAY-02 Payroll Run | 已上线 | PAY-01 | Draft → Finalised → Paid / Voided 已进入生产。隔离 UAT 覆盖 Owner 建 Draft/重算、Manager 拒绝、员工 My pay；未对真实 Surgery 员工 Finalise/Paid。 |
 | Phase 3 | PAY-03 Payslip/Reports | 已上线 | PAY-02 | MOM Itemised Payslip 查看/打印/PDF、员工本人查看、Payroll/Commission/Statutory 报表。隔离 UAT 已对 fixture Finalise；未对真实 Surgery 员工 Finalise/Paid。 |
-| Phase 4 | RPT-01 Reporting Facts | 进行中 | 已上线 APT-03、POS-04、COM-01、PKG-01 | 复用现有 Revenue/Deferred/Commission 事实，只补 Q3 缺口 |
-| Phase 4 | RPT-02 Dashboard | 进行中 | RPT-01 | 四图证据 Dashboard |
-| Phase 4 | EXP-01 Exports | 进行中 | RPT-01、CRM-02、POS-04、PKG-02、PAY-03 | Sales/Customers/Packages 四格式导出 + 已有 Payroll 导出 |
+| Phase 4 | RPT-01 Reporting Facts | 已上线 | 已上线 APT-03、POS-04、COM-01、PKG-01 | `get_rpt01_reporting_facts` 已进生产；Surgery 2026-08 无支付/预约，空结果为真实数据。未造假 Inventory/Loyalty。 |
+| Phase 4 | RPT-02 Dashboard | 已上线 | RPT-01 | `/dashboard/reports` 四图与 Salon facts 共用筛选。主持 Postgres FULL JOIN 已修（`b1b7acd`）。无独立 reports Free cloud UAT。 |
+| Phase 4 | EXP-01 Exports | 已上线 | RPT-01、CRM-02、POS-04、PKG-02、PAY-03 | Sales/Customers/Packages 四格式 + 既有 Deferred/Payroll 导出。无独立导出 Free cloud UAT。 |
 | Phase 4 | CMP-01 PDPA Controls | 未开始 | CRM-01、FND-04 | 产品开发后由负责人完成表格 |
 | Phase 4 | SEC-01 VA/PT | 未开始 | 全部 Yes 功能稳定 | 提前询价，稳定后测试 |
 | Phase 4 | ORG-01 Certification | 未开始 | 申请主体确认 | 公司负责人推进 |
@@ -87,8 +87,8 @@
 
 ## 当前建议领取顺序
 
-1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02、PAY-01、PAY-02、PAY-03 已上线。
-2. 下一开发项：RPT-01 Reporting Facts。官方资料无法确定的规则仍不得猜测。不要对真实 Surgery 员工 Finalise/Paid。支付相关验证只用 HitPay Sandbox。
+1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02、PAY-01、PAY-02、PAY-03、RPT-01、RPT-02、EXP-01 已上线。
+2. 下一开发项：CMP-01 PDPA Controls（产品控制 + 负责人填表）。不要对真实 Surgery 员工 Finalise/Paid。支付相关验证只用 HitPay Sandbox。不要造假报表数据。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -258,3 +258,10 @@
 - 专用 Free cloud UAT `pay01-payroll-local` 通过：https://github.com/xucheng2024/studio/actions/runs/32098859457（`060eaf6`，`pay01_local_uat_ok`）。
 - 覆盖：fixture Finalise、payslip number、MOM 字段、员工本人查看、Manager 拒绝 payslip URL、报表页、390×844。未对真实 Surgery 员工 Finalise/Paid。
 - PAY-03 升为“已上线”。下一开发项：RPT-01。
+
+## 2026-08-18 状态更新（RPT-01 / RPT-02 / EXP-01）
+
+- RPT-01：`get_rpt01_reporting_facts` 已 `db push --linked`（含 `20260818200000`）。`test:rpt01-app` 通过。Owner 生产 `/dashboard/reports` Salon facts 可加载；Surgery 2026-08 支付 0、预约 0，空表/$0 为真实数据。
+- RPT-02：四图与 facts 共用日期/门店/员工/服务筛选。主持 Postgres `FULL JOIN … IS NOT DISTINCT FROM` 导致图表失败，已用 UNION ALL 修复并推送 `b1b7acd`。`test:rpt02-app` 通过。Inventory/Loyalty 保持 0。无独立 reports Free cloud UAT。
+- EXP-01：Sales/Customers/Packages 四格式同步导出已进生产（`c012a4e` / `45bc1ea`）；Deferred 与 Payroll/Commission 沿用既有导出。`test:exp01-app` 通过。无独立导出 Free cloud UAT。
+- RPT-01、RPT-02、EXP-01 升为“已上线”。下一开发项：CMP-01。

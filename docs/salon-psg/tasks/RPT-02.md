@@ -1,6 +1,6 @@
 # RPT-02: Salon dashboard charts
 
-Status: in progress
+Status: live (`dfd0e36` / `b1b7acd`)
 
 ## Scope
 
@@ -9,3 +9,9 @@ One evidence dashboard on `/dashboard/reports` with four charts: Appointment Out
 ## Out of scope
 
 Four-format export expansion (EXP-01), a second reporting definition, fake inventory/loyalty modules.
+
+## Verification
+
+- Passed: `test:rpt02-app`.
+- Hosted Postgres rejected `FULL JOIN … IS NOT DISTINCT FROM`; employee merge switched to `UNION ALL` (`20260818200000`, `b1b7acd`). RPC then returned empty Surgery August facts.
+- Production Owner reports Salon facts load. No dedicated reports Free cloud UAT.

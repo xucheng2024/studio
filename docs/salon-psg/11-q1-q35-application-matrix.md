@@ -7,8 +7,8 @@
 | 问题 | 当前状态 | 目标答案 | 按当前方案需要完成的内容 |
 |---|---|---|---|
 | Q1 云端及多设备 | ✅ 基本满足 | Yes | 保持响应式 Web/PWA 和云端单一数据源；准备桌面、平板/手机浏览器及同账号数据同步截图。PWA 不在这里宣称为独立 Mobile App。 |
-| Q2 多门店集中管理 | 🟡 部分满足 | Yes | `FND-01`、`FND-03` 完成员工多门店和服务发布基础；还需 `APT-01`/`APT-02`、`POS-01` 和 `RPT-01`/`RPT-02` 分别保证预约、销售真实归店以及单店/全部门店汇总。全部完成并通过越权测试后才能判定 Q2 满足。 |
-| Q3 Dashboard / Reports | 🟡 部分满足 | Yes | 已有 Revenue、Payment 分类和 Package Deferred Value 报表；补 `RPT-01`、`RPT-02` 的四图证据 Dashboard（Appointment Outcome、Sales Trend、Revenue by Service、Employee Commission/Productivity）及缺失的 Retention/FOV/YoY 报表。Inventory、Loyalty 按未启用模块填 0。 |
+| Q2 多门店集中管理 | 🟡 已上线 / 待申请截图 | Yes | `FND-01`、`FND-03`、`APT-01`/`APT-02`、`POS-01` 与 `RPT-01`/`RPT-02` 已进入生产：预约/销售归店，Reports 日期/门店/员工/服务筛选可汇总单店与全部门店。申请截图与越权演示后确认满足。 |
+| Q3 Dashboard / Reports | 🟡 已上线 / 待申请截图 | Yes | `RPT-01`、`RPT-02` 已进入生产：Appointment Outcome、Sales Trend、Revenue by Service、Employee Commission/Productivity 四图，以及 Retention/FOV/YoY 与既有 Revenue/Deferred 报表。Inventory、Loyalty 按未启用模块填 0。Surgery 当前无 2026-08 销售数据。申请截图后确认满足。 |
 | Q4 Appointment Scheduling | 🟡 已上线 / 待申请截图 | Yes | `APT-01` 至 `APT-03` 已进入生产（`61dbdf0`，gate `32086736757`）。隔离 Free cloud UAT 已覆盖 APT-01 角色拒绝/390px 配置写入与 APT-03 日历主路径/跨门店拒绝。申请截图后确认满足。现有课程 Session 不作为证据。 |
 | Q5–Q6 Online Booking | 🟡 已上线 / 待申请截图 | Yes | `APT-04`、`APT-05` 已进入生产（`61dbdf0`）。覆盖安全登录、实时档期、客户本人预约/取消、Package Credits 与订金 Sandbox。申请截图与现场演示后确认满足。 |
 | Q7 Customer Management | 🟡 已上线 / 待申请截图 | Yes | `FND-02`、`CRM-01`、`CRM-02` 已进入生产。覆盖 Studio-scoped Customer、偏好、过敏、健康/禁忌、疗程历史、Follow-up、Consent 和敏感权限。申请截图后确认满足。 |
@@ -25,7 +25,7 @@
 | Q20–Q23 Inventory | ⚪ 建议不触发 | Q20 No；Q21–Q23 不触发 | `shop_products.stock_qty` 和 POS 商品扣减仅作为基础商品数量，不申报完整 Inventory。避免触发库存主档、Journal、Warehouse、实时集成和低库存提醒全部强制要求。 |
 | Q24–Q25 Mobile App | ⚪ 建议不触发 | Q24 No；Q25 不触发 | 当前为响应式 Web/PWA，不宣称独立 Mobile App；只有取得 IMDA 书面确认并具备对应模块后才改变答案。 |
 | Q26–Q27 AI | ⚪ 本次不做 | Q26 No；Q27 不触发 | 不把普通筛选、自动计算、提醒或规则引擎描述成 AI。 |
-| Q28 Business Data Extraction | 🟡 部分满足 | Yes | Package Deferred Value 已支持 CSV、XLSX、XML、TSV，Payments 已有 CSV。`EXP-01` 复用现有 builder 扩展 Sales、Customers、Packages 和 Payroll/Commission，并验证权限与文件正确性；不建设异步导出平台。 |
+| Q28 Business Data Extraction | 🟡 已上线 / 待申请截图 | Yes | `EXP-01` 已进入生产：Deferred、Sales、Customers、Packages 与 Payroll/Commission 四格式同步导出；权限与敏感字段过滤在应用层。不建设异步导出平台。申请截图与样例文件后确认满足。 |
 | Q29 Personal Data Protection | 🟡 部分基础 | Yes，但需正式表格和证据 | 完成 `CMP-01`：隐私告知/Consent、访问更正、保留、删除/匿名化、敏感权限、访问/导出审计、第三方处理者记录等；必须由负责人完成题目指定的 PDPA Requirements Form。仅有 RLS 不足以证明完整合规。 |
 | Q30 VA/PT | 🔴 当前没有合格报告证据 | Yes，否则不能继续 | 联系符合题目资格的独立第三方，在提交前 12 个月内完成规定范围的 VA/PT。必须包含执行摘要、详细发现/风险、修复建议、方法、范围、资格及修复/缓解证据。主要功能稳定后测试，给修复和复测预留时间。 |
 | Q31 Product Principal | 🟡 需公司确认 | 自研产品通常 Yes | 如果申请公司拥有并负责本解决方案，走 Product Principal 路径；若只是转售第三方产品则回答 No 并转 Q34。公司负责人确认，不能由代码推断。 |
@@ -38,7 +38,7 @@
 - Q7：客户详情已包含 CRM-01 敏感资料和 CRM-02 Treatment/Follow-up；2026-08-18 已进入生产（`61dbdf0`）。仍需申请截图。
 - Q11–Q12：`PKG-01`/`PKG-02` 已进入生产，含 append-only Ledger 与 maker-checker。部分 package refund 与 Guest `user_id is null` 发放仍不在范围；仍需申请截图。
 - Q17：Owner `/dashboard/payroll`、员工 `/dashboard/payroll/me` 与 Payslip/报表已上线；隔离 UAT `pay01-payroll-local` 已通过。Staff Access 仍只管角色。
-- Q28：`/api/reports/deferred/export` 已有四格式，`/api/payments/export` 已有 CSV；缺口是把同一 builder 安全扩到核心业务数据，不是从零建设 Export Service。
+- Q28：`EXP-01` 已上线。`/api/reports/business/export` 覆盖 Sales/Customers/Packages 四格式；Deferred 与 Payroll/Commission 沿用既有导出。申请截图仍待补。
 - Q30：仓库中没有发现可以替代合资格第三方 VA/PT 报告的材料；内部安全检查或自动扫描不能冒充 Q30 报告。
 
 ## 申请前硬性闸门
