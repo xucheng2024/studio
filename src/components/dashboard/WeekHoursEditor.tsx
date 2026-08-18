@@ -42,6 +42,7 @@ export function WeekHoursEditor({
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <input
                 type="time"
+                name={`${namePrefix}${weekday.value}_start`}
                 aria-label={`${weekday.label} start`}
                 value={first.start}
                 onChange={(event) => {
@@ -54,6 +55,7 @@ export function WeekHoursEditor({
               <span className={`text-xs ${ui.muted}`}>to</span>
               <input
                 type="time"
+                name={`${namePrefix}${weekday.value}_end`}
                 aria-label={`${weekday.label} end`}
                 value={first.end}
                 onChange={(event) => {
@@ -68,6 +70,7 @@ export function WeekHoursEditor({
                   <span className={`text-xs ${ui.muted}`}>then</span>
                   <input
                     type="time"
+                    name={`${namePrefix}${weekday.value}_start2`}
                     aria-label={`${weekday.label} start 2`}
                     value={second.start}
                     onChange={(event) => {
@@ -78,6 +81,7 @@ export function WeekHoursEditor({
                   <span className={`text-xs ${ui.muted}`}>to</span>
                   <input
                     type="time"
+                    name={`${namePrefix}${weekday.value}_end2`}
                     aria-label={`${weekday.label} end 2`}
                     value={second.end}
                     onChange={(event) => {

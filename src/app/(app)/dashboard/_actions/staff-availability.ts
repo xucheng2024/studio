@@ -13,6 +13,28 @@ import { err, ok, parseTimeRangeList, requireUser, type DashboardFormResult } fr
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 
+function sliceHm(raw: FormDataEntryValue | null): string {
+  return String(raw ?? "").trim().slice(0, 5);
+}
+
+function parseWeekdayIntervals(
+  formData: FormData,
+  weekday: number,
+): Array<{ start: string; end: string }> | null {
+  const named: Array<{ start: string; end: string }> = [];
+  for (const suffix of ["", "2"]) {
+    const start = sliceHm(formData.get(`weekday_${weekday}_start${suffix}`));
+    const end = sliceHm(formData.get(`weekday_${weekday}_end${suffix}`));
+    if (!start && !end) continue;
+    if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return null;
+    named.push({ start, end });
+  }
+  if (named.length > 0) return named;
+  const ranges = parseTimeRangeList(formData.get(`weekday_${weekday}`));
+  if (ranges === null) return null;
+  return ranges;
+}
+
 export async function setEmployeeWorkingHoursWeekAction(
   _prevState: DashboardFormResult | null,
   formData: FormData,
@@ -24,7 +46,7 @@ export async function setEmployeeWorkingHoursWeekAction(
 
   const weekPayload: Array<{ weekday: number; intervals: Array<{ starts_at: string; ends_at: string }> }> = [];
   for (const weekday of WEEKDAYS) {
-    const ranges = parseTimeRangeList(formData.get(`weekday_${weekday}`));
+    const ranges = parseWeekdayIntervals(formData, weekday);
     if (ranges === null) {
       return err(`Invalid time range for ${WEEKDAY_LABELS[weekday]}. Use HH:MM-HH:MM, comma separated.`);
     }
@@ -60,7 +82,7 @@ export async function copyEmployeeWorkingHoursToStaffAction(
 
   const weekPayload: Array<{ weekday: number; intervals: Array<{ starts_at: string; ends_at: string }> }> = [];
   for (const weekday of WEEKDAYS) {
-    const ranges = parseTimeRangeList(formData.get(`weekday_${weekday}`));
+    const ranges = parseWeekdayIntervals(formData, weekday);
     if (ranges === null) {
       return err(`Invalid time range for ${WEEKDAY_LABELS[weekday]}. Use HH:MM-HH:MM, comma separated.`);
     }

@@ -40,6 +40,22 @@ async function waitForToast(page, message) {
   await page.getByText(message, { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
 }
 
+async function fillTimeInput(page, label, value) {
+  const input = page.getByLabel(label);
+  await input.waitFor({ state: "visible", timeout: 30_000 });
+  await input.fill(value);
+  await input.evaluate((el, next) => {
+    const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value");
+    descriptor?.set?.call(el, next);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
+
+async function waitForToast(page, message) {
+  await page.getByText(message, { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+}
+
 async function assertDenied(identity, pathSuffix) {
   const session = await login(identity);
   await session.page.goto(`${baseUrl}${pathSuffix}${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
@@ -76,8 +92,8 @@ try {
 
   await owner.page.goto(`${baseUrl}/dashboard/settings/staff-availability${query}&employee_id=${employeeId}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "staff availability mobile overflow");
-  await owner.page.getByLabel("Monday start").fill("09:00");
-  await owner.page.getByLabel("Monday end").fill("18:00");
+  await fillTimeInput(owner.page, "Monday start", "09:00");
+  await fillTimeInput(owner.page, "Monday end", "18:00");
   await owner.page.getByRole("button", { name: "Save working hours" }).click();
   await waitForToast(owner.page, "Working hours saved.");
   await waitForLocalDatabaseState(async () => {
