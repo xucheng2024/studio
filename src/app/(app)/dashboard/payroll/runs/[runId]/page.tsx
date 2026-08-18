@@ -103,7 +103,7 @@ export default async function PayrollRunPage({ params, searchParams }: Props) {
         <h2 className={`${ui.h2} mb-3`}>Employees</h2>
         <div className="overflow-x-auto rounded-2xl border border-stone-200 dark:border-stone-800">
           <table className="min-w-full text-sm">
-            <thead><tr className="text-left text-stone-500"><th className="p-3">Name</th><th className="p-3">Gross</th><th className="p-3">Net</th><th className="p-3">Blockers</th></tr></thead>
+            <thead><tr className="text-left text-stone-500"><th className="p-3">Name</th><th className="p-3">Gross</th><th className="p-3">Net</th><th className="p-3">Payslip</th><th className="p-3">Blockers</th></tr></thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} className="border-t border-stone-200 dark:border-stone-800">
@@ -114,6 +114,13 @@ export default async function PayrollRunPage({ params, searchParams }: Props) {
                   </td>
                   <td className="p-3">{row.gross_sgd}</td>
                   <td className="p-3">{row.net_sgd}</td>
+                  <td className="p-3">
+                    {row.payslip_number && (run.status === "finalised" || run.status === "paid") ? (
+                      <DashboardAppLink href={`/dashboard/payroll/payslips/${row.id}`} className="underline-offset-2 hover:underline">
+                        View payslip
+                      </DashboardAppLink>
+                    ) : "—"}
+                  </td>
                   <td className="p-3">{row.blocker_codes.length || "Ready"}</td>
                 </tr>
               ))}

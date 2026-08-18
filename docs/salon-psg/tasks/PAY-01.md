@@ -1,6 +1,6 @@
 # PAY-01：新加坡基础 Payroll 档案与法定规则
 
-状态：已实现/待验证
+状态：已上线（`1d12940`；隔离 UAT `pay01-payroll-local` run `32095895065`）
 
 ## 目标和范围
 
@@ -78,3 +78,13 @@ Employee 自助功能只开放本人 Email、电话更新和已发布 Payslip �
 - 日薪、计件工资、外籍员工个人所得税和多国家 Payroll；
 - 任意 Payroll 公式编辑器、NRIC 或银行账号收集；
 - 强制顾问签字。外部专业复核仅作为额外风险控制。
+
+## 验证结果
+
+- 通过：`test:pay01-app`（CPF Board 2026 HTML 全费率、SDL、SHG、不足月、加班、Finalise blockers）。
+- 通过：专用 Free cloud UAT `pay01-payroll-local`（https://github.com/xucheng2024/studio/actions/runs/32095895065）：Owner 保存公民月薪档案、创建 2026-08 Draft、重算；Manager 拒绝 Payroll；Instructor My pay；390×844。未点击 Finalise。
+- 生产：PAY-01/PAY-02 已在 `www.sgmystudio.com`。未对真实 Surgery 员工 Finalise/Paid。
+
+## 剩余工作
+
+Payslip 查看/打印/PDF、员工本人查看已发布工资单、Payroll/Commission/Statutory 报表属于 PAY-03，不在本项。

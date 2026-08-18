@@ -222,6 +222,8 @@ export async function transitionPayrollRunAction(
     });
     revalidatePath("/dashboard/payroll");
     revalidatePath(`/dashboard/payroll/runs/${runId}`);
+    revalidatePath("/dashboard/payroll/me");
+    revalidatePath("/dashboard/payroll/reports");
     return ok(toStatus === "finalised" ? "Payroll finalised." : toStatus === "paid" ? "Payroll marked paid." : "Payroll voided.");
   } catch (error) {
     console.error("[PAY-02] transitionPayrollRunAction failed", { runId, toStatus, message: error instanceof Error ? error.message : String(error) });

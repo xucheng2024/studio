@@ -19,7 +19,7 @@
 | Q14 数字支付 | ✅ 基本满足 | 继续使用 HitPay；保留现金记录。申请材料只列出生产环境真实启用、可现场完成的 HitPay 支付方式。 | Yes |
 | Q15 POS | 🟡 已上线 / 待申请截图 | in-house POS 已进入生产：客户、多服务/商品/套餐、员工、折扣、Cash/HitPay、收据、退款、作废、门店归属和日结。找零 UI 与 PDF 可点击收据仍不在本批。 | 申请截图后 Yes |
 | Q16 SMS/E-Marketing | 🟡 已上线 / 待申请截图 | Email E-Marketing 已进入生产（`61dbdf0`）。Owner 已启用 Surgery 店 Email settings，受控测试邮件已通。SMS、WhatsApp 不做。 | 申请截图后 Yes |
-| Q17 HR Management | 🟡 基础已具备 / PAY-01/02 已实现待验证 | 员工主档和佣金已上线。PAY-01 档案/规则和 PAY-02 四状态跑批已落地；还需 PAY-03 MOM Itemised Payslip 与报表。顾问签字不是硬前置。 | 完成后 Yes |
+| Q17 HR Management | 🟡 档案/跑批已上线 / 缺 Payslip | 员工主档、佣金、PAY-01 档案/规则和 PAY-02 四状态跑批已上线。还需 PAY-03 MOM Itemised Payslip 与报表。顾问签字不是硬前置。 | 完成后 Yes |
 | Q18 IRAS AIS | ⚪ 本次不做 | 第一版不接 IRAS AIS，也不宣称属于 IRAS Supporting Payroll Software Vendor；已确认回答 No 不影响 Q17。 | No |
 | Q19 Leave/Attendance/Roster | ⚪ 本次不做 | 预约使用的员工可用时间不描述成完整排班、考勤或请假系统。 | No |
 | Q20–Q23 Inventory | ⚪ 建议不做 | 保留商品基础数量和 POS 扣减，但不申报完整 Inventory，避免额外开发仓库、库存流水、进出货、实时库存集成和低库存提醒。 | Q20 No；Q21–Q23 不触发 |

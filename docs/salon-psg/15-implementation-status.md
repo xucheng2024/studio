@@ -50,9 +50,9 @@
 | Phase 2 | POS-04 Refund/Void/Close | 已上线 | COM-01、PKG-01 | 隔离 DB Gate 与 COM-01 浏览器退款/关班证据已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。 |
 | Phase 3 | MKT-01 Audience/Email | 已上线 | FND-02、CRM-01、POS-04 | Consent/Suppression、Audience Snapshot 与 Email Builder 已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
 | Phase 3 | MKT-02 Dispatch/Report | 已上线 | MKT-01、FND-04 | 2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Owner 已在 Surgery 店 Email settings 启用发送；Marketing 受控测试邮件已收到。未向真实客户群发。 |
-| Phase 3 | PAY-01 Compensation/Rules | 已实现/待验证 | 已上线 FND-01、COM-01、FND-04；官方规则基线 | Owner Payroll Profile、员工 Email/电话自助更新、CPF Board 2026 HTML 全费率/SDL/SHG 与 MOM 不足月/加班公式已落地；PDF-only 档位仍阻止 Finalise。Payroll Run 在 PAY-02 |
-| Phase 3 | PAY-02 Payroll Run | 已实现/待验证 | PAY-01 | Draft → Finalised → Paid / Voided，佣金 Entry 锁定、规则快照和 Finalise blockers 已落地。Payslip 在 PAY-03 |
-| Phase 3 | PAY-03 Payslip/Reports | 未开始 | PAY-02 | 等待依赖 |
+| Phase 3 | PAY-01 Compensation/Rules | 已上线 | 已上线 FND-01、COM-01、FND-04；官方规则基线 | Owner Payroll Profile、员工 Email/电话自助更新、CPF Board 2026 HTML 全费率/SDL/SHG 与 MOM 不足月/加班公式已落地。专用 Free cloud UAT `pay01-payroll-local` 已通过。PDF-only 档位仍阻止 Finalise。 |
+| Phase 3 | PAY-02 Payroll Run | 已上线 | PAY-01 | Draft → Finalised → Paid / Voided 已进入生产。隔离 UAT 覆盖 Owner 建 Draft/重算、Manager 拒绝、员工 My pay；未对真实 Surgery 员工 Finalise/Paid。Payslip 在 PAY-03 |
+| Phase 3 | PAY-03 Payslip/Reports | 进行中 | PAY-02 | MOM Itemised Payslip 查看/打印/PDF、员工本人查看、Payroll/Commission/Statutory 报表 |
 | Phase 4 | RPT-01 Reporting Facts | 未开始 | 已上线 APT-03、POS-04、COM-01、PKG-01 | 复用现有 Revenue/Deferred/Commission 事实，只补 Q3 缺口 |
 | Phase 4 | RPT-02 Dashboard | 未开始 | RPT-01 | 等待依赖 |
 | Phase 4 | EXP-01 Exports | 未开始 | RPT-01、CRM-02、POS-04、PKG-02、PAY-03 | 已有 Deferred 四格式 builder 和 Payments CSV；等待依赖后扩至核心数据 |
@@ -87,8 +87,8 @@
 
 ## 当前建议领取顺序
 
-1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02 已上线。
-2. 下一开发项：PAY-02 跑批已实现，待验证后进入 PAY-03 Payslip/报表。官方资料无法确定的规则仍不得猜测。支付相关验证只用 HitPay Sandbox。
+1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02、PAY-01、PAY-02 已上线。
+2. 下一开发项：PAY-03 Payslip/报表。官方资料无法确定的规则仍不得猜测。不要对真实 Surgery 员工 Finalise/Paid。支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -245,3 +245,10 @@
 
 - 已新增 `payroll_runs` / employee snapshots / line items / commission locks，状态 Draft → Finalised → Paid / Voided。
 - PAY-02 升为“已实现/待验证”。Payslip 仍在 PAY-03。
+
+## 2026-08-18 状态更新（PAY-01/02 隔离 UAT）
+
+- 专用 Free cloud UAT `pay01-payroll-local` 通过：https://github.com/xucheng2024/studio/actions/runs/32095895065（`3334f52`，`pay01_local_uat_ok`）。
+- 覆盖：Owner 保存公民月薪档案、创建 2026-08 Draft、重算、gross/net；Manager 无 Payroll/My pay 并拒绝 Payroll 页；Instructor 可开 My pay、拒绝 Payroll 列表；390×844。未点击 Finalise/Paid。
+- 应用已在 `www.sgmystudio.com`。PAY-01、PAY-02 升为“已上线”。未对真实 Surgery 员工 Finalise/Paid。
+- 下一开发项：PAY-03 Payslip/报表。

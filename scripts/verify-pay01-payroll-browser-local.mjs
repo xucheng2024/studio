@@ -134,6 +134,59 @@ try {
   assert.equal(Number(runEmployee.employee_cpf_sgd), 400);
   assert.equal(Number(runEmployee.shg_sgd), 0.5);
   assert.deepEqual(runEmployee.blocker_codes, []);
+
+  await owner.page.getByRole("button", { name: "Finalise" }).click();
+  try {
+    await waitToast(owner.page, "Payroll finalised.");
+  } catch (error) {
+    const toasts = await owner.page.locator("[data-sonner-toast]").allInnerTexts().catch(() => []);
+    console.log("pay03_finalise_toast_missing", { toasts, message: error instanceof Error ? error.message : String(error) });
+    throw error;
+  }
+  console.log("pay03_owner_finalised");
+
+  const published = await waitForLocalDatabaseState(async () => {
+    const { data: run, error } = await admin
+      .from("payroll_runs")
+      .select("id, status")
+      .eq("studio_id", studioId)
+      .eq("period_start", "2026-08-01")
+      .maybeSingle();
+    if (error) throw error;
+    if (!run) return { run: null, row: null };
+    const { data: row, error: rowError } = await admin
+      .from("payroll_run_employees")
+      .select("id, payslip_number, net_sgd")
+      .eq("payroll_run_id", run?.id)
+      .eq("employee_id", employeeId)
+      .maybeSingle();
+    if (rowError) throw rowError;
+    return { run, row };
+  }, (state) => state.run?.status === "finalised" && Boolean(state.row?.payslip_number), "finalised payslip");
+  const runEmployeeId = published.row.id;
+  assert.match(published.row.payslip_number, /^PAY-2026-08-/);
+
+  await owner.page.getByRole("link", { name: "View payslip" }).waitFor({ state: "visible", timeout: 30_000 });
+  await owner.page.getByRole("link", { name: "View payslip" }).click();
+  await owner.page.getByRole("heading", { name: "Itemised payslip" }).waitFor({ state: "visible", timeout: 30_000 });
+  const slipBody = await owner.page.locator("body").innerText();
+  console.log("pay03_payslip_body", slipBody.slice(0, 800));
+  assert.match(slipBody, /Employer/);
+  assert.match(slipBody, /Employee/);
+  assert.match(slipBody, /Payment date/);
+  assert.match(slipBody, /Salary period/);
+  assert.match(slipBody, /Net salary/);
+  assert.match(slipBody, /1599\.50|1599\.5\b/);
+  assert.match(slipBody, /PAY-2026-08-/);
+  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "payslip mobile overflow");
+
+  await owner.page.goto(`${baseUrl}/dashboard/payroll/reports${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.getByRole("heading", { name: "Payroll reports" }).waitFor({ state: "visible", timeout: 30_000 });
+  const reportsBody = await owner.page.locator("body").innerText();
+  assert.match(reportsBody, /Payroll Summary/);
+  assert.match(reportsBody, /Commission Report/);
+  assert.match(reportsBody, /Statutory Contribution Summary/);
+  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "payroll reports mobile overflow");
   await owner.context.close();
 
   const manager = await login(PAY01_LOCAL_IDENTITIES.manager);
@@ -141,6 +194,8 @@ try {
   await manager.page.getByText("Only studio owners can open Payroll.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   assert.equal(await manager.page.getByRole("link", { name: "Payroll" }).count(), 0, "manager has no Payroll nav");
   assert.equal(await manager.page.getByRole("link", { name: "My pay" }).count(), 0, "manager has no My pay nav");
+  await manager.page.goto(`${baseUrl}/dashboard/payroll/payslips/${runEmployeeId}${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await manager.page.getByText("You can only open your own payslip.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   await manager.context.close();
   console.log("pay01_manager_denied");
 
@@ -151,6 +206,13 @@ try {
   assert.ok(await instructor.page.getByRole("link", { name: "My pay" }).count() > 0, "instructor sees My pay nav");
   assert.equal(await instructor.page.getByRole("link", { name: "Payroll" }).count(), 0, "instructor has no Payroll nav");
   assert.equal(await instructor.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "my pay mobile overflow");
+  await instructor.page.getByRole("link", { name: "2026-08" }).click();
+  await instructor.page.getByRole("heading", { name: "Itemised payslip" }).waitFor({ state: "visible", timeout: 30_000 });
+  const instructorSlip = await instructor.page.locator("body").innerText();
+  assert.match(instructorSlip, /PAY local instructor/);
+  assert.match(instructorSlip, /Net salary/);
+  assert.match(instructorSlip, /1599\.50|1599\.5\b/);
+  assert.equal(await instructor.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "instructor payslip mobile overflow");
   await instructor.page.goto(`${baseUrl}/dashboard/payroll${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await instructor.page.getByText("Only studio owners can open Payroll.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   await instructor.context.close();
@@ -163,6 +225,7 @@ try {
     status: "passed",
     assertions: [
       { name: "owner-profile-and-draft-run", result: "passed" },
+      { name: "owner-finalise-and-payslip", result: "passed" },
       { name: "manager-payroll-denied", result: "passed" },
       { name: "instructor-my-pay", result: "passed" },
     ],

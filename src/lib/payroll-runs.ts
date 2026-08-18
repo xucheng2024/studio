@@ -35,6 +35,7 @@ export type PayrollRunEmployeeRow = {
   payroll_run_id: string;
   employee_id: string;
   profile_version_id: string | null;
+  payslip_number: string | null;
   working_days_in_month: string | null;
   days_actually_worked: string | null;
   hours_worked: string | null;
@@ -229,6 +230,7 @@ export async function recalculatePayrollRun(params: {
         payroll_run_id: params.runId,
         employee_id: params.inputPatch.employee_id,
         profile_version_id: null,
+        payslip_number: null,
         working_days_in_month: null,
         days_actually_worked: null,
         hours_worked: null,

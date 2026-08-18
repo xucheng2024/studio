@@ -50,7 +50,10 @@ export default async function PayrollPage({ searchParams }: Props) {
   return (
     <div className="flex max-w-4xl flex-col gap-6">
       <div>
-        <h1 className={ui.h1}>Payroll</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className={ui.h1}>Payroll</h1>
+          <DashboardAppLink href="/dashboard/payroll/reports" className={ui.btnSecondarySm}>Reports</DashboardAppLink>
+        </div>
         <p className={`mt-1 ${ui.muted}`}>
           Restricted profiles, official CPF Board / MOM rules, and monthly Draft → Finalise → Paid / Voided runs.
         </p>
