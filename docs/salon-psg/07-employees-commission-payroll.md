@@ -114,7 +114,7 @@ Finalised 或 Paid 后不能直接修改金额。任何更正必须保留原始�
 - 净工资
 - Payroll 编号
 
-工资单由员工登录查看，并可打印或下载 PDF。系统保存工资单快照，不能在工资规则变化后重新生成不同金额的历史工资单。Email 发送不是 Q17 必要条件，放到后续增强。
+工资单由员工登录查看，并可打印、下载 PDF，或经 Studio Resend 发送到员工邮箱。系统保存工资单快照，不能在工资规则变化后重新生成不同金额的历史工资单。Email 不是 Q17 必要条件，也不会在 Finalise 时自动发送。
 
 MOM 要求应以官方最新说明为准：<https://www.mom.gov.sg/employment-practices/salary/itemised-payslips>
 

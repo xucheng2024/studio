@@ -56,3 +56,9 @@ Commit / Release：`0d66116`、`05d877d`、`74b079a`、`ab5b817`；未上线
 - Free cloud UAT 通过：https://github.com/xucheng2024/studio/actions/runs/32002949749
 - 日志标记：`pos02_local_uat_ok`；runner 摘要：`{"status":"passed","flows":["pos02-cash-receipt-local"],"runner":"github-hosted"}`
 - Batch 1/2 专用浏览器 UAT 已收口；找零 UI 与 PDF/可点击收据仍不在本批范围，不升“已上线”（待发布窗口）。
+
+## 7. 2026-08-18 增强（POS 发票发送）
+
+- POS 已付款明细页复用既有 Invoice Preview / Send（`4c2a69f`）。
+- 收件人取关联 `salon_customers.email`；Walk-in 无邮箱则无法发送。
+- 找零 UI 仍不做。不把本次增强当作 POS-02 新 UAT 或新收据号段。

@@ -103,7 +103,7 @@
 
 ### PAY-03 Payslip 和报表
 
-依赖：PAY-02。实现 MOM Itemised Payslip 打印/PDF、员工本人查看、Payroll Summary、Commission Report 和合并 Statutory Contribution Summary；复用 Q28 的四格式导出。Email 发送后置。
+依赖：PAY-02。实现 MOM Itemised Payslip 打印/PDF、员工本人查看、Payroll Summary、Commission Report 和合并 Statutory Contribution Summary；复用 Q28 的四格式导出。已发布工资单可 Email PDF（不自动群发）。
 
 ## Phase 4：Dashboard 和申请验收
 

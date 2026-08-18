@@ -15,11 +15,11 @@
 | Q8 实时同步 | ✅ 基础满足 | Yes | Supabase 继续作为单一数据源；所有新模块写入同一业务数据关系。准备两个设备同时更新客户、预约或销售并即时看到一致结果的演示证据。 |
 | Q9–Q10 Loyalty | ⚪ 本次不做 | No（Q10 不触发） | Membership、Package 和简单 Credits 不描述成 Loyalty Points。若 Q9 回答 No，避免触发 Q10 的积分、兑换、等级等强制功能。 |
 | Q11–Q12 Package | 🟡 已上线 / 待申请截图 | 完成后 Yes | `PKG-01`、`PKG-02` 已进入生产（`61dbdf0`）。覆盖 Salon Customer/Service/Location、opening-balance Ledger、maker-checker 审批。部分 package refund 与 Guest `user_id is null` 发放仍不在范围。申请截图后确认满足。 |
-| Q13 收据和付款记录 | ✅ 基本满足 | Yes | 现有 Payment、编号、PDF Invoice 和退款可复用；完成 POS 后提供多项目 Receipt、Refund Receipt/Credit Note、门店/员工/付款方式和审计。 |
+| Q13 收据和付款记录 | ✅ 基本满足 | Yes | 现有 Payment、编号、PDF Invoice 和退款可复用。已付款 POS 明细可 Preview/Send invoice（`4c2a69f`）。找零 UI 与独立 Credit Note 号段仍未做。 |
 | Q14 数字支付 | ✅ 基本满足 | Yes | 使用现有 HitPay 和 Cash；申请材料只列出生产环境真实启用并可现场完成的 HitPay 支付方式，保留 Webhook、同步及退款证据。 |
-| Q15 POS | 🟡 已上线 / 待申请截图 | Yes | `POS-01` 至 `POS-04` 已进入生产（`61dbdf0`）。找零 UI、PDF/可点击收据与 Void 点击证据仍不在本批。申请截图与现场演示后确认满足。 |
+| Q15 POS | 🟡 已上线 / 待申请截图 | Yes | `POS-01` 至 `POS-04` 已进入生产（`61dbdf0`）。已付款 POS 可发送 PDF invoice。找零 UI 与 Void 点击证据仍不在本批。申请截图与现场演示后确认满足。 |
 | Q16 SMS / E-Marketing | 🟡 已上线 / 待申请截图 | Yes（路径已确认） | `MKT-01`、`MKT-02` 已进入生产（`61dbdf0`）。Owner 已启用 Surgery 店 Email settings，受控测试邮件已通。SMS、WhatsApp 不做。申请截图后确认满足。 |
-| Q17 HR Management | 🟡 已上线 / 待申请截图 | Yes（自建已确认） | `FND-01`、`COM-01`、`PAY-01` 至 `PAY-03` 已上线：受限薪资档案、四状态跑批、MOM Itemised Payslip、员工本人查看、Payroll/Commission/Statutory 报表。申请截图后确认满足。 |
+| Q17 HR Management | 🟡 已上线 / 待申请截图 | Yes（自建已确认） | `FND-01`、`COM-01`、`PAY-01` 至 `PAY-03` 已上线：受限薪资档案、四状态跑批、MOM Itemised Payslip（查看/打印/PDF/Email）、员工本人查看、Payroll/Commission/Statutory 报表。Email 不在 Finalise 时自动发送。申请截图后确认满足。 |
 | Q18 IRAS AIS | ⚪ 本次不做 | No | 已确认 Q18 回答 No 不影响 Q17。不得宣称在 IRAS Supporting Payroll Software Vendors 名单中。 |
 | Q19 Leave / Attendance / Roster | ⚪ 本次不做 | No | 员工工作时间只用于 Appointment Availability，不描述成完整 Roster、Attendance 或 Leave Management。 |
 | Q20–Q23 Inventory | ⚪ 建议不触发 | Q20 No；Q21–Q23 不触发 | `shop_products.stock_qty` 和 POS 商品扣减仅作为基础商品数量，不申报完整 Inventory。避免触发库存主档、Journal、Warehouse、实时集成和低库存提醒全部强制要求。 |
@@ -34,10 +34,10 @@
 
 ## 当前代码证据摘要
 
-- Q3：`src/app/(app)/dashboard/reports/page.tsx` 当前主要为过滤器、数字卡和 Revenue 表格，没有四个 Salon 图表。
+- Q3：`RPT-01`/`RPT-02` 已上线。`/dashboard/reports` 有四图与 Salon facts；Surgery 2026-08 空结果为真实数据。
 - Q7：客户详情已包含 CRM-01 敏感资料和 CRM-02 Treatment/Follow-up；2026-08-18 已进入生产（`61dbdf0`）。仍需申请截图。
 - Q11–Q12：`PKG-01`/`PKG-02` 已进入生产，含 append-only Ledger 与 maker-checker。部分 package refund 与 Guest `user_id is null` 发放仍不在范围；仍需申请截图。
-- Q17：Owner `/dashboard/payroll`、员工 `/dashboard/payroll/me` 与 Payslip/报表已上线；隔离 UAT `pay01-payroll-local` 已通过。Staff Access 仍只管角色。
+- Q17：Owner `/dashboard/payroll`、员工 `/dashboard/payroll/me` 与 Payslip/报表已上线；隔离 UAT `pay01-payroll-local` 已通过。Staff Access 仍只管角色。已发布工资单可 Email PDF（`4c2a69f`），不自动群发。
 - Q28：`EXP-01` 已上线。`/api/reports/business/export` 覆盖 Sales/Customers/Packages 四格式；Deferred 与 Payroll/Commission 沿用既有导出。申请截图仍待补。
 - Q30：仓库中没有发现可以替代合资格第三方 VA/PT 报告的材料；内部安全检查或自动扫描不能冒充 Q30 报告。
 

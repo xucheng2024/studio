@@ -215,7 +215,8 @@
 
 - 依赖：PAY-02。
 - 必做：MOM Itemised Payslip 打印/PDF、员工本人查看、Payroll Summary、Commission Report、合并 Statutory Contribution Summary，并复用 Q28 四格式导出。
-- 非目标：Payslip Email 发送、IR8A/AIS 自动提交。
+- 增强（`4c2a69f`）：已发布工资单可经 Studio Resend 发送 PDF；不在 Finalise 时自动发送。
+- 非目标：IR8A/AIS 自动提交。
 - Gate：员工只能查看本人 Payslip；Payroll 管理员按严格范围查看；样本字段与 MOM 官方清单逐项一致。
 
 ### Phase 3 Gate

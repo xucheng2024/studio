@@ -42,7 +42,7 @@
 | Phase 1 | APT-05 Email Notifications | 已上线 | APT-03 | 通知队列与 Cron Worker 已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。未配置 Studio Resend 时发送失败并显示 email provider not configured。 |
 | Phase 2 | POS-01 Sale/Cart | 已上线 | FND-01、FND-02、FND-03、FND-04 | POS sale/item 事实层已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
 | Phase 2 | PKG-01 Package Ledger | 已上线 | FND-02、FND-03、FND-04、POS-01 | 专用 Free cloud UAT `pkg01-package-ledger-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。部分 package refund 与 Guest `user_id is null` 发放仍不在本项范围。 |
-| Phase 2 | POS-02 Cash/Receipt | 已上线 | POS-01 | 专用 Free cloud UAT `pos02-cash-receipt-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。找零 UI 与 PDF/可点击收据仍不在 Batch 1/2 范围。 |
+| Phase 2 | POS-02 Cash/Receipt | 已上线 | POS-01 | 专用 Free cloud UAT `pos02-cash-receipt-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。已付款 POS 明细可 Preview/Send invoice（`4c2a69f`）。找零 UI 仍不在范围。 |
 | Phase 2 | POS-03 HitPay | 已上线 | POS-01 | 专用 Free cloud UAT `pos03-hitpay-sandbox-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。未在 Production 造支付数据。 |
 | Phase 2 | PKG-02 Package Approval | 已上线 | PKG-01 | `pos-packages-local` Free cloud UAT 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
 | Phase 2 | APT-04 Self Booking | 已上线 | 启动：APT-03、CRM-01；上线：PKG-01、POS-03 | Phase 2 专用 Free cloud UAT `apt04-settlement-sandbox-local` 已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。未在 Production 造支付数据。 |
@@ -52,7 +52,7 @@
 | Phase 3 | MKT-02 Dispatch/Report | 已上线 | MKT-01、FND-04 | 2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Owner 已在 Surgery 店 Email settings 启用发送；Marketing 受控测试邮件已收到。未向真实客户群发。 |
 | Phase 3 | PAY-01 Compensation/Rules | 已上线 | 已上线 FND-01、COM-01、FND-04；官方规则基线 | Owner Payroll Profile、员工 Email/电话自助更新、CPF Board 2026 HTML 全费率/SDL/SHG 与 MOM 不足月/加班公式已落地。专用 Free cloud UAT `pay01-payroll-local` 已通过。PDF-only 档位仍阻止 Finalise。 |
 | Phase 3 | PAY-02 Payroll Run | 已上线 | PAY-01 | Draft → Finalised → Paid / Voided 已进入生产。隔离 UAT 覆盖 Owner 建 Draft/重算、Manager 拒绝、员工 My pay；未对真实 Surgery 员工 Finalise/Paid。 |
-| Phase 3 | PAY-03 Payslip/Reports | 已上线 | PAY-02 | MOM Itemised Payslip 查看/打印/PDF、员工本人查看、Payroll/Commission/Statutory 报表。隔离 UAT 已对 fixture Finalise；未对真实 Surgery 员工 Finalise/Paid。 |
+| Phase 3 | PAY-03 Payslip/Reports | 已上线 | PAY-02 | MOM Itemised Payslip 查看/打印/PDF/Email、员工本人查看、Payroll/Commission/Statutory 报表。隔离 UAT 已对 fixture Finalise；未对真实 Surgery 员工 Finalise/Paid。Email 不在 Finalise 时自动发送。 |
 | Phase 4 | RPT-01 Reporting Facts | 已上线 | 已上线 APT-03、POS-04、COM-01、PKG-01 | `get_rpt01_reporting_facts` 已进生产；Surgery 2026-08 无支付/预约，空结果为真实数据。未造假 Inventory/Loyalty。 |
 | Phase 4 | RPT-02 Dashboard | 已上线 | RPT-01 | `/dashboard/reports` 四图与 Salon facts 共用筛选。主持 Postgres FULL JOIN 已修（`b1b7acd`）。无独立 reports Free cloud UAT。 |
 | Phase 4 | EXP-01 Exports | 已上线 | RPT-01、CRM-02、POS-04、PKG-02、PAY-03 | Sales/Customers/Packages 四格式 + 既有 Deferred/Payroll 导出。无独立导出 Free cloud UAT。 |
@@ -265,3 +265,10 @@
 - RPT-02：四图与 facts 共用日期/门店/员工/服务筛选。主持 Postgres `FULL JOIN … IS NOT DISTINCT FROM` 导致图表失败，已用 UNION ALL 修复并推送 `b1b7acd`。`test:rpt02-app` 通过。Inventory/Loyalty 保持 0。无独立 reports Free cloud UAT。
 - EXP-01：Sales/Customers/Packages 四格式同步导出已进生产（`c012a4e` / `45bc1ea`）；Deferred 与 Payroll/Commission 沿用既有导出。`test:exp01-app` 通过。无独立导出 Free cloud UAT。
 - RPT-01、RPT-02、EXP-01 升为“已上线”。下一开发项：CMP-01。
+
+## 2026-08-18 状态更新（Payslip Email / POS Invoice）
+
+- PAY-03：已发布工资单页增加 Email PDF（`4c2a69f`），复用 Studio Resend 与现有 PDF。审计只记 `payslip_number`。不在 Finalise 时自动发送。未对真实 Surgery 员工 Finalise。
+- POS：已付款销售明细可 Preview / Send invoice；发票行取 POS 项目，收件人取关联顾客邮箱。Walk-in 无邮箱不可发。找零 UI 仍未做。
+- 报表空 facts 提示：该筛选下没有已关闭预约或已付款 POS。不向生产库写入假销售。
+- 下一开发项仍为 CMP-01。
