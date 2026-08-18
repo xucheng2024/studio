@@ -107,20 +107,22 @@ export function extractCatalog(root) {
     .filter(Boolean);
   const matrix = JSON.parse(freeCloud.match(/inputs\.flow == 'all' && '(\[[^\]]+\])'/)[1]);
   const maxParallel = Number(freeCloud.match(/max-parallel:\s*(\d+)/)[1]);
-  const release = read(root, ".github/workflows/release-gate.yml")
+  const releaseYaml = read(root, ".github/workflows/release-gate.yml");
+  const release = releaseYaml
     .match(/flows=\(\n((?:[ \t]+[a-z0-9-]+\n)+)[ \t]+\)/)[1]
     .trim()
     .split(/\s+/);
-  const releaseMatrix = read(root, ".github/workflows/release-gate.yml")
+  const releaseMatrix = releaseYaml
     .match(/\n {6}matrix:\n {8}flow:\n((?: {10}- [a-z0-9-]+\n)+)/)[1]
     .trim()
     .split(/\n/)
     .map((line) => line.replace(/^ *- /, "").trim());
+  const releaseMaxParallel = Number(releaseYaml.match(/max-parallel:\s*(\d+)/)[1]);
   const manifest = JSON.parse(read(root, "uat.flows.json"));
   const isolated = (manifest.flows ?? [])
     .filter((flow) => flow.target?.policy === "command_local" && flow.data_access?.policy === "local_only")
     .map((flow) => flow.id);
-  return { scripts, order: Object.keys(scripts), options, matrix, maxParallel, release, releaseMatrix, isolated };
+  return { scripts, order: Object.keys(scripts), options, matrix, maxParallel, releaseMaxParallel, release, releaseMatrix, isolated };
 }
 
 function renderFastScripts(scripts, order) {
@@ -149,6 +151,7 @@ function applyCatalogFiles(root, { id, after, fastScript, names, npmScript }) {
   const matrixBlock = order.map((flow) => `          - ${flow}`).join("\n");
   release = release.replace(/flows=\(\n(?:[ \t]+[a-z0-9-]+\n)+[ \t]+\)/, `flows=(\n${flowsBlock}\n          )`);
   release = release.replace(/\n {6}matrix:\n {8}flow:\n(?: {10}- [a-z0-9-]+\n)+/, `\n      matrix:\n        flow:\n${matrixBlock}\n`);
+  release = release.replace(/max-parallel:\s*\d+/, `max-parallel: ${order.length}`);
   write(root, ".github/workflows/release-gate.yml", release);
 
   const manifest = JSON.parse(read(root, "uat.flows.json"));
