@@ -50,12 +50,12 @@
 | Phase 2 | POS-04 Refund/Void/Close | 已上线 | COM-01、PKG-01 | 隔离 DB Gate 与 COM-01 浏览器退款/关班证据已通过。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Void 继续由既有 DB/action Gate 覆盖，未新增 Void 点击证据。 |
 | Phase 3 | MKT-01 Audience/Email | 已上线 | FND-02、CRM-01、POS-04 | Consent/Suppression、Audience Snapshot 与 Email Builder 已验证。2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。 |
 | Phase 3 | MKT-02 Dispatch/Report | 已上线 | MKT-01、FND-04 | 2026-08-18 生产发布窗口已 promote（`61dbdf0`，gate `32086736757`）。Owner 已在 Surgery 店 Email settings 启用发送；Marketing 受控测试邮件已收到。未向真实客户群发。 |
-| Phase 3 | PAY-01 Compensation/Rules | 未开始 | FND-01、COM-01、专业规则 | 等待依赖及 Payroll 规则签字 |
+| Phase 3 | PAY-01 Compensation/Rules | 未开始 | 已上线 FND-01、COM-01、FND-04；官方规则基线 | 可开始；只补 Payroll Profile/规则/自助更新，复用员工、佣金和强审计，不再等待规则签字 |
 | Phase 3 | PAY-02 Payroll Run | 未开始 | PAY-01 | 等待依赖 |
 | Phase 3 | PAY-03 Payslip/Reports | 未开始 | PAY-02 | 等待依赖 |
-| Phase 4 | RPT-01 Reporting Facts | 未开始 | APT-03、POS-04、COM-01、PKG-01 | 等待稳定业务事实 |
+| Phase 4 | RPT-01 Reporting Facts | 未开始 | 已上线 APT-03、POS-04、COM-01、PKG-01 | 复用现有 Revenue/Deferred/Commission 事实，只补 Q3 缺口 |
 | Phase 4 | RPT-02 Dashboard | 未开始 | RPT-01 | 等待依赖 |
-| Phase 4 | EXP-01 Exports | 未开始 | RPT-01、CRM-02、POS-04、PKG-02、PAY-03 | 等待依赖 |
+| Phase 4 | EXP-01 Exports | 未开始 | RPT-01、CRM-02、POS-04、PKG-02、PAY-03 | 已有 Deferred 四格式 builder 和 Payments CSV；等待依赖后扩至核心数据 |
 | Phase 4 | CMP-01 PDPA Controls | 未开始 | CRM-01、FND-04 | 产品开发后由负责人完成表格 |
 | Phase 4 | SEC-01 VA/PT | 未开始 | 全部 Yes 功能稳定 | 提前询价，稳定后测试 |
 | Phase 4 | ORG-01 Certification | 未开始 | 申请主体确认 | 公司负责人推进 |
@@ -88,7 +88,7 @@
 ## 当前建议领取顺序
 
 1. 2026-08-18 生产发布窗口已完成（`61dbdf0`，gate `32086736757`，`www.sgmystudio.com`）。MKT-02 已上线。
-2. 下一开发项：PAY-01 仍等新加坡 Payroll 规则签字。不要猜测 CPF/SDL/SHG。支付相关验证只用 HitPay Sandbox。
+2. 下一开发项：PAY-01 已解除签字 Gate，可按 `tasks/PAY-01.md` 的官方规则基线开始。官方资料无法确定的规则仍不得猜测。支付相关验证只用 HitPay Sandbox。
 
 ## 2026-08-17 状态更新（POS-02 Cash/Receipt UAT）
 
@@ -220,7 +220,7 @@
 
 - 新增 `scripts/scaffold-isolated-uat-flow.mjs`：一次写入 fixture stubs 与 Free cloud UAT / release-gate / `FAST_SCRIPTS` 目录。
 - 新增 flow 用 `--write`，再补 verifier 断言，然后 `npm run test:cloud-uat-options`。
-- 业务状态不变。下一开发项仍是 PAY-01（等规则签字）；并行发布窗口与生产 Owner 启用该店 Resend。
+- 当时业务状态不变；PAY-01 的规则签字 Gate 已在后续需求复核中解除，现按官方规则基线执行。
 
 ## 2026-08-18 状态更新（生产发布窗口）
 
@@ -228,10 +228,10 @@
 - Commit：`61dbdf0`。Vercel：`dpl_BSgfYuudUEVtqxznFScZdm7hmnWd`。生产域名：`https://www.sgmystudio.com`
 - 升为“已上线”：FND-04、APT-01、APT-02、APT-03、APT-04、APT-05、CRM-01、POS-01、POS-02、POS-03、POS-04、PKG-01、PKG-02、MKT-01
 - MKT-02 保持“已验证/待上线”。应用已在生产，待该 Studio Owner 在 `/dashboard/settings/email` 启用自己的 Resend。不要用平台 `RESEND_*` 群发真实客户。
-- PAY-01 仍为“未开始”，等新加坡 Payroll 规则签字。
+- PAY-01 仍为“未开始”；规则签字 Gate 已在后续需求复核中解除。
 
 ## 2026-08-18 状态更新（MKT-02 已上线）
 
 - Owner 确认 MKT-02 可上线。Surgery 店 Email settings 已启用；From `noreply@sgmystudio.com`；Marketing `Send test` 受控测试邮件已收到。
 - 升为“已上线”。未向真实客户群发。
-- PAY-01 仍为“未开始”，等新加坡 Payroll 规则签字。
+- PAY-01 仍为“未开始”，现可按官方规则基线开始。

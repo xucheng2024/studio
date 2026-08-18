@@ -95,29 +95,29 @@
 
 ### PAY-01 员工薪资档案和规则版本
 
-依赖：FND-01、COM-01，且 Payroll 专业规则已确认。实现 Compensation Profile、带生效日期的法定规则和严格 Payroll 权限；未确认的规则不得自行猜测写死。
+依赖：已上线的 FND-01、COM-01、FND-04。复用现有 Employee、Location、Commission Entry 和强审计；只新增受限 Compensation Profile、Employee 本人 Email/电话更新、带官方来源及生效日期的法定规则和严格 Payroll 权限。第一版仅 SGD、自然月、月薪/时薪；官方资料无法确定的规则必须阻止 Finalise。
 
 ### PAY-02 Payroll Run 和审批
 
-依赖：PAY-01。实现 Draft、Reviewed、Approved、Paid、Voided，工资行快照、佣金汇总、强审计和不可直接修改规则。
+依赖：PAY-01。实现 Draft、Finalised、Paid、Voided，工资行/规则快照、现有 Commission Entry 的唯一锁定、强审计和不可直接修改规则。第一版由 Owner Finalise，不做双层审批或 Maker-Checker。
 
 ### PAY-03 Payslip 和报表
 
-依赖：PAY-02。实现 MOM Itemised Payslip PDF、员工本人查看、Email、Payroll/CPF/SDL/SHG/Commission 报表及 CSV。
+依赖：PAY-02。实现 MOM Itemised Payslip 打印/PDF、员工本人查看、Payroll Summary、Commission Report 和合并 Statutory Contribution Summary；复用 Q28 的四格式导出。Email 发送后置。
 
 ## Phase 4：Dashboard 和申请验收
 
 ### RPT-01 统一 Reporting Facts
 
-依赖：APT-03、POS-04、COM-01、PKG-01。建立数据库 View/Function 和索引，统一 Appointment、Service/Retail/YoY Sales、Customer Retention/FOV、Commission 和 Package Balance Value 口径，不再读取固定 5,000 笔明细计算。
+依赖：已上线的 APT-03、POS-04、COM-01、PKG-01。复用现有 Revenue Summary、Deferred Value RPC 和 Commission Entry，只为缺少的 Appointment Outcome、Service/Retail/YoY Sales、Customer Retention/FOV 和 Employee Productivity 增加数据库聚合与必要索引；不另建通用 BI 数据仓库。
 
 ### RPT-02 四图 Dashboard
 
-依赖：RPT-01。实现四个图表、日期/门店/员工/服务公共筛选、KPI、明细、响应式表格替代和权限测试；提供 Q3 所需 Outlet/Service/Retail/YoY Sales、New/Repeat Retention、FOV、Employee/Commission 和 Package Value 报表，并明确 Inventory/Loyalty 为 0。
+依赖：RPT-01。只做一个 Q3 证据 Dashboard：Appointment Outcome、Sales Trend、Revenue by Service、Employee Commission/Productivity 四图；日期、门店、员工、服务至少三个公共筛选作用于全部四图，并可下钻现有/新增报表。继续提供 Outlet/Service/Retail/YoY Sales、New/Repeat Retention、FOV、Commission 和 Package Value 报表；Inventory/Loyalty 明确填 0，不造假数据或空模块。
 
 ### EXP-01 多格式业务数据导出
 
-依赖：RPT-01、CRM-02、POS-04、PKG-02、PAY-03。建立统一 Export Service，让授权用户按相同筛选导出 CSV、XLSX、XML 和 TSV；验证文件格式、数据权限、敏感字段排除和大数据量处理，满足 Q28。
+依赖：RPT-01、CRM-02、POS-04、PKG-02、PAY-03。扩展已有 Deferred CSV/XLSX/XML/TSV builder，不重写 Export Service；为 Sales、Customers、Packages 和 Payroll/Commission 提供同筛选的四格式同步导出、权限/敏感字段过滤和明确行数上限。Q28 不要求第一版实现后台异步大文件任务或每个页面都可导出。
 
 ### CMP-01 PDPA 产品控制和申请证据
 

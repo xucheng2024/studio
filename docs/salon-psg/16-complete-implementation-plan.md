@@ -198,52 +198,53 @@
 
 ### PAY-01 薪资档案和规则版本
 
-- 依赖：FND-01、COM-01、新加坡 Payroll 专业规则确认。
-- 必做：Compensation Profile、工资周期、基本工资/时薪、CPF/SDL/SHG 等带生效日期规则、严格权限和敏感访问审计。
-- 非目标：IRAS AIS、Leave/Attendance/Roster、未获确认规则硬编码。
-- Gate：专业人士确认计算输入、版本及适用范围；普通 Manager/Frontdesk 无工资权限。
+- 依赖：FND-01、COM-01。
+- 必做：复用已上线的 Employee、Location、Commission Entry 和强审计；按 `tasks/PAY-01.md` 只建立 Compensation Profile、Employee 本人 Email/电话更新、基本工资/时薪、CPF/SDL/SHG 等带官方来源和生效日期的规则、严格权限和敏感访问审计。
+- 非目标：IRAS AIS、Leave/Attendance/Roster、官方资料无法确定的规则。
+- Gate：官方规则来源和版本完整，边界案例与官方示例/计算器一致；普通 Manager/Frontdesk 无工资权限。专业人士复核不是硬 Gate。
 
 ### PAY-02 Payroll Run 与审批
 
 - 依赖：PAY-01。
-- 必做：Draft/Reviewed/Approved/Paid/Voided、员工工资行快照、佣金汇总、扣款/贡献、Maker-Checker、锁定和强审计。
+- 必做：Draft/Finalised/Paid/Voided、员工工资行/规则快照、现有 Commission Entry 唯一锁定、扣款/贡献和强审计。
+- 非目标：Reviewed/Approved 双层状态、Maker-Checker；第一版由 Owner Finalise。
 - 非目标：银行 GIRO、IRAS 提交。
-- Gate：Approved 后不能静默重算；规则或员工变化不改历史 Run。
+- Gate：Finalised 后不能静默重算；规则或员工变化不改历史 Run。
 
 ### PAY-03 Payslip 与报告
 
 - 依赖：PAY-02。
-- 必做：MOM Itemised Payslip PDF、员工本人查看、Email、Payroll/CPF/SDL/SHG/Commission 报表和 CSV。
-- 非目标：IR8A/AIS 自动提交。
-- Gate：员工只能查看本人 Payslip；Payroll 管理员按严格范围查看；样本由专业人士复核。
+- 必做：MOM Itemised Payslip 打印/PDF、员工本人查看、Payroll Summary、Commission Report、合并 Statutory Contribution Summary，并复用 Q28 四格式导出。
+- 非目标：Payslip Email 发送、IR8A/AIS 自动提交。
+- Gate：员工只能查看本人 Payslip；Payroll 管理员按严格范围查看；样本字段与 MOM 官方清单逐项一致。
 
 ### Phase 3 Gate
 
 - Q16 完整 Email E-Marketing 可演示，不依赖 SMS；演示 Studio 使用自己的 Resend 账号，平台不代付发送额度。
-- Q17 自建 Payroll 可生成经过专业复核的 Payslip 和报告；Q18 保持 No。
-- 预计工作：约 5–8 工程师周，外部 Payroll 复核等待时间另计。
+- Q17 自建 Payroll 可生成按官方规则版本验证的 Payslip 和报告；Q18 保持 No。
+- 预计剩余工作：约 3–5 工程师周；外部 Payroll 复核为可选项，不计入交付 Gate。
 
 ## 7. Phase 4：Reports、Compliance 和申请收口
 
 ### RPT-01 Reporting Facts
 
 - 依赖：APT-03、POS-04、COM-01、PKG-01。
-- 必做：统一数据库 View/Function/索引，定义 Appointment、Sales/Refund、Customer Retention/FOV、Commission、Package Value 和 Location 汇总事实。
+- 必做：复用现有 Revenue Summary、Deferred Value RPC 和 Commission Entry，只为缺口补 Appointment、Sales、Customer Retention/FOV 和 Employee Productivity 的 View/Function/索引。
 - 非目标：图表 UI、重新定义业务状态。
 - Gate：单店之和等于 All Locations；历史未分配数据单列；大数据不依赖固定条数客户端计算。
 
 ### RPT-02 四图 Dashboard
 
 - 依赖：RPT-01。
-- 必做：至少四个互动图表、KPI/明细、日期/门店/员工/服务共同筛选、门店对比和响应式展示。
+- 必做：一个证据 Dashboard，固定为 Appointment Outcome、Sales Trend、Revenue by Service、Employee Commission/Productivity 四图；日期、门店、员工、服务中至少三个公共筛选作用于全部四图，并提供明细/响应式替代。
 - 非目标：Inventory/Loyalty 假数据、第二套报表口径。
 - Gate：所有图表同时响应筛选并严格执行 Location Scope。
 
 ### EXP-01 多格式导出
 
 - 依赖：RPT-01、CRM-02、POS-04、PKG-02、PAY-03。
-- 必做：统一 Export Service，按页面相同筛选和权限导出 CSV、XLSX、XML、TSV；支持大数据任务和敏感字段排除。
-- 非目标：任意数据库 Dump、绕过 Payroll/健康权限。
+- 必做：扩展现有 Deferred 四格式 builder，让 Sales、Customers、Packages 和 Payroll/Commission 按页面相同筛选和权限导出 CSV、XLSX、XML、TSV；统一敏感字段排除和行数上限。
+- 非目标：后台异步大文件任务、任意数据库 Dump、每个页面单独建设导出器、绕过 Payroll/健康权限。
 - Gate：四种格式可打开、内容一致、越权和敏感字段测试通过。
 
 ### CMP-01 PDPA 控制和证据
@@ -277,7 +278,7 @@
 ### Phase 4 Gate
 
 - 产品 Gate、数据导出、PDPA、VA/PT、组织答题和申请材料全部完成。
-- 预计产品及证据工作：约 6–8 工程师周；外部 VA/PT 和认证排期另计。
+- 预计剩余产品及证据工作：约 4–7 工程师周；外部 VA/PT 和认证排期另计。
 
 ## 8. 建议并行路径
 
@@ -287,19 +288,17 @@
 - APT-04 的登录/实时档期部分可在 APT-03、CRM-01 后提前开发，Package/Payment 部分等待 PKG-01、POS-03。
 - MKT 编辑器可先做结构，但真实分组验收必须等待 POS-04。
 - ORG-01 和 VA/PT 询价可提前推进；正式 VA/PT 必须等待主要功能稳定。
-- RPT-01 必须等待业务事实稳定，避免早做后反复重写。
+- RPT-01 的 APT/POS/COM/PKG 业务事实已经上线，可直接复用现有 Revenue、Deferred 和 Commission 口径补缺口。
 
 ## 9. 总体工作量和完成定义
 
-在 FND-01、FND-02、FND-03 已上线的当前基线上，剩余约 **27–40 个工程师周**：
+截至 2026-08-18，Phase 0–2 及 Marketing 已上线。按本次收缩后的剩余范围，约 **7–12 个工程师周**：
 
-- Phase 0（FND-04）：约 1 周
-- Phase 1：8–12 周
-- Phase 2：8–11 周
-- Phase 3：5–8 周
-- Phase 4：6–8 周
+- PAY-01 至 PAY-03：约 3–5 周
+- RPT-01、RPT-02、EXP-01：约 2–3 周
+- CMP-01、PSG-01 产品控制与证据：约 2–4 周
 
-这是假设熟悉项目的工程师投入，包含实现、Migration、权限和基本测试，不包含产品等待、Payroll 专业签字、VA/PT 排期和组织认证时间。每完成一个 Phase，应根据实际速度重新估算，不能把范围估算当成交付承诺。
+这是熟悉项目的工程师投入估算，包含 Migration、权限和针对性测试，不包含外部 VA/PT、组织认证和 IMDA 审核等待。Payroll 专业复核不是硬 Gate。每完成一个任务后按实际速度重估。
 
 最终“全部完成”不是指代码任务全部有文件，而是同时满足：
 

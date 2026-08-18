@@ -127,8 +127,8 @@
 ## 11. 开发前仍需人工确认
 
 - 已确认 Q16 是 OR，本次只实现完整 Email E-Marketing；不得实现 SMS/WhatsApp Campaign。
-- 已确认 Q17 可以使用自建 Payroll，Q18 回答 No 不影响；法定计算仍需新加坡 Payroll 专业验证。
-- Payroll 的 CPF、SDL、SHG、不足月及加班规则由新加坡专业人士签字确认。
+- 已确认 Q17 可以使用自建 Payroll，Q18 回答 No 不影响；法定计算按 `tasks/PAY-01.md` 的新加坡官方规则基线、版本记录和官方示例验证。
+- Payroll 不以专业人士签字作为开发 Gate；无法从 MOM、CPF Board、SSG/相关官方机构资料确定的规则不得猜测，必须阻止计算并升级确认。
 - PWA 是否会被申请方视为 Mobile App；未确认时 Q24 为 No。
 - 非资助附加模块能否在同一产品中保留，以及报价/合同如何分开。
 - Q29 的 PDPA Form 由公司 DPO/负责人完成，编码代理只能提供系统证据。

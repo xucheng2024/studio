@@ -8,7 +8,7 @@
 |---|---|---|---|
 | Q1 云端及多设备 | ✅ 基本满足 | Yes | 保持响应式 Web/PWA 和云端单一数据源；准备桌面、平板/手机浏览器及同账号数据同步截图。PWA 不在这里宣称为独立 Mobile App。 |
 | Q2 多门店集中管理 | 🟡 部分满足 | Yes | `FND-01`、`FND-03` 完成员工多门店和服务发布基础；还需 `APT-01`/`APT-02`、`POS-01` 和 `RPT-01`/`RPT-02` 分别保证预约、销售真实归店以及单店/全部门店汇总。全部完成并通过越权测试后才能判定 Q2 满足。 |
-| Q3 Dashboard / Reports | ❌ 不满足 | Yes | 完成 `RPT-01`、`RPT-02`：四个真实互动图表，公共筛选同时作用；并提供 Appointment Outcome、Outlet/Service/Retail/YoY Sales、New/Repeat Retention、FOV、Employee/Commission 和 Package Balance Value 报表。Inventory、Loyalty 按未启用模块填 0。 |
+| Q3 Dashboard / Reports | 🟡 部分满足 | Yes | 已有 Revenue、Payment 分类和 Package Deferred Value 报表；补 `RPT-01`、`RPT-02` 的四图证据 Dashboard（Appointment Outcome、Sales Trend、Revenue by Service、Employee Commission/Productivity）及缺失的 Retention/FOV/YoY 报表。Inventory、Loyalty 按未启用模块填 0。 |
 | Q4 Appointment Scheduling | 🟡 已上线 / 待申请截图 | Yes | `APT-01` 至 `APT-03` 已进入生产（`61dbdf0`，gate `32086736757`）。隔离 Free cloud UAT 已覆盖 APT-01 角色拒绝/390px 配置写入与 APT-03 日历主路径/跨门店拒绝。申请截图后确认满足。现有课程 Session 不作为证据。 |
 | Q5–Q6 Online Booking | 🟡 已上线 / 待申请截图 | Yes | `APT-04`、`APT-05` 已进入生产（`61dbdf0`）。覆盖安全登录、实时档期、客户本人预约/取消、Package Credits 与订金 Sandbox。申请截图与现场演示后确认满足。 |
 | Q7 Customer Management | 🟡 已上线 / 待申请截图 | Yes | `FND-02`、`CRM-01`、`CRM-02` 已进入生产。覆盖 Studio-scoped Customer、偏好、过敏、健康/禁忌、疗程历史、Follow-up、Consent 和敏感权限。申请截图后确认满足。 |
@@ -19,13 +19,13 @@
 | Q14 数字支付 | ✅ 基本满足 | Yes | 使用现有 HitPay 和 Cash；申请材料只列出生产环境真实启用并可现场完成的 HitPay 支付方式，保留 Webhook、同步及退款证据。 |
 | Q15 POS | 🟡 已上线 / 待申请截图 | Yes | `POS-01` 至 `POS-04` 已进入生产（`61dbdf0`）。找零 UI、PDF/可点击收据与 Void 点击证据仍不在本批。申请截图与现场演示后确认满足。 |
 | Q16 SMS / E-Marketing | 🟡 已上线 / 待申请截图 | Yes（路径已确认） | `MKT-01`、`MKT-02` 已进入生产（`61dbdf0`）。Owner 已启用 Surgery 店 Email settings，受控测试邮件已通。SMS、WhatsApp 不做。申请截图后确认满足。 |
-| Q17 HR Management | ❌ 尚未开发 | Yes（自建已确认） | 已确认可使用 in-house Payroll。完成 `FND-01`、`COM-01`、`PAY-01` 至 `PAY-03`：员工档案、自助更新、佣金、Payroll、报告、MOM Itemised Payslip 和法定规则版本，并由专业人士验证计算。 |
+| Q17 HR Management | 🟡 基础已具备 | Yes（自建已确认） | `FND-01` 员工主档和 `COM-01` 佣金规则/Entry 已上线；只需完成 `PAY-01` 至 `PAY-03`：受限薪资档案、Email/电话自助更新、四状态 Payroll、报告、MOM Itemised Payslip 和法定规则。 |
 | Q18 IRAS AIS | ⚪ 本次不做 | No | 已确认 Q18 回答 No 不影响 Q17。不得宣称在 IRAS Supporting Payroll Software Vendors 名单中。 |
 | Q19 Leave / Attendance / Roster | ⚪ 本次不做 | No | 员工工作时间只用于 Appointment Availability，不描述成完整 Roster、Attendance 或 Leave Management。 |
 | Q20–Q23 Inventory | ⚪ 建议不触发 | Q20 No；Q21–Q23 不触发 | `shop_products.stock_qty` 和 POS 商品扣减仅作为基础商品数量，不申报完整 Inventory。避免触发库存主档、Journal、Warehouse、实时集成和低库存提醒全部强制要求。 |
 | Q24–Q25 Mobile App | ⚪ 建议不触发 | Q24 No；Q25 不触发 | 当前为响应式 Web/PWA，不宣称独立 Mobile App；只有取得 IMDA 书面确认并具备对应模块后才改变答案。 |
 | Q26–Q27 AI | ⚪ 本次不做 | Q26 No；Q27 不触发 | 不把普通筛选、自动计算、提醒或规则引擎描述成 AI。 |
-| Q28 Business Data Extraction | 🟡 部分满足 | Yes | 当前只发现 Payment CSV 导出，不足以覆盖完整业务。完成 `EXP-01`，按权限和相同筛选导出 Appointment、Customer、Sales、Package、Commission、Payroll 等数据，统一支持 CSV、XLSX、XML、TSV，并验证文件可用性。 |
+| Q28 Business Data Extraction | 🟡 部分满足 | Yes | Package Deferred Value 已支持 CSV、XLSX、XML、TSV，Payments 已有 CSV。`EXP-01` 复用现有 builder 扩展 Sales、Customers、Packages 和 Payroll/Commission，并验证权限与文件正确性；不建设异步导出平台。 |
 | Q29 Personal Data Protection | 🟡 部分基础 | Yes，但需正式表格和证据 | 完成 `CMP-01`：隐私告知/Consent、访问更正、保留、删除/匿名化、敏感权限、访问/导出审计、第三方处理者记录等；必须由负责人完成题目指定的 PDPA Requirements Form。仅有 RLS 不足以证明完整合规。 |
 | Q30 VA/PT | 🔴 当前没有合格报告证据 | Yes，否则不能继续 | 联系符合题目资格的独立第三方，在提交前 12 个月内完成规定范围的 VA/PT。必须包含执行摘要、详细发现/风险、修复建议、方法、范围、资格及修复/缓解证据。主要功能稳定后测试，给修复和复测预留时间。 |
 | Q31 Product Principal | 🟡 需公司确认 | 自研产品通常 Yes | 如果申请公司拥有并负责本解决方案，走 Product Principal 路径；若只是转售第三方产品则回答 No 并转 Q34。公司负责人确认，不能由代码推断。 |
@@ -38,7 +38,7 @@
 - Q7：客户详情已包含 CRM-01 敏感资料和 CRM-02 Treatment/Follow-up；2026-08-18 已进入生产（`61dbdf0`）。仍需申请截图。
 - Q11–Q12：`PKG-01`/`PKG-02` 已进入生产，含 append-only Ledger 与 maker-checker。部分 package refund 与 Guest `user_id is null` 发放仍不在范围；仍需申请截图。
 - Q17：`src/app/(app)/dashboard/staff/page.tsx` 当前管理账号角色和访问权，不是 Employee HR/Payroll 主档。
-- Q28：当前可见的正式业务导出主要是 `/api/payments/export` CSV，尚未形成跨模块、多格式 Export Service。
+- Q28：`/api/reports/deferred/export` 已有四格式，`/api/payments/export` 已有 CSV；缺口是把同一 builder 安全扩到核心业务数据，不是从零建设 Export Service。
 - Q30：仓库中没有发现可以替代合资格第三方 VA/PT 报告的材料；内部安全检查或自动扫描不能冒充 Q30 报告。
 
 ## 申请前硬性闸门

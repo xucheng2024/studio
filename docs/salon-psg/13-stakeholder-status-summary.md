@@ -19,7 +19,7 @@
 | Q14 数字支付 | ✅ 基本满足 | 继续使用 HitPay；保留现金记录。申请材料只列出生产环境真实启用、可现场完成的 HitPay 支付方式。 | Yes |
 | Q15 POS | 🟡 已上线 / 待申请截图 | in-house POS 已进入生产：客户、多服务/商品/套餐、员工、折扣、Cash/HitPay、收据、退款、作废、门店归属和日结。找零 UI 与 PDF 可点击收据仍不在本批。 | 申请截图后 Yes |
 | Q16 SMS/E-Marketing | 🟡 已上线 / 待申请截图 | Email E-Marketing 已进入生产（`61dbdf0`）。Owner 已启用 Surgery 店 Email settings，受控测试邮件已通。SMS、WhatsApp 不做。 | 申请截图后 Yes |
-| Q17 HR Management | ❌ 尚未开发 | 已确认可以使用自建 Payroll。建立员工档案和自助资料、佣金、Payroll、工资/佣金报告、CPF/SDL/SHG 规则和 MOM Itemised Payslip，并由专业人士验证计算。 | 完成后 Yes |
+| Q17 HR Management | 🟡 基础已具备 / Payroll 未开始 | 员工主档和佣金已上线。还需 PAY-01 至 PAY-03：受限薪资档案、四状态 Payroll、报告、MOM Itemised Payslip，以及按 CPF Board/MOM 官方规则验证的法定计算。顾问签字不是硬前置。 | 完成后 Yes |
 | Q18 IRAS AIS | ⚪ 本次不做 | 第一版不接 IRAS AIS，也不宣称属于 IRAS Supporting Payroll Software Vendor；已确认回答 No 不影响 Q17。 | No |
 | Q19 Leave/Attendance/Roster | ⚪ 本次不做 | 预约使用的员工可用时间不描述成完整排班、考勤或请假系统。 | No |
 | Q20–Q23 Inventory | ⚪ 建议不做 | 保留商品基础数量和 POS 扣减，但不申报完整 Inventory，避免额外开发仓库、库存流水、进出货、实时库存集成和低库存提醒。 | Q20 No；Q21–Q23 不触发 |
@@ -71,7 +71,7 @@
 ### 最大的外部风险
 
 1. Q16/Q17：范围已经确认，但必须保存完整回复证据并确保报价、合同和演示一致。
-2. Q17：自建 Payroll 的法定计算仍需新加坡专业人士验证。
+2. Q17：法定计算须与 CPF Board 现行规则及 MOM Payslip 字段逐项验证；顾问复核为可选项，不是开发或申报硬前置。
 3. Q29：必须由公司负责人/DPO 完成官方 PDPA Form。
 4. Q30：必须由合资格独立第三方提供有效 VA/PT 报告。
 5. Q31–Q35：必须确认 Product Principal/Reseller 身份，并规划组织级网络安全认证。
