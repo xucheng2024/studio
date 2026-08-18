@@ -6,13 +6,9 @@ The candidate is built with Vercel's Production environment but deployed with `-
 
 ## Required infrastructure
 
-1. Prepare an Ubuntu 24.04 VM with [`scripts/bootstrap-cloud-vm-uat.sh`](../scripts/bootstrap-cloud-vm-uat.sh).
-2. Install `uat-browser` at `/opt/uat-browser/skills/uat-browser`, or set the repository variable `UAT_BROWSER_DIR`.
-3. Install a Git checkout of the version-pinned `uat-infra` skill on the VM. Set `UAT_INFRA_DIR` to its skill directory and `UAT_INFRA_COMMIT` to its exact 40-character Git commit. The workflow verifies that pin, then runs its read-only `studio-uat` capacity and tool check before dependency installation.
-4. Register the VM as a GitHub self-hosted runner with all four labels: `self-hosted`, `linux`, `x64`, and `studio-uat`.
-5. Keep the runner dedicated to reviewed Studio release commits. The workflow accepts only a full 40-character SHA reachable from `origin/main`.
+First release uses GitHub-hosted `ubuntu-24.04` for isolated Docker UAT (`scripts/run-github-hosted-uat.mjs --flow all-batched`). A self-hosted Cloud VM is optional later capacity, not required to run this gate.
 
-The Cloud VM runs flows sequentially because they share the local Docker daemon. Each flow owns its declared start/readiness/inspection/cleanup lifecycle. Add future databases and servers as flow-specific Compose modules; do not leave them as undeclared shared VM services. Successful flows clean up automatically. Failed flows retain their environment for diagnosis.
+The workflow accepts only a full 40-character SHA reachable from `origin/main`.
 
 ## GitHub Environments
 
