@@ -1,6 +1,7 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
+import { PayrollSalaryFields } from "@/components/dashboard/PayrollSalaryFields";
 import { savePayrollProfileAction } from "@/app/(app)/dashboard/actions";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import {
@@ -98,22 +99,11 @@ export default async function PayrollEmployeePage({ params, searchParams }: Prop
           <span className={ui.label}>PR granted on</span>
           <input className={ui.input} name="pr_granted_on" type="date" defaultValue={profile?.pr_granted_on ?? ""} />
         </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Salary type</span>
-          <select className={ui.select} name="salary_type" defaultValue={profile?.salary_type ?? ""}>
-            <option value="">Select</option>
-            <option value="monthly">Monthly</option>
-            <option value="hourly">Hourly</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Basic pay / hourly rate (SGD)</span>
-          <input className={ui.input} name="basic_pay_sgd" type="number" min="0" step="0.01" defaultValue={profile?.basic_pay_sgd ?? ""} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Weekly hours</span>
-          <input className={ui.input} name="weekly_hours" type="number" min="0" step="0.01" defaultValue={profile?.weekly_hours ?? ""} />
-        </label>
+        <PayrollSalaryFields
+          defaultSalaryType={profile?.salary_type ?? ""}
+          defaultBasicPay={profile?.basic_pay_sgd ?? ""}
+          defaultWeeklyHours={profile?.weekly_hours ?? ""}
+        />
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>SHG fund</span>
           <select className={ui.select} name="shg_fund" defaultValue={profile?.shg_fund ?? ""}>
