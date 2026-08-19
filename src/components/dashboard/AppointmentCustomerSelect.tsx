@@ -9,6 +9,7 @@ import { ui } from "@/lib/ui";
 type CustomerOption = {
   id: string;
   full_name: string;
+  preferred_location_id?: string | null;
 };
 
 export function AppointmentCustomerSelect({
@@ -43,6 +44,18 @@ export function AppointmentCustomerSelect({
 
   const canCreate = Boolean(studioId);
   const phoneReady = newPhone.replace(/\D/g, "").length >= 8;
+
+  function applyPreferredLocation(customerId: string) {
+    const customer = options.find((option) => option.id === customerId);
+    if (!customer?.preferred_location_id) return;
+    const form = rootRef.current?.closest("form");
+    const locationSelect = form?.elements.namedItem("location_id") as HTMLSelectElement | null;
+    if (!locationSelect) return;
+    const hasOption = Array.from(locationSelect.options).some((option) => option.value === customer.preferred_location_id);
+    if (!hasOption || locationSelect.value === customer.preferred_location_id) return;
+    locationSelect.value = customer.preferred_location_id;
+    locationSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 
   async function createCustomer() {
     const form = rootRef.current?.closest("form") ?? null;
@@ -99,7 +112,10 @@ export function AppointmentCustomerSelect({
         className={ui.select}
         required={required}
         value={selectedId}
-        onChange={(event) => setSelectedId(event.target.value)}
+        onChange={(event) => {
+          setSelectedId(event.target.value);
+          applyPreferredLocation(event.target.value);
+        }}
       >
         <option value="">Select customer</option>
         {filtered.map((customer) => (

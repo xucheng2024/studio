@@ -13,6 +13,7 @@ import {
 import { ConfirmingSubmitButton } from "@/components/ConfirmingSubmitButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { toLocalDateTimeInputValue } from "@/lib/date";
 import { LocalTime } from "@/components/ui/LocalTime";
@@ -26,6 +27,7 @@ type Props = {
     q?: string;
     grant?: string;
     studio_contract?: string;
+    tab?: string;
   }>;
 };
 
@@ -167,6 +169,15 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  const activeTab = sp.tab === "grant" ? "grant" : sp.tab === "invites" ? "invites" : sp.tab === "audit" ? "audit" : "owners";
+  const ownersTabParams = new URLSearchParams();
+  if (sp.q) ownersTabParams.set("q", sp.q);
+  if (sp.grant && sp.grant !== "all") ownersTabParams.set("grant", sp.grant);
+  if (sp.studio_contract && sp.studio_contract !== "all") ownersTabParams.set("studio_contract", sp.studio_contract);
+  const grantTabParams = new URLSearchParams({ tab: "grant" });
+  const invitesTabParams = new URLSearchParams({ tab: "invites" });
+  const auditTabParams = new URLSearchParams({ tab: "audit" });
+
   return (
     <div className="flex max-w-6xl flex-col gap-8">
       <div>
@@ -175,6 +186,20 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           Super admin only. Grant owner workspace access, review owners and venues, suspend contracts, or disable grants. Dangerous actions require confirmation.
         </p>
       </div>
+
+      <DashboardTabNav
+        ariaLabel="Owner access sections"
+        activeKey={activeTab}
+        tabs={[
+          { key: "owners", label: "Owners & studios", href: `/dashboard/settings/owners?${ownersTabParams.toString()}` },
+          { key: "grant", label: "Grant access", href: `/dashboard/settings/owners?${grantTabParams.toString()}` },
+          { key: "invites", label: "Invite queue", href: `/dashboard/settings/owners?${invitesTabParams.toString()}` },
+          { key: "audit", label: "Audit log", href: `/dashboard/settings/owners?${auditTabParams.toString()}` },
+        ]}
+      />
+
+      {activeTab === "owners" ? (
+      <>
       <form method="get" className={`${ui.card} flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end`}>
         <label className="flex w-full min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[200px]">
           <span className={ui.label}>Search owner email</span>
@@ -200,7 +225,10 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           Apply filters
         </button>
       </form>
+      </>
+      ) : null}
 
+      {activeTab === "grant" ? (
       <ServerActionToastForm action={grantOwnerAccessByEmail} className={`${ui.card} flex flex-col gap-3`}>
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Grant platform owner access</h2>
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
@@ -220,7 +248,9 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           You can grant by email before first sign-in. Share your login page URL (for example, /auth), and access will be granted automatically after first sign-in.
         </p>
       </ServerActionToastForm>
+      ) : null}
 
+      {activeTab === "invites" ? (
       <div className="flex flex-col gap-4">
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Owner invite queue</h2>
         {ownerInvites.length === 0 ? (
@@ -339,7 +369,9 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           </div>
         )}
       </div>
+      ) : null}
 
+      {activeTab === "owners" ? (
       <div className="flex flex-col gap-4">
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Owners &amp; studios</h2>
         {owners.length === 0 ? (
@@ -588,7 +620,9 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           </div>
         )}
       </div>
+      ) : null}
 
+      {activeTab === "audit" ? (
       <div className="flex flex-col gap-3">
         <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">Lifecycle audit (recent)</h2>
         <p className={`text-xs ${ui.muted}`}>Last 50 owner grant and contract actions (superadmin only).</p>
@@ -658,6 +692,7 @@ export default async function OwnerAccessAdminPage({ searchParams }: Props) {
           </>
         )}
       </div>
+      ) : null}
     </div>
   );
 }

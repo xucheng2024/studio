@@ -4,6 +4,7 @@ import { PaymentMarkButton } from "@/components/PaymentMarkButton";
 import { PaymentCopyButton } from "@/components/PaymentCopyButton";
 import { InvoiceSendButton } from "@/components/InvoiceSendButton";
 import { SyncHitpayPaymentButton } from "@/components/SyncHitpayPaymentButton";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { completePosCashSaleAction } from "@/app/(app)/dashboard/actions";
@@ -39,6 +40,7 @@ type Props = {
     q?: string;
     payment_id?: string;
     attention?: string;
+    tab?: string;
   }>;
 };
 
@@ -558,6 +560,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   baseScopeParams.set("studio_id", activeStudioId);
   if (locationFilter) baseScopeParams.set("location_id", locationFilter);
 
+  const activeTab = sp.tab === "issues" ? "issues" : "ledger";
+  const issuesTabParams = new URLSearchParams(baseScopeParams);
+  issuesTabParams.set("tab", "issues");
+
   const pendingHitpayParams = new URLSearchParams(baseScopeParams);
   pendingHitpayParams.set("attention", "pending_hitpay");
   pendingHitpayParams.set("date_from", attentionDateFrom);
@@ -683,6 +689,17 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
         </div>
       ) : null}
 
+      <DashboardTabNav
+        ariaLabel="Payments sections"
+        activeKey={activeTab}
+        tabs={[
+          { key: "ledger", label: "Ledger", href: `/dashboard/payments?${baseScopeParams.toString()}` },
+          { key: "issues", label: "Issues", href: `/dashboard/payments?${issuesTabParams.toString()}` },
+        ]}
+      />
+
+      {activeTab === "ledger" ? (
+      <>
       <form method="get" className={`${ui.card} flex flex-col gap-4`}>
         {activeStudioId ? <input type="hidden" name="studio_id" value={activeStudioId} /> : null}
         {locationFilter ? <input type="hidden" name="location_id" value={locationFilter} /> : null}
@@ -711,7 +728,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Date to</span>
-            <input type="date" name="date_to" defaultValue={dateTo} className={ui.input} />
+            <input type="date" name="date_to" defaultValue={dateTo} min={dateFrom} className={ui.input} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Payment method</span>
@@ -806,7 +823,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           </p>
         </div>
       ) : null}
+      </>
+      ) : null}
 
+      {activeTab === "issues" ? (
       <section className={ui.card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -877,7 +897,10 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <p className={`mt-3 text-sm ${ui.muted}`}>No payment issues in the last 24 hours.</p>
         )}
       </section>
+      ) : null}
 
+      {activeTab === "ledger" ? (
+      <>
       <ul className="flex flex-col gap-3">
         {visible.map((p) => {
           const badges = getUnifiedStatusBadges({ payment_status: p.status });
@@ -1234,6 +1257,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           <p className={`font-medium ${ui.muted}`}>No payments match this filter.</p>
           <p className={`text-xs ${ui.muted}`}>Try adjusting the filters above.</p>
         </div>
+      ) : null}
+      </>
       ) : null}
     </div>
   );

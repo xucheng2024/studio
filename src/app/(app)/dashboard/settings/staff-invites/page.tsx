@@ -42,6 +42,8 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
     .order("created_at", { ascending: true });
 
   const activeStudioId = selectedStudioId ?? studioIds[0];
+  const activeStudioLocations = (studios ?? []).find((studio) => studio.id === activeStudioId)?.locations ?? [];
+  const soleLocationId = Array.isArray(activeStudioLocations) && activeStudioLocations.length === 1 ? activeStudioLocations[0].id : "";
   const { data: invites } = activeStudioId
     ? await admin
         .from("staff_invites")
@@ -85,7 +87,7 @@ export default async function StaffInvitesPage({ searchParams }: Props) {
         </label>
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Location (optional)</span>
-          <select name="location_id" className={ui.select}>
+          <select name="location_id" className={ui.select} defaultValue={soleLocationId}>
             <option value="">All locations</option>
             {(studios ?? []).filter((studio) => studio.id === activeStudioId).flatMap((studio) => {
               const locations = Array.isArray(studio.locations) ? studio.locations : [];

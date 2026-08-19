@@ -490,7 +490,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
   const requiresLocationSelection = !canViewAllLocations && !defaultOpsLocationId;
 
   const admin = createAdminClient();
-  const [servicesResult, customersResult, allEmployeesResult, ownEmployeeResult] = await Promise.all([
+  const [servicesResult, customersResult, allEmployeesResult, ownEmployeeResult, serviceLocationsResult, employeeLocationsResult] = await Promise.all([
     admin
       .from("studio_services")
       .select("id, title, default_duration_minutes")
@@ -500,12 +500,12 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
     canManage
       ? admin
           .from("salon_customers")
-          .select("id, full_name")
+          .select("id, full_name, preferred_location_id")
           .eq("studio_id", activeStudioId)
           .eq("status", "active")
           .order("updated_at", { ascending: false })
           .limit(200)
-      : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; full_name: string; preferred_location_id: string | null }[] }),
     canManage
       ? admin
           .from("employees")
@@ -520,16 +520,42 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
       .eq("studio_id", activeStudioId)
       .eq("user_id", user.id)
       .maybeSingle<{ id: string; display_name: string }>(),
+    effectiveLocationId
+      ? admin
+          .from("service_locations")
+          .select("service_id, is_enabled")
+          .eq("studio_id", activeStudioId)
+          .eq("location_id", effectiveLocationId)
+          .eq("is_enabled", true)
+      : Promise.resolve({ data: [] as Array<{ service_id: string; is_enabled: boolean }> }),
+    canManage && effectiveLocationId
+      ? admin
+          .from("employee_locations")
+          .select("employee_id")
+          .eq("studio_id", activeStudioId)
+          .eq("location_id", effectiveLocationId)
+          .eq("is_active", true)
+      : Promise.resolve({ data: [] as Array<{ employee_id: string }> }),
   ]);
 
-  const services = (servicesResult.data ?? []).map((service) => ({
-    id: service.id,
-    name: service.title ?? "Unnamed",
-    durationMinutes: Number(service.default_duration_minutes ?? 60),
+  const enabledServiceIds = new Set((serviceLocationsResult.data ?? []).map((row) => row.service_id));
+  const services = (servicesResult.data ?? [])
+    .filter((service) => enabledServiceIds.size === 0 || enabledServiceIds.has(service.id))
+    .map((service) => ({
+      id: service.id,
+      name: service.title ?? "Unnamed",
+      durationMinutes: Number(service.default_duration_minutes ?? 60),
+    }));
+  const customers = (customersResult.data ?? []).map((customer) => ({
+    id: customer.id,
+    full_name: customer.full_name ?? "Unnamed",
+    preferred_location_id: customer.preferred_location_id ?? null,
   }));
-  const customers = (customersResult.data ?? []).map((customer) => ({ id: customer.id, full_name: customer.full_name ?? "Unnamed" }));
+  const locationEmployeeIds = new Set((employeeLocationsResult.data ?? []).map((row) => row.employee_id));
   const employees = canManage
-    ? (allEmployeesResult.data ?? []).map((employee) => ({ id: employee.id, display_name: employee.display_name ?? "Unnamed" }))
+    ? (allEmployeesResult.data ?? [])
+        .filter((employee) => locationEmployeeIds.size === 0 || locationEmployeeIds.has(employee.id))
+        .map((employee) => ({ id: employee.id, display_name: employee.display_name ?? "Unnamed" }))
     : ownEmployeeResult.data
       ? [{ id: ownEmployeeResult.data.id, display_name: ownEmployeeResult.data.display_name ?? "My appointment" }]
       : [];

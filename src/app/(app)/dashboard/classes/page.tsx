@@ -192,7 +192,7 @@ export default async function ClassesPage({ searchParams }: Props) {
                 </label>
                 <label className="flex flex-col gap-1.5 md:col-span-2">
                   <span className={ui.label}>Instructor</span>
-                  <select name="instructor_id" className={ui.select}>
+                  <select name="instructor_id" className={ui.select} defaultValue={(instructors ?? []).length === 1 ? (instructors ?? [])[0].id : ""}>
                     <option value="">—</option>
                     {(instructors ?? []).map((i) => (
                       <option key={i.id} value={i.id}>{i.name}</option>

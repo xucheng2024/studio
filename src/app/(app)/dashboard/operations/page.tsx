@@ -304,7 +304,7 @@ export default async function OperationsPage({ searchParams }: Props) {
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>To date</span>
-              <input type="date" name="date_to" className={ui.input} defaultValue={dateTo} />
+              <input type="date" name="date_to" className={ui.input} defaultValue={dateTo} min={dateFrom} />
             </label>
             <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
               <button type="submit" className={ui.btnPrimarySm}>Apply</button>

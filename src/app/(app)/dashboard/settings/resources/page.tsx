@@ -159,7 +159,7 @@ export default async function SalonResourcesPage({ searchParams }: Props) {
             <input type="hidden" name="location_id" value={selectedLocationId} />
             <label className="flex min-w-0 flex-1 flex-col gap-1.5">
               <span className={ui.label}>Target location</span>
-              <select name="target_location_id" required className={ui.select} defaultValue="">
+              <select name="target_location_id" required className={ui.select} defaultValue={otherLocations.length === 1 ? otherLocations[0].id : ""}>
                 <option value="" disabled>
                   Choose a location
                 </option>

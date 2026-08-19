@@ -6,6 +6,7 @@ import {
   updateShopProduct,
 } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
@@ -17,7 +18,7 @@ import { isShopStockLow } from "@/lib/shop-stock";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string; fulfillment?: string; stock?: string }> };
+type Props = { searchParams: Promise<{ studio_id?: string; location_id?: string; fulfillment?: string; stock?: string; tab?: string }> };
 
 export default async function DashboardShopPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -89,6 +90,9 @@ export default async function DashboardShopPage({ searchParams }: Props) {
     if (stock !== "all") params.set("stock", "low");
     return `/dashboard/shop?${params.toString()}`;
   };
+  const activeTab = sp.tab === "orders" ? "orders" : "catalog";
+  const catalogTabHref = `/dashboard/shop?studio_id=${studio.id}`;
+  const ordersTabHref = `/dashboard/shop?studio_id=${studio.id}&tab=orders`;
 
   return (
     <div className="flex max-w-5xl flex-col gap-6">
@@ -114,6 +118,17 @@ export default async function DashboardShopPage({ searchParams }: Props) {
         </p>
       </div>
 
+      <DashboardTabNav
+        ariaLabel="Shop sections"
+        activeKey={activeTab}
+        tabs={[
+          { key: "catalog", label: "Catalog", href: catalogTabHref },
+          { key: "orders", label: "Orders", href: ordersTabHref },
+        ]}
+      />
+
+      {activeTab === "catalog" ? (
+      <>
       <details className={`chevron ${ui.card}`} open={!products?.length}>
         <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
           <span>+ Add product</span>
@@ -325,8 +340,14 @@ export default async function DashboardShopPage({ searchParams }: Props) {
           <p className={`text-sm ${ui.muted}`}>No products at or below restock level.</p>
         ) : null}
       </div>
+      </>
+      ) : null}
 
-      {(orders ?? []).length > 0 ? (
+      {activeTab === "orders" && (orders ?? []).length === 0 ? (
+        <p className={`text-sm ${ui.muted}`}>No paid orders yet.</p>
+      ) : null}
+
+      {activeTab === "orders" && (orders ?? []).length > 0 ? (
         <section className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>

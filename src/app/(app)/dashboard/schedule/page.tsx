@@ -344,7 +344,7 @@ export default async function SchedulePage({ searchParams }: Props) {
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>To date</span>
             <input type="date" name="date_to" className={ui.input}
-              defaultValue={sp.date_to ?? defaultEndDate} />
+              defaultValue={sp.date_to ?? defaultEndDate} min={sp.date_from ?? defaultDate} />
           </label>
           <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
             <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">

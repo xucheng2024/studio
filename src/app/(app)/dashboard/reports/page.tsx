@@ -397,7 +397,7 @@ export default async function ReportsPage({ searchParams }: Props) {
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>To</span>
-              <input type="date" name="date_to" defaultValue={dateTo} className={`${ui.input} whitespace-nowrap`} />
+              <input type="date" name="date_to" defaultValue={dateTo} min={dateFrom} className={`${ui.input} whitespace-nowrap`} />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={`${ui.label} whitespace-nowrap`}>Order type</span>

@@ -86,6 +86,10 @@ function defaultLocationId(locations: LocationOption[], selectedLocationId: stri
   return locations.length === 1 ? locations[0].id : "";
 }
 
+function classesVisibleAtLocation(classes: ClassOption[], locationId: string) {
+  return locationId ? classes.filter((c) => !c.location_id || c.location_id === locationId) : classes;
+}
+
 const LS_KEY = (studioId: string) => `studio-session-panel:${studioId}`;
 
 type Persisted = {
@@ -101,10 +105,9 @@ type Persisted = {
 
 export function CreateSessionPanel({ classes, locations, activeStudioId, selectedLocationId, canManage }: Props) {
   const [open, setOpen] = useState(true);
-  const defaultClassId = nextClassId(classes, canManage);
-  const [classId, setClassId] = useState(defaultClassId);
-  const [sessionType, setSessionType] = useState<"once" | "weekly">("once");
   const [locationId, setLocationId] = useState(() => defaultLocationId(locations, selectedLocationId));
+  const [classId, setClassId] = useState(() => nextClassId(classesVisibleAtLocation(classes, defaultLocationId(locations, selectedLocationId)), canManage));
+  const [sessionType, setSessionType] = useState<"once" | "weekly">("once");
 
   // Controlled fields for persistence + preview
   const defaultDatetime = useMemo(getDefaultDatetime, []);
@@ -132,8 +135,9 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
     null,
   );
 
+  const visibleClasses = useMemo(() => classesVisibleAtLocation(classes, locationId), [classes, locationId]);
   const isNew = classId === "new";
-  const selectedClass = classes.find((c) => c.id === classId) ?? null;
+  const selectedClass = visibleClasses.find((c) => c.id === classId) ?? null;
   const hasLocation = Boolean(locationId);
   const classTitle = isNew ? newClassName : (selectedClass?.title ?? "");
 
@@ -195,8 +199,9 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
         classId, locationId, guestPrice, creditsRequired, address, addressDetails,
       }));
     } catch {}
-    setClassId(nextClassId(classes, canManage));
-    setLocationId(defaultLocationId(locations, selectedLocationId));
+    const resetLocationId = defaultLocationId(locations, selectedLocationId);
+    setClassId(nextClassId(classesVisibleAtLocation(classes, resetLocationId), canManage));
+    setLocationId(resetLocationId);
     setSessionType("once");
     setGuestPrice("25");
     setCreditsRequired("");
@@ -267,7 +272,14 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
               name="location_id"
               className={ui.select}
               value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
+              onChange={(e) => {
+                const nextLocationId = e.target.value;
+                setLocationId(nextLocationId);
+                const nextVisible = classesVisibleAtLocation(classes, nextLocationId);
+                if (classId !== "new" && !nextVisible.some((c) => c.id === classId)) {
+                  setClassId(nextClassId(nextVisible, canManage));
+                }
+              }}
             >
               <option value="">Unassigned</option>
               {locations.map((location) => (
@@ -294,11 +306,14 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                 if (e.target.value !== "new") setNewClassName("");
               }}
             >
-              {classes.map((c) => (
+              {visibleClasses.map((c) => (
                 <option key={c.id} value={c.id}>{c.title}</option>
               ))}
               {canManage && <option value="new">+ New class</option>}
             </select>
+            {visibleClasses.length === 0 && !canManage ? (
+              <p className={`text-xs ${ui.muted}`}>No class templates at this location.</p>
+            ) : null}
           </label>
 
           {/* Inline new class */}

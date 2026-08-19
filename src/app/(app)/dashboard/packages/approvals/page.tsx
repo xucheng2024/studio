@@ -1,4 +1,5 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { PackagesLocationBar } from "@/components/dashboard/PackagesLocationBar";
 import { Pkg02NewAdjustmentForm } from "@/components/dashboard/Pkg02NewAdjustmentForm";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
@@ -165,6 +166,9 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const canChecker = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const canMaker = hasStudioRole(ctx, activeStudioId, ["owner", "manager", "frontdesk"]);
+  const activeTab = asSingleValue(sp.tab) === "new" && canMaker ? "new" : "queue";
+  const queueTabHref = `/dashboard/packages/approvals?${buildParams({ studio_id: activeStudioId, location_id: selectedLocationId ?? undefined }).toString()}`;
+  const newTabHref = `/dashboard/packages/approvals?${buildParams({ studio_id: activeStudioId, location_id: selectedLocationId ?? undefined, tab: "new" }).toString()}`;
 
   const { data: locationRows } = await supabase
     .from("locations")
@@ -404,18 +408,27 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
       </div>
 
       {canMaker ? (
+        <DashboardTabNav
+          ariaLabel="Package adjustment sections"
+          activeKey={activeTab}
+          tabs={[
+            { key: "queue", label: "Approval queue", href: queueTabHref },
+            { key: "new", label: "New request", href: newTabHref },
+          ]}
+        />
+      ) : null}
+
+      {activeTab === "new" && canMaker ? (
         <Pkg02NewAdjustmentForm
           studioId={activeStudioId}
           locationId={selectedLocationId}
           options={adjustmentOptions}
           prefilledClientPackageId={prefilledClientPackageId}
         />
-      ) : (
-        <div className={ui.card}>
-          <p className={ui.muted}>You cannot create credit adjustments.</p>
-        </div>
-      )}
+      ) : null}
 
+      {activeTab === "queue" ? (
+      <>
       <div className={`${ui.card} flex flex-wrap gap-2`}>
         <DashboardAppLink href={quickAllHref} className={quickView === "all" ? ui.btnPrimarySm : ui.btnSecondarySm}>
           All requests
@@ -696,6 +709,8 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
           })}
         </ul>
       )}
+      </>
+      ) : null}
     </div>
   );
 }
