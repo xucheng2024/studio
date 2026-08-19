@@ -109,6 +109,9 @@ async function capture(page, { url, file, expectedTexts, expectedHeading }) {
   await page.goto(`${BASE_URL}${url}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
   assert.doesNotMatch(page.url(), /\/(auth|login)(?:[/?]|$)/, `Unexpected auth redirect for ${file}`);
+  await page.evaluate(() => {
+    document.querySelectorAll("details:not([open])").forEach((el) => el.setAttribute("open", ""));
+  });
   try {
     if (expectedHeading) {
       const heading = page.getByRole("heading", { name: expectedHeading, exact: true });
