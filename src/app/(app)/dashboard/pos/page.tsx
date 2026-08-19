@@ -338,7 +338,10 @@ export default async function PosSalesPage({ searchParams }: Props) {
       {effectiveLocationId ? (
         openCashSession ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-            {locationNameForStatus} open · SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)} float · {formatLocalDateTime(openCashSession.opened_at)} · SGD {sessionCashTotal.toFixed(2)} cash sold this session
+            <p className="font-medium">{locationNameForStatus} · session open since {formatLocalDateTime(openCashSession.opened_at)}</p>
+            <p className="mt-0.5 text-xs sm:text-sm">
+              Opening float: SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)} · Cash collected this session: SGD {sessionCashTotal.toFixed(2)}
+            </p>
           </div>
         ) : (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">

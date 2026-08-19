@@ -41,7 +41,7 @@ export function CheckInToggleButton({
         else throttledRefresh(router);
       }}
     >
-      {loading ? "…" : isAttended ? "Undo" : "Check in"}
+      {loading ? "…" : isAttended ? "Undo check-in" : "Check in"}
     </button>
   );
 }

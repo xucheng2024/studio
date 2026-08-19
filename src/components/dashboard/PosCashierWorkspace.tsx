@@ -671,6 +671,7 @@ export function PosCashierWorkspace(props: {
                     <button
                       type="button"
                       aria-label="Remove item"
+                      title="Remove item"
                       className={`${ui.btnSecondarySm} border-red-200 text-red-600 dark:border-red-800 dark:text-red-400 disabled:opacity-50`}
                       disabled={!editable || busy}
                       onClick={() => void deleteCartItem(item.lineNumber)}

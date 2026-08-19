@@ -127,7 +127,7 @@ export function OpsEventGroup({
                       }
                     >
                       {attendee.status === "attended"
-                        ? "Attended"
+                        ? "Checked-in"
                         : attendee.status === "booked"
                           ? "Booked"
                           : attendee.status === "pending"

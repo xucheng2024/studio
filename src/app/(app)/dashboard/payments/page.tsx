@@ -679,6 +679,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
             Export CSV
           </a>
         </div>
+        <p className={`mt-1 text-xs ${ui.muted}`}>&quot;Unassigned POS Cash&quot; = cash sales not yet linked to a drawer session.</p>
       </div>
 
       {needsActionCount > 0 && !isNeedsActionView ? (
@@ -1191,7 +1192,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
               ) : null}
               {isUnassignedPosCash ? (
                 <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
-                  Cash payment is paid/refunded but has no `cash_session_id`. Investigate and reconcile this sale before day close.
+                  This cash payment isn&apos;t linked to a cash-drawer session. Open it and confirm it was counted before you close out for the day.
                 </div>
               ) : null}
 

@@ -281,7 +281,7 @@ export default async function OperationsPage({ searchParams }: Props) {
           activeKey={activeTab}
           tabs={[
             { key: "frontdesk", label: "Front desk", href: `/dashboard/operations?${frontdeskTabHref.toString()}` },
-            { key: "checks", label: "Package checks", href: `/dashboard/operations?${checksTabHref.toString()}` },
+            { key: "checks", label: "Adjustment audit", href: `/dashboard/operations?${checksTabHref.toString()}` },
           ]}
         />
       ) : null}

@@ -296,7 +296,7 @@ export default async function SchedulePage({ searchParams }: Props) {
         />
       </div>
       <div>
-        <h1 className={ui.h1}>Sessions</h1>
+        <h1 className={ui.h1}>Class sessions</h1>
         <p className={`mt-1 ${ui.muted}`}>Schedule sessions and manage upcoming runs.</p>
         <div className="mt-6">
           <CreateSessionPanel

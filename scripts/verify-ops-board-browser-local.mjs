@@ -54,7 +54,7 @@ try {
   assert.ok(classIdx >= 0, "class sessions heading");
   assert.equal(headings.includes("Package adjustment checks"), false, "package checks stay off the default Front desk tab");
 
-  await owner.page.getByRole("link", { name: "Package checks", exact: true }).click();
+  await owner.page.getByRole("link", { name: "Adjustment audit", exact: true }).click();
   await owner.page.getByRole("heading", { name: "Package adjustment checks" }).waitFor({ state: "visible", timeout: 15_000 });
   await owner.page.goBack({ waitUntil: "domcontentloaded" });
   await owner.page.getByRole("heading", { name: "Class sessions" }).waitFor({ state: "visible", timeout: 15_000 });

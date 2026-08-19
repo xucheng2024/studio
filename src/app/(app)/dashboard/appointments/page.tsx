@@ -132,11 +132,21 @@ function getInstructorTransitions(status: AppointmentStatus) {
 }
 
 function primaryActionLabel(target: string) {
-  if (target === "checked_in") return "Check-in";
+  if (target === "checked_in") return "Check in";
   if (target === "in_progress") return "Start";
   if (target === "confirmed") return "Confirm";
   if (target === "completed") return "Complete";
   return target;
+}
+
+const REASON_LABELS: Record<string, string> = {
+  customer_cancelled: "Customer cancelled",
+  customer_no_show: "Customer did not show up",
+  rescheduled: "Rescheduled",
+};
+
+function humanizeReason(reason: string) {
+  return REASON_LABELS[reason] ?? reason;
 }
 
 function groupByDate(appointments: AppointmentCalendarRow[]) {
@@ -257,7 +267,13 @@ function AppointmentCard(props: {
 
       {appointment.cancellation_reason ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
-          Reason: {appointment.cancellation_reason}
+          Reason: {humanizeReason(appointment.cancellation_reason)}
+        </p>
+      ) : null}
+
+      {showCompleteAndCharge ? (
+        <p className={`text-xs ${ui.muted}`}>
+          Complete & Charge also records payment now. Complete finishes the visit without charging — you can charge later from this card.
         </p>
       ) : null}
 
@@ -269,7 +285,7 @@ function AppointmentCard(props: {
               <input type="hidden" name="studio_id" value={props.studioId} />
               <input type="hidden" name="appointment_id" value={appointment.id} />
               <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "arrive")} />
-              <button type="submit" className={ui.btnPrimarySm}>Arrive</button>
+              <button type="submit" className={ui.btnPrimarySm}>Check in</button>
             </ServerActionToastForm>
           ) : null}
           {showCompleteAndCharge ? (
@@ -390,20 +406,20 @@ function AppointmentCard(props: {
                 className={ui.input}
                 placeholder="Cancellation reason"
                 required
-                defaultValue="customer_cancelled"
+                defaultValue="Customer cancelled"
               />
               <input type="hidden" name="idempotency_key" value={`apt03-cancel:${appointment.id}:${appointment.updated_at}`} />
               <button type="submit" className={ui.btnDangerSm}>Cancel</button>
             </ServerActionToastForm>
           ) : null}
 
-          {transitionSet.has("checked_in") ? (
+          {transitionSet.has("checked_in") && !showArrive ? (
             <ServerActionToastForm action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
               <input type="hidden" name="studio_id" value={props.studioId} />
               <input type="hidden" name="appointment_id" value={appointment.id} />
               <input type="hidden" name="to_status" value="checked_in" />
               <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "checked_in")} />
-              <button type="submit" className={ui.btnSecondarySm}>Check-in</button>
+              <button type="submit" className={ui.btnSecondarySm}>Check in</button>
             </ServerActionToastForm>
           ) : null}
 
@@ -427,7 +443,7 @@ function AppointmentCard(props: {
                 className={ui.input}
                 placeholder="No-show reason"
                 required
-                defaultValue="customer_no_show"
+                defaultValue="Customer did not show up"
               />
               <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "no_show")} />
               <button type="submit" className={ui.btnDangerSm}>No-show</button>
@@ -633,6 +649,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className={ui.h1}>Appointments</h1>
+            <p className={`mt-1 ${ui.muted}`}>Book, reschedule, and check in scheduled service appointments.</p>
             <p className={`mt-1 ${ui.muted}`}>
               {appointments.length} remaining
               {studioResult.data?.contract_status === "suspended" ? " · Studio is suspended." : ""}
@@ -824,7 +841,23 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
           ) : (
             <div className={`mt-4 ${ui.emptyState}`}>
               <div className={ui.emptyStateIcon}><CalendarX2 size={18} /></div>
-              <p className={`text-sm ${ui.muted}`}>No appointments in this day view.</p>
+              <p className={`text-sm ${ui.muted}`}>
+                No appointments for this day.{" "}
+                <DashboardAppLink href={appointmentsHref({ ...hrefBase, view: "week", date: anchorDate })} className="underline">
+                  Try Week view
+                </DashboardAppLink>
+                {canManage ? (
+                  <>
+                    {" "}or{" "}
+                    <DashboardAppLink href={appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate, tab: "create" })} className="underline">
+                      create one
+                    </DashboardAppLink>
+                    .
+                  </>
+                ) : (
+                  "."
+                )}
+              </p>
             </div>
           )
         ) : (

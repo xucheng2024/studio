@@ -128,7 +128,7 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
 
       {sp.payment_status === "pending" && sale.payment_progress.status !== "paid" ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-          Checking payment status… if the customer cancelled or the card was declined, use “Sync HitPay” below or try again.
+          Checking payment status… if the customer cancelled or the card was declined, use Sync HitPay below to refresh the status, or start a new sale if the customer wants to retry.
         </div>
       ) : null}
 
@@ -225,7 +225,7 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
           {sale.status === "draft" || sale.status === "pending_payment" ? (
             <ToastConfirmForm
               action={voidPosSaleAction}
-              confirmMessage="Void this sale? This action cannot be undone from POS."
+              confirmMessage="Void this sale? This permanently cancels it — the customer will need a new sale to check out. This cannot be undone."
               confirmLabel="Void sale"
               pendingLabel="Voiding…"
               requireText="VOID"
@@ -238,6 +238,8 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
                 Void sale
               </button>
             </ToastConfirmForm>
+          ) : sale.status === "paid" || sale.status === "partially_refunded" ? (
+            <p className={`text-xs ${ui.muted}`}>Sale is paid — use Refund below instead of Void.</p>
           ) : null}
         </div>
       </section>

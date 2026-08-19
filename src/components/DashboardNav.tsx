@@ -37,7 +37,7 @@ const links: NavLink[] = [
   { href: "/dashboard/payments",   label: "Payments",   icon: CreditCard },
   { href: "/dashboard/pos",        label: "POS",        icon: ReceiptText },
   { href: "/dashboard/services",   label: "Services",   icon: BriefcaseBusiness },
-  { href: "/dashboard/schedule",   label: "Sessions",   icon: CalendarClock },
+  { href: "/dashboard/schedule",   label: "Class sessions", icon: CalendarClock },
   { href: "/dashboard/events",     label: "Events",     icon: CalendarRange },
   { href: "/dashboard/member-zone",label: "Member zone",icon: Film },
   { href: "/dashboard/shop",       label: "Shop",       icon: ShoppingBag },

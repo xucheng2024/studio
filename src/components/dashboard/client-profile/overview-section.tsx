@@ -113,7 +113,7 @@ export function ClientOverviewSection({
         <DashboardAppLink href={appointmentsHref} className={ui.btnSecondarySm}>Calendar</DashboardAppLink>
         <DashboardAppLink href={posHref} className={ui.btnSecondarySm}>POS</DashboardAppLink>
         <DashboardAppLink href={followUpQueueHref} className={ui.btnSecondarySm}>Follow-up queue</DashboardAppLink>
-        <DashboardAppLink href={approvalsHref} className={ui.btnSecondarySm}>Adjust credits</DashboardAppLink>
+        <DashboardAppLink href={approvalsHref} className={ui.btnSecondarySm}>Review credit adjustments</DashboardAppLink>
       </div>
 
       <section className={ui.card}>
@@ -151,7 +151,7 @@ export function ClientOverviewSection({
               <input type="hidden" name="studio_id" value={scope.studioId} />
               <input type="hidden" name="customer_id" value={scope.customerId} />
               {scope.locationId ? <input type="hidden" name="location_id" value={scope.locationId} /> : null}
-              <button type="submit" className={ui.btnDangerSm}>Deactivate and mask</button>
+              <button type="submit" className={ui.btnDangerSm}>Anonymize customer</button>
             </ToastConfirmForm>
           </div>
         ) : null}

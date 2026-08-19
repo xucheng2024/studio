@@ -78,6 +78,7 @@ export function FrontdeskWalkinForm({
       ? "Select a service"
       : "Select a session or event";
 
+  const hasSearchInput = guestName.trim().length >= 2 || digits(phone).length >= 4;
   const matches = useMemo(() => {
     const phoneDigits = digits(phone);
     const nameNeedle = guestName.trim().toLowerCase();
@@ -343,6 +344,10 @@ export function FrontdeskWalkinForm({
               </button>
             ))}
           </div>
+        ) : hasSearchInput && !selectedCustomerId ? (
+          <div className="md:col-span-2">
+            <p className={`text-xs ${ui.muted}`}>No matching customer — a new customer record will be created.</p>
+          </div>
         ) : null}
 
         <label className="flex flex-col gap-1.5">
@@ -362,7 +367,7 @@ export function FrontdeskWalkinForm({
         </label>
 
         <div className="flex flex-col gap-1.5">
-          <span className={ui.label}>Arrival</span>
+          <span className={ui.label}>Check-in</span>
           <div className="flex min-h-11 items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300">
             <Toggle
               name="mark_checkin"

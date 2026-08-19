@@ -100,7 +100,7 @@ try {
   await owner.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await owner.page.getByRole("heading", { name: "Appointments" }).waitFor({ state: "visible", timeout: 30_000 });
   const card = owner.page.locator("article").filter({ hasText: "APT-03 L1 customer" });
-  await transitionOnCard(owner.page, card, "Arrive", "in_progress", created.id);
+  await transitionOnCard(owner.page, card, "Check in", "in_progress", created.id);
   await owner.page.reload({ waitUntil: "domcontentloaded" });
   await transitionOnCard(owner.page, card, "Complete", "completed", created.id);
   await owner.context.close();

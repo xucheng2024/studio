@@ -152,9 +152,7 @@ export default async function StaffAvailabilityPage({ searchParams }: Props) {
       {locationFilter}
 
       {employees.length === 0 ? (
-        <p className={ui.muted}>
-          No employees are assigned to this location yet. Assign employees to this location from the Staff page first.
-        </p>
+        <p className={ui.muted}>No employees are assigned to this location yet.</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
           <div className={ui.card}>

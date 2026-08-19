@@ -215,7 +215,7 @@ export default async function ReportsPage({ searchParams }: Props) {
   const deferredCurrency = deferredSummaryRows.length === 1
     ? deferredSummaryRows[0].currency
     : deferredSummaryRows.length > 1
-      ? "MIXED"
+      ? "Mixed"
       : "SGD";
 
   const deferredRows = await fetchDeferredValueDetailRows({
@@ -519,6 +519,7 @@ export default async function ReportsPage({ searchParams }: Props) {
             <p className="mt-0.5 text-xl font-bold tabular-nums text-violet-800 dark:text-violet-200 sm:text-2xl">
               {deferredCurrency} {deferredSummary.totalValue.toFixed(2)}
             </p>
+            <p className={`mt-0.5 text-xs ${ui.muted}`}>Unused package credit — value owed to customers if redeemed.</p>
             <p className={`mt-1 text-xs ${ui.muted}`}>
               {deferredSummary.totalCredits} credits · {deferredSummary.customerCount} customers · {deferredSummary.packageCount} packages
             </p>

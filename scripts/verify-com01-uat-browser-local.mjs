@@ -256,6 +256,7 @@ try {
   await owner.page.locator('input[name="refund_item_id"]').check();
   await owner.page.locator(`input[name="refund_amount__${refundItemId}"]`).fill("100.00");
   await owner.page.locator('input[name="reason"]').fill(`${RUN_ID} browser refund`);
+  owner.page.once("dialog", (dialog) => dialog.accept());
   await owner.page.getByRole("button", { name: "Refund items", exact: true }).click();
   refundSaleAfter = await waitForLocalDatabaseState(
     async () => {

@@ -13,6 +13,8 @@ type Props = {
   refreshOnSuccess?: boolean;
   /** Prompt for confirmation before submitting when `fieldName`'s value is one of `dangerousValues`. */
   confirmIf?: { fieldName: string; dangerousValues: string[]; message: string };
+  /** Compute a confirmation message from the submitted form data; return null to skip the prompt. */
+  confirmSubmit?: (formData: FormData) => string | null;
 };
 
 export function ServerActionToastForm({
@@ -21,6 +23,7 @@ export function ServerActionToastForm({
   children,
   refreshOnSuccess = true,
   confirmIf,
+  confirmSubmit,
 }: Props) {
   const router = useRouter();
   const [state, formAction] = useActionState<DashboardFormResult | null, FormData>(action, null);
@@ -44,10 +47,19 @@ export function ServerActionToastForm({
       action={formAction}
       className={className}
       onSubmit={(event) => {
-        if (!confirmIf) return;
-        const value = String(new FormData(event.currentTarget).get(confirmIf.fieldName) ?? "");
-        if (confirmIf.dangerousValues.includes(value) && !window.confirm(confirmIf.message)) {
-          event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        if (confirmIf) {
+          const value = String(formData.get(confirmIf.fieldName) ?? "");
+          if (confirmIf.dangerousValues.includes(value) && !window.confirm(confirmIf.message)) {
+            event.preventDefault();
+            return;
+          }
+        }
+        if (confirmSubmit) {
+          const message = confirmSubmit(formData);
+          if (message && !window.confirm(message)) {
+            event.preventDefault();
+          }
         }
       }}
     >

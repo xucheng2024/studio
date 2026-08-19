@@ -23,6 +23,30 @@ function formatQty(value: number) {
   return String(value);
 }
 
+function buildRefundConfirmMessage(formData: FormData, items: RefundItem[]): string | null {
+  const selectedIds = formData.getAll("refund_item_id").map(String);
+  if (selectedIds.length === 0) return null;
+  let total = 0;
+  let currency = items[0]?.item_currency_snapshot ?? "";
+  for (const id of selectedIds) {
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item) continue;
+    currency = item.item_currency_snapshot;
+    const remainingQty = Math.max(0, Number(item.quantity) - Number(item.refunded_quantity));
+    const remainingAmount = Math.max(0, Number(item.total_amount) - Number(item.refunded_amount));
+    const qty = Number(formData.get(`refund_qty__${id}`) ?? "");
+    const amount = Number(formData.get(`refund_amount__${id}`) ?? "");
+    if (Number.isFinite(amount) && amount > 0) {
+      total += amount;
+    } else if (Number.isFinite(qty) && qty > 0 && remainingQty > 0) {
+      total += (remainingAmount / remainingQty) * qty;
+    } else {
+      total += remainingAmount;
+    }
+  }
+  return `Refund ${currency} ${total.toFixed(2)} to the customer? This cannot be undone.`;
+}
+
 export function PosRefundForm(props: {
   studioId: string;
   saleId: string;
@@ -30,7 +54,11 @@ export function PosRefundForm(props: {
   items: RefundItem[];
 }) {
   return (
-    <ServerActionToastForm action={refundPosSaleItemsAction} className="mt-3 flex flex-col gap-3">
+    <ServerActionToastForm
+      action={refundPosSaleItemsAction}
+      className="mt-3 flex flex-col gap-3"
+      confirmSubmit={(formData) => buildRefundConfirmMessage(formData, props.items)}
+    >
       <input type="hidden" name="studio_id" value={props.studioId} />
       <input type="hidden" name="sale_id" value={props.saleId} />
       <input type="hidden" name="idempotency_key" value={props.idempotencyKey} />
@@ -123,6 +151,9 @@ export function PosRefundForm(props: {
         })}
       </div>
 
+      <p className={`text-xs ${ui.muted}`}>
+        HitPay refunds are sent automatically. Other methods: refund the customer outside this app first, then record it here.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className={`text-xs ${ui.muted}`}>Fill qty or amount for each selected row, not both.</p>
         <button type="submit" className={ui.btnDangerSm}>Refund items</button>
