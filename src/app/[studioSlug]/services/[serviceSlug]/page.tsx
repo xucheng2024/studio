@@ -130,7 +130,7 @@ export default async function PublicServicePage({ params }: Props) {
               <ServicePurchasePanel
                 slug={studio.public_slug ?? rawStudio}
                 serviceId={service.id}
-                submitLabel={service.price != null && Number(service.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(service.price).toFixed(2)}` : "Confirm order"}
+                unitPrice={Number(service.price ?? 0)}
               />
             ) : (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/20 dark:text-amber-200">

@@ -160,6 +160,11 @@ export async function POST(req: Request) {
     .single();
 
   if (pErr || !payment) {
+    console.error("[package-buy] payment creation failed", {
+      packageId: pkg.id,
+      studioId: pkg.studio_id,
+      error: pErr?.message ?? "payment_create_failed",
+    });
     return NextResponse.json({ error: pErr?.message ?? "payment_create_failed" }, { status: 500 });
   }
 
@@ -217,6 +222,12 @@ export async function POST(req: Request) {
   } catch (e) {
     await cancelPendingPaymentLifecycle(admin, payment, "failed");
     const normalized = normalizeHitpayError(e instanceof Error ? e.message : "hitpay_create_failed");
+    console.error("[package-buy] HitPay payment creation failed", {
+      packageId: pkg.id,
+      studioId: pkg.studio_id,
+      error: normalized.error,
+      status: normalized.status,
+    });
     return NextResponse.json(
       { error: normalized.error, error_detail: normalized.error_detail },
       { status: normalized.status },

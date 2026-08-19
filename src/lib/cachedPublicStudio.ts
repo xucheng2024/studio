@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioPublicCacheTag } from "@/lib/revalidatePublic";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { ensurePublicPackageShareSlugs } from "@/lib/publicPackageShareSlug";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const STUDIO_SHELL_SELECT =
@@ -124,7 +125,7 @@ async function buildPublicStudioLandingData(slug: string) {
     studio,
     services: services ?? [],
     classes: classes ?? [],
-    packages: packages ?? [],
+    packages: await ensurePublicPackageShareSlugs(admin, packages ?? []),
     memberships: memberships ?? [],
     events: events ?? [],
     pastEvents: pastEvents ?? [],

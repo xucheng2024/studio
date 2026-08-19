@@ -22,6 +22,7 @@ export const FAST_SCRIPTS = Object.freeze({
   "pos03-hitpay-sandbox-local": "test:hitpay-merchant-mode",
   "pkg01-package-ledger-local": "test:local-uat-safety",
   "pos-packages-local": "test:pos-pkg-browser-guard",
+  "public-commerce-local": "test:local-uat-safety",
   "ops-board-local": "test:ops-board-app",
 });
 

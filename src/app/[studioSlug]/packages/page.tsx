@@ -7,6 +7,7 @@ import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioPackagePath, studioPackagesPath } from "@/lib/public-paths";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { ensurePublicPackageShareSlugs } from "@/lib/publicPackageShareSlug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 
@@ -44,6 +45,8 @@ export default async function PublicPackagesPage({ params }: Props) {
     .is("deleted_at", null)
     .order("price", { ascending: true });
 
+  const packagesWithShareSlugs = await ensurePublicPackageShareSlugs(admin, packages ?? []);
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <StudioPublicBackNav href={`${studioHomePath(studio.public_slug)}#packages`}>Back to studio</StudioPublicBackNav>
@@ -51,7 +54,7 @@ export default async function PublicPackagesPage({ params }: Props) {
         <h1 className={ui.h1}>{studio.public_packages_title?.trim() || "Packages"}</h1>
       </div>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        {(packages ?? []).map((pkg) => {
+        {packagesWithShareSlugs.map((pkg) => {
           const href = pkg.share_slug ? studioPackagePath(studio.public_slug, pkg.share_slug) : null;
           const currency = STUDIO_CURRENCY;
           return (

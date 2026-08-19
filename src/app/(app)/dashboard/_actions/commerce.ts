@@ -195,6 +195,8 @@ export async function createPackage(
   const expiry_days_raw = formData.get("expiry_days");
   const expiry_days = expiry_days_raw === "" || expiry_days_raw === null ? null : Number(expiry_days_raw);
 
+  const share_slug = await generateUniqueShareSlug(supabase, "packages", activeStudio.id);
+
   if (!name || !Number.isFinite(credits) || credits <= 0 || !Number.isFinite(price) || price < 0) return err("Please enter a valid package name, pass count, and price.");
 
   const { error } = await supabase.from("packages").insert({
@@ -205,6 +207,7 @@ export async function createPackage(
     price,
     expiry_days: expiry_days != null && Number.isFinite(expiry_days) ? expiry_days : null,
     type: "class_pack",
+    share_slug,
   });
   if (error) {
     console.error(error.message);

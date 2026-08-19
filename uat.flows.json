@@ -1003,6 +1003,86 @@
       }
     },
     {
+      "id": "public-commerce-local",
+      "paths": [
+        "src/app/(app)/dashboard/events/page.tsx",
+        "src/app/(app)/dashboard/_actions/commerce.ts",
+        "src/app/(app)/dashboard/_actions/shared.ts",
+        "src/app/[studioSlug]/page.tsx",
+        "src/app/[studioSlug]/packages/page.tsx",
+        "src/app/[studioSlug]/services/[serviceSlug]/page.tsx",
+        "src/app/api/package/buy/route.ts",
+        "src/app/api/service/purchase/create/route.ts",
+        "src/components/GuestBuyPackagePanel.tsx",
+        "src/components/ServicePurchasePanel.tsx",
+        "src/lib/cachedPublicStudio.ts",
+        "src/lib/invoice-payment.ts",
+        "src/lib/paymentErrors.ts",
+        "src/lib/publicPackageShareSlug.ts",
+        "supabase/migrations/20260819030000_service_order_qty.sql",
+        "scripts/run-public-commerce-uat-local.mjs",
+        "scripts/verify-public-commerce-browser-local.mjs",
+        "scripts/sql/public_commerce_uat_local_execute.sql",
+        "scripts/fixtures/public-local-identities.mjs",
+        "scripts/lib/local-fixture-auth.mjs",
+        "scripts/lib/local-uat-safety.mjs",
+        "scripts/lib/local-supabase-uat.mjs"
+      ],
+      "command": [
+        "npm",
+        "run",
+        "test:public-commerce-uat-local"
+      ],
+      "target": {
+        "policy": "command_local"
+      },
+      "data_access": {
+        "policy": "local_only"
+      },
+      "requirements": {
+        "commands": [
+          "node",
+          "npm",
+          "npx",
+          "psql"
+        ],
+        "services": [
+          "docker"
+        ]
+      },
+      "environment": {
+        "start": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "start"
+        ],
+        "ready": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "ready"
+        ],
+        "inspect": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "inspect"
+        ],
+        "cleanup": [
+          "node",
+          "scripts/manage-cloud-vm-uat-environment.mjs",
+          "cleanup"
+        ],
+        "cleanup_on_failure": false
+      },
+      "evidence": {
+        "run_id_env": "UAT_FLOW_RUN_ID",
+        "directories": [
+          "tmp/public-commerce-uat"
+        ],
+        "index": "tmp/public-commerce-uat/{run_id}/index.json",
+        "index_schema": "uat-evidence-v1"
+      }
+    },
+    {
       "id": "ops-board-local",
       "paths": [
         "scripts/run-ops-board-uat-local.mjs",

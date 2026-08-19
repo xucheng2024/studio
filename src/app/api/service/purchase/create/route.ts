@@ -20,6 +20,7 @@ const bodySchema = z.object({
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional().nullable(),
   note: z.string().max(1000).optional(),
+  qty: z.coerce.number().int().min(1).max(10).optional().default(1),
 });
 
 export async function POST(req: Request) {
@@ -90,8 +91,10 @@ export async function POST(req: Request) {
     }
   }
 
-  const amount = Number(service.price ?? 0);
-  if (!Number.isFinite(amount) || amount < 0) {
+  const qty = parsed.data.qty ?? 1;
+  const unitPrice = Number(service.price ?? 0);
+  const amount = Math.round(unitPrice * qty * 100) / 100;
+  if (!Number.isFinite(unitPrice) || unitPrice < 0 || !Number.isFinite(amount) || amount < 0) {
     return NextResponse.json({ error: "invalid_amount" }, { status: 409 });
   }
 
@@ -162,6 +165,7 @@ export async function POST(req: Request) {
       guest_phone: user ? null : guestPhone,
       note,
       service_title_snapshot: service.title,
+      qty,
       amount,
       currency: STUDIO_CURRENCY,
       status: "pending",

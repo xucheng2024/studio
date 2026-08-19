@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { getBrowserSession } from "@/lib/supabase/client";
+import { STUDIO_CURRENCY } from "@/lib/currency";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { ui } from "@/lib/ui";
+
+const MAX_SERVICE_QTY = 10;
 
 type Props = {
   slug: string;
   serviceId: string;
+  unitPrice?: number;
   submitLabel?: string;
   noteLabel?: string;
   notePlaceholder?: string;
@@ -19,7 +23,8 @@ type Props = {
 export function ServicePurchasePanel({
   slug,
   serviceId,
-  submitLabel = "Pay now",
+  unitPrice = 0,
+  submitLabel,
   noteLabel = "What should the studio know?",
   notePlaceholder = "Optional details such as preferred time, goals, or questions.",
 }: Props) {
@@ -28,9 +33,14 @@ export function ServicePurchasePanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [qty, setQty] = useState(1);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const total = Math.round(Number(unitPrice) * qty * 100) / 100;
+  const payLabel =
+    submitLabel ??
+    (total > 0 ? `Pay ${STUDIO_CURRENCY} ${total.toFixed(2)}` : "Confirm order");
 
   useEffect(() => {
     getBrowserSession()
@@ -52,11 +62,13 @@ export function ServicePurchasePanel({
           guest_email: isLoggedIn ? undefined : guestEmail.trim().toLowerCase(),
           guest_phone: isLoggedIn ? undefined : guestPhone.trim(),
           note: note.trim() || undefined,
+          qty,
         }),
       });
       const body = await res.json().catch(() => ({}));
       const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
       if (!res.ok) {
+        console.error("[service-purchase] failed", { status: res.status, error: body.error, qty });
         setError(message);
         return { ok: false as const, message };
       }
@@ -72,6 +84,33 @@ export function ServicePurchasePanel({
       setLoading(false);
     }
   };
+
+  const qtyField = (
+    <div className="flex items-center justify-between gap-3">
+      <span className={ui.label}>Quantity</span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={ui.btnSecondarySm}
+          disabled={loading || qty <= 1}
+          onClick={() => setQty((value) => Math.max(1, value - 1))}
+          aria-label="Decrease quantity"
+        >
+          -
+        </button>
+        <span className="min-w-6 text-center text-sm font-medium tabular-nums text-stone-900 dark:text-stone-100">{qty}</span>
+        <button
+          type="button"
+          className={ui.btnSecondarySm}
+          disabled={loading || qty >= MAX_SERVICE_QTY}
+          onClick={() => setQty((value) => Math.min(MAX_SERVICE_QTY, value + 1))}
+          aria-label="Increase quantity"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
 
   const noteField = (
     <label className="flex flex-col gap-1">
@@ -128,17 +167,19 @@ export function ServicePurchasePanel({
             <span className={ui.label}>Phone</span>
             <PhoneNumberInput value={guestPhone} onChange={setGuestPhone} placeholder="9123 4567" required />
           </label>
+          {qtyField}
           {noteField}
           <button
             type="submit"
             disabled={loading || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim()}
             className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
           >
-            {loading ? <><Loader2 size={15} className="animate-spin" /> Processing...</> : submitLabel}
+            {loading ? <><Loader2 size={15} className="animate-spin" /> Processing...</> : payLabel}
           </button>
         </form>
       ) : (
         <div className="flex flex-col gap-3">
+          {qtyField}
           {noteField}
           <button
             type="button"
@@ -146,7 +187,7 @@ export function ServicePurchasePanel({
             className={`${ui.btnPrimary} w-full justify-center disabled:opacity-50`}
             onClick={() => void handleSubmit()}
           >
-            {loading ? <><Loader2 size={15} className="animate-spin" /> Processing...</> : submitLabel}
+            {loading ? <><Loader2 size={15} className="animate-spin" /> Processing...</> : payLabel}
           </button>
         </div>
       )}

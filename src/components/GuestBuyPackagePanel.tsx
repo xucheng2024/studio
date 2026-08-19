@@ -63,12 +63,17 @@ export function GuestBuyPackagePanel({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
+        console.error("[package-buy] failed", { status: res.status, error: body.error, body });
         const message = paymentErrorMessage(String(body.error ?? ""), body.error_detail);
         setMsg(message);
         return { ok: false as const, message };
       }
       if (body.checkout_url) {
         window.location.href = body.checkout_url;
+        return { ok: true as const };
+      }
+      if (body.payment_id) {
+        window.location.href = `/${encodeURIComponent(studioSlug)}/checkout/${encodeURIComponent(String(body.payment_id))}`;
         return { ok: true as const };
       }
       setMsg("Payment created");

@@ -50,22 +50,30 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   if (!selectedStudioId && studioIds.length > 1) return <p className={ui.muted}>Select a studio in the left sidebar to continue.</p>;
 
   const now = new Date();
-  const defaultDate = localISODate(now);
-  const defaultEndDate = localISODate(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
-  const fallbackDateFrom = dayRangeStartIso(defaultDate)!;
-  const fallbackDateTo = dayRangeEndInclusiveIso(defaultEndDate)!;
-  const dateFrom = dayRangeStartIso(sp.date_from ?? defaultDate) ?? fallbackDateFrom;
-  const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultEndDate) ?? fallbackDateTo;
   const eventStatusFilter = resolveEventStatusFilter(sp.event_status);
+  const scheduledFromDate = localISODate(now);
+  const scheduledToDate = localISODate(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
+  const pastFromDate = localISODate(new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000));
+  const pastToDate = scheduledFromDate;
+  const usesPastInclusiveWindow = eventStatusFilter === "completed" || eventStatusFilter === "all";
+  const defaultFromDate = usesPastInclusiveWindow ? pastFromDate : scheduledFromDate;
+  const defaultToDate = usesPastInclusiveWindow ? pastToDate : scheduledToDate;
+  const fallbackDateFrom = dayRangeStartIso(defaultFromDate)!;
+  const fallbackDateTo = dayRangeEndInclusiveIso(defaultToDate)!;
+  const dateFrom = dayRangeStartIso(sp.date_from ?? defaultFromDate) ?? fallbackDateFrom;
+  const dateTo = dayRangeEndInclusiveIso(sp.date_to ?? defaultToDate) ?? fallbackDateTo;
   const nowMs = now.getTime();
 
   const eventsQuery = supabase
     .from("events")
     .select("id, title, description, tags, studio_id, location_id, start_time, end_time, capacity, spots_left, price, is_active, share_slug, image_url, video_url, address, address_details, external_booking_url")
     .in("studio_id", studioIds)
-    .gte("start_time", dateFrom)
-    .lte("start_time", dateTo)
     .order("start_time", { ascending: true });
+  if (usesPastInclusiveWindow) {
+    eventsQuery.lte("start_time", dateTo).gte("end_time", dateFrom);
+  } else {
+    eventsQuery.gte("start_time", dateFrom).lte("start_time", dateTo);
+  }
   if (selectedLocationId) {
     eventsQuery.eq("location_id", selectedLocationId);
   }
@@ -88,6 +96,12 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
   const scopeParams = new URLSearchParams();
   scopeParams.set("studio_id", studioId);
   if (selectedLocationId) scopeParams.set("location_id", selectedLocationId);
+  const pastEventsParams = new URLSearchParams(scopeParams);
+  pastEventsParams.set("event_status", "completed");
+  pastEventsParams.set("date_from", pastFromDate);
+  pastEventsParams.set("date_to", pastToDate);
+  const pastEventsHref = `/dashboard/events?${pastEventsParams.toString()}`;
+  const isPastEventsView = eventStatusFilter === "completed";
 
   const studioEvents = (events ?? []).filter((e) => String(e.studio_id) === studioId);
   const filteredEvents = studioEvents.filter((event) => {
@@ -306,6 +320,9 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
           <p className={`text-sm ${ui.muted}`}>
             New events are visible after saving. Add an external booking URL only when customers should book outside this app.
           </p>
+          <DashboardAppLink href={pastEventsHref} className={isPastEventsView ? ui.btnPrimarySm : ui.btnSecondarySm}>
+            Past events
+          </DashboardAppLink>
           <DashboardAppLink href="/dashboard/schedule" className={ui.btnSecondarySm}>
             Back to sessions
           </DashboardAppLink>
@@ -442,16 +459,19 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>From date</span>
-            <input type="date" name="date_from" className={ui.input} defaultValue={sp.date_from ?? defaultDate} />
+            <input type="date" name="date_from" className={ui.input} defaultValue={sp.date_from ?? defaultFromDate} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>To date</span>
-            <input type="date" name="date_to" className={ui.input} defaultValue={sp.date_to ?? defaultEndDate} min={sp.date_from ?? defaultDate} />
+            <input type="date" name="date_to" className={ui.input} defaultValue={sp.date_to ?? defaultToDate} min={sp.date_from ?? defaultFromDate} />
           </label>
           <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
             <SubmitButton className={ui.btnPrimarySm} pendingText="Applying...">
               Apply
             </SubmitButton>
+            <DashboardAppLink href={pastEventsHref} className={isPastEventsView ? ui.btnPrimarySm : ui.btnSecondarySm}>
+              Past events
+            </DashboardAppLink>
             <DashboardAppLink
               href={`/dashboard/events?${scopeParams.toString()}`}
               className={ui.btnGhost}
@@ -468,6 +488,18 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
         ) : (
           <div className={`mt-4 ${ui.emptyState}`}>
             <p className={`text-sm ${ui.muted}`}>No events match this filter.</p>
+            {isPastEventsView ? (
+              <p className={`text-sm ${ui.muted}`}>Past events uses Completed. Widen From/To if the event started more than 90 days ago.</p>
+            ) : (
+              <>
+                <p className={`text-sm ${ui.muted}`}>
+                  Past events are under Past events (Completed, last 90 days). Widen the dates if needed.
+                </p>
+                <DashboardAppLink href={pastEventsHref} className={ui.btnSecondarySm}>
+                  Past events
+                </DashboardAppLink>
+              </>
+            )}
           </div>
         )}
       </section>

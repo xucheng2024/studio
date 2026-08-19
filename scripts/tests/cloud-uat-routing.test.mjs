@@ -17,6 +17,7 @@ const flows = [
   { id: "pos03-hitpay-sandbox-local", paths: ["scripts/verify-pos03-browser-local.mjs"] },
   { id: "pkg01-package-ledger-local", paths: ["scripts/verify-pkg01-browser-local.mjs"] },
   { id: "pos-packages-local", paths: ["src/lib/pos-sales.ts"] },
+  { id: "public-commerce-local", paths: ["scripts/verify-public-commerce-browser-local.mjs"] },
   { id: "ops-board-local", paths: ["src/app/(app)/dashboard/operations/page.tsx", "scripts/verify-ops-board-browser-local.mjs"] },
 ];
 

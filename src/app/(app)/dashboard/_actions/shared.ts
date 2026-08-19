@@ -123,7 +123,8 @@ export async function generateUniqueShareSlug(
     | "membership_products"
     | "shop_products"
     | "events"
-    | "member_zone_series",
+    | "member_zone_series"
+    | "packages",
   studioId: string,
 ): Promise<string | null> {
   for (let i = 0; i < 15; i += 1) {

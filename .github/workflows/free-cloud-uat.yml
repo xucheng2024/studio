@@ -23,6 +23,7 @@ on:
           - pos03-hitpay-sandbox-local
           - pkg01-package-ledger-local
           - pos-packages-local
+          - public-commerce-local
           - ops-board-local
           - all
           - all-batched
@@ -34,9 +35,9 @@ jobs:
   isolated-uat:
     strategy:
       fail-fast: false
-      max-parallel: 15
+      max-parallel: 16
       matrix:
-        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt01-availability-local","apt03-calendar-local","apt04-appointments-local","apt04-settlement-sandbox-local","com01-commission-local","crm02-clients-local","cmp01-privacy-local","mkt01-marketing-local","mkt02-studio-email-local","pay01-payroll-local","pos02-cash-receipt-local","pos03-hitpay-sandbox-local","pkg01-package-ledger-local","pos-packages-local","ops-board-local"]' || inputs.flow == 'all-batched' && '["all-batched"]' || format('["{0}"]', inputs.flow)) }}
+        flow: ${{ fromJSON(inputs.flow == 'all' && '["apt01-availability-local","apt03-calendar-local","apt04-appointments-local","apt04-settlement-sandbox-local","com01-commission-local","crm02-clients-local","cmp01-privacy-local","mkt01-marketing-local","mkt02-studio-email-local","pay01-payroll-local","pos02-cash-receipt-local","pos03-hitpay-sandbox-local","pkg01-package-ledger-local","pos-packages-local","public-commerce-local","ops-board-local"]' || inputs.flow == 'all-batched' && '["all-batched"]' || format('["{0}"]', inputs.flow)) }}
     concurrency:
       group: free-cloud-uat-${{ github.ref }}-${{ matrix.flow }}
       cancel-in-progress: true

@@ -182,11 +182,22 @@ export async function resolveInvoicePayload(
     lineItem = `Membership: ${payment.membership_name_snapshot.trim()}`;
   } else if (payment.shop_product_name_snapshot?.trim()) {
     lineItem = `Shop: ${payment.shop_product_name_snapshot.trim()}`;
-  } else if (payment.service_title_snapshot?.trim()) {
-    lineItem = `Service: ${payment.service_title_snapshot.trim()}`;
-  } else if (payment.service_id) {
-    const { data: service } = await admin.from("studio_services").select("title").eq("id", payment.service_id).maybeSingle();
-    if (service?.title?.trim()) lineItem = `Service: ${service.title.trim()}`;
+  } else if (payment.service_title_snapshot?.trim() || payment.service_id) {
+    const { data: serviceOrder } = await admin
+      .from("service_orders")
+      .select("qty, service_title_snapshot")
+      .eq("payment_id", payment.id)
+      .maybeSingle();
+    let serviceTitle = payment.service_title_snapshot?.trim() || serviceOrder?.service_title_snapshot?.trim() || "";
+    if (!serviceTitle && payment.service_id) {
+      const { data: service } = await admin.from("studio_services").select("title").eq("id", payment.service_id).maybeSingle();
+      serviceTitle = service?.title?.trim() || "";
+    }
+    if (serviceTitle) {
+      const qty = Number(serviceOrder?.qty ?? 1);
+      const displayQty = Number.isFinite(qty) && qty >= 1 ? qty : 1;
+      lineItem = `Service: ${serviceTitle} × ${displayQty}`;
+    }
   } else if (payment.pos_sale_id || payment.source === "pos_sale") {
     const saleId = payment.pos_sale_id;
     if (saleId) {

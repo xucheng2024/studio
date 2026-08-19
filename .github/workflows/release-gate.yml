@@ -62,7 +62,7 @@ jobs:
     needs: validate-commit
     strategy:
       fail-fast: false
-      max-parallel: 15
+      max-parallel: 16
       matrix:
         flow:
           - apt01-availability-local
@@ -79,6 +79,7 @@ jobs:
           - pos03-hitpay-sandbox-local
           - pkg01-package-ledger-local
           - pos-packages-local
+          - public-commerce-local
           - ops-board-local
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -169,6 +170,7 @@ jobs:
             pos03-hitpay-sandbox-local
             pkg01-package-ledger-local
             pos-packages-local
+            public-commerce-local
             ops-board-local
           )
           if [[ "${#flows[@]}" -lt 1 ]]; then

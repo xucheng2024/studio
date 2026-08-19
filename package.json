@@ -76,6 +76,7 @@
     "test:cmp01-privacy-uat-local": "node scripts/run-cmp01-privacy-uat-local.mjs",
     "test:ops-board-app": "node scripts/verify-ops-board-static-gates.mjs",
     "test:ops-board-uat-local": "node scripts/run-ops-board-uat-local.mjs",
+    "test:public-commerce-uat-local": "node scripts/run-public-commerce-uat-local.mjs",
     "test:cloud-uat-options": "node --test scripts/tests/cloud-uat-options.test.mjs scripts/tests/cloud-uat-routing.test.mjs scripts/tests/cloud-uat-catalog.test.mjs scripts/tests/scaffold-isolated-uat-flow.test.mjs",
     "test:local-uat-safety": "node --test scripts/tests/local-uat-safety.test.mjs scripts/tests/com01-local-auth-fixture.test.mjs",
     "verify:local-migration-reset": "node scripts/verify-full-local-migration-reset.mjs --dry-run",
