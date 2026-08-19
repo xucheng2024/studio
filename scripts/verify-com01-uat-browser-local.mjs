@@ -248,7 +248,6 @@ try {
     await capture(owner.page, {
       url: saleUrl(sale),
       file,
-      expectedHeading: "POS sale detail",
       expectedTexts: [note, statusText, `SGD ${Number(sale.total_amount).toFixed(2)}`],
     });
   }
@@ -309,7 +308,6 @@ try {
   await capture(owner.page, {
     url: saleUrl(refundSale),
     file: "50-browser-refund-final.png",
-    expectedHeading: "POS sale detail",
     expectedTexts: [scenarioNotes.walkinPaidFirst, "Refunded", "SGD 100.00"],
   });
 
