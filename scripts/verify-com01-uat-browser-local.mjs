@@ -211,7 +211,7 @@ try {
       url: `/dashboard/pos?studio_id=${studioId}&location_id=${l1}${role === "owner" ? "" : "&tab=history"}`,
       file,
       expectedHeading: "POS sales",
-      expectedTexts: ["COM01-L1", role === "owner" ? "Cash sessions" : "Status"],
+      expectedTexts: ["COM01-L1", role === "owner" ? "Cash sessions" : "STATUS"],
     });
     await session.context.close();
   }

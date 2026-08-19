@@ -95,7 +95,7 @@ try {
   await owner.page.goto(`${baseUrl}/dashboard/pos/${saleId}${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await owner.page.locator(`input[name="refund_item_id"][value="${saleItemId}"]`).check();
   await owner.page.locator(`input[name="refund_amount__${saleItemId}"]`).fill("120.00");
-  await owner.page.getByLabel("Refund reason (optional)").fill("PKG-01 local full package refund");
+  await owner.page.getByLabel("Refund reason").fill("PKG-01 local full package refund");
   owner.page.once("dialog", (dialog) => dialog.accept());
   await owner.page.getByRole("button", { name: "Refund items" }).click();
   await waitForToast(owner.page, "Sale fully refunded.");
