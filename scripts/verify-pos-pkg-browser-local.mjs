@@ -94,7 +94,7 @@ try {
 
   const frontdesk = await login(POS_LOCAL_IDENTITIES.frontdesk);
   const approvalsUrl = `${baseUrl}/dashboard/packages/approvals?studio_id=${studioId}&location_id=${locationId}&client_package_id=${clientPackageId}`;
-  await frontdesk.page.goto(approvalsUrl, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await frontdesk.page.goto(`${approvalsUrl}&tab=new`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await frontdesk.page.getByLabel("Credit change").fill("-2");
   await frontdesk.page.getByLabel("Reason").fill("POS local concurrent approval");
   await frontdesk.page.getByRole("button", { name: "Submit for approval" }).click();
@@ -132,7 +132,7 @@ try {
   if (ledgerError) throw ledgerError;
   assert.equal(ledgerCount, 1, "approved request creates one ledger entry");
 
-  await frontdesk.page.goto(approvalsUrl, { waitUntil: "domcontentloaded" });
+  await frontdesk.page.goto(`${approvalsUrl}&tab=new`, { waitUntil: "domcontentloaded" });
   await frontdesk.page.getByLabel("Credit change").fill("-1");
   await frontdesk.page.getByLabel("Reason").fill("POS local rejection path");
   await frontdesk.page.getByRole("button", { name: "Submit for approval" }).click();

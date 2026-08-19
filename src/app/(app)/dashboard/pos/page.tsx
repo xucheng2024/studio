@@ -313,6 +313,7 @@ export default async function PosSalesPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
+      <h1 className={ui.h1}>POS sales</h1>
       <section className={`${ui.card} flex flex-wrap items-end gap-3`}>
         <DashboardLocationFilter
           locations={normalizedLocations}

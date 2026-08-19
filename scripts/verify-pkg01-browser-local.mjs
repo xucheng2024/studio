@@ -86,7 +86,7 @@ try {
     return data;
   }, (row) => Number(row?.credits_left) === 6, "granted package credits");
 
-  await owner.page.goto(`${baseUrl}/dashboard/clients/${customerId}${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.goto(`${baseUrl}/dashboard/clients/${customerId}${query}&section=purchases`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "ledger mobile overflow");
   await owner.page.getByRole("heading", { name: "Current packages" }).waitFor({ state: "visible", timeout: 30_000 });
   await owner.page.getByText("PKG-01 local package", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
@@ -116,7 +116,7 @@ try {
   if (reversedError) throw reversedError;
   assert.equal(Number(reversedPackage.credits_left), 0, "full package refund returns credits to zero");
 
-  await owner.page.goto(`${baseUrl}/dashboard/clients/${customerId}${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await owner.page.goto(`${baseUrl}/dashboard/clients/${customerId}${query}&section=purchases`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await owner.page.getByText("0 / 6", { exact: false }).waitFor({ state: "visible", timeout: 30_000 });
   await owner.context.close();
 

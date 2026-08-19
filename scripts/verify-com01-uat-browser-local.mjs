@@ -208,7 +208,7 @@ try {
   ]) {
     const session = await login(browser, email);
     await capture(session.page, {
-      url: `/dashboard/pos?studio_id=${studioId}&location_id=${l1}`,
+      url: `/dashboard/pos?studio_id=${studioId}&location_id=${l1}${role === "owner" ? "" : "&tab=history"}`,
       file,
       expectedHeading: "POS sales",
       expectedTexts: ["COM01-L1", role === "owner" ? "Cash sessions" : "Status"],
