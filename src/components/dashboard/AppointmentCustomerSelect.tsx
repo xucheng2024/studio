@@ -17,17 +17,19 @@ export function AppointmentCustomerSelect({
   required = false,
   studioId,
   locationId,
+  initialCustomerId,
 }: {
   customers: CustomerOption[];
   name?: string;
   required?: boolean;
   studioId?: string;
   locationId?: string | null;
+  initialCustomerId?: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState(customers);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(initialCustomerId ?? "");
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");

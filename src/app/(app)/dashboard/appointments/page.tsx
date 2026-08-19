@@ -55,6 +55,7 @@ type Props = {
     employee_id?: string;
     service_id?: string;
     status?: StatusFilter;
+    salon_customer_id?: string;
   }>;
 };
 
@@ -652,11 +653,11 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
       </div>
 
       {canManage ? (
-        <details className={`chevron ${ui.card}`}>
+        <details className={`chevron ${ui.card}`} open>
           <summary className="cursor-pointer">
             <h2 className={`${ui.h2} inline`}>Create appointment</h2>
           </summary>
-          <ServerActionToastForm action={createSalonAppointmentAction} className="mt-4 grid gap-3 sm:grid-cols-2" refreshOnSuccess={false}>
+          <ServerActionToastForm action={createSalonAppointmentAction} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="studio_id" value={activeStudioId} />
             <input type="hidden" name="idempotency_key" value={`apt03-create:${crypto.randomUUID()}`} />
 
@@ -674,6 +675,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
               required
               studioId={activeStudioId}
               locationId={effectiveLocationId ?? locations[0]?.id ?? null}
+              initialCustomerId={sp.salon_customer_id}
             />
             <AppointmentServiceSelect services={services} required />
 

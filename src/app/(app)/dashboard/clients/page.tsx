@@ -6,6 +6,7 @@ import { ExportFormatLinks } from "@/components/dashboard/ExportFormatLinks";
 import { LocalDate } from "@/components/ui/LocalDate";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { buildScopeParams } from "@/lib/dashboardScopeParams";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { listSalonCustomersForDashboard } from "@/lib/salon-customer-sensitive";
 import { getMembershipDisplayStatus, isMembershipEnded } from "@/lib/membership-subscription";
@@ -248,7 +249,7 @@ export default async function ClientsPage({ searchParams }: Props) {
         <div className="flex items-end gap-2">
           <button className={ui.btnPrimarySm} type="submit">Search</button>
           <DashboardAppLink
-            href={`/dashboard/clients?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+            href={`/dashboard/clients?${buildScopeParams({ studioId: activeStudioId, locationId: selectedLocationId }).toString()}`}
             className={ui.btnGhost}
           >
             Clear
@@ -271,7 +272,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                     href={whatsappHref(customer.phone ?? profile?.phone, customerWhatsappText(customer.full_name))}
                   />
                   <DashboardAppLink
-                    href={`/dashboard/clients/${customer.id}?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+                    href={`/dashboard/clients/${customer.id}?${buildScopeParams({ studioId: activeStudioId, locationId: selectedLocationId, q: sp.q, status: statusFilter }).toString()}`}
                     className={ui.btnSecondarySm}
                   >
                     Open customer

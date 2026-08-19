@@ -19,6 +19,7 @@ import {
 } from "@/app/(app)/dashboard/actions";
 import { formatLocalDateTime } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
+import { buildScopeParams } from "@/lib/dashboardScopeParams";
 import { listPosSalesForDashboard } from "@/lib/pos-sales-read";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { getSalonCustomerSensitiveDetail, listSalonCustomersForDashboard } from "@/lib/salon-customer-sensitive";
@@ -30,7 +31,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<{ location_id?: string; studio_id?: string; section?: string }>;
+  searchParams: Promise<{ location_id?: string; studio_id?: string; section?: string; q?: string; status?: string }>;
 };
 
 type PaymentRow = {
@@ -312,6 +313,9 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
 
   const balanceTotal = (packRows ?? []).reduce((sum, row) => sum + Number(row.credits_left ?? 0), 0);
   const purchaseRows = (paymentRows ?? []).filter((p) => p.type === "package");
+  const purchaseTotal = purchaseRows
+    .filter((p) => p.status === "paid")
+    .reduce((sum, p) => sum + Number(p.paid_amount ?? p.amount ?? 0), 0);
   const usageRows = (bookingRows ?? []).filter((b) => Boolean(b.client_package_id));
   const pendingFollowUps = treatmentResult.ok
     ? treatmentResult.rows.flatMap((row) => row.followUps).filter((item) => item.status === "pending" || item.status === "in_progress")
@@ -329,14 +333,22 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
   const backParams = new URLSearchParams();
   backParams.set("studio_id", activeStudioId);
   if (selectedLocationId) backParams.set("location_id", selectedLocationId);
+  const customersListHref = `/dashboard/clients?${buildScopeParams({
+    studioId: activeStudioId,
+    locationId: selectedLocationId,
+    q: sp.q,
+    status: sp.status,
+  }).toString()}`;
   const sectionHref = (section: string) => {
     const params = new URLSearchParams(backParams);
     if (section !== "overview") params.set("section", section);
     return `/dashboard/clients/${salonCustomer.id}?${params.toString()}`;
   };
   const approvalsBaseHref = `/dashboard/packages/approvals?${backParams.toString()}`;
-  const appointmentsHref = `/dashboard/appointments?${backParams.toString()}`;
-  const posHref = `/dashboard/pos?${backParams.toString()}`;
+  const customerLinkParams = new URLSearchParams(backParams);
+  customerLinkParams.set("salon_customer_id", salonCustomer.id);
+  const appointmentsHref = `/dashboard/appointments?${customerLinkParams.toString()}`;
+  const posHref = `/dashboard/pos?${customerLinkParams.toString()}`;
   const followUpQueueHref = `/dashboard/clients/follow-ups?${backParams.toString()}`;
   const profileScope = {
     studioId: activeStudioId,
@@ -366,7 +378,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
       </div>
 
       <div className="sticky top-0 z-20 -mx-1 border-b border-stone-200/80 bg-white/95 px-1 py-3 backdrop-blur dark:border-stone-800/80 dark:bg-stone-950/95">
-        <DashboardAppLink href={`/dashboard/clients?${backParams.toString()}`} className={`${ui.btnGhost} mb-2`}>
+        <DashboardAppLink href={customersListHref} className={`${ui.btnGhost} mb-2`}>
           ← Customers
         </DashboardAppLink>
         <h1 className={ui.h1}>{displayName}</h1>
@@ -403,6 +415,7 @@ export default async function ClientLedgerPage({ params, searchParams }: Props) 
           nextAppointmentLabel={nextAppointment ? `${nextAppointment.service_title_snapshot} · ${formatLocalDateTime(nextAppointment.starts_at)}` : null}
           pendingFollowUps={pendingFollowUps.length}
           packageBalance={balanceTotal}
+          purchaseTotal={purchaseTotal}
           consents={consents}
           hasHealthAlert={safety.hasHealthAlert}
           appointmentsHref={appointmentsHref}

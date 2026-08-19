@@ -56,7 +56,16 @@ export function ClientFollowUpSection({
           {followUps.map((followUp) => {
             const overdue = (followUp.status === "pending" || followUp.status === "in_progress") && followUp.due_on < today;
             return (
-              <ServerActionToastForm key={followUp.id} action={upsertTreatmentFollowUpAction} className="rounded-lg border border-stone-200/80 bg-stone-50/60 px-2.5 py-2 dark:border-stone-700 dark:bg-stone-900/40">
+              <ServerActionToastForm
+                key={followUp.id}
+                action={upsertTreatmentFollowUpAction}
+                className="rounded-lg border border-stone-200/80 bg-stone-50/60 px-2.5 py-2 dark:border-stone-700 dark:bg-stone-900/40"
+                confirmIf={{
+                  fieldName: "status",
+                  dangerousValues: ["done", "cancelled"],
+                  message: "Save this follow-up as done/cancelled?",
+                }}
+              >
                 <ScopeFields scope={scope} />
                 <input type="hidden" name="treatment_id" value={followUp.treatment_id} />
                 <input type="hidden" name="follow_up_id" value={followUp.id} />

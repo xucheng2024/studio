@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = {
   params: Promise<{ saleId: string }>;
-  searchParams: Promise<{ studio_id?: string; location_id?: string }>;
+  searchParams: Promise<{ studio_id?: string; location_id?: string; payment_status?: string }>;
 };
 
 function toStatusLabel(status: string) {
@@ -125,6 +125,12 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
         </DashboardAppLink>
         <span className={`${ui.badgeNeutral} capitalize`}>{toStatusLabel(sale.status)}</span>
       </div>
+
+      {sp.payment_status === "pending" && sale.payment_progress.status !== "paid" ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+          Checking payment status… if the customer cancelled or the card was declined, use “Sync HitPay” below or try again.
+        </div>
+      ) : null}
 
       <section className={ui.card}>
         <div className="flex flex-wrap items-start justify-between gap-3">

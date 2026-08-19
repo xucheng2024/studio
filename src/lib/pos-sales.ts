@@ -4,6 +4,7 @@ import {
   buildClosePosCashSessionIdempotency,
   buildCompletePosCashSaleIdempotency,
   buildCreatePosSaleDraftIdempotency,
+  buildDeletePosSaleItemIdempotency,
   buildLockPosSaleIdempotency,
   buildOpenPosCashSessionIdempotency,
   buildRefundPosSaleItemsIdempotency,
@@ -45,6 +46,15 @@ export type UpsertPosSaleItemPayload = {
   sale_total_amount: number;
   item_total_amount: number;
   item_action: "created" | "updated";
+  already_completed: boolean;
+};
+
+export type DeletePosSaleItemPayload = {
+  sale_id: string;
+  deleted_item_id: string;
+  line_number: number;
+  sale_status: string;
+  sale_total_amount: number;
   already_completed: boolean;
 };
 
@@ -327,6 +337,74 @@ export async function upsertPosSaleItem(params: {
   }
 
   return { ok: true, payload: data as UpsertPosSaleItemPayload };
+}
+
+export async function deletePosSaleItem(params: {
+  userId: string;
+  studioId: string;
+  saleId: string;
+  itemId?: string | null;
+  lineNumber?: number | null;
+  idempotencyKey?: string | null;
+}): Promise<PosMutationResult<DeletePosSaleItemPayload>> {
+  const idempotency = buildDeletePosSaleItemIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    studioId: params.studioId,
+    saleId: params.saleId,
+    itemId: params.itemId,
+    lineNumber: params.lineNumber,
+  });
+
+  const admin = createAdminClient();
+  const { data: sale, error: saleErr } = await admin
+    .from("pos_sales")
+    .select("id, location_id")
+    .eq("id", params.saleId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ id: string; location_id: string | null }>();
+  if (saleErr) {
+    const mapped = mapPosRpcError(saleErr);
+    return { ok: false, ...mapped };
+  }
+  if (!sale || !sale.location_id) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "sale_not_found",
+    };
+  }
+
+  const scope = await requireStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    locationId: sale.location_id,
+    roles: [...POS_MUTATION_ROLES],
+  });
+  if (!scope.ok) {
+    return {
+      ok: false,
+      code: scope.reason,
+      message: scope.reason,
+    };
+  }
+
+  const { data, error } = await admin.rpc("delete_pos_sale_item", {
+    p_actor_id: params.userId,
+    p_actor_role: scope.role,
+    p_studio_id: params.studioId,
+    p_sale_id: params.saleId,
+    p_item_id: trimToNull(params.itemId),
+    p_line_number: params.lineNumber ?? null,
+    p_idempotency_key: idempotency.idempotencyKey,
+    p_request_hash: idempotency.requestHash,
+  });
+
+  if (error) {
+    const mapped = mapPosRpcError(error);
+    return { ok: false, ...mapped };
+  }
+
+  return { ok: true, payload: data as DeletePosSaleItemPayload };
 }
 
 export async function lockPosSale(params: {

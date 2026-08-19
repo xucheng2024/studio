@@ -285,6 +285,7 @@ type CreateInstantBookingSaleInput = {
   guestName: string;
   guestEmail?: string | null;
   guestPhone?: string | null;
+  clientId?: string | null;
   amount: number;
   currency: string;
   paymentMethod: "hitpay" | "cash";
@@ -303,7 +304,7 @@ export async function createInstantBookingSale(
       ? {
           event_id: input.targetId,
           location_id: input.locationId ?? null,
-          client_id: null,
+          client_id: input.clientId ?? null,
           guest_name: input.guestName,
           guest_email: input.guestEmail ?? null,
           guest_phone: input.guestPhone ?? null,
@@ -313,7 +314,7 @@ export async function createInstantBookingSale(
       : {
           session_id: input.targetId,
           location_id: input.locationId ?? null,
-          client_id: null,
+          client_id: input.clientId ?? null,
           guest_name: input.guestName,
           guest_email: input.guestEmail ?? null,
           guest_phone: input.guestPhone ?? null,
@@ -340,6 +341,7 @@ export async function createInstantBookingSale(
           event_booking_id: booking.id,
           studio_id: input.studioId,
           location_id: input.locationId ?? null,
+          client_id: input.clientId ?? null,
           guest_name: input.guestName,
           guest_email: input.guestEmail ?? null,
           guest_phone: input.guestPhone ?? null,
@@ -359,6 +361,7 @@ export async function createInstantBookingSale(
           booking_id: booking.id,
           studio_id: input.studioId,
           location_id: input.locationId ?? null,
+          client_id: input.clientId ?? null,
           amount: input.amount,
           currency: input.currency,
           type: "single",

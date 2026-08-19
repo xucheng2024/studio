@@ -109,6 +109,7 @@ export {
   completePosCashSaleAction,
   createPosSaleDraftAction,
   createPosSalonCustomerAction,
+  deletePosSaleItemAction,
   lockPosSaleAction,
   openPosCashSessionAction,
   proceedPosSaleToPaymentAction,
@@ -119,6 +120,7 @@ export {
 export type {
   PosCashCompleteResult,
   PosCustomerCreateResult,
+  PosDeleteItemResult,
   PosDraftResult,
   PosItemResult,
   PosProceedToPaymentResult,

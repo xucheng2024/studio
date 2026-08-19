@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import {
   completePosCashSaleAction,
   createPosSaleDraftAction,
   createPosSalonCustomerAction,
+  deletePosSaleItemAction,
   proceedPosSaleToPaymentAction,
   upsertPosSaleItemAction,
 } from "@/app/(app)/dashboard/actions";
@@ -125,6 +127,8 @@ export function PosCashierWorkspace(props: {
   employees: PosEmployeeOption[];
   cashierEmployeeId: string | null;
   initialSale: PosCashierSale | null;
+  initialClientId?: string | null;
+  initialAppointmentId?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -132,7 +136,9 @@ export function PosCashierWorkspace(props: {
   const [catalogQuery, setCatalogQuery] = useState("");
   const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>("all");
   const [customerQuery, setCustomerQuery] = useState("");
-  const [customerId, setCustomerId] = useState<string | null>(props.initialSale?.salonCustomerId ?? null);
+  const [customerId, setCustomerId] = useState<string | null>(
+    props.initialSale?.salonCustomerId ?? props.initialClientId ?? null,
+  );
   const [customers, setCustomers] = useState(props.customers);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newName, setNewName] = useState("");
@@ -316,7 +322,7 @@ export function PosCashierWorkspace(props: {
         discount: 0,
         employeeId: defaultStaff,
         currency: catalogItem.currency,
-        appointmentId: null,
+        appointmentId: props.initialAppointmentId ?? null,
       };
       const saved = await persistLine(nextSaleId, created);
       if (!saved) return;
@@ -341,6 +347,30 @@ export function PosCashierWorkspace(props: {
       if (!saved) return;
       setCart((items) => items.map((item) => (item.lineNumber === lineNumber ? saved : item)));
       if (patch.employeeId) rememberStaff(patch.employeeId);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteCartItem(lineNumber: number) {
+    if (!editable || !saleId || busy) return;
+    const current = cart.find((item) => item.lineNumber === lineNumber);
+    if (!current) return;
+    setBusy(true);
+    try {
+      const result = await deletePosSaleItemAction(null, toFormData({
+        studio_id: props.studioId,
+        sale_id: saleId,
+        item_id: current.id,
+        line_number: current.lineNumber,
+        idempotency_key: crypto.randomUUID(),
+      }));
+      if (!result.ok) {
+        console.log("POS deleteCartItem failed", { current, result });
+        toast.error(result.message);
+        return;
+      }
+      setCart((items) => items.filter((item) => item.lineNumber !== lineNumber));
     } finally {
       setBusy(false);
     }
@@ -638,6 +668,15 @@ export function PosCashierWorkspace(props: {
                     <button type="button" className={ui.btnSecondarySm} disabled={!editable || busy || item.quantity <= 1} onClick={() => void updateCartItem(item.lineNumber, { quantity: item.quantity - 1 })}>-</button>
                     <span className="min-w-6 text-center text-sm">{formatQty(item.quantity)}</span>
                     <button type="button" className={ui.btnSecondarySm} disabled={!editable || busy} onClick={() => void updateCartItem(item.lineNumber, { quantity: item.quantity + 1 })}>+</button>
+                    <button
+                      type="button"
+                      aria-label="Remove item"
+                      className={`${ui.btnSecondarySm} border-red-200 text-red-600 dark:border-red-800 dark:text-red-400 disabled:opacity-50`}
+                      disabled={!editable || busy}
+                      onClick={() => void deleteCartItem(item.lineNumber)}
+                    >
+                      <Trash2 size={12} />
+                    </button>
                     <select
                       className={`${ui.select} min-w-36 flex-1`}
                       value={item.employeeId ?? ""}

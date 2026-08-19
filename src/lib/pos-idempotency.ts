@@ -3,6 +3,7 @@ import { hashIdempotencyRequest } from "@/lib/idempotency";
 export type PosWriteOperation =
   | "pos_sale:create_draft"
   | "pos_sale_item:upsert"
+  | "pos_sale_item:delete"
   | "pos_sale:lock"
   | "pos_sale:complete_cash"
   | "pos_cash_session:open"
@@ -37,6 +38,14 @@ export type PosItemUpsertHashPayload = {
   unitPriceAmount: number | null;
   discountAmount: number;
   taxAmount: number;
+};
+
+export type PosItemDeleteHashPayload = {
+  operation: "pos_sale_item:delete";
+  studioId: string;
+  saleId: string;
+  itemId: string | null;
+  lineNumber: number | null;
 };
 
 export type PosLockHashPayload = {
@@ -175,6 +184,26 @@ export function buildUpsertPosSaleItemIdempotency(params: {
     unitPriceAmount: params.unitPriceAmount ?? null,
     discountAmount: params.discountAmount ?? 0,
     taxAmount: params.taxAmount ?? 0,
+  };
+  return normalizeOperationIdempotency({
+    idempotencyKey: params.idempotencyKey,
+    requestPayload,
+  });
+}
+
+export function buildDeletePosSaleItemIdempotency(params: {
+  idempotencyKey?: string | null;
+  studioId: string;
+  saleId: string;
+  itemId?: string | null;
+  lineNumber?: number | null;
+}) {
+  const requestPayload: PosItemDeleteHashPayload = {
+    operation: "pos_sale_item:delete",
+    studioId: params.studioId,
+    saleId: params.saleId,
+    itemId: trimToNull(params.itemId) ?? null,
+    lineNumber: params.lineNumber ?? null,
   };
   return normalizeOperationIdempotency({
     idempotencyKey: params.idempotencyKey,

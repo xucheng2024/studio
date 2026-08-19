@@ -29,6 +29,8 @@ type Props = {
     status?: PosSaleStatusFilter;
     tab?: string;
     sale_id?: string;
+    salon_customer_id?: string;
+    salon_appointment_id?: string;
   }>;
 };
 
@@ -204,6 +206,16 @@ export default async function PosSalesPage({ searchParams }: Props) {
   const latestPaymentById = new Map(
     (latestPaymentsRaw ?? []).map((payment) => [payment.id, payment]),
   );
+  const sessionCashTotal = openCashSession
+    ? salesResult.sales
+        .filter((sale) => sale.status === "paid" && sale.created_at >= openCashSession.opened_at)
+        .filter((sale) => {
+          const latestPaymentId = sale.payment_progress.latest_payment_id;
+          const method = latestPaymentId ? latestPaymentById.get(latestPaymentId)?.payment_method : null;
+          return method === "cash";
+        })
+        .reduce((sum, sale) => sum + Number(sale.total_amount ?? 0), 0)
+    : 0;
 
   const serviceLocationRows = serviceLocationsResult.data ?? [];
   const enabledServiceIds = new Map(serviceLocationRows.map((row) => [row.service_id, row]));
@@ -326,7 +338,7 @@ export default async function PosSalesPage({ searchParams }: Props) {
       {effectiveLocationId ? (
         openCashSession ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-            {locationNameForStatus} open · SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)} float · {formatLocalDateTime(openCashSession.opened_at)}
+            {locationNameForStatus} open · SGD {Number(openCashSession.opening_float ?? 0).toFixed(2)} float · {formatLocalDateTime(openCashSession.opened_at)} · SGD {sessionCashTotal.toFixed(2)} cash sold this session
           </div>
         ) : (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
@@ -376,6 +388,8 @@ export default async function PosSalesPage({ searchParams }: Props) {
           employees={employees}
           cashierEmployeeId={cashierEmployeeResult.data?.id ?? null}
           initialSale={initialSale}
+          initialClientId={!sp.sale_id ? sp.salon_customer_id ?? null : null}
+          initialAppointmentId={!sp.sale_id ? sp.salon_appointment_id ?? null : null}
         />
       )}
     </div>

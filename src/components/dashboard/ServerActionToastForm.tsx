@@ -11,6 +11,8 @@ type Props = {
   className?: string;
   children: React.ReactNode;
   refreshOnSuccess?: boolean;
+  /** Prompt for confirmation before submitting when `fieldName`'s value is one of `dangerousValues`. */
+  confirmIf?: { fieldName: string; dangerousValues: string[]; message: string };
 };
 
 export function ServerActionToastForm({
@@ -18,6 +20,7 @@ export function ServerActionToastForm({
   className,
   children,
   refreshOnSuccess = true,
+  confirmIf,
 }: Props) {
   const router = useRouter();
   const [state, formAction] = useActionState<DashboardFormResult | null, FormData>(action, null);
@@ -37,7 +40,17 @@ export function ServerActionToastForm({
   }, [router, refreshOnSuccess, state]);
 
   return (
-    <form action={formAction} className={className}>
+    <form
+      action={formAction}
+      className={className}
+      onSubmit={(event) => {
+        if (!confirmIf) return;
+        const value = String(new FormData(event.currentTarget).get(confirmIf.fieldName) ?? "");
+        if (confirmIf.dangerousValues.includes(value) && !window.confirm(confirmIf.message)) {
+          event.preventDefault();
+        }
+      }}
+    >
       {children}
     </form>
   );

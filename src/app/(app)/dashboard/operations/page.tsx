@@ -4,7 +4,7 @@ import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { OpsDesk } from "@/components/ops/OpsDesk";
 import { localISODate } from "@/lib/date";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
-import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
+import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -117,6 +117,7 @@ export default async function OperationsPage({ searchParams }: Props) {
   const activeStudioId = selectedStudioId ?? studioIds[0];
   const admin = createAdminClient();
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
+  const canViewPkgChecks = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -330,6 +331,7 @@ export default async function OperationsPage({ searchParams }: Props) {
           </div>
         </section>
       </OpsDesk>
+      {canViewPkgChecks ? (
       <section className={ui.card}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -436,6 +438,7 @@ export default async function OperationsPage({ searchParams }: Props) {
           <p className={`mt-3 text-sm ${ui.muted}`}>No checks yet. These run automatically in the background.</p>
         )}
       </section>
+      ) : null}
     </div>
   );
 }

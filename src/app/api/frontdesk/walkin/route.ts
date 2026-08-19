@@ -24,6 +24,7 @@ const walkinBase = z.object({
   guest_name: z.string().min(1).max(120),
   guest_phone: z.string().max(40).optional(),
   payment_method: z.enum(["hitpay", "cash"]),
+  client_id: z.string().uuid().optional(),
 });
 
 const bodySchema = z.discriminatedUnion("booking_type", [
@@ -118,6 +119,7 @@ async function handleSessionWalkin(
     amount: Number(session.guest_price ?? 0),
     currency: STUDIO_CURRENCY,
     paymentMethod: data.payment_method,
+    clientId: data.client_id ?? null,
     actorId: userId,
   });
   if (!sale.ok) return NextResponse.json({ error: sale.error }, { status: sale.status });
@@ -206,6 +208,7 @@ async function handleEventWalkin(
     amount: Number(event.price ?? 0),
     currency: STUDIO_CURRENCY,
     paymentMethod: data.payment_method,
+    clientId: data.client_id ?? null,
     actorId: userId,
   });
   if (!sale.ok) return NextResponse.json({ error: sale.error }, { status: sale.status });
@@ -297,7 +300,7 @@ async function handleServiceWalkin(
       service_title_snapshot: service.title,
       studio_id: studioId,
       location_id: null,
-      client_id: null,
+      client_id: data.client_id ?? null,
       guest_name: data.guest_name.trim(),
       guest_email: data.guest_email,
       guest_phone: data.guest_phone?.trim() ?? null,
@@ -325,7 +328,7 @@ async function handleServiceWalkin(
       studio_id: studioId,
       service_id: service.id,
       payment_id: payment.id,
-      client_id: null,
+      client_id: data.client_id ?? null,
       guest_name: data.guest_name.trim(),
       guest_email: data.guest_email,
       guest_phone: data.guest_phone?.trim() ?? null,

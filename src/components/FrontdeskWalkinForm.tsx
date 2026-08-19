@@ -67,6 +67,7 @@ export function FrontdeskWalkinForm({
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [markCheckin, setMarkCheckin] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   const targets = bookingType === "session" ? sessions : bookingType === "event" ? events : services;
   const formDisabled = disabled || busy || targets.length === 0;
@@ -135,6 +136,7 @@ export function FrontdeskWalkinForm({
   }
 
   function applyCustomer(customer: WalkinCustomerOption) {
+    setSelectedCustomerId(customer.id);
     setGuestName(customer.full_name);
     setGuestEmail(customer.email ?? "");
     if (customer.phone) setPhone(customer.phone);
@@ -145,6 +147,7 @@ export function FrontdeskWalkinForm({
     setGuestEmail("");
     setPhone("");
     setMarkCheckin(false);
+    setSelectedCustomerId(null);
     setSelectedTargetId(defaultTargetId(sessions));
     setBookingType("session");
   }
@@ -166,6 +169,7 @@ export function FrontdeskWalkinForm({
           guest_phone: phone.trim() || null,
           payment_method: String(fd.get("payment_method") ?? "cash"),
           mark_checkin: markCheckin && bookingType !== "service",
+          client_id: selectedCustomerId ?? undefined,
         };
         const res = await fetch("/api/frontdesk/walkin", {
           method: "POST",
@@ -286,7 +290,10 @@ export function FrontdeskWalkinForm({
             required
             disabled={formDisabled}
             value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
+            onChange={(e) => {
+              setGuestName(e.target.value);
+              setSelectedCustomerId(null);
+            }}
             autoComplete="off"
           />
         </label>
@@ -300,14 +307,25 @@ export function FrontdeskWalkinForm({
             required={bookingType === "event" || bookingType === "service"}
             disabled={formDisabled}
             value={guestEmail}
-            onChange={(e) => setGuestEmail(e.target.value)}
+            onChange={(e) => {
+              setGuestEmail(e.target.value);
+              setSelectedCustomerId(null);
+            }}
             autoComplete="off"
           />
         </label>
 
         <label className="flex flex-col gap-1.5">
           <span className={ui.label}>Phone</span>
-          <PhoneNumberInput value={phone} onChange={setPhone} disabled={formDisabled} placeholder="9123 4567" />
+          <PhoneNumberInput
+            value={phone}
+            onChange={(value) => {
+              setPhone(value);
+              setSelectedCustomerId(null);
+            }}
+            disabled={formDisabled}
+            placeholder="9123 4567"
+          />
         </label>
 
         {matches.length > 0 ? (

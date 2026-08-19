@@ -4,6 +4,7 @@ import {
   closePosCashSession,
   completePosCashSale,
   createPosSaleDraft,
+  deletePosSaleItem,
   ensurePosSalePayment,
   lockPosSale,
   openPosCashSession,
@@ -31,6 +32,13 @@ export type PosItemResult = DashboardFormResult & {
   line_number?: number;
   sale_total_amount?: number;
   item_total_amount?: number;
+};
+
+export type PosDeleteItemResult = DashboardFormResult & {
+  sale_id?: string;
+  deleted_item_id?: string;
+  line_number?: number;
+  sale_total_amount?: number;
 };
 
 export type PosCashCompleteResult = DashboardFormResult & {
@@ -189,6 +197,47 @@ export async function upsertPosSaleItemAction(
     line_number: result.payload.line_number,
     sale_total_amount: result.payload.sale_total_amount,
     item_total_amount: result.payload.item_total_amount,
+  };
+}
+
+export async function deletePosSaleItemAction(
+  _prevState: PosDeleteItemResult | null,
+  formData: FormData,
+): Promise<PosDeleteItemResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const saleId = String(formData.get("sale_id") ?? "").trim();
+
+  if (!studioId || !saleId) {
+    return err("Missing required fields: studio and sale.");
+  }
+
+  const { user } = await requireUser();
+  const result = await deletePosSaleItem({
+    userId: user.id,
+    studioId,
+    saleId,
+    itemId: String(formData.get("item_id") ?? "").trim() || null,
+    lineNumber: asIntegerOrNull(formData.get("line_number")),
+    idempotencyKey: String(formData.get("idempotency_key") ?? "").trim() || null,
+  });
+
+  if (!result.ok) {
+    console.log("deletePosSaleItemAction failed", {
+      code: result.code,
+      message: result.message,
+      studioId,
+      saleId,
+    });
+    return err(mapPosMutationMessage(result.code, result.message || "Could not remove POS item."));
+  }
+
+  return {
+    ok: true,
+    message: "POS item removed.",
+    sale_id: result.payload.sale_id,
+    deleted_item_id: result.payload.deleted_item_id,
+    line_number: result.payload.line_number,
+    sale_total_amount: result.payload.sale_total_amount,
   };
 }
 

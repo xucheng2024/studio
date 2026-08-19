@@ -33,6 +33,7 @@ export function ClientOverviewSection({
   nextAppointmentLabel,
   pendingFollowUps,
   packageBalance,
+  purchaseTotal,
   consents,
   hasHealthAlert,
   appointmentsHref,
@@ -57,6 +58,7 @@ export function ClientOverviewSection({
   nextAppointmentLabel: string | null;
   pendingFollowUps: number;
   packageBalance: number;
+  purchaseTotal: number;
   consents: SalonCustomerConsentEvent[];
   hasHealthAlert: boolean;
   appointmentsHref: string;
@@ -83,6 +85,10 @@ export function ClientOverviewSection({
         <div className={ui.statCard}>
           <p className={`text-xs ${ui.muted}`}>Class passes</p>
           <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">{packageBalance} available</p>
+        </div>
+        <div className={ui.statCard}>
+          <p className={`text-xs ${ui.muted}`}>Package spend</p>
+          <p className="mt-1 text-sm font-semibold text-stone-900 dark:text-stone-100">SGD {purchaseTotal.toFixed(2)}</p>
         </div>
         <div className={ui.statCard}>
           <p className={`text-xs ${ui.muted}`}>Consent</p>
