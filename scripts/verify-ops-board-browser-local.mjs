@@ -51,9 +51,13 @@ try {
 
   const headings = await owner.page.locator("h1, h2").allInnerTexts();
   const classIdx = headings.indexOf("Class sessions");
-  const pkgIdx = headings.indexOf("Package adjustment checks");
   assert.ok(classIdx >= 0, "class sessions heading");
-  assert.ok(pkgIdx > classIdx, "package checks sit below the live queue");
+  assert.equal(headings.includes("Package adjustment checks"), false, "package checks stay off the default Front desk tab");
+
+  await owner.page.getByRole("link", { name: "Package checks", exact: true }).click();
+  await owner.page.getByRole("heading", { name: "Package adjustment checks" }).waitFor({ state: "visible", timeout: 15_000 });
+  await owner.page.goBack({ waitUntil: "domcontentloaded" });
+  await owner.page.getByRole("heading", { name: "Class sessions" }).waitFor({ state: "visible", timeout: 15_000 });
 
   const sessionCard = owner.page.getByRole("heading", { level: 3, name: "Ops UAT Class", exact: true }).locator("xpath=ancestor::section[1]");
   await sessionCard.getByText("Almost full", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
@@ -89,7 +93,7 @@ try {
     status: "passed",
     assertions: [
       { name: "dashboard landing keeps Front desk and Appointments distinct", result: "passed" },
-      { name: "live queue sits above package checks", result: "passed" },
+      { name: "live queue and package checks are on separate Front desk tabs", result: "passed" },
       { name: "capacity and unpaid badges with unpaid rows first", result: "passed" },
       { name: "class collect-payment opens Payments for payment_id-only rows", result: "passed" },
       { name: "instructor cannot open operations board", result: "passed" },

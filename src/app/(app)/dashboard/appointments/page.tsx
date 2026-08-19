@@ -4,6 +4,7 @@ import { AppointmentCustomerSelect } from "@/components/dashboard/AppointmentCus
 import { AppointmentNotificationOpsPanel } from "@/components/dashboard/AppointmentNotificationOpsPanel";
 import { AppointmentServiceSelect } from "@/components/dashboard/AppointmentServiceSelect";
 import { AppointmentSlotPicker } from "@/components/dashboard/AppointmentSlotPicker";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { StaffWhatsappLink } from "@/components/StaffWhatsappLink";
 import {
@@ -56,6 +57,7 @@ type Props = {
     service_id?: string;
     status?: StatusFilter;
     salon_customer_id?: string;
+    tab?: string;
   }>;
 };
 
@@ -181,6 +183,7 @@ function appointmentsHref(params: {
   employeeId?: string | null;
   serviceId?: string | null;
   status?: string;
+  tab?: string;
 }) {
   const query = new URLSearchParams();
   query.set("studio_id", params.studioId);
@@ -190,6 +193,7 @@ function appointmentsHref(params: {
   if (params.employeeId) query.set("employee_id", params.employeeId);
   if (params.serviceId) query.set("service_id", params.serviceId);
   if (params.status) query.set("status", params.status);
+  if (params.tab) query.set("tab", params.tab);
   return `/dashboard/appointments?${query.toString()}`;
 }
 
@@ -585,6 +589,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
     status: selectedStatus,
   };
   const locationOptions = locations.map((location) => ({ id: location.id, name: location.name ?? "Unnamed" }));
+  const activeTab = sp.tab === "create" && canManage ? "create" : "calendar";
 
   return (
     <div className="flex flex-col gap-6">
@@ -607,56 +612,71 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
               {studioResult.data?.contract_status === "suspended" ? " · Studio is suspended." : ""}
             </p>
           </div>
-          <div className="inline-flex gap-1 rounded-xl bg-stone-100 p-1 dark:bg-stone-800/80">
-            <DashboardAppLink
-              href={appointmentsHref({ ...hrefBase, view: "day", date: anchorDate })}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${selectedView === "day" ? "bg-white text-stone-900 shadow-sm dark:bg-stone-950 dark:text-stone-100" : "text-stone-600 dark:text-stone-300"}`}
-            >
-              Day
-            </DashboardAppLink>
-            <DashboardAppLink
-              href={appointmentsHref({ ...hrefBase, view: "week", date: anchorDate })}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${selectedView === "week" ? "bg-white text-stone-900 shadow-sm dark:bg-stone-950 dark:text-stone-100" : "text-stone-600 dark:text-stone-300"}`}
-            >
-              Week
-            </DashboardAppLink>
-          </div>
+          {canManage ? (
+            <DashboardTabNav
+              ariaLabel="Appointments sections"
+              activeKey={activeTab}
+              tabs={[
+                { key: "calendar", label: "Calendar", href: appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate }) },
+                { key: "create", label: "Create appointment", href: appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate, tab: "create" }) },
+              ]}
+            />
+          ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <DashboardAppLink
-            href={appointmentsHref({ ...hrefBase, view: selectedView, date: shiftLocalIsoDate(anchorDate, selectedView === "week" ? -7 : -1) })}
-            className={ui.btnGhost}
-          >
-            <ChevronLeft size={16} />
-            Prev
-          </DashboardAppLink>
-          <DashboardAppLink
-            href={appointmentsHref({ ...hrefBase, view: selectedView, date: localISODate() })}
-            className={ui.btnSecondarySm}
-          >
-            Today
-          </DashboardAppLink>
-          <DashboardAppLink
-            href={appointmentsHref({ ...hrefBase, view: selectedView, date: shiftLocalIsoDate(anchorDate, selectedView === "week" ? 7 : 1) })}
-            className={ui.btnGhost}
-          >
-            Next
-            <ChevronRight size={16} />
-          </DashboardAppLink>
-          <p className="text-sm font-medium text-stone-800 dark:text-stone-100">
-            {selectedView === "week"
-              ? `${formatLocalDate(`${window.dayKeys[0]}T00:00:00+08:00`)} – ${formatLocalDate(`${window.dayKeys[window.dayKeys.length - 1]}T00:00:00+08:00`)}`
-              : formatLocalDate(`${anchorDate}T00:00:00+08:00`, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-          </p>
-        </div>
+        {activeTab === "calendar" ? (
+          <>
+            <div className="flex justify-end">
+              <div className="inline-flex gap-1 rounded-xl bg-stone-100 p-1 dark:bg-stone-800/80">
+                <DashboardAppLink
+                  href={appointmentsHref({ ...hrefBase, view: "day", date: anchorDate })}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${selectedView === "day" ? "bg-white text-stone-900 shadow-sm dark:bg-stone-950 dark:text-stone-100" : "text-stone-600 dark:text-stone-300"}`}
+                >
+                  Day
+                </DashboardAppLink>
+                <DashboardAppLink
+                  href={appointmentsHref({ ...hrefBase, view: "week", date: anchorDate })}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${selectedView === "week" ? "bg-white text-stone-900 shadow-sm dark:bg-stone-950 dark:text-stone-100" : "text-stone-600 dark:text-stone-300"}`}
+                >
+                  Week
+                </DashboardAppLink>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <DashboardAppLink
+                href={appointmentsHref({ ...hrefBase, view: selectedView, date: shiftLocalIsoDate(anchorDate, selectedView === "week" ? -7 : -1) })}
+                className={ui.btnGhost}
+              >
+                <ChevronLeft size={16} />
+                Prev
+              </DashboardAppLink>
+              <DashboardAppLink
+                href={appointmentsHref({ ...hrefBase, view: selectedView, date: localISODate() })}
+                className={ui.btnSecondarySm}
+              >
+                Today
+              </DashboardAppLink>
+              <DashboardAppLink
+                href={appointmentsHref({ ...hrefBase, view: selectedView, date: shiftLocalIsoDate(anchorDate, selectedView === "week" ? 7 : 1) })}
+                className={ui.btnGhost}
+              >
+                Next
+                <ChevronRight size={16} />
+              </DashboardAppLink>
+              <p className="text-sm font-medium text-stone-800 dark:text-stone-100">
+                {selectedView === "week"
+                  ? `${formatLocalDate(`${window.dayKeys[0]}T00:00:00+08:00`)} – ${formatLocalDate(`${window.dayKeys[window.dayKeys.length - 1]}T00:00:00+08:00`)}`
+                  : formatLocalDate(`${anchorDate}T00:00:00+08:00`, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+              </p>
+            </div>
+          </>
+        ) : null}
       </div>
 
-      {canManage ? (
-        <details className={`chevron ${ui.card}`} open>
-          <summary className="cursor-pointer">
-            <h2 className={`${ui.h2} inline`}>Create appointment</h2>
-          </summary>
+      {activeTab === "create" && canManage ? (
+        <section className={ui.card}>
+          <h2 className={ui.h2}>Create appointment</h2>
           <ServerActionToastForm action={createSalonAppointmentAction} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="studio_id" value={activeStudioId} />
             <input type="hidden" name="idempotency_key" value={`apt03-create:${crypto.randomUUID()}`} />
@@ -702,9 +722,11 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
 
             <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2 sm:w-fit`}>Create appointment</button>
           </ServerActionToastForm>
-        </details>
+        </section>
       ) : null}
 
+      {activeTab === "calendar" ? (
+      <>
       <section>
         <h2 className={ui.h2}>Calendar</h2>
         <form method="get" className={`${ui.card} mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
@@ -833,6 +855,8 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
           canRetry={canRetryNotifications}
           requiresLocationSelection={requiresLocationSelection}
         />
+      ) : null}
+      </>
       ) : null}
     </div>
   );

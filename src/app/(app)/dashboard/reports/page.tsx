@@ -1,5 +1,6 @@
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { SalonDashboardCharts } from "@/components/dashboard/SalonDashboardCharts";
 import { ExportFormatLinks } from "@/components/dashboard/ExportFormatLinks";
 import { SalonReportingFacts } from "@/components/dashboard/SalonReportingFacts";
@@ -40,6 +41,7 @@ type Props = {
     deferred_customer_id?: string;
     deferred_package_id?: string;
     deferred_q?: string;
+    tab?: string;
   }>;
 };
 
@@ -293,6 +295,16 @@ export default async function ReportsPage({ searchParams }: Props) {
     approvalsBaseParams.set("location_id", locationFilter);
   }
 
+  const activeTab = sp.tab === "deferred" ? "deferred" : sp.tab === "revenue" ? "revenue" : "overview";
+  const tabParamsBase = new URLSearchParams(commonReportParams);
+  if (employeeId) tabParamsBase.set("employee_id", employeeId);
+  if (serviceId) tabParamsBase.set("service_id", serviceId);
+  const overviewTabParams = new URLSearchParams(tabParamsBase);
+  const deferredTabParams = new URLSearchParams(tabParamsBase);
+  deferredTabParams.set("tab", "deferred");
+  const revenueTabParams = new URLSearchParams(tabParamsBase);
+  revenueTabParams.set("tab", "revenue");
+
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -438,6 +450,18 @@ export default async function ReportsPage({ searchParams }: Props) {
         </div>
       </div>
 
+      <DashboardTabNav
+        ariaLabel="Report sections"
+        activeKey={activeTab}
+        tabs={[
+          { key: "overview", label: "Overview", href: `/dashboard/reports?${overviewTabParams.toString()}` },
+          { key: "deferred", label: "Deferred drill-down", href: `/dashboard/reports?${deferredTabParams.toString()}` },
+          { key: "revenue", label: "Revenue breakdown", href: `/dashboard/reports?${revenueTabParams.toString()}` },
+        ]}
+      />
+
+      {activeTab === "overview" ? (
+      <>
       {salonFacts ? (
         <>
           <SalonDashboardCharts facts={salonFacts} />
@@ -509,7 +533,10 @@ export default async function ReportsPage({ searchParams }: Props) {
           </div>
         </div>
       </div>
+      </>
+      ) : null}
 
+      {activeTab === "deferred" ? (
       <div className={ui.card}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -698,7 +725,10 @@ export default async function ReportsPage({ searchParams }: Props) {
           ) : null}
         </div>
       </div>
+      ) : null}
 
+      {activeTab === "revenue" ? (
+      <>
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <div className={`${ui.statCard} flex items-center gap-4`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
@@ -843,6 +873,8 @@ export default async function ReportsPage({ searchParams }: Props) {
         </div>
         {!byDay.length ? <p className={`mt-4 text-sm ${ui.muted}`}>No payments in this range.</p> : null}
       </div>
+      </>
+      ) : null}
     </div>
   );
 }

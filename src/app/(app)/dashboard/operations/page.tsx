@@ -1,5 +1,6 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { sanitizeEventExternalBookingUrl } from "@/lib/eventBookingUrl";
 import { OpsDesk } from "@/components/ops/OpsDesk";
 import { localISODate } from "@/lib/date";
@@ -17,6 +18,7 @@ type Props = {
     date_from?: string;
     date_to?: string;
     session_status?: "all" | "scheduled" | "cancelled";
+    tab?: string;
   }>;
 };
 
@@ -118,6 +120,13 @@ export default async function OperationsPage({ searchParams }: Props) {
   const admin = createAdminClient();
   const canViewAllLocations = hasStudioGlobalLocationAccess(ctx, activeStudioId);
   const canViewPkgChecks = hasStudioRole(ctx, activeStudioId, ["owner", "manager"]);
+  const activeTab = sp.tab === "checks" && canViewPkgChecks ? "checks" : "frontdesk";
+  const tabHrefBase = new URLSearchParams();
+  tabHrefBase.set("studio_id", activeStudioId);
+  if (selectedLocationId) tabHrefBase.set("location_id", selectedLocationId);
+  const frontdeskTabHref = new URLSearchParams(tabHrefBase);
+  const checksTabHref = new URLSearchParams(tabHrefBase);
+  checksTabHref.set("tab", "checks");
   const { data: locations } = await supabase
     .from("locations")
     .select("id, name, studio_id")
@@ -266,72 +275,86 @@ export default async function OperationsPage({ searchParams }: Props) {
           accessibleLocationIds={accessibleLocationIds}
         />
       </div>
-      <form method="get" className={`${ui.card} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
-        <input type="hidden" name="studio_id" value={activeStudioId} />
-        {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Booking status</span>
-          <select name="session_status" className={ui.select} defaultValue={sessionStatus}>
-            <option value="all">All</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>From date</span>
-          <input type="date" name="date_from" className={ui.input} defaultValue={dateFrom} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>To date</span>
-          <input type="date" name="date_to" className={ui.input} defaultValue={dateTo} />
-        </label>
-        <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
-          <button type="submit" className={ui.btnPrimarySm}>Apply</button>
-          <DashboardAppLink
-            href={`/dashboard/operations?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
-            className={ui.btnGhost}
-          >
-            Reset
-          </DashboardAppLink>
-        </div>
-      </form>
-      <OpsDesk
-        studioId={activeStudioId}
-        locationId={selectedLocationId}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        sessionStatus={sessionStatus}
-        sessions={walkinSessions}
-        events={walkinEvents}
-        services={walkinServices}
-        customers={walkinCustomers}
-        disabled={studioSuspended}
-      >
-        <section className={`${ui.card} flex flex-col gap-3`}>
-          <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
-              <ClipboardList size={17} />
-            </span>
-            <div>
-              <h2 className={ui.h2}>Front desk notes</h2>
-              <p className={ui.muted}>Quick guide for ad-hoc arrivals and payment capture.</p>
-            </div>
-          </div>
-          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
-            <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
-          </div>
-          <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
-            <p className={ui.muted}>
-              {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
-                ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
-                : "No scheduled sessions, events, or priced services are available right now."}
-            </p>
-          </div>
-        </section>
-      </OpsDesk>
       {canViewPkgChecks ? (
+        <DashboardTabNav
+          ariaLabel="Front desk sections"
+          activeKey={activeTab}
+          tabs={[
+            { key: "frontdesk", label: "Front desk", href: `/dashboard/operations?${frontdeskTabHref.toString()}` },
+            { key: "checks", label: "Package checks", href: `/dashboard/operations?${checksTabHref.toString()}` },
+          ]}
+        />
+      ) : null}
+      {activeTab === "frontdesk" ? (
+        <>
+          <form method="get" className={`${ui.card} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
+            <input type="hidden" name="studio_id" value={activeStudioId} />
+            {selectedLocationId ? <input type="hidden" name="location_id" value={selectedLocationId} /> : null}
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Booking status</span>
+              <select name="session_status" className={ui.select} defaultValue={sessionStatus}>
+                <option value="all">All</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>From date</span>
+              <input type="date" name="date_from" className={ui.input} defaultValue={dateFrom} />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>To date</span>
+              <input type="date" name="date_to" className={ui.input} defaultValue={dateTo} />
+            </label>
+            <div className={`${ui.mobileActionBar} flex flex-col items-stretch gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-4`}>
+              <button type="submit" className={ui.btnPrimarySm}>Apply</button>
+              <DashboardAppLink
+                href={`/dashboard/operations?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`}
+                className={ui.btnGhost}
+              >
+                Reset
+              </DashboardAppLink>
+            </div>
+          </form>
+          <OpsDesk
+            studioId={activeStudioId}
+            locationId={selectedLocationId}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            sessionStatus={sessionStatus}
+            sessions={walkinSessions}
+            events={walkinEvents}
+            services={walkinServices}
+            customers={walkinCustomers}
+            disabled={studioSuspended}
+          >
+            <section className={`${ui.card} flex flex-col gap-3`}>
+              <div className="flex items-center gap-2">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300">
+                  <ClipboardList size={17} />
+                </span>
+                <div>
+                  <h2 className={ui.h2}>Front desk notes</h2>
+                  <p className={ui.muted}>Quick guide for ad-hoc arrivals and payment capture.</p>
+                </div>
+              </div>
+              <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+                <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
+                <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
+              </div>
+              <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
+                <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
+                <p className={ui.muted}>
+                  {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
+                    ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
+                    : "No scheduled sessions, events, or priced services are available right now."}
+                </p>
+              </div>
+            </section>
+          </OpsDesk>
+        </>
+      ) : null}
+      {activeTab === "checks" && canViewPkgChecks ? (
       <section className={ui.card}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

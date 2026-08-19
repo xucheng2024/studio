@@ -67,10 +67,9 @@ try {
   await owner.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "appointments mobile overflow");
 
-  const createSection = owner.page.locator("details").filter({ has: owner.page.getByRole("heading", { name: "Create appointment" }) });
-  if (!(await createSection.evaluate((el) => el.open))) {
-    await createSection.locator("summary").click();
-  }
+  await owner.page.getByRole("link", { name: "Create appointment", exact: true }).click();
+  await owner.page.waitForURL((url) => url.searchParams.get("tab") === "create", { timeout: 30_000 });
+  await owner.page.getByRole("heading", { name: "Create appointment" }).waitFor({ state: "visible", timeout: 30_000 });
   const createForm = owner.page.locator("form").filter({ has: owner.page.getByRole("button", { name: "Create appointment" }) });
   await createForm.locator('select[name="salon_customer_id"]').selectOption({ label: "APT-03 L1 customer" });
   await createForm.locator('select[name="service_id"]').selectOption({ label: "APT-03 local service" });
@@ -98,7 +97,7 @@ try {
     return data;
   }, (row) => row?.status === "confirmed", "owner created confirmed appointment");
 
-  await owner.page.reload({ waitUntil: "domcontentloaded" });
+  await owner.page.goto(`${baseUrl}/dashboard/appointments${ownerQuery}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await owner.page.getByRole("heading", { name: "Appointments" }).waitFor({ state: "visible", timeout: 30_000 });
   const card = owner.page.locator("article").filter({ hasText: "APT-03 L1 customer" });
   await transitionOnCard(owner.page, card, "Arrive", "in_progress", created.id);
