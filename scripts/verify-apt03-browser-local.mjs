@@ -68,7 +68,9 @@ try {
   assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "appointments mobile overflow");
 
   const createSection = owner.page.locator("details").filter({ has: owner.page.getByRole("heading", { name: "Create appointment" }) });
-  await createSection.locator("summary").click();
+  if (!(await createSection.evaluate((el) => el.open))) {
+    await createSection.locator("summary").click();
+  }
   const createForm = owner.page.locator("form").filter({ has: owner.page.getByRole("button", { name: "Create appointment" }) });
   await createForm.locator('select[name="salon_customer_id"]').selectOption({ label: "APT-03 L1 customer" });
   await createForm.locator('select[name="service_id"]').selectOption({ label: "APT-03 local service" });
