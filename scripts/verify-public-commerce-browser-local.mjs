@@ -40,11 +40,12 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.goto(`${baseUrl}/${publicSlug}/services/public-uat-service`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  const serviceForm = page.locator("form").filter({ has: page.getByRole("button", { name: /Confirm order/i }) });
   await page.getByRole("button", { name: "Increase quantity" }).click();
   await page.getByRole("button", { name: "Increase quantity" }).click();
-  await page.getByLabel("Name").fill("Public UAT buyer");
-  await page.getByLabel("Email").fill("public-uat-buyer@example.test");
-  await page.getByLabel("Phone").fill("81234567");
+  await serviceForm.getByRole("textbox", { name: "Name", exact: true }).fill("Public UAT buyer");
+  await serviceForm.getByRole("textbox", { name: "Email", exact: true }).fill("public-uat-buyer@example.test");
+  await serviceForm.locator('input[type="tel"]').fill("81234567");
   await Promise.all([
     page.waitForURL(/\/checkout\//, { timeout: 30_000 }),
     page.getByRole("button", { name: /Confirm order/i }).click(),
@@ -71,15 +72,16 @@ try {
   assert.ok(packageRow.share_slug, "public package list backfills missing share slug");
 
   await page.goto(`${baseUrl}${packageHref}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  const packageForm = page.locator("form").filter({ has: page.getByRole("button", { name: "Get package" }) });
   await page.route("**/api/package/buy", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ payment_id: "public-uat-fallback-payment" }) });
   });
-  await page.getByLabel("Name").fill("Package UAT buyer");
-  await page.getByLabel("Email").fill("package-uat-buyer@example.test");
-  await page.getByLabel("Phone").fill("81234568");
+  await packageForm.getByRole("textbox", { name: "Name", exact: true }).fill("Package UAT buyer");
+  await packageForm.getByRole("textbox", { name: "Email", exact: true }).fill("package-uat-buyer@example.test");
+  await packageForm.locator('input[type="tel"]').fill("81234568");
   await Promise.all([
     page.waitForURL(/\/checkout\/public-uat-fallback-payment$/, { timeout: 30_000 }),
-    page.getByRole("button", { name: "Get package" }).click(),
+    packageForm.getByRole("button", { name: "Get package" }).click(),
   ]);
   await page.unroute("**/api/package/buy");
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "public commerce mobile overflow");
