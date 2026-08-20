@@ -4,6 +4,7 @@ import { createHitpayPaymentRequest, generatePaymentReference } from "@/lib/hitp
 import { verifyMemberStudioAccess } from "@/lib/member-studio";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
 import { getStudioUrlFromRequest } from "@/lib/app-url";
+import { getLatestSalonTermsVersion } from "@/lib/salon-appointments-self";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
@@ -32,6 +33,8 @@ const bodySchema = z.object({
   shipping_city: z.string().min(1).max(120),
   shipping_postal_code: z.string().min(1).max(20),
   shipping_country: z.string().min(2).max(80).default("SG"),
+  terms_accepted: z.boolean().optional(),
+  terms_version_id: z.string().uuid().optional(),
 });
 
 export async function POST(req: Request) {
@@ -97,6 +100,16 @@ export async function POST(req: Request) {
 
   const blocked = await respondIfStudioContractSuspended(admin, product.studio_id);
   if (blocked) return blocked;
+
+  const latestTerms = await getLatestSalonTermsVersion({ studioId: product.studio_id });
+  if (latestTerms?.id) {
+    if (!parsed.data.terms_accepted || !parsed.data.terms_version_id) {
+      return NextResponse.json({ error: "terms_required" }, { status: 400 });
+    }
+    if (parsed.data.terms_version_id !== latestTerms.id) {
+      return NextResponse.json({ error: "terms_version_stale" }, { status: 409 });
+    }
+  }
 
   if (isGift && giftRecipientEmail) {
     const { data: recipientGiftPayments } = await admin

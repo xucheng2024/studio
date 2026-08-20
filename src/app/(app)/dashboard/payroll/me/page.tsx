@@ -62,7 +62,10 @@ export default async function MyPayPage({ searchParams }: Props) {
                         {slip.periodStart.slice(0, 7)}
                       </DashboardAppLink>
                     </td>
-                    <td className="p-3">{slip.payslipNumber}</td>
+                    <td className="p-3">
+                      <span className="mr-1.5">{slip.payslipNumber}</span>
+                      <span className={ui.badgeNeutral} title="MOM Employment Act itemised pay slip">MOM-format</span>
+                    </td>
                     <td className="p-3">{slip.netSgd}</td>
                     <td className="p-3 capitalize">{slip.status}</td>
                   </tr>

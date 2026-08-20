@@ -32,7 +32,7 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("packages")
-    .select("id, studio_id, location_id, deleted_at, share_slug")
+    .select("id, studio_id, location_id, deleted_at, share_slug, price, original_price")
     .eq("id", id)
     .maybeSingle();
   if (error || !row) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -50,10 +50,18 @@ export async function PATCH(req: Request, ctx: RouteParams) {
   });
   if (!scope.ok) return staffScopeFailureResponse(scope);
 
+  const effectivePrice = parsed.data.price !== undefined ? parsed.data.price : Number(row.price);
+  const effectiveOriginalPrice =
+    parsed.data.original_price !== undefined ? parsed.data.original_price : row.original_price != null ? Number(row.original_price) : null;
+  if (effectiveOriginalPrice != null && effectiveOriginalPrice <= effectivePrice) {
+    return NextResponse.json({ error: "invalid_original_price" }, { status: 400 });
+  }
+
   const patch: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) patch.name = parsed.data.name;
   if (parsed.data.credits !== undefined) patch.credits = parsed.data.credits;
   if (parsed.data.price !== undefined) patch.price = parsed.data.price;
+  if (parsed.data.original_price !== undefined) patch.original_price = parsed.data.original_price;
   if (parsed.data.expiry_days !== undefined) patch.expiry_days = parsed.data.expiry_days;
   if (parsed.data.location_id !== undefined) {
     if (parsed.data.location_id) {

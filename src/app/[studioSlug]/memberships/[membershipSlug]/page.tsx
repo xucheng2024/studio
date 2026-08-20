@@ -9,6 +9,7 @@ import { getCachedMembershipShareContext } from "@/lib/cachedSharePages";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { studioMembershipsPath } from "@/lib/public-paths";
 import { buildMembershipShareMetadata } from "@/lib/publicShareOg";
+import { getLatestSalonTermsVersion, summarizeTermsSnapshot } from "@/lib/salon-appointments-self";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string; membershipSlug: string }> };
@@ -47,6 +48,8 @@ export default async function PublicMembershipPage({ params }: Props) {
         })()
       : null;
   const intervalShort = intervalLabel.toLowerCase() === "yearly" ? "year" : "month";
+  const termsVersion = await getLatestSalonTermsVersion({ studioId: studio.id });
+  const termsSummary = summarizeTermsSnapshot(termsVersion?.content_snapshot ?? null);
 
   return (
     <main className={ui.page}>
@@ -103,6 +106,8 @@ export default async function PublicMembershipPage({ params }: Props) {
                 membershipId={membership.id}
                 studioSlug={studioPublicSlug}
                 disabled={!paymentReady}
+                termsVersion={termsVersion ? { id: termsVersion.id, version_label: termsVersion.version_label } : null}
+                termsSummary={termsSummary}
               />
             </div>
             <PurchaseAccountHint className="mt-4" />

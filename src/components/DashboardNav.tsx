@@ -15,6 +15,7 @@ import {
   Package,
   Repeat,
   Users,
+  UserCog,
   ReceiptText,
   CreditCard,
   BarChart2,
@@ -47,6 +48,7 @@ const links: NavLink[] = [
   { href: "/dashboard/packages",   label: "Packages",   icon: Package },
   { href: "/dashboard/memberships",label: "Memberships",icon: Repeat },
   { href: "/dashboard/clients",    label: "Customers",  icon: Users },
+  { href: "/dashboard/staff",      label: "Staff",      icon: UserCog },
   { href: "/dashboard/marketing",  label: "Marketing",  icon: Mail },
   { href: "/dashboard/payroll",    label: "Payroll",    icon: Wallet },
   { href: "/dashboard/payroll/me", label: "My pay",     icon: Wallet },
@@ -56,7 +58,7 @@ const links: NavLink[] = [
 
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor", string[]> = {
   owner:     links.map((l) => l.href).filter((href) => href !== "/dashboard/payroll/me"),
-  manager:   links.map((l) => l.href).filter((href) => href !== "/dashboard/payroll" && href !== "/dashboard/payroll/me"),
+  manager:   links.map((l) => l.href).filter((href) => href !== "/dashboard/payroll" && href !== "/dashboard/payroll/me" && href !== "/dashboard/staff"),
   frontdesk: ["/dashboard/operations", "/dashboard/appointments", "/dashboard/payments", "/dashboard/pos", "/dashboard/schedule", "/dashboard/events", "/dashboard/packages", "/dashboard/memberships", "/dashboard/clients", "/dashboard/payroll/me"],
   instructor: ["/dashboard/appointments", "/dashboard/payroll/me"],
 };
@@ -80,6 +82,7 @@ const STUDIO_PAGE_HREFS = [
 
 const MANAGE_HREFS = [
   "/dashboard/clients",
+  "/dashboard/staff",
   "/dashboard/marketing",
   "/dashboard/payroll",
   "/dashboard/payroll/me",

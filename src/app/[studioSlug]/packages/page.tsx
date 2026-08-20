@@ -7,6 +7,7 @@ import { isReservedPublicSlug } from "@/lib/publicStudio";
 import { studioHomePath, studioPackagePath, studioPackagesPath } from "@/lib/public-paths";
 import { STUDIO_CURRENCY } from "@/lib/currency";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { discountPercentOff } from "@/lib/priceDisplay";
 import { ensurePublicPackageShareSlugs } from "@/lib/publicPackageShareSlug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
@@ -39,7 +40,7 @@ export default async function PublicPackagesPage({ params }: Props) {
 
   const { data: packages } = await admin
     .from("packages")
-    .select("id, name, price, credits, expiry_days, share_slug")
+    .select("id, name, price, original_price, credits, expiry_days, share_slug")
     .eq("studio_id", studio.id)
     .eq("is_active", true)
     .is("deleted_at", null)
@@ -68,7 +69,15 @@ export default async function PublicPackagesPage({ params }: Props) {
                   <span className={`text-sm ${ui.muted}`}>· {pkg.expiry_days ? `Expires in ${pkg.expiry_days} days` : "No expiry"}</span>
                 </div>
                 <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  {pkg.price != null ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">{Number(pkg.price) === 0 ? "Free" : `${currency} ${Number(pkg.price).toFixed(2)}`}</span> : null}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {pkg.original_price != null ? (
+                      <span className={`text-sm line-through ${ui.muted}`}>{currency} {Number(pkg.original_price).toFixed(2)}</span>
+                    ) : null}
+                    {pkg.price != null ? <span className="text-xl font-bold tabular-nums text-stone-900 dark:text-stone-50">{Number(pkg.price) === 0 ? "Free" : `${currency} ${Number(pkg.price).toFixed(2)}`}</span> : null}
+                    {discountPercentOff(pkg.original_price, pkg.price) != null ? (
+                      <span className={ui.badge}>{discountPercentOff(pkg.original_price, pkg.price)}% off</span>
+                    ) : null}
+                  </div>
                   {href ? <Link href={href} className={`${ui.btnPrimary} w-full sm:w-auto`}>{Number(pkg.price ?? 0) === 0 ? "Get package" : "Buy now"}</Link> : null}
                 </div>
               </div>

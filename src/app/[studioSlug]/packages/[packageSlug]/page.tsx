@@ -5,9 +5,10 @@ import { PurchaseAccountHint } from "@/components/PurchaseAccountHint";
 import { StudioPublicBackNav } from "@/components/StudioPublicBackNav";
 import { getCachedPackageShareContext } from "@/lib/cachedSharePages";
 import { STUDIO_CURRENCY } from "@/lib/currency";
-import { formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
+import { discountPercentOff, formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
 import { studioPackagesPath } from "@/lib/public-paths";
 import { buildPackageShareMetadata } from "@/lib/publicShareOg";
+import { getLatestSalonTermsVersion, summarizeTermsSnapshot } from "@/lib/salon-appointments-self";
 import { ui } from "@/lib/ui";
 
 type Props = { params: Promise<{ studioSlug: string; packageSlug: string }> };
@@ -30,6 +31,8 @@ export default async function PublicPackageBuyPage({ params }: Props) {
   const locName = Array.isArray(loc) ? loc[0]?.name : loc?.name;
 
   const packageCurrency = STUDIO_CURRENCY;
+  const termsVersion = await getLatestSalonTermsVersion({ studioId: studio.id });
+  const termsSummary = summarizeTermsSnapshot(termsVersion?.content_snapshot ?? null);
 
   return (
     <main className={ui.page}>
@@ -42,9 +45,15 @@ export default async function PublicPackageBuyPage({ params }: Props) {
           <h1 className={ui.h1}>{pkg.name}</h1>
           <p className={`mt-2 ${ui.lead}`}>{studio.name}</p>
           {pkg.price != null ? (
-            <p className="mt-3 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+              {pkg.original_price != null ? (
+                <span className={`text-lg font-medium line-through ${ui.muted}`}>{formatPriceOrFree(packageCurrency, Number(pkg.original_price))}</span>
+              ) : null}
               {formatPriceOrFree(packageCurrency, Number(pkg.price))}
               {!isFreePackage ? <span className="ml-2 text-base font-medium text-stone-500 dark:text-stone-400">one-time</span> : null}
+              {discountPercentOff(pkg.original_price, pkg.price) != null ? (
+                <span className={ui.badge}>{discountPercentOff(pkg.original_price, pkg.price)}% off</span>
+              ) : null}
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-600 dark:text-stone-300">
@@ -80,7 +89,14 @@ export default async function PublicPackageBuyPage({ params }: Props) {
             </p>
 
             <div className="mt-5">
-              <GuestBuyPackagePanel studioSlug={studio.public_slug} packageId={pkg.id} disabled={!paymentReady} actionLabel={isFreePackage ? "Get package" : "Buy package"} />
+              <GuestBuyPackagePanel
+                studioSlug={studio.public_slug}
+                packageId={pkg.id}
+                disabled={!paymentReady}
+                actionLabel={isFreePackage ? "Get package" : "Buy package"}
+                termsVersion={termsVersion ? { id: termsVersion.id, version_label: termsVersion.version_label } : null}
+                termsSummary={termsSummary}
+              />
             </div>
             <PurchaseAccountHint className="mt-4" />
           </div>

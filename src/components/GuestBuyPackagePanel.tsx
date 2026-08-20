@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { GiftRecipientFields, type GiftPayload } from "@/components/GiftRecipientFields";
+import { TermsAcceptanceField } from "@/components/TermsAcceptanceField";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { getBrowserSession } from "@/lib/supabase/client";
@@ -13,11 +14,15 @@ export function GuestBuyPackagePanel({
   studioSlug,
   disabled = false,
   actionLabel = "Buy package",
+  termsVersion = null,
+  termsSummary = "",
 }: {
   packageId: string;
   studioSlug: string;
   disabled?: boolean;
   actionLabel?: string;
+  termsVersion?: { id: string; version_label: string | null } | null;
+  termsSummary?: string;
 }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -27,6 +32,7 @@ export function GuestBuyPackagePanel({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [gift, setGift] = useState<GiftPayload | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     getBrowserSession()
@@ -46,6 +52,11 @@ export function GuestBuyPackagePanel({
       setMsg("Recipient email cannot be the same as your email.");
       return { ok: false as const, message: "Recipient email cannot be the same as your email." };
     }
+    if (termsVersion?.id && !termsAccepted) {
+      const message = "Please accept the Terms & Conditions before continuing.";
+      setMsg(message);
+      return { ok: false as const, message };
+    }
     try {
       setBusy(true);
       setMsg(null);
@@ -58,6 +69,8 @@ export function GuestBuyPackagePanel({
           guest_name: isLoggedIn ? undefined : guestName.trim(),
           guest_email: isLoggedIn ? undefined : guestEmail.trim().toLowerCase(),
           guest_phone: isLoggedIn ? undefined : guestPhone.trim(),
+          terms_accepted: termsAccepted,
+          terms_version_id: termsVersion?.id,
           ...(gift ?? {}),
         }),
       });
@@ -124,9 +137,10 @@ export function GuestBuyPackagePanel({
           <PhoneNumberInput value={guestPhone} onChange={setGuestPhone} placeholder="9123 4567" required />
         </label>
         <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={guestEmail} />
+        <TermsAcceptanceField termsVersion={termsVersion} termsSummary={termsSummary} checked={termsAccepted} onChange={setTermsAccepted} />
         <button
           type="submit"
-          disabled={busy || disabled || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim() || (gift?.is_gift === true && !gift.gift_recipient_email)}
+          disabled={busy || disabled || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim() || (Boolean(termsVersion?.id) && !termsAccepted) || (gift?.is_gift === true && !gift.gift_recipient_email)}
           className={`${ui.btnPrimary} disabled:opacity-50`}
         >
           {busy ? <><Loader2 size={15} className="animate-spin" /> Processing...</> : disabled ? "Online payment unavailable" : actionLabel}
@@ -139,9 +153,10 @@ export function GuestBuyPackagePanel({
   return (
     <div className="flex w-full max-w-md flex-col gap-3">
       <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={userEmail} />
+      <TermsAcceptanceField termsVersion={termsVersion} termsSummary={termsSummary} checked={termsAccepted} onChange={setTermsAccepted} />
       <button
         type="button"
-        disabled={busy || disabled || isLoggedIn === null || (gift?.is_gift === true && !gift.gift_recipient_email)}
+        disabled={busy || disabled || isLoggedIn === null || (Boolean(termsVersion?.id) && !termsAccepted) || (gift?.is_gift === true && !gift.gift_recipient_email)}
         className={`${ui.btnPrimary} disabled:opacity-50`}
         onClick={() => void submit()}
       >

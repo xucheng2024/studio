@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 import { getCanonicalUrlForStudioPath } from "@/lib/requestOrigin";
 import { formatPriceOrFree, isZeroAmount } from "@/lib/priceDisplay";
+import { getLatestSalonTermsVersion, summarizeTermsSnapshot } from "@/lib/salon-appointments-self";
 
 type Props = { params: Promise<{ studioSlug: string; productSlug: string }> };
 
@@ -105,6 +106,8 @@ export default async function PublicShopProductPage({ params }: Props) {
     }
   }
 
+  const termsVersion = await getLatestSalonTermsVersion({ studioId: studio.id });
+  const termsSummary = summarizeTermsSnapshot(termsVersion?.content_snapshot ?? null);
   const isFreeProduct = isZeroAmount(product.price);
   const paymentReady = isFreeProduct || Boolean(studio.hitpay_enabled);
   const outOfStock = product.stock_qty != null && Number(product.stock_qty) < 1;
@@ -174,6 +177,8 @@ export default async function PublicShopProductPage({ params }: Props) {
                 outOfStock={outOfStock}
                 shippingDefaults={shippingDefaults}
                 actionLabel={isFreeProduct ? "Place free order" : "Buy now"}
+                termsVersion={termsVersion ? { id: termsVersion.id, version_label: termsVersion.version_label } : null}
+                termsSummary={termsSummary}
               />
             </div>
             <PurchaseAccountHint className="mt-4" />

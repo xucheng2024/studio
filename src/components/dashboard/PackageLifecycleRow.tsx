@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { throttledRefresh } from "@/lib/throttledRefresh";
-import { formatPriceOrFree } from "@/lib/priceDisplay";
+import { discountPercentOff, formatPriceOrFree } from "@/lib/priceDisplay";
 import { useState } from "react";
 import { Check, Copy, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export function PackageLifecycleRow({
     name: string;
     credits: number;
     price: number;
+    original_price: number | null;
     expiry_days: number | null;
     location_id: string | null;
   };
@@ -41,6 +42,9 @@ export function PackageLifecycleRow({
   const [name, setName] = useState(initial.name);
   const [credits, setCredits] = useState(String(initial.credits));
   const [price, setPrice] = useState(String(initial.price));
+  const [originalPrice, setOriginalPrice] = useState(
+    initial.original_price != null ? String(initial.original_price) : "",
+  );
   const [expiryDays, setExpiryDays] = useState(
     initial.expiry_days != null ? String(initial.expiry_days) : "",
   );
@@ -73,6 +77,7 @@ export function PackageLifecycleRow({
     setBusy(true);
     const creditsNum = Number(credits);
     const priceNum = Number(price);
+    const originalPriceRaw = originalPrice.trim();
     const expRaw = expiryDays.trim();
     const res = await fetch(`/api/dashboard/packages/${packageId}`, {
       method: "PATCH",
@@ -81,6 +86,7 @@ export function PackageLifecycleRow({
         name,
         credits: creditsNum,
         price: priceNum,
+        original_price: originalPriceRaw === "" ? null : Number(originalPriceRaw),
         expiry_days: expRaw === "" ? null : Number(expRaw),
         location_id: locationId === "" ? null : locationId,
       }),
@@ -88,7 +94,11 @@ export function PackageLifecycleRow({
     setBusy(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      toast.error(body.error ?? "Save failed");
+      const message =
+        body.error === "invalid_original_price"
+          ? "Original price must be higher than price for a discount to show."
+          : (body.error ?? "Save failed");
+      toast.error(message);
       return;
     }
     toast.success("Changes saved");
@@ -120,10 +130,16 @@ export function PackageLifecycleRow({
                 <span className={isActive ? ui.badge : ui.badgeAmber}>{isActive ? "Active" : "Hidden"}</span>
               </div>
               {initial.credits != null || initial.price != null || initial.expiry_days != null ? (
-                <p className={`mt-0.5 text-xs ${ui.muted}`}>
+                <p className={`mt-0.5 flex flex-wrap items-center gap-1 text-xs ${ui.muted}`}>
                   {initial.credits != null ? `${initial.credits} class passes` : ""}
                   {initial.credits != null && initial.price != null ? " · " : ""}
+                  {initial.original_price != null ? (
+                    <span className="line-through">{formatPriceOrFree("$", initial.original_price)}</span>
+                  ) : null}
                   {initial.price != null ? formatPriceOrFree("$", Number(initial.price)) : ""}
+                  {discountPercentOff(initial.original_price, initial.price) != null ? (
+                    <span className={ui.badge}>{discountPercentOff(initial.original_price, initial.price)}% off</span>
+                  ) : null}
                   {initial.expiry_days != null ? ` · ${initial.expiry_days}d expiry` : ""}
                 </p>
               ) : null}
@@ -204,6 +220,10 @@ export function PackageLifecycleRow({
             <label className="flex flex-col gap-1">
               <span className={ui.label}>Price (SGD)</span>
               <input className={ui.input} type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className={ui.label}>Original price (SGD, optional)</span>
+              <input className={ui.input} type="number" min={0} step="0.01" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)} placeholder="empty = no promotion" />
             </label>
             <label className="flex flex-col gap-1">
               <span className={ui.label}>Expiry days</span>

@@ -467,7 +467,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
                   <ServerActionToastForm action={setServicePublishScopeAction} className="rounded-xl border border-stone-200/80 p-3 dark:border-stone-800/80">
                     <input type="hidden" name="studio_id" value={studio.id} />
                     <input type="hidden" name="service_id" value={svc.id} />
-                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Offered at</p>
+                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Offered at (price &amp; details apply everywhere it&apos;s offered)</p>
                     <div className="mt-2">
                       <ServiceLocationScopeFields
                         locations={locationList}

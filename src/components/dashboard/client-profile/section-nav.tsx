@@ -2,7 +2,7 @@ import { DashboardAppLink } from "@/components/DashboardAppLink";
 
 export const CLIENT_PROFILE_SECTIONS = [
   { id: "overview", label: "Overview" },
-  { id: "health", label: "Health" },
+  { id: "health", label: "Health & Allergies" },
   { id: "appointments", label: "Appointments" },
   { id: "treatments", label: "Treatments" },
   { id: "purchases", label: "Purchases" },

@@ -56,7 +56,7 @@ export const getCachedPackageShareContext = cache(async (studioSlugRaw: string, 
 
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, name, credits, price, expiry_days, location_id, is_active, share_slug, locations ( name )")
+    .select("id, name, credits, price, original_price, expiry_days, location_id, is_active, share_slug, locations ( name )")
     .eq("studio_id", studio.id)
     .eq("share_slug", pkgSlug)
     .eq("is_active", true)

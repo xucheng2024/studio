@@ -6,6 +6,7 @@ import { createHitpayRecurringBilling, generatePaymentReference } from "@/lib/hi
 import { upsertMemberStudioMembership, verifyMemberStudioAccess } from "@/lib/member-studio";
 import { findClientIdByEmail, resolveClientIdByEmail } from "@/lib/resolveClientId";
 import { respondIfStudioContractSuspended } from "@/lib/studio-contract";
+import { getLatestSalonTermsVersion } from "@/lib/salon-appointments-self";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { getHitpayConfigIssue, normalizeHitpayError } from "@/lib/paymentErrors";
 import { sweepExpiredPendingPayments } from "@/lib/paymentExpiry";
@@ -24,6 +25,8 @@ const bodySchema = z.object({
   guest_name: z.string().max(120).optional(),
   guest_email: z.string().email().max(320).optional(),
   guest_phone: z.string().max(40).optional().nullable(),
+  terms_accepted: z.boolean().optional(),
+  terms_version_id: z.string().uuid().optional(),
 });
 
 export async function POST(req: Request) {
@@ -62,6 +65,16 @@ export async function POST(req: Request) {
   }
   const blocked = await respondIfStudioContractSuspended(admin, membership.studio_id);
   if (blocked) return blocked;
+
+  const latestTerms = await getLatestSalonTermsVersion({ studioId: membership.studio_id });
+  if (latestTerms?.id) {
+    if (!parsed.data.terms_accepted || !parsed.data.terms_version_id) {
+      return NextResponse.json({ error: "terms_required" }, { status: 400 });
+    }
+    if (parsed.data.terms_version_id !== latestTerms.id) {
+      return NextResponse.json({ error: "terms_version_stale" }, { status: 409 });
+    }
+  }
 
   const { data: studio } = await admin
     .from("studios")

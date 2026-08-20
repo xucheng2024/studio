@@ -33,7 +33,7 @@ export default async function PackagesPage({ searchParams }: Props) {
   let packagesQuery = supabase
     .from("packages")
     .select(
-      "id, name, credits, price, expiry_days, studio_id, location_id, is_active, share_slug, studios ( public_slug )",
+      "id, name, credits, price, original_price, expiry_days, studio_id, location_id, is_active, share_slug, studios ( public_slug )",
     )
     .in("studio_id", studioIds)
     .is("deleted_at", null)
@@ -102,6 +102,11 @@ export default async function PackagesPage({ searchParams }: Props) {
                 <input name="price" type="number" min={0} step="0.01" defaultValue={120} className={ui.input} />
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className={ui.label}>Original price (SGD, optional)</span>
+                <input name="original_price" type="number" min={0} step="0.01" className={ui.input} placeholder="Leave empty for no promotion" />
+                <p className={`text-xs ${ui.muted}`}>Set higher than price to show a discount badge.</p>
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
                 <span className={ui.label}>Expiry days</span>
                 <input name="expiry_days" type="number" min={1} className={ui.input} placeholder="Leave empty for no expiry" />
                 <p className={`text-xs ${ui.muted}`}>Empty means no expiry.</p>
@@ -142,6 +147,7 @@ export default async function PackagesPage({ searchParams }: Props) {
                   name: p.name,
                   credits: p.credits,
                   price: Number(p.price),
+                  original_price: p.original_price != null ? Number(p.original_price) : null,
                   expiry_days: p.expiry_days,
                   location_id: p.location_id,
                 }}

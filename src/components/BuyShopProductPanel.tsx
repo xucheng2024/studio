@@ -8,6 +8,7 @@ import {
   type ShippingAddressDefaults,
   type ShippingAddressPayload,
 } from "@/components/ShippingAddressFields";
+import { TermsAcceptanceField } from "@/components/TermsAcceptanceField";
 import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { getBrowserSession } from "@/lib/supabase/client";
 import { ui } from "@/lib/ui";
@@ -19,6 +20,8 @@ type Props = {
   outOfStock?: boolean;
   shippingDefaults?: ShippingAddressDefaults | null;
   actionLabel?: string;
+  termsVersion?: { id: string; version_label: string | null } | null;
+  termsSummary?: string;
 };
 
 type GuestCheckoutPayload = {
@@ -57,6 +60,8 @@ export function BuyShopProductPanel({
   outOfStock = false,
   shippingDefaults,
   actionLabel = "Buy now",
+  termsVersion = null,
+  termsSummary = "",
 }: Props) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -65,6 +70,7 @@ export function BuyShopProductPanel({
   const [msg, setMsg] = useState<string | null>(null);
   const [saveToProfile, setSaveToProfile] = useState(true);
   const [gift, setGift] = useState<GiftPayload | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const rootRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -110,6 +116,11 @@ export function BuyShopProductPanel({
       setMsg(message);
       return { ok: false as const, message };
     }
+    if (termsVersion?.id && !termsAccepted) {
+      const message = "Please accept the Terms & Conditions before continuing.";
+      setMsg(message);
+      return { ok: false as const, message };
+    }
 
     try {
       setBusy(true);
@@ -123,6 +134,8 @@ export function BuyShopProductPanel({
           guest_name: currentlyLoggedIn ? undefined : shipping.shipping_name,
           guest_email: currentlyLoggedIn ? undefined : buyerEmail,
           guest_phone: currentlyLoggedIn ? undefined : shipping.shipping_phone,
+          terms_accepted: termsAccepted,
+          terms_version_id: termsVersion?.id,
           ...(gift ?? {}),
           save_shipping_to_profile: currentlyLoggedIn ? saveToProfile : false,
           ...shipping,
@@ -187,9 +200,10 @@ export function BuyShopProductPanel({
         </label>
         <GiftRecipientFields value={gift} onChange={setGift} buyerEmail={guestEmail} />
         {shippingBlock}
+        <TermsAcceptanceField termsVersion={termsVersion} termsSummary={termsSummary} checked={termsAccepted} onChange={setTermsAccepted} />
         <button
           type="submit"
-          disabled={disabled || busy || !guestEmail.trim() || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
+          disabled={disabled || busy || !guestEmail.trim() || (Boolean(termsVersion?.id) && !termsAccepted) || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
           className={`${ui.btnPrimary} w-full justify-center`}
         >
           {busy ? (
@@ -237,9 +251,10 @@ export function BuyShopProductPanel({
         />
         Save shipping address to my profile
       </label>
+      <TermsAcceptanceField termsVersion={termsVersion} termsSummary={termsSummary} checked={termsAccepted} onChange={setTermsAccepted} />
       <button
         type="submit"
-        disabled={disabled || busy || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
+        disabled={disabled || busy || (Boolean(termsVersion?.id) && !termsAccepted) || (gift?.is_gift === true && !gift.gift_recipient_email.trim())}
         className={`${ui.btnPrimary} w-full justify-center`}
       >
         {busy ? (

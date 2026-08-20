@@ -82,7 +82,7 @@ function statusLabel(status: ApprovalStatus) {
     case "draft":
       return "Draft";
     case "submitted":
-      return "Pending";
+      return "Submitted";
     case "approved":
       return "Approved";
     case "rejected":
@@ -617,8 +617,8 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
                 {row.reason ? <p className={`text-sm ${ui.muted}`}>{row.reason}</p> : null}
                 {row.rejection_reason ? <p className="text-sm text-red-600 dark:text-red-400">Rejection reason: {row.rejection_reason}</p> : null}
 
-                <details>
-                  <summary className={`cursor-pointer text-xs ${ui.muted}`}>Details</summary>
+                <details open>
+                  <summary className={`cursor-pointer text-xs font-medium ${ui.muted}`}>Audit trail</summary>
                   <div className="mt-2 grid gap-2 text-sm text-stone-700 dark:text-stone-300 sm:grid-cols-2">
                     <p>Location: {locationRow?.name ?? "All"}</p>
                     <p>Maker: {actorEmailById.get(row.maker_user_id) ?? row.maker_user_id}</p>

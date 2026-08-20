@@ -1239,6 +1239,26 @@ export async function getLatestSalonTermsVersion(params: { studioId: string }) {
   return data;
 }
 
+export function summarizeTermsSnapshot(snapshot: unknown) {
+  if (typeof snapshot === "string") return snapshot.trim();
+  if (!snapshot || typeof snapshot !== "object") return "";
+  const row = snapshot as Record<string, unknown>;
+  const textCandidate = [
+    row.content,
+    row.text,
+    row.body,
+    row.summary,
+    row.markdown,
+    row.html,
+  ].find((value) => typeof value === "string" && String(value).trim().length > 0);
+  if (typeof textCandidate === "string") return textCandidate.trim();
+  try {
+    return JSON.stringify(snapshot, null, 2);
+  } catch {
+    return "";
+  }
+}
+
 export function parseRescheduleDatetime(raw: string) {
   return parseDatetimeLocalAsSgt(raw);
 }

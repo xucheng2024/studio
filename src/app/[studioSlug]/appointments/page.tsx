@@ -10,6 +10,7 @@ import {
   listSelfBookableSlots,
   listSelfEligiblePackageCredits,
   resolveSelfSalonCustomer,
+  summarizeTermsSnapshot,
 } from "@/lib/salon-appointments-self";
 import { getLatestPrivacyNotice, recordSelfPrivacyNoticeConsent } from "@/lib/studio-privacy";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -52,26 +53,6 @@ function messageFromStatus(ok: string | undefined, error: string | undefined) {
     payment_config_missing: "Studio online payment is not configured.",
   };
   return { tone: "error" as const, text: map[error] ?? `Booking failed (${error}).` };
-}
-
-function summarizeTermsSnapshot(snapshot: unknown) {
-  if (typeof snapshot === "string") return snapshot.trim();
-  if (!snapshot || typeof snapshot !== "object") return "";
-  const row = snapshot as Record<string, unknown>;
-  const textCandidate = [
-    row.content,
-    row.text,
-    row.body,
-    row.summary,
-    row.markdown,
-    row.html,
-  ].find((value) => typeof value === "string" && String(value).trim().length > 0);
-  if (typeof textCandidate === "string") return textCandidate.trim();
-  try {
-    return JSON.stringify(snapshot, null, 2);
-  } catch {
-    return "";
-  }
 }
 
 export default async function StudioAppointmentsBookingPage({ params, searchParams }: Props) {
