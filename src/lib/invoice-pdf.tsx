@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { PDF_FONT_BOLD, PDF_FONT_FAMILY, registerPdfFonts } from "./pdf-fonts";
 
 export type InvoicePayload = {
   invoiceNumber: string;
@@ -25,7 +26,7 @@ const styles = StyleSheet.create({
   page: {
     padding: 48,
     fontSize: 9,
-    fontFamily: "Helvetica",
+    fontFamily: PDF_FONT_FAMILY,
     color: GREY_DARK,
     backgroundColor: "#ffffff",
   },
@@ -44,14 +45,14 @@ const styles = StyleSheet.create({
   headerLeft: { flex: 1 },
   studioName: {
     fontSize: 16,
-    fontFamily: "Helvetica-Bold",
+    ...PDF_FONT_BOLD,
     color: "#ffffff",
     marginBottom: 3,
   },
   studioEmail: { fontSize: 8, color: "rgba(255,255,255,0.75)" },
   invoiceLabel: {
     fontSize: 11,
-    fontFamily: "Helvetica-Bold",
+    ...PDF_FONT_BOLD,
     color: "rgba(255,255,255,0.9)",
     textTransform: "uppercase",
     letterSpacing: 1.5,
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
   metaBlock: { flex: 1 },
   metaTitle: {
     fontSize: 7,
-    fontFamily: "Helvetica-Bold",
+    ...PDF_FONT_BOLD,
     color: TEAL,
     textTransform: "uppercase",
     letterSpacing: 0.8,
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
   },
   tableHeaderCell: {
     fontSize: 8,
-    fontFamily: "Helvetica-Bold",
+    ...PDF_FONT_BOLD,
     color: "#ffffff",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -145,12 +146,12 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 9, color: GREY_DARK },
   totalBandLabel: {
     fontSize: 9,
-    fontFamily: "Helvetica-Bold",
+    ...PDF_FONT_BOLD,
     color: "#ffffff",
   },
   totalBandValue: {
     fontSize: 9,
-    fontFamily: "Helvetica-Bold",
+    ...PDF_FONT_BOLD,
     color: "#ffffff",
   },
 
@@ -165,7 +166,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     gap: 6,
   },
-  refLabel: { fontSize: 8, color: TEAL, fontFamily: "Helvetica-Bold" },
+  refLabel: { fontSize: 8, color: TEAL, ...PDF_FONT_BOLD },
   refValue: { fontSize: 8, color: GREY_DARK },
 
   /* ── Footer ── */
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
   footerLeft: { flex: 1 },
   thankYou: {
     fontSize: 9,
-    fontFamily: "Helvetica-Bold",
+    ...PDF_FONT_BOLD,
     color: TEAL,
     marginBottom: 2,
   },
@@ -281,5 +282,6 @@ function InvoicePdf({ payload }: { payload: InvoicePayload }) {
 }
 
 export async function renderInvoicePdf(payload: InvoicePayload) {
+  registerPdfFonts();
   return renderToBuffer(<InvoicePdf payload={payload} />);
 }

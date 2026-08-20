@@ -1,16 +1,17 @@
 import React from "react";
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { PDF_FONT_BOLD, PDF_FONT_FAMILY, registerPdfFonts } from "./pdf-fonts";
 import type { PayslipModel } from "@/lib/payslip-model";
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: "Helvetica", color: "#111827" },
-  title: { fontSize: 16, fontFamily: "Helvetica-Bold", marginBottom: 4, color: "#0f766e" },
+  page: { padding: 40, fontSize: 10, fontFamily: PDF_FONT_FAMILY, color: "#111827" },
+  title: { fontSize: 16, ...PDF_FONT_BOLD, marginBottom: 4, color: "#0f766e" },
   muted: { fontSize: 8, color: "#6b7280", marginBottom: 16 },
   row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   label: { color: "#6b7280" },
-  section: { marginTop: 14, marginBottom: 6, fontFamily: "Helvetica-Bold", fontSize: 11 },
+  section: { marginTop: 14, marginBottom: 6, ...PDF_FONT_BOLD, fontSize: 11 },
   line: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: "#e5e7eb" },
-  net: { marginTop: 12, flexDirection: "row", justifyContent: "space-between", fontFamily: "Helvetica-Bold", fontSize: 12 },
+  net: { marginTop: 12, flexDirection: "row", justifyContent: "space-between", ...PDF_FONT_BOLD, fontSize: 12 },
 });
 
 function PayslipPdf({ model }: { model: PayslipModel }) {
@@ -46,5 +47,6 @@ function PayslipPdf({ model }: { model: PayslipModel }) {
 }
 
 export async function renderPayslipPdf(model: PayslipModel) {
+  registerPdfFonts();
   return renderToBuffer(<PayslipPdf model={model} />);
 }

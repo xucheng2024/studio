@@ -98,6 +98,8 @@
     "test:pkg01-uat-local": "node scripts/run-pkg01-uat-local.mjs"
   },
   "dependencies": {
+    "@fontsource/noto-sans": "^5.3.0",
+    "@fontsource/noto-sans-sc": "^5.3.0",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.2",

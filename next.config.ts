@@ -14,7 +14,18 @@ function supabaseHostname(): string | null {
 
 const host = supabaseHostname();
 
+const pdfFontFiles = [
+  "./node_modules/@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff",
+  "./node_modules/@fontsource/noto-sans/files/noto-sans-latin-700-normal.woff",
+  "./node_modules/@fontsource/noto-sans-sc/files/noto-sans-sc-chinese-simplified-400-normal.woff",
+  "./node_modules/@fontsource/noto-sans-sc/files/noto-sans-sc-chinese-simplified-700-normal.woff",
+];
+
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/invoice/*": pdfFontFiles,
+    "/api/payroll/payslip/*": pdfFontFiles,
+  },
   async headers() {
     return [
       {
