@@ -25,24 +25,26 @@ function parseWeekdays(value: string): DayKey[] {
 export function WeekdayPicker({
   name,
   defaultValue = "mon,wed",
+  value,
   onChange,
 }: {
   name: string;
   defaultValue?: string;
+  value?: string;
   onChange?: (value: string) => void;
 }) {
-  const [selected, setSelected] = useState<DayKey[]>(() => parseWeekdays(defaultValue));
+  const [uncontrolled, setUncontrolled] = useState<DayKey[]>(() => parseWeekdays(defaultValue));
+  const selected = value != null ? parseWeekdays(value) : uncontrolled;
 
   const toggle = (key: DayKey) => {
-    setSelected((prev) => {
-      const next = prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key];
-      const value = DAYS.filter((d) => next.includes(d.key)).map((d) => d.key).join(",");
-      onChange?.(value);
-      return next;
-    });
+    const current = value != null ? parseWeekdays(value) : uncontrolled;
+    const next = current.includes(key) ? current.filter((d) => d !== key) : [...current, key];
+    const nextValue = DAYS.filter((d) => next.includes(d.key)).map((d) => d.key).join(",");
+    if (value == null) setUncontrolled(next);
+    onChange?.(nextValue);
   };
 
-  const value = DAYS.filter((d) => selected.includes(d.key))
+  const joined = DAYS.filter((d) => selected.includes(d.key))
     .map((d) => d.key)
     .join(",");
 
@@ -67,7 +69,7 @@ export function WeekdayPicker({
           );
         })}
       </div>
-      <input type="hidden" name={name} value={value} />
+      <input type="hidden" name={name} value={joined} />
       {selected.length === 0 && (
         <p className="text-xs text-amber-600 dark:text-amber-400">Select at least one day</p>
       )}

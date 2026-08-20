@@ -1,10 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { createSessionWithTemplate } from "@/app/(app)/dashboard/actions";
 import type { SessionPanelResult } from "@/app/(app)/dashboard/actions";
-import { PublicMediaUploader } from "@/components/dashboard/PublicMediaUploader";
 import { SubmitButton } from "@/components/SubmitButton";
 import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { ui } from "@/lib/ui";
@@ -78,6 +76,28 @@ function formatOncePreview(datetime: string): string {
   return `on ${date} at ${time}`;
 }
 
+function dateFromDatetime(datetime: string): string {
+  return datetime.slice(0, 10);
+}
+
+function timeFromDatetime(datetime: string): string {
+  const time = datetime.split("T")[1];
+  return time ? time.slice(0, 5) : "09:00";
+}
+
+function datetimeFromDateAndTime(date: string, time: string): string {
+  if (!date || !time) return "";
+  return `${date}T${time}`;
+}
+
+function formatTimeLabel(time: string): string {
+  const [hours, minutes] = time.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return "";
+  const d = new Date();
+  d.setHours(hours, minutes, 0, 0);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
 function nextClassId(classes: ClassOption[], canManage: boolean) {
   return classes.length > 0 ? classes[0].id : (canManage ? "new" : "");
 }
@@ -110,26 +130,30 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
   const [classId, setClassId] = useState(() => nextClassId(classesVisibleAtLocation(classes, defaultLocationId(locations, selectedLocationId)), canManage));
   const [sessionType, setSessionType] = useState<"once" | "weekly">("once");
 
-  // Controlled fields for persistence + preview
   const defaultDatetime = useMemo(getDefaultDatetime, []);
   const [guestPrice, setGuestPrice] = useState("25");
   const [creditsRequired, setCreditsRequired] = useState("");
   const [address, setAddress] = useState("");
   const [addressDetails, setAddressDetails] = useState("");
 
-  // Preview tracking
   const [startDatetime, setStartDatetime] = useState(defaultDatetime);
+  const [weeklyStartTime, setWeeklyStartTime] = useState(() => timeFromDatetime(defaultDatetime));
   const [weekdays, setWeekdays] = useState("mon,wed");
   const [startDate, setStartDate] = useState(() => localISODate());
   const [endDate, setEndDate] = useState("");
   const [newClassName, setNewClassName] = useState("");
-  const [newClassImageUrl, setNewClassImageUrl] = useState("");
-  const [newClassDuration, setNewClassDuration] = useState("60");
-  const [newClassCapacity, setNewClassCapacity] = useState("10");
-  const [onceDuration, setOnceDuration] = useState("60");
-  const [onceCapacity, setOnceCapacity] = useState("10");
-  const [weeklyDuration, setWeeklyDuration] = useState("60");
-  const [weeklyCapacity, setWeeklyCapacity] = useState("10");
+  const [durationMin, setDurationMin] = useState(() => {
+    const loc = defaultLocationId(locations, selectedLocationId);
+    const visible = classesVisibleAtLocation(classes, loc);
+    const cls = visible.find((c) => c.id === nextClassId(visible, canManage));
+    return cls ? String(cls.duration_min) : "60";
+  });
+  const [capacity, setCapacity] = useState(() => {
+    const loc = defaultLocationId(locations, selectedLocationId);
+    const visible = classesVisibleAtLocation(classes, loc);
+    const cls = visible.find((c) => c.id === nextClassId(visible, canManage));
+    return cls ? String(cls.capacity) : "10";
+  });
 
   const [state, formAction] = useActionState<SessionPanelResult | null, FormData>(
     createSessionWithTemplate,
@@ -142,7 +166,6 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
   const hasLocation = Boolean(locationId);
   const classTitle = isNew ? newClassName : (selectedClass?.title ?? "");
 
-  // Load persisted values on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY(activeStudioId));
@@ -170,19 +193,17 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
 
   useEffect(() => {
     if (isNew) {
-      setOnceDuration(newClassDuration);
-      setOnceCapacity(newClassCapacity);
-      setWeeklyDuration(newClassDuration);
-      setWeeklyCapacity(newClassCapacity);
+      setDurationMin("60");
+      setCapacity("10");
       return;
     }
     if (selectedClass) {
-      setOnceDuration(String(selectedClass.duration_min));
-      setOnceCapacity(String(selectedClass.capacity));
-      setWeeklyDuration(String(selectedClass.duration_min));
-      setWeeklyCapacity(String(selectedClass.capacity));
+      setDurationMin(String(selectedClass.duration_min));
+      setCapacity(String(selectedClass.capacity));
     }
-  }, [classId, isNew, newClassCapacity, newClassDuration, selectedClass]);
+    // Only refill when the chosen class changes, not when the classes list identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId, isNew, selectedClass?.duration_min, selectedClass?.capacity]);
 
   useEffect(() => {
     if (!locationId && selectedClass?.location_id) {
@@ -190,7 +211,19 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
     }
   }, [locationId, selectedClass]);
 
-  // On success: persist values + auto-collapse after delay
+  useEffect(() => {
+    if (!hasLocation && sessionType === "weekly") {
+      setSessionType("once");
+    }
+  }, [hasLocation, sessionType]);
+
+  useEffect(() => {
+    if (classId === "new") return;
+    if (classId && !visibleClasses.some((c) => c.id === classId)) {
+      setClassId(nextClassId(visibleClasses, canManage));
+    }
+  }, [classId, visibleClasses, canManage]);
+
   const prevStateRef = useRef(state);
   useEffect(() => {
     if (!state?.ok || state === prevStateRef.current) return;
@@ -209,22 +242,17 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
     setAddress("");
     setAddressDetails("");
     setStartDatetime(defaultDatetime);
+    setWeeklyStartTime(timeFromDatetime(defaultDatetime));
     setWeekdays("mon,wed");
-    setStartDate("");
+    setStartDate(localISODate());
     setEndDate("");
     setNewClassName("");
-    setNewClassImageUrl("");
-    setNewClassDuration("60");
-    setNewClassCapacity("10");
-    setOnceDuration("60");
-    setOnceCapacity("10");
-    setWeeklyDuration("60");
-    setWeeklyCapacity("10");
+    setDurationMin("60");
+    setCapacity("10");
     const t = setTimeout(() => setOpen(false), 2500);
     return () => clearTimeout(t);
   }, [state, activeStudioId, address, addressDetails, canManage, classId, classes, creditsRequired, defaultDatetime, guestPrice, locationId, locations, selectedLocationId]);
 
-  // NL preview
   const previewLine = useMemo(() => {
     const label = classTitle || (isNew ? "new class" : "");
     if (sessionType === "once") {
@@ -234,8 +262,9 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
     const count = estimateWeeklyCount(weekdays, startDate, endDate);
     const days = weekdays ? formatWeekdays(weekdays) : "";
     if (!label || !count || !days) return "";
-    return `~${count} ${label} session${count !== 1 ? "s" : ""} every ${days} starting ${startDate}${endDate ? ` through ${endDate}` : ""}`;
-  }, [classTitle, endDate, isNew, sessionType, startDate, startDatetime, weekdays]);
+    const time = formatTimeLabel(weeklyStartTime);
+    return `~${count} ${label} session${count !== 1 ? "s" : ""} every ${days}${time ? ` at ${time}` : ""} starting ${startDate}${endDate ? ` through ${endDate}` : ""}`;
+  }, [classTitle, endDate, isNew, sessionType, startDate, startDatetime, weekdays, weeklyStartTime]);
 
   return (
     <div className={`${ui.card} max-w-xl`}>
@@ -255,7 +284,7 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
 
       {open && classes.length === 0 && !canManage && (
         <p className={`mt-4 text-sm ${ui.muted}`}>
-          No class templates available. Ask an owner or manager to create one first.
+          No classes yet. Ask an owner or manager to create one first.
         </p>
       )}
 
@@ -263,9 +292,12 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
         <form action={formAction} className="mt-5 flex flex-col gap-4">
           <input type="hidden" name="studio_id" value={activeStudioId} />
           <input type="hidden" name="session_type" value={sessionType} />
-          <p className={`text-sm ${ui.muted}`}>
-            Created sessions are bookable from the public class link. Use guest price for one-time checkout and passes required for package redemption.
-          </p>
+          {isNew ? (
+            <>
+              <input type="hidden" name="new_class_duration_min" value={durationMin} />
+              <input type="hidden" name="new_class_capacity" value={capacity} />
+            </>
+          ) : null}
 
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Location</span>
@@ -276,6 +308,7 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
               onChange={(e) => {
                 const nextLocationId = e.target.value;
                 setLocationId(nextLocationId);
+                if (!nextLocationId) setSessionType("once");
                 const nextVisible = classesVisibleAtLocation(classes, nextLocationId);
                 if (classId !== "new" && !nextVisible.some((c) => c.id === classId)) {
                   setClassId(nextClassId(nextVisible, canManage));
@@ -294,7 +327,6 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
             ) : null}
           </label>
 
-          {/* Class selector */}
           <label className="flex flex-col gap-1.5">
             <span className={ui.label}>Class</span>
             <select
@@ -312,104 +344,45 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
               ))}
               {canManage && <option value="new">+ New class</option>}
             </select>
+            {selectedClass ? (
+              <p className={`text-xs ${ui.muted}`}>{selectedClass.duration_min} min · {selectedClass.capacity} spots</p>
+            ) : null}
+            {visibleClasses.length === 0 && canManage ? (
+              <p className={`text-xs ${ui.muted}`}>No classes yet. Add a name to create one.</p>
+            ) : null}
             {visibleClasses.length === 0 && !canManage ? (
-              <p className={`text-xs ${ui.muted}`}>No class templates at this location.</p>
+              <p className={`text-xs ${ui.muted}`}>No classes at this location.</p>
             ) : null}
           </label>
 
-          {/* Inline new class */}
           {isNew && canManage && (
-            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-stone-300 p-3 dark:border-stone-700">
-              <p className={`text-xs font-medium ${ui.muted}`}>New class</p>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Class name</span>
-                <input
-                  name="new_class_title"
-                  required
-                  autoFocus
-                  className={ui.input}
-                  placeholder="e.g. Morning Yoga"
-                  value={newClassName}
-                  onChange={(e) => setNewClassName(e.target.value)}
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Duration (min)</span>
-                  <input
-                    name="new_class_duration_min"
-                    type="number"
-                    min={15}
-                    step={5}
-                    className={ui.input}
-                    value={newClassDuration}
-                    onChange={(e) => setNewClassDuration(e.target.value)}
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Capacity</span>
-                  <input
-                    name="new_class_capacity"
-                    type="number"
-                    min={1}
-                    className={ui.input}
-                    value={newClassCapacity}
-                    onChange={(e) => setNewClassCapacity(e.target.value)}
-                  />
-                </label>
-              </div>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Description</span>
-                <textarea name="new_class_description" rows={2} className={`${ui.input} min-h-16`} placeholder="Optional" />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Tags</span>
-                <textarea
-                  name="new_class_tags_input"
-                  rows={2}
-                  className={`${ui.input} min-h-16`}
-                  placeholder={"Small group\nOpen level"}
-                />
-                <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Cover image</span>
-                <input type="hidden" name="new_class_image_url" value={newClassImageUrl} />
-                <PublicMediaUploader
-                  studioId={activeStudioId}
-                  folder="classes"
-                  entityId="new-class"
-                  label={newClassImageUrl ? "Replace image" : "Upload image"}
-                  onUploaded={(url) => setNewClassImageUrl(url)}
-                />
-                {newClassImageUrl ? (
-                  <div className="mt-1 space-y-2">
-                    <div className="relative h-28 w-full overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700">
-                      <Image src={newClassImageUrl} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
-                    </div>
-                    <button type="button" className={ui.btnGhost} onClick={() => setNewClassImageUrl("")}>
-                      Remove image
-                    </button>
-                  </div>
-                ) : null}
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Video URL</span>
-                <input name="new_class_video_url" type="url" className={ui.input} placeholder="YouTube / Vimeo link (optional)" />
-              </label>
-            </div>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Class name</span>
+              <input
+                name="new_class_title"
+                required
+                autoFocus
+                className={ui.input}
+                placeholder="e.g. Morning Yoga"
+                value={newClassName}
+                onChange={(e) => setNewClassName(e.target.value)}
+              />
+            </label>
           )}
 
-          {/* Session type toggle */}
           <div className="flex flex-col gap-1.5">
-            <span className={ui.label}>Schedule type</span>
+            <span className={ui.label}>When</span>
             {canManage && !hasLocation && (
               <p className={`text-xs ${ui.muted}`}>Choose a location above to enable weekly recurring.</p>
             )}
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setSessionType("once")}
+                onClick={() => {
+                  const next = datetimeFromDateAndTime(startDate, weeklyStartTime);
+                  if (next) setStartDatetime(next);
+                  setSessionType("once");
+                }}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-medium transition ${
                   sessionType === "once"
                     ? "border-teal-500 bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-700"
@@ -423,7 +396,14 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                 <button
                   type="button"
                   disabled={!hasLocation}
-                  onClick={() => hasLocation && setSessionType("weekly")}
+                  onClick={() => {
+                    if (!hasLocation) return;
+                    const date = dateFromDatetime(startDatetime);
+                    const time = timeFromDatetime(startDatetime);
+                    if (date) setStartDate(date);
+                    if (time) setWeeklyStartTime(time);
+                    setSessionType("weekly");
+                  }}
                   title={!hasLocation ? "Select a location first to create recurring sessions" : undefined}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-medium transition ${
                     !hasLocation
@@ -443,54 +423,25 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
             )}
           </div>
 
-          {/* One-time fields */}
           {sessionType === "once" && (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Start</span>
-                <input
-                  type="datetime-local"
-                  name="start_time"
-                  required
-                  className={ui.input}
-                  value={startDatetime}
-                  onChange={(e) => setStartDatetime(e.target.value)}
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Duration (min)</span>
-                  <input
-                    type="number"
-                    name="duration_min"
-                    min={15}
-                    step={5}
-                    className={ui.input}
-                    value={onceDuration}
-                    onChange={(e) => setOnceDuration(e.target.value)}
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Capacity</span>
-                  <input
-                    type="number"
-                    name="capacity"
-                    min={1}
-                    className={ui.input}
-                    value={onceCapacity}
-                    onChange={(e) => setOnceCapacity(e.target.value)}
-                  />
-                </label>
-              </div>
-            </>
+            <label className="flex flex-col gap-1.5">
+              <span className={ui.label}>Start</span>
+              <input
+                type="datetime-local"
+                name="start_time"
+                required
+                className={ui.input}
+                value={startDatetime}
+                onChange={(e) => setStartDatetime(e.target.value)}
+              />
+            </label>
           )}
 
-          {/* Recurring fields */}
           {sessionType === "weekly" && (
             <>
               <div className="flex flex-col gap-1.5">
                 <span className={ui.label}>Weekdays</span>
-                <WeekdayPicker name="by_weekday" defaultValue="mon,wed" onChange={setWeekdays} />
+                <WeekdayPicker name="by_weekday" value={weekdays} onChange={setWeekdays} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1.5">
@@ -501,7 +452,11 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                     required
                     className={ui.input}
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setStartDate(next);
+                      if (endDate && next && endDate < next) setEndDate("");
+                    }}
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -511,15 +466,46 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                     name="end_date"
                     className={ui.input}
                     value={endDate}
+                    min={startDate || undefined}
                     onChange={(e) => setEndDate(e.target.value)}
                   />
                 </label>
               </div>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Start time</span>
+                <input
+                  type="time"
+                  name="start_time"
+                  required
+                  className={ui.input}
+                  value={weeklyStartTime}
+                  onChange={(e) => setWeeklyStartTime(e.target.value)}
+                />
+              </label>
+            </>
+          )}
+
+          <label className="flex flex-col gap-1.5">
+            <span className={ui.label}>Guest price (SGD)</span>
+            <input
+              name="guest_price"
+              type="number"
+              min={0}
+              step="0.01"
+              className={ui.input}
+              value={guestPrice}
+              onChange={(e) => setGuestPrice(e.target.value)}
+            />
+            <p className={`text-xs ${ui.muted}`}>Use 0 for free guest booking.</p>
+          </label>
+
+          <details className="chevron rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-700">
+            <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-stone-800 dark:text-stone-200">
+              More options
+              <span className={`font-normal ${ui.muted}`}>· {durationMin} min · {capacity} spots</span>
+            </summary>
+            <div className="mt-3 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1.5">
-                  <span className={ui.label}>Start time</span>
-                  <input type="time" name="start_time" required defaultValue="09:00" className={ui.input} />
-                </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Duration (min)</span>
                   <input
@@ -528,85 +514,64 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                     min={15}
                     step={5}
                     className={ui.input}
-                    value={weeklyDuration}
-                    onChange={(e) => setWeeklyDuration(e.target.value)}
+                    value={durationMin}
+                    onChange={(e) => setDurationMin(e.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ui.label}>Capacity</span>
+                  <input
+                    type="number"
+                    name="capacity"
+                    min={1}
+                    className={ui.input}
+                    value={capacity}
+                    onChange={(e) => setCapacity(e.target.value)}
                   />
                 </label>
               </div>
               <label className="flex flex-col gap-1.5">
-                <span className={ui.label}>Capacity</span>
+                <span className={ui.label}>Passes required <span className="font-normal text-stone-400">(optional)</span></span>
                 <input
+                  name="credits_required"
                   type="number"
-                  name="capacity"
                   min={1}
+                  step="1"
+                  placeholder="Leave blank to disable"
                   className={ui.input}
-                  value={weeklyCapacity}
-                  onChange={(e) => setWeeklyCapacity(e.target.value)}
+                  value={creditsRequired}
+                  onChange={(e) => setCreditsRequired(e.target.value)}
+                />
+                <p className={`text-xs ${ui.muted}`}>Blank means class passes cannot be used for this session.</p>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Session address</span>
+                <input
+                  name="address"
+                  className={ui.input}
+                  placeholder="Street address (optional)"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
                 />
               </label>
-            </>
-          )}
+              <label className="flex flex-col gap-1.5">
+                <span className={ui.label}>Venue details</span>
+                <textarea
+                  name="address_details"
+                  rows={2}
+                  className={`${ui.input} min-h-16`}
+                  placeholder="Floor, room, instructions (optional)"
+                  value={addressDetails}
+                  onChange={(e) => setAddressDetails(e.target.value)}
+                />
+              </label>
+            </div>
+          </details>
 
-          {/* Pricing — shared, controlled for persistence */}
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Guest price (SGD)</span>
-              <input
-                name="guest_price"
-                type="number"
-                min={0}
-                step="0.01"
-                className={ui.input}
-                value={guestPrice}
-                onChange={(e) => setGuestPrice(e.target.value)}
-              />
-              <p className={`text-xs ${ui.muted}`}>Use 0 for free guest booking.</p>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Passes required <span className="font-normal text-stone-400">(optional)</span></span>
-              <input
-                name="credits_required"
-                type="number"
-                min={1}
-                step="1"
-                placeholder="Leave blank to disable"
-                className={ui.input}
-                value={creditsRequired}
-                onChange={(e) => setCreditsRequired(e.target.value)}
-              />
-              <p className={`text-xs ${ui.muted}`}>Blank means class passes cannot be used for this session.</p>
-            </label>
-          </div>
-
-          {/* Address — shared, controlled for persistence */}
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Session address</span>
-            <input
-              name="address"
-              className={ui.input}
-              placeholder="Street address (optional)"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={ui.label}>Venue details</span>
-            <textarea
-              name="address_details"
-              rows={2}
-              className={`${ui.input} min-h-16`}
-              placeholder="Floor, room, instructions (optional)"
-              value={addressDetails}
-              onChange={(e) => setAddressDetails(e.target.value)}
-            />
-          </label>
-
-          {/* NL preview */}
           {previewLine && (
             <p className={`text-xs ${ui.muted} italic`}>{previewLine}</p>
           )}
 
-          {/* Feedback strip */}
           {state?.ok === true && (
             <div className="flex items-center gap-2 rounded-xl bg-teal-50 px-3 py-2.5 text-sm font-medium text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
               <CheckCircle2 size={15} />

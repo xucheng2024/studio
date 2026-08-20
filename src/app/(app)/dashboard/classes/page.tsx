@@ -111,7 +111,7 @@ export default async function ClassesPage({ searchParams }: Props) {
       <div>
         <h1 className={ui.h1}>Classes</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <p className={ui.muted}>Manage instructors and reusable class templates for future sessions.</p>
+          <p className={ui.muted}>What members book. Add times on Class sessions.</p>
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
             Back to sessions
           </DashboardAppLink>
@@ -153,13 +153,13 @@ export default async function ClassesPage({ searchParams }: Props) {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h2 className={ui.h2}>Class templates</h2>
+            <h2 className={ui.h2}>Classes</h2>
             <span className={ui.badgeNeutral}>{classCount}</span>
           </div>
           {canEdit ? (
             <details className="chevron rounded-xl border border-stone-200 bg-white px-3 py-2 dark:border-stone-700 dark:bg-stone-900" id="create-class-template">
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-stone-900 dark:text-stone-100">
-                <span>+ New class template</span>
+                <span>+ New class</span>
               </summary>
               <ServerActionToastForm action={createClassTemplate} className="mt-4 grid min-w-[min(42rem,calc(100vw-4rem))] gap-3 md:grid-cols-2">
                 <input type="hidden" name="studio_id" value={studioId} />
@@ -204,7 +204,7 @@ export default async function ClassesPage({ searchParams }: Props) {
                     studioId={studioId}
                     folder="classes"
                     entityId="new-class"
-                    title="Class template media"
+                    title="Class media"
                     coverName="image_url"
                     videoName="video_url"
                     coverDefaultValue={null}
@@ -214,7 +214,7 @@ export default async function ClassesPage({ searchParams }: Props) {
                   />
                 </div>
                 <SubmitButton className={`${ui.btnPrimarySm} md:col-span-2 w-fit`} pendingText="Saving...">
-                  Save class template
+                  Save class
                 </SubmitButton>
               </ServerActionToastForm>
             </details>
@@ -223,10 +223,10 @@ export default async function ClassesPage({ searchParams }: Props) {
 
         {!(classes ?? []).length ? (
           <div className={`mt-6 ${ui.emptyState}`}>
-            <p className={`text-sm ${ui.muted}`}>No class templates yet.</p>
+            <p className={`text-sm ${ui.muted}`}>No classes yet.</p>
             {canEdit ? (
               <p className={`mt-1 text-xs ${ui.muted}`}>
-                Expand &ldquo;+ New class template&rdquo; above to create your first one.
+                Expand &ldquo;+ New class&rdquo; above to create your first one.
               </p>
             ) : null}
           </div>

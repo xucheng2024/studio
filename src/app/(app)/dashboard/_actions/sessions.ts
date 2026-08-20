@@ -252,7 +252,7 @@ export async function createClassTemplate(
     return err("Could not save changes.");
   }
   revalidateDashboardContent("classes");
-  return ok("Class template created.");
+  return ok("Class created.");
 }
 
 export type SessionPanelResult = { ok: boolean; message: string };

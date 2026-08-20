@@ -117,7 +117,7 @@ export function ClassTemplateLifecycleRow({
       toast.error(body.error ?? "Remove failed");
       return;
     }
-    toast.success("Class template removed");
+    toast.success("Class removed");
     throttledRefresh(router);
   };
 
@@ -200,7 +200,7 @@ export function ClassTemplateLifecycleRow({
                         className="font-semibold text-red-700 hover:underline dark:text-red-400"
                         onClick={() => void deleteTemplate()}
                       >
-                        Remove template?
+                        Remove class?
                       </button>
                       <button type="button" className="text-stone-400 hover:text-stone-600" onClick={() => setDeleteConfirm(false)}>
                         <X size={11} />
@@ -228,7 +228,7 @@ export function ClassTemplateLifecycleRow({
         <details className="chevron rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-700">
           <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-stone-700 dark:text-stone-300">
             <Pencil size={12} />
-            Edit template
+            Edit class
           </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
