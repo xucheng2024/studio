@@ -9,6 +9,7 @@ import { hasStudioGlobalLocationAccess, hasStudioRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
+import { walkinStartIsOpen } from "@/lib/walkinAvailability";
 import { ClipboardList } from "lucide-react";
 
 type Props = {
@@ -158,17 +159,19 @@ export default async function OperationsPage({ searchParams }: Props) {
     .order("start_time", { ascending: true });
   if (selectedLocationId) walkinSessionsQuery = walkinSessionsQuery.eq("location_id", selectedLocationId);
   const { data: walkinSessionsRaw } = await walkinSessionsQuery;
-  const walkinSessions = (walkinSessionsRaw ?? []).map((session) => {
-    const cls = Array.isArray(session.classes) ? session.classes[0] : session.classes;
-    const title = (session as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
-    return {
-      id: session.id,
-      startTime: String(session.start_time ?? ""),
-      title,
-      spotsLeft: session.spots_left ?? 0,
-      guestPrice: Number(session.guest_price ?? 0),
-    };
-  });
+  const walkinSessions = (walkinSessionsRaw ?? [])
+    .filter((session) => walkinStartIsOpen(String(session.start_time ?? "")))
+    .map((session) => {
+      const cls = Array.isArray(session.classes) ? session.classes[0] : session.classes;
+      const title = (session as { class_title_snapshot?: string | null }).class_title_snapshot ?? cls?.title ?? "Class";
+      return {
+        id: session.id,
+        startTime: String(session.start_time ?? ""),
+        title,
+        spotsLeft: session.spots_left ?? 0,
+        guestPrice: Number(session.guest_price ?? 0),
+      };
+    });
 
   let walkinEventsQuery = supabase
     .from("events")
@@ -183,6 +186,7 @@ export default async function OperationsPage({ searchParams }: Props) {
   const { data: walkinEventsRaw } = await walkinEventsQuery;
   const walkinEvents = (walkinEventsRaw ?? [])
     .filter((event) => !sanitizeEventExternalBookingUrl(event.external_booking_url))
+    .filter((event) => walkinStartIsOpen(String(event.start_time ?? "")))
     .map((event) => ({
       id: event.id,
       startTime: String(event.start_time ?? ""),
@@ -191,21 +195,9 @@ export default async function OperationsPage({ searchParams }: Props) {
       guestPrice: Number(event.price ?? 0),
     }));
 
-  const { data: walkinServicesRaw } = await supabase
-    .from("studio_services")
-    .select("id, title, price")
-    .eq("studio_id", activeStudioId)
-    .eq("is_active", true)
-    .not("price", "is", null)
-    .order("sort_order", { ascending: true });
-  const walkinServices = (walkinServicesRaw ?? []).map((service) => ({
-    id: service.id,
-    title: service.title ?? "Service",
-    guestPrice: Number(service.price ?? 0),
-  }));
   const { data: walkinCustomersRaw } = await admin
     .from("salon_customers")
-    .select("id, full_name, phone, email")
+    .select("id, user_id, full_name, phone, email")
     .eq("studio_id", activeStudioId)
     .eq("status", "active")
     .is("merged_into_id", null)
@@ -213,10 +205,12 @@ export default async function OperationsPage({ searchParams }: Props) {
     .limit(200);
   const walkinCustomers = (walkinCustomersRaw ?? []).map((customer) => ({
     id: customer.id,
+    user_id: customer.user_id ?? null,
     full_name: customer.full_name ?? "Unnamed",
     phone: customer.phone ?? null,
     email: customer.email ?? null,
   }));
+  const posHref = `/dashboard/pos?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}`;
 
   let opsCheckRunsQuery = admin
     .from("pkg02_ops_check_runs")
@@ -264,7 +258,7 @@ export default async function OperationsPage({ searchParams }: Props) {
       ) : null}
       <div>
         <h1 className={ui.h1}>Front desk</h1>
-        <p className={ui.muted}>Daily front desk sales, booking, attendance, and exception handling for classes, events, and services.</p>
+        <p className={ui.muted}>Daily front desk walk-ins, booking, attendance, and exception handling for classes and events.</p>
       </div>
       <div className={`${ui.card} flex flex-wrap gap-3`}>
         <DashboardLocationFilter
@@ -324,8 +318,8 @@ export default async function OperationsPage({ searchParams }: Props) {
             sessionStatus={sessionStatus}
             sessions={walkinSessions}
             events={walkinEvents}
-            services={walkinServices}
             customers={walkinCustomers}
+            posHref={posHref}
             disabled={studioSuspended}
           >
             <section className={`${ui.card} flex flex-col gap-3`}>
@@ -340,14 +334,14 @@ export default async function OperationsPage({ searchParams }: Props) {
               </div>
               <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
                 <p className="font-medium text-stone-900 dark:text-stone-100">What this does</p>
-                <p className={ui.muted}>Creates a booked guest or service order, records the payment immediately, and optionally checks class or event guests in on the same step.</p>
+                <p className={ui.muted}>Creates a booked guest, records the payment immediately, and checks class or event guests in on the same step. Sell services or products in POS.</p>
               </div>
               <div className="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800 dark:bg-stone-900/40">
                 <p className="font-medium text-stone-900 dark:text-stone-100">Today&apos;s availability</p>
                 <p className={ui.muted}>
-                  {walkinSessions.length > 0 || walkinEvents.length > 0 || walkinServices.length > 0
-                    ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"}, ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"}, and ${walkinServices.length} service${walkinServices.length === 1 ? "" : "s"} are available for front desk sales.`
-                    : "No scheduled sessions, events, or priced services are available right now."}
+                  {walkinSessions.length > 0 || walkinEvents.length > 0
+                    ? `${walkinSessions.length} session${walkinSessions.length === 1 ? "" : "s"} and ${walkinEvents.length} event${walkinEvents.length === 1 ? "" : "s"} are available for walk-in.`
+                    : "No scheduled sessions or events are available right now."}
                 </p>
               </div>
             </section>

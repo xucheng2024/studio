@@ -4,12 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Banknote, CircleDollarSign, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput";
 import { Toggle } from "@/components/ui/Toggle";
 import { eventBookingErrorMessage } from "@/lib/eventBookingErrors";
-import { paymentErrorMessage } from "@/lib/paymentErrors";
 import { throttledRefresh } from "@/lib/throttledRefresh";
 import { ui } from "@/lib/ui";
+import { walkinStartIsOpen } from "@/lib/walkinAvailability";
 
 export type WalkinTarget = {
   id: string;
@@ -21,6 +22,7 @@ export type WalkinTarget = {
 
 export type WalkinCustomerOption = {
   id: string;
+  user_id: string | null;
   full_name: string;
   phone: string | null;
   email: string | null;
@@ -36,31 +38,30 @@ function digits(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
 
+function openTargets(targets: WalkinTarget[]) {
+  return targets.filter((target) => walkinStartIsOpen(target.startTime));
+}
+
 function defaultTargetId(targets: WalkinTarget[]) {
-  const now = Date.now();
-  const upcoming = targets
-    .filter((target) => {
-      if (!target.startTime) return false;
-      const start = new Date(target.startTime).getTime();
-      return Number.isFinite(start) && start >= now;
-    })
+  const open = openTargets(targets)
+    .filter((target) => target.startTime)
     .sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
-  return upcoming[0]?.id ?? targets[0]?.id ?? "";
+  return open[0]?.id ?? "";
 }
 
 export function FrontdeskWalkinForm({
   sessions,
   events,
-  services,
   customers = [],
+  posHref,
   disabled = false,
   prefill = null,
   onCreated,
 }: {
   sessions: WalkinTarget[];
   events: WalkinTarget[];
-  services: WalkinTarget[];
   customers?: WalkinCustomerOption[];
+  posHref?: string | null;
   disabled?: boolean;
   prefill?: WalkinPrefillRequest | null;
   onCreated?: () => void;
@@ -68,23 +69,29 @@ export function FrontdeskWalkinForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
   const [busy, setBusy] = useState(false);
-  const [bookingType, setBookingType] = useState<"session" | "event" | "service">("session");
+  const [bookingType, setBookingType] = useState<"session" | "event">("session");
   const [selectedTargetId, setSelectedTargetId] = useState(() => defaultTargetId(sessions));
   const [phone, setPhone] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
-  const [markCheckin, setMarkCheckin] = useState(false);
+  const [markCheckin, setMarkCheckin] = useState(true);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const targets = bookingType === "session" ? sessions : bookingType === "event" ? events : services;
+  const targets = useMemo(
+    () => openTargets(bookingType === "session" ? sessions : events),
+    [bookingType, events, sessions],
+  );
+  const selectedTargetIdSafe = targets.some((target) => target.id === selectedTargetId)
+    ? selectedTargetId
+    : defaultTargetId(targets);
   const formDisabled = disabled || busy || targets.length === 0;
-  const selectedTarget = targets.find((item) => item.id === selectedTargetId) ?? null;
+  const selectedTarget = targets.find((item) => item.id === selectedTargetIdSafe) ?? null;
   const amountLabel = selectedTarget
     ? `SGD ${selectedTarget.guestPrice.toFixed(2)}`
-    : bookingType === "service"
-      ? "Select a service"
-      : "Select a session or event";
+    : "Select a session or event";
 
   const hasSearchInput = guestName.trim().length >= 2 || digits(phone).length >= 4;
   const matches = useMemo(() => {
@@ -109,9 +116,8 @@ export function FrontdeskWalkinForm({
     if (!prefill || prefill.nonce === lastPrefillNonceRef.current) return;
     lastPrefillNonceRef.current = prefill.nonce;
     const newType = prefill.bookingType;
-    const newTargets = newType === "session" ? sessions : events;
+    const newTargets = openTargets(newType === "session" ? sessions : events);
     const nextId = newTargets.find((t) => t.id === prefill.targetId)?.id ?? defaultTargetId(newTargets);
-    // Use a timeout so all setState calls happen outside the effect body
     window.setTimeout(() => {
       setBookingType(newType);
       setSelectedTargetId(nextId);
@@ -137,26 +143,32 @@ export function FrontdeskWalkinForm({
     return [when, t.title, spotsLabel].filter(Boolean).join(" · ");
   }
 
-  function onBookingTypeChange(next: "session" | "event" | "service") {
+  function onBookingTypeChange(next: "session" | "event") {
     setBookingType(next);
-    const nextTargets = next === "session" ? sessions : next === "event" ? events : services;
+    const nextTargets = next === "session" ? sessions : events;
     setSelectedTargetId(defaultTargetId(nextTargets));
-    if (next === "service") setMarkCheckin(false);
   }
 
   function applyCustomer(customer: WalkinCustomerOption) {
     setSelectedCustomerId(customer.id);
+    setSelectedUserId(customer.user_id);
     setGuestName(customer.full_name);
     setGuestEmail(customer.email ?? "");
     if (customer.phone) setPhone(customer.phone);
+  }
+
+  function clearMatchedCustomer() {
+    setSelectedCustomerId(null);
+    setSelectedUserId(null);
   }
 
   function resetGuest() {
     setGuestName("");
     setGuestEmail("");
     setPhone("");
-    setMarkCheckin(false);
+    setMarkCheckin(true);
     setSelectedCustomerId(null);
+    setSelectedUserId(null);
     setSelectedTargetId(defaultTargetId(sessions));
     setBookingType("session");
   }
@@ -177,8 +189,9 @@ export function FrontdeskWalkinForm({
           guest_email: guestEmail.trim() || undefined,
           guest_phone: phone.trim() || null,
           payment_method: String(fd.get("payment_method") ?? "cash"),
-          mark_checkin: markCheckin && bookingType !== "service",
-          client_id: selectedCustomerId ?? undefined,
+          mark_checkin: markCheckin,
+          client_id: selectedUserId ?? undefined,
+          idempotency_key: idempotencyKeyRef.current,
         };
         const res = await fetch("/api/frontdesk/walkin", {
           method: "POST",
@@ -190,19 +203,12 @@ export function FrontdeskWalkinForm({
         if (!res.ok) {
           console.log("walk-in failed", { payload, status: res.status, body });
           const message =
-            bookingType === "service"
-              ? paymentErrorMessage(String(body.error ?? ""), body.error_detail)
-              : eventBookingErrorMessage(String(body.error ?? "")) || "Walk-in failed. Please try again.";
+            eventBookingErrorMessage(String(body.error ?? "")) || "Walk-in failed. Please try again.";
           toast.error(message);
           return;
         }
-        toast.success(
-          bookingType === "event"
-            ? "Event walk-in created"
-            : bookingType === "service"
-              ? "Service walk-in created"
-              : "Walk-in created",
-        );
+        toast.success(bookingType === "event" ? "Event walk-in created" : "Walk-in created");
+        idempotencyKeyRef.current = crypto.randomUUID();
         (e.currentTarget as HTMLFormElement).reset();
         resetGuest();
         onCreated?.();
@@ -211,21 +217,23 @@ export function FrontdeskWalkinForm({
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className={ui.h2}>Front desk sale</h2>
+          <h2 className={ui.h2}>Front desk walk-in</h2>
           <p className={ui.muted}>
-            Record an in-person guest for a class session, event, or service, capture payment, and optionally check them in now.
+            Record an in-person guest for a class or event, capture payment, and check them in now.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className={ui.badgeNeutral}>
             {sessions.length} session{sessions.length === 1 ? "" : "s"}
           </span>
           <span className={ui.badgeNeutral}>
             {events.length} event{events.length === 1 ? "" : "s"}
           </span>
-          <span className={ui.badgeNeutral}>
-            {services.length} service{services.length === 1 ? "" : "s"}
-          </span>
+          {posHref ? (
+            <DashboardAppLink href={posHref} className={ui.btnSecondarySm}>
+              Sell in POS
+            </DashboardAppLink>
+          ) : null}
         </div>
       </div>
 
@@ -246,39 +254,27 @@ export function FrontdeskWalkinForm({
         >
           Event
         </button>
-        <button
-          type="button"
-          className={bookingType === "service" ? ui.btnPrimarySm : ui.btnSecondarySm}
-          disabled={disabled || busy}
-          onClick={() => onBookingTypeChange("service")}
-        >
-          Service
-        </button>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-1.5 md:col-span-2">
-          <span className={ui.label}>{bookingType === "session" ? "Session" : bookingType === "event" ? "Event" : "Service"}</span>
+          <span className={ui.label}>{bookingType === "session" ? "Session" : "Event"}</span>
           <select
             name="target_id"
             className={ui.select}
             required
             disabled={formDisabled}
-            value={selectedTargetId}
+            value={selectedTargetIdSafe}
             onChange={(e) => setSelectedTargetId(e.target.value)}
           >
             <option value="">
               {targets.length > 0
                 ? bookingType === "session"
                   ? "Select today’s session…"
-                  : bookingType === "event"
-                    ? "Select today’s event…"
-                    : "Select a service…"
+                  : "Select today’s event…"
                 : bookingType === "session"
                   ? "No sessions available"
-                  : bookingType === "event"
-                    ? "No events available"
-                    : "No services available"}
+                  : "No events available"}
             </option>
             {targets.map((t) => (
               <option key={t.id} value={t.id}>
@@ -301,24 +297,24 @@ export function FrontdeskWalkinForm({
             value={guestName}
             onChange={(e) => {
               setGuestName(e.target.value);
-              setSelectedCustomerId(null);
+              clearMatchedCustomer();
             }}
             autoComplete="off"
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={ui.label}>Email{bookingType === "event" || bookingType === "service" ? " (required)" : ""}</span>
+          <span className={ui.label}>Email (required)</span>
           <input
             name="guest_email"
             type="email"
             placeholder="name@example.com"
             className={ui.input}
-            required={bookingType === "event" || bookingType === "service"}
+            required
             disabled={formDisabled}
             value={guestEmail}
             onChange={(e) => {
               setGuestEmail(e.target.value);
-              setSelectedCustomerId(null);
+              clearMatchedCustomer();
             }}
             autoComplete="off"
           />
@@ -330,7 +326,7 @@ export function FrontdeskWalkinForm({
             value={phone}
             onChange={(value) => {
               setPhone(value);
-              setSelectedCustomerId(null);
+              clearMatchedCustomer();
             }}
             disabled={formDisabled}
             placeholder="9123 4567"
@@ -354,7 +350,7 @@ export function FrontdeskWalkinForm({
           </div>
         ) : hasSearchInput && !selectedCustomerId ? (
           <div className="md:col-span-2">
-            <p className={`text-xs ${ui.muted}`}>No matching customer — a new customer record will be created.</p>
+            <p className={`text-xs ${ui.muted}`}>No matching customer — this will be saved as a guest booking.</p>
           </div>
         ) : null}
 
@@ -370,7 +366,7 @@ export function FrontdeskWalkinForm({
           <span className={ui.label}>Payment method</span>
           <select name="payment_method" className={ui.select} defaultValue="cash" disabled={formDisabled}>
             <option value="cash">Cash</option>
-            <option value="hitpay">HitPay</option>
+            <option value="hitpay">HitPay already collected</option>
           </select>
         </label>
 
@@ -380,11 +376,11 @@ export function FrontdeskWalkinForm({
             <Toggle
               name="mark_checkin"
               aria-label="Check-in immediately"
-              disabled={formDisabled || bookingType === "service"}
-              checked={markCheckin && bookingType !== "service"}
+              disabled={formDisabled}
+              checked={markCheckin}
               onChange={setMarkCheckin}
             />
-            <span>{bookingType === "service" ? "Check-in is not used for services" : "Check-in immediately"}</span>
+            <span>Check-in immediately</span>
           </div>
         </div>
       </div>
@@ -395,11 +391,11 @@ export function FrontdeskWalkinForm({
         </button>
         <span className={`inline-flex items-center gap-1.5 text-xs ${ui.muted}`}>
           <UserPlus size={13} />
-          Creates booking or order plus payment record
+          Creates booking plus payment record
         </span>
         <span className={`inline-flex items-center gap-1.5 text-xs ${ui.muted}`}>
           <Banknote size={13} />
-          Cash and HitPay supported here
+          Cash or already-collected HitPay
         </span>
         <span className={`inline-flex items-center gap-1.5 text-xs ${ui.muted}`}>
           <CircleDollarSign size={13} />

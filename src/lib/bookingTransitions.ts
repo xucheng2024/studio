@@ -290,6 +290,7 @@ type CreateInstantBookingSaleInput = {
   currency: string;
   paymentMethod: "hitpay" | "cash";
   actorId: string;
+  cashSessionId?: string | null;
 };
 
 export async function createInstantBookingSale(
@@ -298,6 +299,15 @@ export async function createInstantBookingSale(
 ) {
   const bookingTable = input.kind === "event" ? "event_bookings" : "bookings";
   const targetIdColumn = input.kind === "event" ? "event_id" : "session_id";
+  const cashSessionId =
+    input.paymentMethod === "cash" && input.cashSessionId ? input.cashSessionId : null;
+  if (input.paymentMethod === "cash" && !cashSessionId) {
+    return {
+      ok: false as const,
+      status: 409,
+      error: "no_open_cash_session",
+    };
+  }
 
   const bookingInsert =
     input.kind === "event"
@@ -356,6 +366,7 @@ export async function createInstantBookingSale(
           verified_at: new Date().toISOString(),
           verified_by: input.actorId,
           remaining_uses: 1,
+          ...(cashSessionId ? { cash_session_id: cashSessionId } : {}),
         }
       : {
           booking_id: booking.id,
@@ -373,6 +384,7 @@ export async function createInstantBookingSale(
           verified_at: new Date().toISOString(),
           verified_by: input.actorId,
           remaining_uses: 1,
+          ...(cashSessionId ? { cash_session_id: cashSessionId } : {}),
         };
 
   const { data: payment, error: paymentError } = await admin

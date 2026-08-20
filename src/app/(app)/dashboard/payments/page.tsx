@@ -219,7 +219,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
   } else if (isPendingPosCashAttention) {
     q = q.eq("status", "pending").eq("payment_method", "cash").eq("source", "pos_sale");
   } else if (cashSessionIdFilter) {
-    q = q.eq("payment_method", "cash").eq("source", "pos_sale").eq("cash_session_id", cashSessionIdFilter);
+    q = q.eq("payment_method", "cash").eq("cash_session_id", cashSessionIdFilter);
   } else if (isUnassignedCashFilter) {
     q = q.eq("payment_method", "cash").eq("source", "pos_sale").is("cash_session_id", null);
   } else if (sp.payment_method) {

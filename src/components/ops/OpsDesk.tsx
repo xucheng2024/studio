@@ -12,8 +12,8 @@ export function OpsDesk({
   sessionStatus,
   sessions,
   events,
-  services,
   customers,
+  posHref,
   disabled = false,
   children,
 }: {
@@ -24,8 +24,8 @@ export function OpsDesk({
   sessionStatus: "all" | "scheduled" | "cancelled";
   sessions: WalkinTarget[];
   events: WalkinTarget[];
-  services: WalkinTarget[];
   customers: WalkinCustomerOption[];
+  posHref?: string | null;
   disabled?: boolean;
   children?: ReactNode;
 }) {
@@ -49,8 +49,8 @@ export function OpsDesk({
         <FrontdeskWalkinForm
           sessions={sessions}
           events={events}
-          services={services}
           customers={customers}
+          posHref={posHref}
           disabled={disabled}
           prefill={prefill}
           onCreated={() => setQueueEpoch((value) => value + 1)}

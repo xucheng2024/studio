@@ -148,7 +148,7 @@ export async function GET(req: Request) {
   if (paymentMethod) q = q.eq("payment_method", paymentMethod);
   if (source) q = q.eq("source", source);
   if (salesChannel) q = q.eq("sales_channel", salesChannel);
-  if (cashSessionId) q = q.eq("payment_method", "cash").eq("source", "pos_sale").eq("cash_session_id", cashSessionId);
+  if (cashSessionId) q = q.eq("payment_method", "cash").eq("cash_session_id", cashSessionId);
   if (isUnassignedCash) q = q.eq("payment_method", "cash").eq("source", "pos_sale").is("cash_session_id", null);
   if (from && to) {
     q = q.or(

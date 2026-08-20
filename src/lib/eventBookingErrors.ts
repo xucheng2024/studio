@@ -4,11 +4,23 @@ export function eventBookingErrorMessage(error: string): string {
     case "must_uncheckin_first":
       return "Guest is checked in. Use Uncheck-in first, then cancel or refund.";
     case "already_has_booking":
-      return "This guest already has a booking for this event.";
+      return "This guest already has a booking for this class or event.";
+    case "session_not_available":
+      return "This class is no longer available for walk-in.";
+    case "event_not_available":
+      return "This event is no longer available for walk-in.";
     case "not_booked":
       return "Only booked guests can be checked in.";
     case "not_attended":
       return "Guest is not checked in.";
+    case "no_open_cash_session":
+      return "Open a cash session for this location before collecting cash.";
+    case "idempotency_in_progress":
+      return "This walk-in is already being saved. Wait a moment and retry.";
+    case "idempotency_conflict":
+      return "This walk-in request does not match the original. Refresh and submit again.";
+    case "idempotency_permanently_failed":
+      return "This walk-in request can no longer be retried. Refresh and submit again.";
     case "full":
       return "No more spots are available for this event.";
     case "event_booking_not_found":
