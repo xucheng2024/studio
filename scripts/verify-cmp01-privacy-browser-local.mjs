@@ -64,7 +64,7 @@ try {
   await page.goto(`${baseUrl}/${publicSlug}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   assert.doesNotMatch(await page.locator("body").innerText(), /Privacy notice/);
 
-  await page.goto(`${baseUrl}/dashboard/clients/${customerId}?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await page.goto(`${baseUrl}/dashboard/clients/${customerId}?studio_id=${studioId}&section=audit`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await page.getByRole("heading", { name: "Access / correction requests" }).waitFor({ state: "visible", timeout: 30000 });
   await page.getByRole("button", { name: "Record request" }).click();
   await page.getByText(/Data request recorded/i).first().waitFor({ state: "visible", timeout: 30000 });
