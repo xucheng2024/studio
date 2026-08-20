@@ -37,7 +37,15 @@ function digits(value: string | null | undefined) {
 }
 
 function defaultTargetId(targets: WalkinTarget[]) {
-  return targets[0]?.id ?? "";
+  const now = Date.now();
+  const upcoming = targets
+    .filter((target) => {
+      if (!target.startTime) return false;
+      const start = new Date(target.startTime).getTime();
+      return Number.isFinite(start) && start >= now;
+    })
+    .sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
+  return upcoming[0]?.id ?? targets[0]?.id ?? "";
 }
 
 export function FrontdeskWalkinForm({

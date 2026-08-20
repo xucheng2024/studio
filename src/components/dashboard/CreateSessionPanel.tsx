@@ -8,6 +8,7 @@ import { PublicMediaUploader } from "@/components/dashboard/PublicMediaUploader"
 import { SubmitButton } from "@/components/SubmitButton";
 import { WeekdayPicker } from "@/components/ui/WeekdayPicker";
 import { ui } from "@/lib/ui";
+import { localISODate } from "@/lib/date";
 import { CalendarPlus, RefreshCw, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
 
 type ClassOption = {
@@ -119,7 +120,7 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
   // Preview tracking
   const [startDatetime, setStartDatetime] = useState(defaultDatetime);
   const [weekdays, setWeekdays] = useState("mon,wed");
-  const [startDate, setStartDate] = useState("");
+  const [startDate, setStartDate] = useState(() => localISODate());
   const [endDate, setEndDate] = useState("");
   const [newClassName, setNewClassName] = useState("");
   const [newClassImageUrl, setNewClassImageUrl] = useState("");
@@ -499,6 +500,7 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
                     name="start_date"
                     required
                     className={ui.input}
+                    value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                   />
                 </label>
@@ -516,7 +518,7 @@ export function CreateSessionPanel({ classes, locations, activeStudioId, selecte
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Start time</span>
-                  <input type="time" name="start_time" required className={ui.input} />
+                  <input type="time" name="start_time" required defaultValue="09:00" className={ui.input} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={ui.label}>Duration (min)</span>

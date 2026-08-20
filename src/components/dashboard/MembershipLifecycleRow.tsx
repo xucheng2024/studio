@@ -158,6 +158,7 @@ export function MembershipLifecycleRow({
                 onClick={() => setDeleteConfirm(true)}
               >
                 <Trash2 size={12} />
+                <span className="hidden sm:inline">Remove</span>
               </button>
             )
           ) : null}

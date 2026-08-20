@@ -246,6 +246,7 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
 
       <section className={`${ui.card} overflow-x-auto`}>
         <h2 className={ui.h2}>Payment records</h2>
+        <p className={`mt-1 text-xs ${ui.muted}`}>Sync HitPay or send a receipt from the payment row.</p>
         {detailResult.detail.payments.length === 0 ? (
           <p className={`mt-3 ${ui.muted}`}>No payment records linked yet.</p>
         ) : (
@@ -314,7 +315,7 @@ export default async function PosSaleDetailPage({ params, searchParams }: Props)
         )}
       </section>
 
-      <section className={ui.card}>
+      <section className={`${ui.card} overflow-x-auto`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className={ui.h2}>Sale items</h2>
           {canRefundItems ? (

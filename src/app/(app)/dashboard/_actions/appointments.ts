@@ -23,6 +23,7 @@ export type StaffBookableSlot = {
   employeeId: string;
   employeeName: string;
   resourceIds: string[];
+  resourceNames: string[];
 };
 
 function parseStartAt(raw: string) {
@@ -331,6 +332,7 @@ export async function listStaffBookableSlotsAction(input: {
       employeeId: slot.employeeId,
       employeeName: slot.employeeName,
       resourceIds: slot.resourceIds,
+      resourceNames: slot.resourceNames,
     })),
   };
 }

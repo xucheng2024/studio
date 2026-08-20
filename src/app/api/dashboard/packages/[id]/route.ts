@@ -10,6 +10,7 @@ const patchSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   credits: z.coerce.number().int().min(1).optional(),
   price: z.coerce.number().min(0).optional(),
+  original_price: z.coerce.number().min(0).nullable().optional(),
   expiry_days: z.coerce.number().int().min(1).nullable().optional(),
   location_id: z.string().uuid().nullable().optional(),
 });

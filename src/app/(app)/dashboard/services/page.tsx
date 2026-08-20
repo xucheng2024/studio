@@ -380,6 +380,7 @@ export default async function DashboardServicesPage({ searchParams }: Props) {
 
               <div className="mt-3 grid gap-3">
                 <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Booking setup</p>
+                <p className={`text-xs ${ui.muted}`}>Each block has its own Save.</p>
                 {(services ?? []).filter((other) => other.id !== svc.id).length > 0 ? (
                   <ServerActionToastForm action={copyServiceBookingSetupAction} className="flex flex-col gap-3 rounded-xl border border-stone-200/80 p-3 dark:border-stone-800/80 sm:flex-row sm:items-end">
                     <input type="hidden" name="studio_id" value={studio.id} />

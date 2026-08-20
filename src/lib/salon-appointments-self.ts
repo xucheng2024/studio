@@ -77,6 +77,7 @@ export type SelfBookableSlot = {
   employeeId: string;
   employeeName: string;
   resourceIds: string[];
+  resourceNames: string[];
 };
 
 export type SelfSettlementOption = "free" | "package_credit" | "online_deposit" | "online_full";
@@ -519,7 +520,7 @@ export async function listSelfBookableSlots(params: {
       .eq("service_id", params.serviceId),
     admin
       .from("salon_resources")
-      .select("id, resource_type")
+      .select("id, resource_type, name")
       .eq("studio_id", params.studioId)
       .eq("location_id", params.locationId)
       .eq("is_active", true),
@@ -601,10 +602,12 @@ export async function listSelfBookableSlots(params: {
   })).filter((row) => row.requiredQuantity > 0);
 
   const resourcesByType = new Map<string, string[]>();
+  const resourceNameById = new Map<string, string>();
   for (const row of resourcesRes.data ?? []) {
     const existing = resourcesByType.get(row.resource_type) ?? [];
     existing.push(row.id);
     resourcesByType.set(row.resource_type, existing);
+    resourceNameById.set(row.id, row.name);
   }
 
   const busyByResource = new Map<string, Array<{ startMs: number; endMs: number }>>();
@@ -679,6 +682,7 @@ export async function listSelfBookableSlots(params: {
           employeeId: employee.id,
           employeeName: employee.display_name,
           resourceIds: selectedResourceIds,
+          resourceNames: selectedResourceIds.map((id) => resourceNameById.get(id) ?? id),
         });
       }
     }

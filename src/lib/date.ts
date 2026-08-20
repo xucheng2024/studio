@@ -142,3 +142,15 @@ export function nextQuarterHourLocalInput(from = new Date()) {
   const rounded = new Date(Math.ceil((from.getTime() + 1) / quarterMs) * quarterMs);
   return toLocalDateTimeInputValue(rounded);
 }
+
+export function nextHourLocalInput(from = new Date()) {
+  const hourMs = 60 * 60 * 1000;
+  const rounded = new Date(Math.ceil((from.getTime() + 1) / hourMs) * hourMs);
+  return toLocalDateTimeInputValue(rounded);
+}
+
+export function addHoursToLocalInput(value: string, hours: number) {
+  const date = parseDatetimeLocalAsSgt(value);
+  if (!date) return value;
+  return toLocalDateTimeInputValue(new Date(date.getTime() + hours * 60 * 60 * 1000));
+}

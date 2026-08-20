@@ -730,7 +730,7 @@ export function PosCashierWorkspace(props: {
                 <InvoiceSendButton
                   paymentId={paidPayment.id}
                   invoiceNumber={paidPayment.invoice_number}
-                  previewMode="invoice"
+                  previewMode="receipt"
                   allowSend={paidPayment.status === "paid" && Boolean(selectedCustomer?.email)}
                 />
               ) : null}

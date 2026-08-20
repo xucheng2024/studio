@@ -72,19 +72,24 @@ export function PayrollRunActions({ studioId, runId, status, blockerCount, paidO
       ) : null}
 
       {canVoid ? (
-        <details className="rounded-2xl border border-stone-200 dark:border-stone-800">
-          <summary className={`${ui.btnDangerSm} cursor-pointer list-none rounded-2xl border-0`}>Void this run</summary>
-          <ServerActionToastForm action={transitionPayrollRunAction} className="grid gap-3 p-4 md:grid-cols-2">
-            <input type="hidden" name="studio_id" value={studioId} />
-            <input type="hidden" name="run_id" value={runId} />
-            <input type="hidden" name="to_status" value="voided" />
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Void reason</span>
-              <input className={ui.input} name="void_reason" required />
-            </label>
-            <SubmitButton className={ui.btnDangerSm}>Void run</SubmitButton>
-          </ServerActionToastForm>
-        </details>
+        <div className="flex flex-col gap-2">
+          {status === "finalised" || status === "paid" ? (
+            <p className={`text-xs ${ui.muted}`}>Wrong month? Void below and create a new draft.</p>
+          ) : null}
+          <details className="rounded-2xl border border-stone-200 dark:border-stone-800">
+            <summary className={`${ui.btnDangerSm} cursor-pointer list-none rounded-2xl border-0`}>Void this run</summary>
+            <ServerActionToastForm action={transitionPayrollRunAction} className="grid gap-3 p-4 md:grid-cols-2">
+              <input type="hidden" name="studio_id" value={studioId} />
+              <input type="hidden" name="run_id" value={runId} />
+              <input type="hidden" name="to_status" value="voided" />
+              <label className="flex flex-col gap-1.5 md:col-span-2">
+                <span className={ui.label}>Void reason</span>
+                <input className={ui.input} name="void_reason" required />
+              </label>
+              <SubmitButton className={ui.btnDangerSm}>Void run</SubmitButton>
+            </ServerActionToastForm>
+          </details>
+        </div>
       ) : null}
     </div>
   );

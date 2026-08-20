@@ -194,10 +194,12 @@ export async function createPackage(
   const price = Number(formData.get("price") ?? 0);
   const expiry_days_raw = formData.get("expiry_days");
   const expiry_days = expiry_days_raw === "" || expiry_days_raw === null ? null : Number(expiry_days_raw);
-
-  const share_slug = await generateUniqueShareSlug(supabase, "packages", activeStudio.id);
+  const original_price = sanitizePriceNullable(formData.get("original_price"));
 
   if (!name || !Number.isFinite(credits) || credits <= 0 || !Number.isFinite(price) || price < 0) return err("Please enter a valid package name, pass count, and price.");
+  if (original_price != null && original_price <= price) return err("Original price must be higher than price for a discount to show.");
+
+  const share_slug = await generateUniqueShareSlug(supabase, "packages", activeStudio.id);
 
   const { error } = await supabase.from("packages").insert({
     studio_id: activeStudio.id,
@@ -205,6 +207,7 @@ export async function createPackage(
     name,
     credits,
     price,
+    original_price,
     expiry_days: expiry_days != null && Number.isFinite(expiry_days) ? expiry_days : null,
     type: "class_pack",
     share_slug,

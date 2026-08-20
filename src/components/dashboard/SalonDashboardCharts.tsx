@@ -159,7 +159,7 @@ export function SalonDashboardCharts({ facts }: { facts: ReportingFacts }) {
       <div>
         <h2 className={ui.h2}>Salon dashboard</h2>
         <p className={`mt-1 ${ui.muted}`}>
-          Date, location, employee, and service filters apply to all four charts. Inventory and loyalty stay 0.
+          Date, location, employee, and service filters apply to all four charts.
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">

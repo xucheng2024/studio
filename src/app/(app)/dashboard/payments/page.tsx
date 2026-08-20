@@ -609,7 +609,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
       {/* ── Page header ─────────────────────────────────────────── */}
       <div>
         <h1 className={ui.h1}>Payments</h1>
-        <p className={`mt-1 ${ui.muted}`}>Check incoming payments, export records, and view action history.</p>
+        <p className={`mt-1 ${ui.muted}`}>Check incoming payments, issue receipts/invoices, export records, and view action history.</p>
         <p className={`mt-1 text-sm ${ui.muted}`}>
           Use Sync HitPay before manual changes when a customer says they paid. HitPay refunds are attempted automatically; other refund methods are recorded after you process them outside this app.
         </p>
@@ -1007,6 +1007,47 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
           const nameLabel = displayName?.trim() || "-";
           const phoneLabel = displayPhone?.trim() || "-";
           const timeline = (auditMap.get(p.id) ?? []).slice(0, 5);
+          const actionRow = (
+              <div className={needsReview
+                ? "mt-3 flex flex-wrap gap-2"
+                : "mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800"
+              }>
+                {p.status === "pending" && source === "pos_sale" && (p as { pos_sale_id?: string | null }).pos_sale_id ? (
+                  <ServerActionToastForm action={completePosCashSaleAction} refreshOnSuccess>
+                    <input type="hidden" name="studio_id" value={activeStudioId} />
+                    <input type="hidden" name="sale_id" value={(p as { pos_sale_id?: string | null }).pos_sale_id ?? ""} />
+                    <input type="hidden" name="idempotency_key" value={`pos-cash-complete-payment:${p.id}:${p.created_at}`} />
+                    <button type="submit" className={ui.btnPrimarySm}>
+                      Mark as paid (cash)
+                    </button>
+                  </ServerActionToastForm>
+                ) : null}
+                {canSyncHitpayPayments &&
+                activeStudioSlug &&
+                p.status === "pending" &&
+                (p.payment_method ?? "").toLowerCase() === "hitpay" &&
+                Boolean((p as { gateway_payment_id?: string | null }).gateway_payment_id) &&
+                p.source !== "membership_subscription" ? (
+                  <SyncHitpayPaymentButton paymentId={p.id} studioSlug={activeStudioSlug} />
+                ) : null}
+                {p.invoice_status !== "void" && Number(p.amount ?? 0) > 0 ? (
+                  <InvoiceSendButton
+                    paymentId={p.id}
+                    invoiceNumber={p.invoice_number}
+                    previewMode={p.status === "paid" || Boolean(p.invoice_number) ? "invoice" : "draft"}
+                    allowSend={p.status === "paid"}
+                  />
+                ) : null}
+                {canRefundPayments && p.status === "paid" && Number(p.amount ?? 0) > 0 && p.source !== "membership_subscription" ? (
+                  <PaymentMarkButton
+                    paymentId={p.id}
+                    status="refunded"
+                    label={(p.payment_method ?? "").toLowerCase() === "hitpay" ? "Refund" : "Record refund"}
+                    paymentMethod={p.payment_method}
+                  />
+                ) : null}
+              </div>
+          );
           return (
             <li
               key={p.id}
@@ -1044,6 +1085,8 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 {/* Copy button top-right */}
                 <PaymentCopyButton text={`Amount: ${p.currency} ${Number(p.amount).toFixed(2)}\nRef: ${p.reference_code ?? "-"}`} />
               </div>
+
+              {needsReview ? actionRow : null}
 
               {/* ── Key fields grid ───────────────────────────────── */}
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
@@ -1158,14 +1201,14 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 <div className="mt-3 rounded-xl border border-stone-100 bg-stone-50/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-800/30">
                   {p.invoice_number ? (
                     <p className="text-xs text-stone-600 dark:text-stone-400">
-                      Invoice <span className={ui.code}>{p.invoice_number}</span>
+                      Invoice / receipt <span className={ui.code}>{p.invoice_number}</span>
                       {p.invoice_sent_at
                         ? <> · sent <LocalTime iso={p.invoice_sent_at} /></>
                         : " · not sent"}
                     </p>
                   ) : (
                     <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                      Invoice not issued yet — use Send invoice to issue and email it.
+                      Invoice / receipt not issued yet — use Send invoice to issue and email it.
                     </p>
                   )}
                 </div>
@@ -1212,43 +1255,7 @@ export default async function DashboardPaymentsPage({ searchParams }: Props) {
                 </details>
               ) : null}
 
-              {/* ── Action buttons ────────────────────────────────── */}
-              <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
-                {p.status === "pending" && source === "pos_sale" && (p as { pos_sale_id?: string | null }).pos_sale_id ? (
-                  <ServerActionToastForm action={completePosCashSaleAction} refreshOnSuccess>
-                    <input type="hidden" name="studio_id" value={activeStudioId} />
-                    <input type="hidden" name="sale_id" value={(p as { pos_sale_id?: string | null }).pos_sale_id ?? ""} />
-                    <input type="hidden" name="idempotency_key" value={`pos-cash-complete-payment:${p.id}:${p.created_at}`} />
-                    <button type="submit" className={ui.btnPrimarySm}>
-                      Mark as paid (cash)
-                    </button>
-                  </ServerActionToastForm>
-                ) : null}
-                {canSyncHitpayPayments &&
-                activeStudioSlug &&
-                p.status === "pending" &&
-                (p.payment_method ?? "").toLowerCase() === "hitpay" &&
-                Boolean((p as { gateway_payment_id?: string | null }).gateway_payment_id) &&
-                p.source !== "membership_subscription" ? (
-                  <SyncHitpayPaymentButton paymentId={p.id} studioSlug={activeStudioSlug} />
-                ) : null}
-                {p.invoice_status !== "void" && Number(p.amount ?? 0) > 0 ? (
-                  <InvoiceSendButton
-                    paymentId={p.id}
-                    invoiceNumber={p.invoice_number}
-                    previewMode={p.status === "paid" || Boolean(p.invoice_number) ? "invoice" : "draft"}
-                    allowSend={p.status === "paid"}
-                  />
-                ) : null}
-                {canRefundPayments && p.status === "paid" && Number(p.amount ?? 0) > 0 && p.source !== "membership_subscription" ? (
-                  <PaymentMarkButton
-                    paymentId={p.id}
-                    status="refunded"
-                    label={(p.payment_method ?? "").toLowerCase() === "hitpay" ? "Refund" : "Record refund"}
-                    paymentMethod={p.payment_method}
-                  />
-                ) : null}
-              </div>
+              {needsReview ? null : actionRow}
             </li>
           );
         })}

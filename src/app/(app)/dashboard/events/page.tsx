@@ -3,6 +3,7 @@ import Image from "next/image";
 import { CopyUrlButton } from "@/components/CopyUrlButton";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { CoverVideoFields } from "@/components/dashboard/PublicMediaFields";
+import { EventScheduleFields } from "@/components/dashboard/EventScheduleFields";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { ConfirmingSubmitButton } from "@/components/ConfirmingSubmitButton";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -393,26 +394,7 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               <span className={ui.label}>Address details</span>
               <textarea name="address_details" rows={2} className={`${ui.input} min-h-16`} placeholder="Floor, room, check-in instructions (optional)" />
             </label>
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>Tags</span>
-              <textarea name="tags_input" rows={3} className={`${ui.input} min-h-20`} placeholder={`Hotel\nPartner\nWellness`} />
-              <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
-            </label>
-            <label className="flex flex-col gap-1.5 md:col-span-2">
-              <span className={ui.label}>External booking URL (optional)</span>
-              <input name="external_booking_url" type="url" inputMode="url" className={ui.input} placeholder="https://…" />
-              <p className={`text-xs ${ui.muted}`}>
-                If set, the public event page uses this link for booking instead of HitPay.
-              </p>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>Start <span className="font-normal text-stone-400">(SGT)</span></span>
-              <input name="start_time" type="datetime-local" required className={ui.input} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ui.label}>End <span className="font-normal text-stone-400">(SGT)</span></span>
-              <input name="end_time" type="datetime-local" required className={ui.input} />
-            </label>
+            <EventScheduleFields />
             <label className="flex flex-col gap-1.5">
               <span className={ui.label}>Capacity</span>
               <input name="capacity" type="number" min={1} step={1} required defaultValue={20} className={ui.input} />
@@ -422,20 +404,37 @@ export default async function DashboardEventsPage({ searchParams }: Props) {
               <input name="price" type="number" min={0} step={0.01} defaultValue={120} className={ui.input} />
               <p className={`text-xs ${ui.muted}`}>Use 0 for a free event. Paid checkout requires working HitPay settings.</p>
             </label>
-            <div className="md:col-span-2">
-              <CoverVideoFields
-                studioId={studioId}
-                folder="events"
-                entityId="new-event"
-                title="Event media"
-                coverName="image_url"
-                videoName="video_url"
-                coverDefaultValue={null}
-                videoDefaultValue={null}
-                coverLabel="Cover image"
-                videoLabel="Promo video URL"
-              />
-            </div>
+            <details className="chevron md:col-span-2 rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-700">
+              <summary className="cursor-pointer text-sm font-medium text-stone-800 dark:text-stone-200">Tags, media, and booking link</summary>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <label className="flex flex-col gap-1.5 md:col-span-2">
+                  <span className={ui.label}>Tags</span>
+                  <textarea name="tags_input" rows={3} className={`${ui.input} min-h-20`} placeholder={`Hotel\nPartner\nWellness`} />
+                  <p className={`text-xs ${ui.muted}`}>One tag per line.</p>
+                </label>
+                <label className="flex flex-col gap-1.5 md:col-span-2">
+                  <span className={ui.label}>External booking URL (optional)</span>
+                  <input name="external_booking_url" type="url" inputMode="url" className={ui.input} placeholder="https://…" />
+                  <p className={`text-xs ${ui.muted}`}>
+                    If set, the public event page uses this link for booking instead of HitPay.
+                  </p>
+                </label>
+                <div className="md:col-span-2">
+                  <CoverVideoFields
+                    studioId={studioId}
+                    folder="events"
+                    entityId="new-event"
+                    title="Event media"
+                    coverName="image_url"
+                    videoName="video_url"
+                    coverDefaultValue={null}
+                    videoDefaultValue={null}
+                    coverLabel="Cover image"
+                    videoLabel="Promo video URL"
+                  />
+                </div>
+              </div>
+            </details>
             <SubmitButton className={`${ui.btnPrimarySm} md:col-span-2 w-fit`} pendingText="Saving...">
               Save event
             </SubmitButton>

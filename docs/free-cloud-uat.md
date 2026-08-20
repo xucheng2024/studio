@@ -24,6 +24,17 @@ For a few hours of active development, run only the flow affected by the latest 
 
 Limits: standard runners are free without minute limits for public repositories. Private repositories consume the account's included minutes; GitHub Free currently includes a monthly allowance. A private-repository Ubuntu runner currently has 8 GB RAM and 14 GB SSD. GitHub-hosted runners are intentionally disposable: no test environment remains alive between workflow runs. A persistent, interactive environment for several hours requires a self-hosted runner or cloud VM.
 
+## On failure
+
+`select_flow.py`/`run_flow.py`'s generic `--previous-fingerprint` dedup is a local-runner feature and does not apply to Free cloud UAT. Use the GitHub CLI instead:
+
+1. Dispatch and watch: `gh workflow run "Free cloud UAT" -f flow=<flow-id>` then `gh run watch --exit-status`. Capture the run ID from the watch output (or `gh run list --workflow "Free cloud UAT" -L 1`).
+2. On failure, read only the failed job's tail first: `gh run view <run-id> --log-failed`. Do not fetch full logs, screenshots, or traces unless that tail is insufficient to diagnose.
+3. Decide the retry path from the cause, not by default:
+   - **Transient** (Supabase/Docker startup timing, a flaky Chromium step, a GitHub runner hiccup) → `gh run rerun <run-id> --failed`. This reruns only the failed matrix job(s) — for `all`/`all-batched` it does not restart flows that already passed.
+   - **Real bug** (assertion failure, wrong app behavior, a broken fixture) → fix the code first, then re-dispatch only the affected flow: `gh workflow run "Free cloud UAT" -f flow=<flow-id>`. Never `--failed`-rerun a job over an unfixed bug — the job will fail identically and burn another job's worth of minutes.
+4. Because the matrix runs with `fail-fast: false` and per-flow `concurrency: cancel-in-progress: true`, one flow's failure never blocks or auto-cancels the others, and pushing a fix while a run is still in flight cancels only that same flow's stale run — it does not touch a currently-passing sibling flow.
+
 ## What is not recommended
 
 Paid hosted runners and cloud VMs are intentionally omitted from the first-release recommendation catalog. Oracle or another persistent runner should be introduced only after GitHub memory, storage, minutes, or failure-retention limits become a measured product constraint. GitHub's private-repository allowance must not be advertised as guaranteed, unlimited, or permanently available.

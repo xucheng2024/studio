@@ -119,25 +119,27 @@ export function AppointmentNotificationOpsPanel(props: {
   const failedCount = rows.filter((row) => row.status === "failed" || row.status === "invalidated").length;
 
   return (
-    <details className={`chevron ${ui.card}`}>
-      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-stone-900 dark:text-stone-100">Email notifications</span>
-        {failedCount > 0 ? (
-          <span className={ui.badgeAmber}>{failedCount} failed</span>
-        ) : (
-          <span className={`text-xs ${ui.muted}`}>{loading ? "Loading…" : `${rows.length} recent`}</span>
-        )}
-      </summary>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className={ui.muted}>Latest queue logs and manual retry controls.</p>
-        <button
-          type="button"
-          className={ui.btnSecondarySm}
-          onClick={() => void loadRows()}
-          disabled={loading || props.requiresLocationSelection}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+    <section className={ui.card}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className={ui.h2}>Notification queue</h2>
+          <p className={`mt-1 ${ui.muted}`}>Latest queue logs and manual retry controls.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {failedCount > 0 ? (
+            <span className={ui.badgeAmber}>{failedCount} failed</span>
+          ) : (
+            <span className={`text-xs ${ui.muted}`}>{loading ? "Loading…" : `${rows.length} recent`}</span>
+          )}
+          <button
+            type="button"
+            className={ui.btnSecondarySm}
+            onClick={() => void loadRows()}
+            disabled={loading || props.requiresLocationSelection}
+          >
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {props.requiresLocationSelection ? (
@@ -209,6 +211,6 @@ export function AppointmentNotificationOpsPanel(props: {
       {!props.canRetry ? (
         <p className={`mt-3 text-xs ${ui.muted}`}>Manual retry requires Owner or Manager role.</p>
       ) : null}
-    </details>
+    </section>
   );
 }

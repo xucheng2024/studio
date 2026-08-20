@@ -25,13 +25,14 @@ export function InvoiceSendButton({
 }: {
   paymentId: string;
   invoiceNumber?: string | null;
-  previewMode?: "draft" | "invoice";
+  previewMode?: "draft" | "invoice" | "receipt";
   allowSend?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const effectivePreviewMode = invoiceNumber ? previewMode : "draft";
-  const previewLabel = effectivePreviewMode === "invoice" ? "Preview invoice" : "Preview draft";
+  const previewLabel =
+    effectivePreviewMode === "receipt" ? "Preview receipt" : effectivePreviewMode === "invoice" ? "Preview invoice" : "Preview draft";
 
   return (
     <div className="flex items-center gap-2">

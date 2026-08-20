@@ -277,7 +277,7 @@ function AppointmentCard(props: {
         </p>
       ) : null}
 
-      {whatsappLink || primaryTargets.length > 0 || showArrive || showCompleteAndCharge || canReschedule || (props.canManage && status === "completed") || showCardNoShow ? (
+      {whatsappLink || primaryTargets.length > 0 || showArrive || showCompleteAndCharge || (props.canManage && status === "completed") || showCardNoShow ? (
         <div className="flex flex-wrap gap-2">
           <StaffWhatsappLink href={whatsappLink} />
           {showArrive ? (
@@ -388,7 +388,7 @@ function AppointmentCard(props: {
       ) : null}
 
       <details className="chevron rounded-xl border border-stone-200 px-3 py-2 dark:border-stone-800">
-        <summary className="cursor-pointer text-xs font-medium text-stone-700 dark:text-stone-300">Details & actions</summary>
+        <summary className="cursor-pointer text-xs font-medium text-stone-700 dark:text-stone-300">More</summary>
         <div className="mt-3 grid gap-3">
           <div className={`grid gap-1 text-xs ${ui.muted}`}>
             <p><span className="font-medium text-stone-700 dark:text-stone-300">Service:</span> {appointment.service_title_snapshot}</p>
@@ -631,7 +631,12 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
     status: selectedStatus,
   };
   const locationOptions = locations.map((location) => ({ id: location.id, name: location.name ?? "Unnamed" }));
-  const activeTab = sp.tab === "create" && canManage ? "create" : "calendar";
+  const activeTab =
+    sp.tab === "create" && canManage
+      ? "create"
+      : sp.tab === "notifications" && canManage
+        ? "notifications"
+        : "calendar";
 
   return (
     <div className="flex flex-col gap-6">
@@ -646,26 +651,28 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className={ui.h1}>Appointments</h1>
-            <p className={`mt-1 ${ui.muted}`}>Book, reschedule, and check in scheduled service appointments.</p>
+        <div>
+          <h1 className={ui.h1}>Appointments</h1>
+          <p className={`mt-1 ${ui.muted}`}>Book, reschedule, and check in scheduled service appointments.</p>
+          {activeTab === "calendar" || studioResult.data?.contract_status === "suspended" ? (
             <p className={`mt-1 ${ui.muted}`}>
-              {appointments.length} remaining
-              {studioResult.data?.contract_status === "suspended" ? " · Studio is suspended." : ""}
+              {activeTab === "calendar" ? `${appointments.length} remaining` : null}
+              {activeTab === "calendar" && studioResult.data?.contract_status === "suspended" ? " · " : null}
+              {studioResult.data?.contract_status === "suspended" ? "Studio is suspended." : null}
             </p>
-          </div>
-          {canManage ? (
-            <DashboardTabNav
-              ariaLabel="Appointments sections"
-              activeKey={activeTab}
-              tabs={[
-                { key: "calendar", label: "Calendar", href: appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate }) },
-                { key: "create", label: "Create appointment", href: appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate, tab: "create" }) },
-              ]}
-            />
           ) : null}
         </div>
+        {canManage ? (
+          <DashboardTabNav
+            ariaLabel="Appointments sections"
+            activeKey={activeTab}
+            tabs={[
+              { key: "calendar", label: "Calendar", href: appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate }) },
+              { key: "create", label: "Create appointment", href: appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate, tab: "create" }) },
+              { key: "notifications", label: "Notifications", href: appointmentsHref({ ...hrefBase, view: selectedView, date: anchorDate, tab: "notifications" }) },
+            ]}
+          />
+        ) : null}
 
         {activeTab === "calendar" ? (
           <>
@@ -758,10 +765,10 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
               defaultStartsAt={defaultCreateStartsAt(anchorDate)}
             />
 
-            <label className="flex flex-col gap-1.5 sm:col-span-2">
-              <span className={ui.label}>Internal note</span>
-              <input name="internal_note" className={ui.input} />
-            </label>
+            <details className="chevron sm:col-span-2">
+              <summary className="cursor-pointer text-sm font-medium text-stone-800 dark:text-stone-200">Internal note</summary>
+              <input name="internal_note" className={`${ui.input} mt-2`} placeholder="Staff only" />
+            </details>
 
             <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2 sm:w-fit`}>Create appointment</button>
           </ServerActionToastForm>
@@ -771,7 +778,15 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
       {activeTab === "calendar" ? (
       <>
       <section>
-        <h2 className={ui.h2}>Calendar</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={ui.h2}>Calendar</h2>
+          <DashboardAppLink
+            href={`/dashboard/settings/resources?studio_id=${activeStudioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}`}
+            className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
+          >
+            Manage rooms &amp; equipment
+          </DashboardAppLink>
+        </div>
         <form method="get" className={`${ui.card} mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <input type="hidden" name="studio_id" value={activeStudioId} />
           {effectiveLocationId ? <input type="hidden" name="location_id" value={effectiveLocationId} /> : null}
@@ -906,16 +921,16 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
           Calendar range uses inclusive start and exclusive end boundaries on appointment start time.
         </div>
       </section>
+      </>
+      ) : null}
 
-      {canManage ? (
+      {activeTab === "notifications" && canManage ? (
         <AppointmentNotificationOpsPanel
           studioId={activeStudioId}
           locationId={defaultOpsLocationId}
           canRetry={canRetryNotifications}
           requiresLocationSelection={requiresLocationSelection}
         />
-      ) : null}
-      </>
       ) : null}
     </div>
   );

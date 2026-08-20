@@ -404,7 +404,7 @@ export default async function PackageApprovalsPage({ searchParams }: Props) {
       />
 
       <div>
-        <p className={ui.lead}>Maker-checker credit adjustments for already-sold class passes.</p>
+        <p className={ui.lead}>Maker-checker credit adjustments for already-sold class passes. Submit, then Approve and apply. If it stays approved, use Apply to ledger.</p>
       </div>
 
       {canMaker ? (

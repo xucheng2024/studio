@@ -53,6 +53,8 @@ export function AppointmentSlotPicker({
   const [formKey, setFormKey] = useState({ locationId: "", serviceId: "", employeeId: "" });
   const [slots, setSlots] = useState<StaffBookableSlot[]>([]);
   const [selectedLocal, setSelectedLocal] = useState(defaultStartsAt);
+  const [selectedResourceNames, setSelectedResourceNames] = useState<string[]>([]);
+  const [resourceIdsValue, setResourceIdsValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -79,6 +81,17 @@ export function AppointmentSlotPicker({
   const locationId = formKey.locationId;
   const serviceId = formKey.serviceId;
   const employeeId = formKey.employeeId;
+  const slotScope = `${locationId}|${serviceId}|${dateYmd}`;
+  const [seenScope, setSeenScope] = useState(slotScope);
+  if (slotScope !== seenScope) {
+    const [prevLocationId, prevServiceId] = seenScope.split("|");
+    setSeenScope(slotScope);
+    if (prevLocationId && prevServiceId) {
+      setSelectedLocal("");
+      setSelectedResourceNames([]);
+      setResourceIdsValue("");
+    }
+  }
 
   useEffect(() => {
     if (!studioId || !locationId || !serviceId) return undefined;
@@ -127,8 +140,8 @@ export function AppointmentSlotPicker({
   function applySlot(slot: StaffBookableSlot) {
     const form = rootRef.current?.closest("form") ?? null;
     setSelectedLocal(slot.startsAtLocal);
-    setFieldValue(form, startsAtName, slot.startsAtLocal);
-    setFieldValue(form, resourceIdsName, slot.resourceIds.join(","));
+    setSelectedResourceNames(slot.resourceNames);
+    setResourceIdsValue(slot.resourceIds.join(","));
     if (slot.employeeId) setFieldValue(form, employeeField, slot.employeeId);
   }
 
@@ -174,6 +187,7 @@ export function AppointmentSlotPicker({
                 onClick={() => applySlot(slot)}
               >
                 {employeeId ? timeLabel : `${timeLabel} · ${slot.employeeName}`}
+                {slot.resourceNames.length ? ` · ${slot.resourceNames.join(", ")}` : ""}
               </button>
             );
           })}
@@ -187,11 +201,21 @@ export function AppointmentSlotPicker({
           name={startsAtName}
           className={ui.input}
           required
-          defaultValue={defaultStartsAt}
-          onChange={(event) => setSelectedLocal(event.target.value)}
+          value={selectedLocal}
+          onChange={(event) => {
+            setSelectedLocal(event.target.value);
+            setSelectedResourceNames([]);
+            setResourceIdsValue("");
+          }}
         />
+        {!selectedLocal ? (
+          <p className={`text-xs ${ui.muted}`}>Pick a slot above, or type a time.</p>
+        ) : null}
       </label>
-      <input type="hidden" name={resourceIdsName} defaultValue="" />
+      {selectedResourceNames.length ? (
+        <p className={`text-xs ${ui.muted}`}>Assigned: {selectedResourceNames.join(", ")}</p>
+      ) : null}
+      <input type="hidden" name={resourceIdsName} value={resourceIdsValue} />
     </div>
   );
 }

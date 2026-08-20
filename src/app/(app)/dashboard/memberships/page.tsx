@@ -2,7 +2,9 @@ import { createMembershipProduct } from "@/app/(app)/dashboard/actions";
 import { CancelMembershipSubscriptionButton } from "@/components/CancelMembershipSubscriptionButton";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
+import { DashboardTabNav } from "@/components/dashboard/DashboardTabNav";
 import { MembershipLifecycleRow } from "@/components/dashboard/MembershipLifecycleRow";
+import { MembershipTrialFields } from "@/components/dashboard/MembershipTrialFields";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { LocalDate } from "@/components/ui/LocalDate";
@@ -13,7 +15,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string }> };
+type Props = { searchParams: Promise<{ location_id?: string; studio_id?: string; tab?: string }> };
+
+function membershipsHref(params: { studioId?: string | null; locationId?: string | null; tab?: string }) {
+  const query = new URLSearchParams();
+  if (params.studioId) query.set("studio_id", params.studioId);
+  if (params.locationId) query.set("location_id", params.locationId);
+  if (params.tab) query.set("tab", params.tab);
+  const q = query.toString();
+  return q ? `/dashboard/memberships?${q}` : "/dashboard/memberships";
+}
 
 function membershipStatusLabel(status: string | null | undefined) {
   if (status === "canceled") return "cancelled";
@@ -75,6 +86,8 @@ export default async function MembershipsPage({ searchParams }: Props) {
   if (selectedStudioId) backParams.set("studio_id", selectedStudioId);
   if (selectedLocationId) backParams.set("location_id", selectedLocationId);
   const backHref = `/dashboard/packages${backParams.toString() ? `?${backParams.toString()}` : ""}`;
+  const scopeHref = { studioId: selectedStudioId ?? activeStudioId, locationId: selectedLocationId };
+  const activeTab = sp.tab === "subscribers" ? "subscribers" : "products";
 
   return (
     <div className="flex flex-col gap-8">
@@ -91,15 +104,28 @@ export default async function MembershipsPage({ searchParams }: Props) {
         <h1 className={ui.h1}>Memberships</h1>
         <p className={`mt-2 ${ui.lead}`}>Create recurring monthly or yearly memberships and manage live subscribers.</p>
         <p className={`mt-1 text-sm ${ui.muted}`}>
-          New membership products are live once saved. Removing a product from sales stops new sign-ups, but active subscribers are managed below.
+          New membership products are live once saved. Removing a product from sales stops new sign-ups. Manage live subscribers on the Subscribers tab.
         </p>
         <div className="mt-3">
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
             Back to packages
           </DashboardAppLink>
         </div>
+      </div>
+
+      <DashboardTabNav
+        ariaLabel="Membership sections"
+        activeKey={activeTab}
+        tabs={[
+          { key: "products", label: "Products", href: membershipsHref(scopeHref) },
+          { key: "subscribers", label: "Subscribers", href: membershipsHref({ ...scopeHref, tab: "subscribers" }) },
+        ]}
+      />
+
+      {activeTab === "products" ? (
+      <>
         {canEdit ? (
-          <details className={`chevron ${ui.card} mt-5 w-full max-w-xl`} id="create-membership">
+          <details className={`chevron ${ui.card} w-full max-w-xl`} id="create-membership">
             <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-stone-900 dark:text-stone-100">
               <span>+ New membership</span>
               <span className={`hidden text-xs font-normal sm:inline ${ui.muted}`}>Expand to create</span>
@@ -126,37 +152,13 @@ export default async function MembershipsPage({ searchParams }: Props) {
                   <option value="yearly">Yearly</option>
                 </select>
               </label>
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <span className={ui.label}>Trial</span>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                    <input name="trial_enabled" type="checkbox" className="accent-teal-600" />
-                    Enable trial / refund guarantee
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                    <span className={ui.muted}>Days</span>
-                    <input
-                      name="trial_days"
-                      type="number"
-                      min={1}
-                      max={60}
-                      step="1"
-                      defaultValue={14}
-                      className={`${ui.input} w-24`}
-                    />
-                  </label>
-                </div>
-                <p className={`text-xs ${ui.muted}`}>
-                  If enabled, the public page will show a “X-day trial / guarantee” message. (Rules enforcement is configured separately.)
-                </p>
-              </div>
+              <MembershipTrialFields />
               <SubmitButton className={`${ui.btnPrimary} w-full sm:col-span-2 sm:w-fit`} pendingText="Saving...">
                 Save membership
               </SubmitButton>
             </ServerActionToastForm>
           </details>
         ) : null}
-      </div>
 
       {!(memberships ?? []).length ? (
         <div className={ui.emptyState}>
@@ -166,8 +168,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
       ) : null}
 
       <section>
-        <h2 className={ui.h2}>Membership products</h2>
-        <ul className="mt-3 flex flex-col gap-3">
+        <ul className="flex flex-col gap-3">
           {(memberships ?? []).map((membership) => {
             const st = membership.studios as { public_slug?: string | null } | { public_slug?: string | null }[] | null;
             const pub = Array.isArray(st) ? st[0]?.public_slug : st?.public_slug;
@@ -194,7 +195,10 @@ export default async function MembershipsPage({ searchParams }: Props) {
           })}
         </ul>
       </section>
+      </>
+      ) : null}
 
+      {activeTab === "subscribers" ? (
       <section>
         <h2 className={ui.h2}>Active subscribers</h2>
         <p className={`mt-1 text-sm ${ui.muted}`}>
@@ -276,6 +280,7 @@ export default async function MembershipsPage({ searchParams }: Props) {
           </div>
         )}
       </section>
+      ) : null}
     </div>
   );
 }
