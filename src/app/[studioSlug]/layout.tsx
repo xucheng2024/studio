@@ -5,7 +5,9 @@ import { StudioWhatsappFloatingButton } from "@/components/StudioWhatsappFloatin
 import { getCachedStudioPublicMeta } from "@/lib/cachedPublicStudio";
 import { isTrustedCoverImageUrl } from "@/lib/coverMedia";
 import { isReservedPublicSlug, studioWhatsappLink } from "@/lib/publicStudio";
+import { getRequestOriginForOg } from "@/lib/requestOrigin";
 import { normalizeStudioSlug } from "@/lib/slug";
+import { headers } from "next/headers";
 
 /** Studio public routes (home + lists) must not freeze session queries from build time; refresh periodically. */
 export const revalidate = 60;
@@ -46,7 +48,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? `/pwa/${studioSlug}/icons/180`
       : "/icons/apple-touch-icon.png";
 
+  const h = await headers();
+  const onCustomDomain = Boolean(h.get("x-studio-slug")?.trim());
+  let metadataBase: URL | undefined;
+  if (onCustomDomain) {
+    const origin = await getRequestOriginForOg();
+    try {
+      metadataBase = origin ? new URL(origin) : undefined;
+    } catch {
+      metadataBase = undefined;
+    }
+  }
+
   return {
+    ...(metadataBase ? { metadataBase } : {}),
     manifest: `/pwa/${studioSlug}/manifest.webmanifest`,
     appleWebApp: {
       capable: true,

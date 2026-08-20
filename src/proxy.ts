@@ -1,7 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { resolveActiveCustomDomainStudio } from "@/lib/customDomainLookup";
+import {
+  isPlatformHost,
+  resolveActiveCustomDomainStudio,
+  resolveStudioCustomDomainBySlug,
+} from "@/lib/customDomainLookup";
 import { ACTIVE_MEMBER_STUDIO_COOKIE, parseStudioSlugFromPath } from "@/lib/member-studio-shared";
+import { getMerchantSeoRedirect } from "@/lib/merchantSeo";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 const APP_HOSTNAME = (process.env.NEXT_PUBLIC_APP_URL ?? "")
@@ -56,6 +61,22 @@ export async function proxy(request: NextRequest) {
     incomingHost && APP_HOSTNAME && incomingHost !== APP_HOSTNAME
       ? await resolveActiveCustomDomainStudio(incomingHost)
       : null;
+  const pathSlug = parseStudioSlugFromPath(request.nextUrl.pathname);
+  const platformPathStudio =
+    !customDomainStudio && pathSlug && APP_HOSTNAME && isPlatformHost(incomingHost)
+      ? await resolveStudioCustomDomainBySlug(pathSlug)
+      : null;
+  const seoRedirect = getMerchantSeoRedirect({
+    incomingHost,
+    platformHost: APP_HOSTNAME,
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    customDomainStudio,
+    platformPathStudio,
+  });
+  if (seoRedirect) {
+    return NextResponse.redirect(seoRedirect, 301);
+  }
   const customDomainSlug = customDomainStudio?.publicSlug ?? null;
   if (
     customDomainSlug &&

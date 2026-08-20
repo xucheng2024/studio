@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getCnameTargetFromEnv,
   getCustomDomainKind,
+  customDomainHostCandidates,
   type CustomDomainDnsStatus,
   type CustomDomainKind,
   type CustomDomainOverallStatus,
@@ -145,7 +146,7 @@ function computeOverallStatus(params: {
   return "pending";
 }
 
-export async function registerDomainWithVercel(domain: string): Promise<{
+async function registerOneDomainWithVercel(domain: string): Promise<{
   vercelStatus: CustomDomainVercelStatus;
   lastError: string | null;
 }> {
@@ -184,7 +185,23 @@ export async function registerDomainWithVercel(domain: string): Promise<{
   }
 }
 
-export async function removeDomainFromVercel(domain: string): Promise<void> {
+export async function registerDomainWithVercel(domain: string): Promise<{
+  vercelStatus: CustomDomainVercelStatus;
+  lastError: string | null;
+}> {
+  const hosts = customDomainHostCandidates(domain);
+  const primary = await registerOneDomainWithVercel(domain);
+  for (const host of hosts) {
+    if (host === domain) continue;
+    const alias = await registerOneDomainWithVercel(host);
+    if (alias.vercelStatus === "failed") {
+      console.error(`[registerDomainWithVercel] alias ${host} failed`, alias.lastError);
+    }
+  }
+  return primary;
+}
+
+async function removeOneDomainFromVercel(domain: string): Promise<void> {
   const token = process.env.VERCEL_TOKEN;
   const projectId = process.env.VERCEL_PROJECT_ID;
   if (!token || !projectId) return;
@@ -202,6 +219,13 @@ export async function removeDomainFromVercel(domain: string): Promise<void> {
     }
   } catch (error) {
     console.error("[removeDomainFromVercel]", error);
+  }
+}
+
+export async function removeDomainFromVercel(domain: string): Promise<void> {
+  const hosts = customDomainHostCandidates(domain);
+  for (const host of hosts) {
+    await removeOneDomainFromVercel(host);
   }
 }
 

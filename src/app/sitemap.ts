@@ -1,11 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getAppOriginForOg } from "@/lib/coverMedia";
 import { headers } from "next/headers";
-import {
-  isPlatformHost,
-  normalizeCustomDomainHost,
-  resolveActiveCustomDomainStudio,
-} from "@/lib/customDomainLookup";
+import { resolveActiveCustomDomainStudio } from "@/lib/customDomainLookup";
+import { merchantSitemapListPaths, stripStudioPrefixFromPath } from "@/lib/merchantSeo";
 import {
   studioClassPath,
   studioEventPath,
@@ -28,20 +25,10 @@ type SiteEntry = {
   priority: number;
 };
 
-function stripStudioPrefix(path: string, studioSlug: string): string {
-  const prefix = `/${studioSlug}`;
-  if (path === prefix) return "/";
-  return path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : path;
-}
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const h = await headers();
-  const headerSlug = h.get("x-studio-slug")?.trim().toLowerCase() ?? "";
   const host = h.get("x-forwarded-host") ?? h.get("host");
-  const normalizedHost = normalizeCustomDomainHost(host);
-  const customDomainStudio = headerSlug && normalizedHost && !isPlatformHost(normalizedHost)
-    ? { publicSlug: headerSlug, customDomain: normalizedHost }
-    : await resolveActiveCustomDomainStudio(host);
+  const customDomainStudio = await resolveActiveCustomDomainStudio(host);
   const origin = customDomainStudio
     ? `https://${customDomainStudio.customDomain}`
     : getAppOriginForOg();
@@ -81,6 +68,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   const entries: SiteEntry[] = [];
+  const studioHasRows = (rows: Array<{ studio_id: string }> | null, studioId: string) =>
+    (rows ?? []).some((row) => row.studio_id === studioId);
+
   for (const studio of studios ?? []) {
     const slug = studioMap.get(studio.id);
     if (!slug) continue;
@@ -91,6 +81,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.8,
     });
+
+    if (!customDomainStudio) continue;
+
+    for (const path of merchantSitemapListPaths({
+      studioSlug: slug,
+      hasServices: studioHasRows(services, studio.id),
+      hasClasses: studioHasRows(classes, studio.id),
+      hasEvents: studioHasRows(events, studio.id),
+      hasPackages: studioHasRows(packages, studio.id),
+      hasMemberships: studioHasRows(memberships, studio.id),
+      hasMemberZone: studioHasRows(series, studio.id),
+      hasShop: studioHasRows(products, studio.id),
+    })) {
+      entries.push({
+        url: `${origin}${path}`,
+        lastModified: studio.created_at ? new Date(studio.created_at) : now,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
+    }
   }
 
   const pushRows = (
@@ -104,7 +114,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (customDomainStudio && studioSlug !== customDomainStudio.publicSlug) continue;
       const path = toPath(studioSlug, shareSlug);
       entries.push({
-        url: `${origin}${customDomainStudio ? stripStudioPrefix(path, studioSlug) : path}`,
+        url: `${origin}${customDomainStudio ? stripStudioPrefixFromPath(path, studioSlug) : path}`,
         lastModified: row.created_at ? new Date(row.created_at) : now,
         changeFrequency: "weekly",
         priority: 0.7,

@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 import { getAppOriginForOg } from "@/lib/coverMedia";
+import { isCustomDomainHostMatch, normalizeCustomDomainInput } from "@/lib/customDomain";
+import { stripStudioPrefixFromPath } from "@/lib/merchantSeo";
 
 export async function getRequestOriginForOg(): Promise<string> {
   try {
@@ -21,21 +23,27 @@ function normalizePath(path: string): string {
   return value.startsWith("/") ? value : `/${value}`;
 }
 
-function normalizeCustomDomain(domain: string | null | undefined): string {
-  return (domain ?? "")
-    .trim()
-    .replace(/^https?:\/\//i, "")
-    .replace(/\/.*$/, "")
-    .replace(/:\d+$/, "")
-    .toLowerCase();
+function hostFromOrigin(origin: string): string {
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
-function stripStudioPrefix(path: string, studioSlug: string): string {
-  const normalizedPath = normalizePath(path);
-  const prefix = `/${studioSlug}`;
-  if (normalizedPath === prefix) return "/";
-  if (normalizedPath.startsWith(`${prefix}/`)) return normalizedPath.slice(prefix.length);
-  return normalizedPath;
+async function requestIsOnStudioCustomDomain(
+  studioSlug: string,
+  customDomain: string,
+): Promise<boolean> {
+  try {
+    const h = await headers();
+    const requestStudioSlug = (h.get("x-studio-slug") ?? "").trim().toLowerCase();
+    if (requestStudioSlug && requestStudioSlug === studioSlug) return true;
+    const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").trim();
+    return isCustomDomainHostMatch(host, customDomain);
+  } catch {
+    return false;
+  }
 }
 
 export async function getCanonicalPathForStudioPath(path: string, studioSlug: string): Promise<string> {
@@ -47,7 +55,7 @@ export async function getCanonicalPathForStudioPath(path: string, studioSlug: st
     const h = await headers();
     const requestStudioSlug = (h.get("x-studio-slug") ?? "").trim().toLowerCase();
     if (requestStudioSlug && requestStudioSlug === normalizedStudioSlug) {
-      return stripStudioPrefix(normalizedPath, normalizedStudioSlug);
+      return stripStudioPrefixFromPath(normalizedPath, normalizedStudioSlug);
     }
   } catch {
     // Fall through to slug-scoped path.
@@ -64,14 +72,27 @@ export async function getCanonicalUrlForStudioPath(
 ): Promise<string> {
   const normalizedStudioSlug = studioSlug.trim().toLowerCase();
   const normalizedPath = normalizePath(path);
-  const normalizedCustomDomain =
-    customDomainStatus === "active" ? normalizeCustomDomain(customDomain) : "";
+  const savedDomain = normalizeCustomDomainInput(customDomain ?? "");
+  const strippedPath = stripStudioPrefixFromPath(normalizedPath, normalizedStudioSlug);
 
-  if (normalizedCustomDomain && normalizedStudioSlug) {
-    return `https://${normalizedCustomDomain}${stripStudioPrefix(normalizedPath, normalizedStudioSlug)}`;
+  if (savedDomain && normalizedStudioSlug && customDomainStatus === "active") {
+    return `https://${savedDomain}${strippedPath}`;
+  }
+
+  if (
+    savedDomain &&
+    normalizedStudioSlug &&
+    (customDomainStatus === "pending" || customDomainStatus === "active") &&
+    (await requestIsOnStudioCustomDomain(normalizedStudioSlug, savedDomain))
+  ) {
+    return `https://${savedDomain}${strippedPath}`;
   }
 
   const origin = await getRequestOriginForOg();
+  if (savedDomain && isCustomDomainHostMatch(hostFromOrigin(origin), savedDomain)) {
+    return `https://${savedDomain}${strippedPath}`;
+  }
+
   const canonicalPath = await getCanonicalPathForStudioPath(normalizedPath, normalizedStudioSlug);
   return origin ? `${origin}${canonicalPath}` : canonicalPath;
 }

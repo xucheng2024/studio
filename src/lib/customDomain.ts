@@ -46,6 +46,35 @@ export function getCustomDomainKind(domain: string | null): CustomDomainKind | n
   return labels.length === 2 ? "apex" : "subdomain";
 }
 
+/** Apex `example.com` <-> `www.example.com`. Subdomains like `book.example.com` have no pair. */
+export function getCustomDomainHostAlias(host: string | null | undefined): string | null {
+  const normalized = normalizeCustomDomainInput(host ?? "");
+  if (!normalized) return null;
+  if (normalized.startsWith("www.")) {
+    const rest = normalized.slice(4);
+    return getCustomDomainKind(rest) === "apex" ? rest : null;
+  }
+  return getCustomDomainKind(normalized) === "apex" ? `www.${normalized}` : null;
+}
+
+export function customDomainHostCandidates(host: string | null | undefined): string[] {
+  const normalized = normalizeCustomDomainInput(host ?? "");
+  if (!normalized) return [];
+  const alias = getCustomDomainHostAlias(normalized);
+  return alias && alias !== normalized ? [normalized, alias] : [normalized];
+}
+
+export function isCustomDomainHostMatch(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const a = normalizeCustomDomainInput(left ?? "");
+  const b = normalizeCustomDomainInput(right ?? "");
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return getCustomDomainHostAlias(a) === b || getCustomDomainHostAlias(b) === a;
+}
+
 export function getCnameTargetFromEnv(): string | null {
   const appHost = (process.env.NEXT_PUBLIC_APP_URL ?? "")
     .replace(/^https?:\/\//, "")
