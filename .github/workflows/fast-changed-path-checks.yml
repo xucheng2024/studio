@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: false
       - id: route
         run: node scripts/select-cloud-uat-flow.mjs --base "${{ github.event.before || 'HEAD~1' }}" --head "${{ github.sha }}"
