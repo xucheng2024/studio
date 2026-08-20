@@ -12,7 +12,6 @@ import {
   resolveSelfSalonCustomer,
 } from "@/lib/salon-appointments-self";
 import { getLatestPrivacyNotice, recordSelfPrivacyNoticeConsent } from "@/lib/studio-privacy";
-import { studioPrivacyPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
@@ -376,8 +375,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                         <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
                           <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
                           <span>
-                            I accept Privacy notice {privacyNotice.version_label ? `(${privacyNotice.version_label})` : ""}{" "}
-                            <a href={studioPrivacyPath(studioSlug)} className={ui.link} target="_blank" rel="noreferrer">view</a>.
+                            {studio.name} may use my name, contact details, and appointment details to book and run this visit.
                           </span>
                         </label>
                         <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Book this slot</button>

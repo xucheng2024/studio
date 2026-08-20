@@ -53,14 +53,16 @@ try {
   assert.match(settingsBody, /Resend/);
   assert.match(settingsBody, /Retention/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "cmp01 mobile overflow");
-  await page.getByRole("button", { name: /Publish/i }).click();
-  await page.getByText(/Privacy notice published/i).first().waitFor({ state: "visible", timeout: 30000 });
+  await page.getByRole("button", { name: /Save (consent version|privacy-v1\.0)/i }).click();
+  await page.getByText(/Consent version saved/i).first().waitFor({ state: "visible", timeout: 30000 });
+  assert.match(await page.locator("body").innerText(), /Not shown on the public studio page/i);
 
-  await page.goto(`${baseUrl}/${publicSlug}/privacy`, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  const publicBody = await page.locator("body").innerText();
-  assert.match(publicBody, /What we collect/);
-  assert.match(publicBody, /Who uses it/);
-  assert.match(publicBody, /privacy-v1\.0/i);
+  const privacyResponse = await page.goto(`${baseUrl}/${publicSlug}/privacy`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  assert.equal(privacyResponse?.status(), 404, "generic public privacy page stays hidden");
+  assert.doesNotMatch(await page.locator("body").innerText(), /What we collect/i);
+
+  await page.goto(`${baseUrl}/${publicSlug}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  assert.doesNotMatch(await page.locator("body").innerText(), /Privacy notice/);
 
   await page.goto(`${baseUrl}/dashboard/clients/${customerId}?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await page.getByRole("heading", { name: "Access / correction requests" }).waitFor({ state: "visible", timeout: 30000 });

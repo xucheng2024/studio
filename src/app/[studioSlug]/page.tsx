@@ -21,7 +21,6 @@ import {
   studioMemberZonePath,
   studioPackagesPath,
   studioPackagePath,
-  studioPrivacyPath,
   studioServicePath,
   studioServicesPath,
   studioShopPath,
@@ -746,12 +745,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           </div>
         </section>
       ) : null}
-
-      <footer className="mx-auto mt-10 w-full max-w-6xl pb-8">
-        <Link href={studioPrivacyPath(studio.public_slug)} className={`${ui.link} text-sm`}>
-          Privacy notice
-        </Link>
-      </footer>
     </main>
   );
 }

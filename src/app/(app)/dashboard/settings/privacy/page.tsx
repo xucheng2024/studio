@@ -9,7 +9,6 @@ import {
   updateStudioRetentionSettingsAction,
 } from "@/app/(app)/dashboard/actions";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
-import { studioPrivacyPath } from "@/lib/public-paths";
 import {
   DEFAULT_RETENTION_DAYS,
   getLatestPrivacyNotice,
@@ -59,7 +58,6 @@ export default async function DashboardPrivacySettingsPage({ searchParams }: Pro
     hitpayEnabled: Boolean(settings.hitpay_enabled),
     resendEnabled: Boolean(settings.resend_enabled),
   });
-  const publicHref = settings.public_slug ? studioPrivacyPath(settings.public_slug) : null;
   const customerDays = settings.customer_retention_days ?? DEFAULT_RETENTION_DAYS;
   const appointmentDays = settings.appointment_retention_days ?? DEFAULT_RETENTION_DAYS;
 
@@ -71,20 +69,20 @@ export default async function DashboardPrivacySettingsPage({ searchParams }: Pro
         </DashboardAppLink>
         <h1 className={ui.h1}>Privacy & data</h1>
         <p className={`mt-1 ${ui.muted}`}>
-          Public notice version, retention rules, and processors used to fill PDPA forms. This is system evidence, not legal advice.
+          Internal consent version, retention rules, and processors used to fill PDPA forms. This is system evidence, not a public customer policy.
         </p>
       </div>
 
       <section className={ui.card}>
-        <h2 className={ui.h2}>Privacy notice</h2>
+        <h2 className={ui.h2}>Booking consent version</h2>
         <p className={`mt-1 text-sm ${ui.muted}`}>
-          {notice?.version_label ? `Current version ${notice.version_label}` : "No version published yet."}
-          {publicHref ? <> · <a href={publicHref} className={ui.link} target="_blank" rel="noreferrer">Open public page</a></> : null}
+          {notice?.version_label ? `Current version ${notice.version_label}` : "No consent version saved yet."}
+          {" "}Not shown on the public studio page.
         </p>
         <ServerActionToastForm action={publishStudioPrivacyNoticeAction} className="mt-3">
           <input type="hidden" name="studio_id" value={studioId} />
           <button type="submit" className={ui.btnPrimarySm}>
-            {notice?.version_label ? "Publish latest template" : "Publish privacy-v1.0"}
+            {notice?.version_label ? "Save consent version" : "Save privacy-v1.0"}
           </button>
         </ServerActionToastForm>
       </section>

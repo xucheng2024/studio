@@ -194,7 +194,7 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
           href={scopedHref("/dashboard/settings/privacy", selectedStudioId, locationId)}
           icon={ShieldCheck}
           title="Privacy & data"
-          desc="Privacy notice version, retention rules, and processor list"
+          desc="Consent version, retention rules, and processor list"
         />
         {isSuperAdmin ? (
           <SettingCard

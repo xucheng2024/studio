@@ -906,7 +906,7 @@ export async function publishStudioPrivacyNoticeAction(
   revalidateDashboardSettings("privacy");
   const { data: studio } = await createAdminClient().from("studios").select("public_slug").eq("id", studioId).maybeSingle();
   if (studio?.public_slug) revalidatePublicStudioPath(studio.public_slug);
-  return ok(`Privacy notice published as ${result.versionLabel}.`);
+  return ok(`Consent version saved as ${result.versionLabel}.`);
 }
 
 export async function updateStudioRetentionSettingsAction(

@@ -27,12 +27,13 @@ test("processor catalog uses live HitPay and Resend flags", () => {
   assert.equal(lib.includes("enabled: true"), true);
 });
 
-test("public privacy page renders collected fields, use, and version", () => {
+test("public privacy page is hidden", () => {
   const page = read("src/app/[studioSlug]/privacy/page.tsx");
-  assert.equal(page.includes("What we collect"), true);
-  assert.equal(page.includes("Who uses it"), true);
-  assert.equal(page.includes("Version ${notice.version_label}"), true);
-  assert.equal(page.includes("studioPrivacyPath"), true);
+  const home = read("src/app/[studioSlug]/page.tsx");
+  assert.equal(page.includes("notFound()"), true);
+  assert.equal(page.includes("What we collect"), false);
+  assert.equal(home.includes("studioPrivacyPath"), false);
+  assert.equal(home.includes("Privacy notice"), false);
 });
 
 test("booking requires published privacy notice version", () => {
@@ -41,6 +42,8 @@ test("booking requires published privacy notice version", () => {
   assert.equal(bookingPage.includes("name=\"privacy_notice_version_id\""), true);
   assert.equal(bookingPage.includes("recordSelfPrivacyNoticeConsent"), true);
   assert.equal(bookingPage.includes("error=privacy_version_stale"), true);
+  assert.equal(bookingPage.includes("may use my name, contact details, and appointment details"), true);
+  assert.equal(bookingPage.includes("studioPrivacyPath"), false);
 });
 
 test("client page records DSAR and can anonymize", () => {
@@ -57,4 +60,6 @@ test("settings privacy page lists processors and retention", () => {
   assert.equal(page.includes("processor.name"), true);
   assert.equal(page.includes("customer_retention_days"), true);
   assert.equal(page.includes("Due for review"), true);
+  assert.equal(page.includes("Open public page"), false);
+  assert.equal(page.includes("Save consent version"), true);
 });
