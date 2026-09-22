@@ -27,6 +27,7 @@ export function PackageSectionTabs() {
   const tabs = [
     { href: scopedHref(CATALOG_HREF, studioId, locationId), label: "Catalog", active: catalogActive },
     { href: scopedHref(APPROVALS_HREF, studioId, locationId), label: "Approvals", active: approvalsActive, badge: overdueCount },
+    { href: `${scopedHref("/dashboard/help", studioId, locationId)}${studioId || locationId ? "&" : "?"}help_topic=adjust-package-balances-safely`, label: "Help", active: false },
   ];
 
   return (

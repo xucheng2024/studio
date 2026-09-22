@@ -106,9 +106,12 @@ export default async function MembershipsPage({ searchParams }: Props) {
         <p className={`mt-1 text-sm ${ui.muted}`}>
           New membership products are live once saved. Removing a product from sales stops new sign-ups. Manage live subscribers on the Subscribers tab.
         </p>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           <DashboardAppLink href={backHref} className={ui.btnSecondarySm}>
             Back to packages
+          </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/help?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&help_topic=manage-membership-products-and-subscribers`} className={ui.btnSecondarySm}>
+            Help
           </DashboardAppLink>
         </div>
       </div>

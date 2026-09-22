@@ -651,16 +651,24 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <div>
-          <h1 className={ui.h1}>Appointments</h1>
-          <p className={`mt-1 ${ui.muted}`}>Book, reschedule, and check in scheduled service appointments.</p>
-          {activeTab === "calendar" || studioResult.data?.contract_status === "suspended" ? (
-            <p className={`mt-1 ${ui.muted}`}>
-              {activeTab === "calendar" ? `${appointments.length} remaining` : null}
-              {activeTab === "calendar" && studioResult.data?.contract_status === "suspended" ? " · " : null}
-              {studioResult.data?.contract_status === "suspended" ? "Studio is suspended." : null}
-            </p>
-          ) : null}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className={ui.h1}>Appointments</h1>
+            <p className={`mt-1 ${ui.muted}`}>Book, reschedule, and check in scheduled service appointments.</p>
+            {activeTab === "calendar" || studioResult.data?.contract_status === "suspended" ? (
+              <p className={`mt-1 ${ui.muted}`}>
+                {activeTab === "calendar" ? `${appointments.length} remaining` : null}
+                {activeTab === "calendar" && studioResult.data?.contract_status === "suspended" ? " · " : null}
+                {studioResult.data?.contract_status === "suspended" ? "Studio is suspended." : null}
+              </p>
+            ) : null}
+          </div>
+          <DashboardAppLink
+            href={`/dashboard/help?studio_id=${activeStudioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}&help_topic=manage-appointments`}
+            className={ui.btnSecondarySm}
+          >
+            Help
+          </DashboardAppLink>
         </div>
         {canManage ? (
           <DashboardTabNav

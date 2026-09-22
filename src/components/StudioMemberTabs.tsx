@@ -48,6 +48,12 @@ export function StudioMemberTabs({ studioSlug }: { studioSlug: string }) {
             </Link>
           );
         })}
+        <Link
+          href={`/${studioSlug}/help`}
+          className="inline-flex shrink-0 items-center rounded-full bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:bg-stone-200 hover:text-stone-900 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+        >
+          Help
+        </Link>
       </div>
     </nav>
   );

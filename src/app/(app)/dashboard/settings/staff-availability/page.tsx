@@ -69,9 +69,17 @@ export default async function StaffAvailabilityPage({ searchParams }: Props) {
     .order("name");
 
   const header = (
-    <div>
-      <h1 className={ui.h1}>Staff availability</h1>
-      <p className={`mt-1 ${ui.muted}`}>Set weekly hours once per location, then copy them to other staff.</p>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 className={ui.h1}>Staff availability</h1>
+        <p className={`mt-1 ${ui.muted}`}>Set weekly hours once per location, then copy them to other staff.</p>
+      </div>
+      <DashboardAppLink
+        href={`/dashboard/help?studio_id=${studioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&help_topic=set-staff-availability-and-booking-resources`}
+        className={ui.btnSecondarySm}
+      >
+        Help
+      </DashboardAppLink>
     </div>
   );
   const locationFilter = (

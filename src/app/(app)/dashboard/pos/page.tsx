@@ -333,6 +333,9 @@ export default async function PosSalesPage({ searchParams }: Props) {
           <DashboardAppLink href={`/dashboard/pos/cash-sessions?${scopeQuery.toString()}`} className={ui.btnGhost}>
             Cash sessions
           </DashboardAppLink>
+          <DashboardAppLink href={`/dashboard/help?${scopeQuery.toString()}&help_topic=take-a-pos-payment`} className={ui.btnGhost}>
+            Help
+          </DashboardAppLink>
         </div>
       </section>
 

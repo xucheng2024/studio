@@ -745,6 +745,16 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           </div>
         </section>
       ) : null}
+
+      <section className="mx-auto mt-8 w-full max-w-6xl pb-8">
+        <div className={`${ui.card} flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+          <div>
+            <h2 className={ui.h2}>Need booking help?</h2>
+            <p className={`mt-1 text-sm ${ui.muted}`}>Find answers for booking, payment, and managing your account.</p>
+          </div>
+          <Link href={`/${studio.public_slug}/help`} className={ui.btnSecondarySm}>Booking help</Link>
+        </div>
+      </section>
     </main>
   );
 }

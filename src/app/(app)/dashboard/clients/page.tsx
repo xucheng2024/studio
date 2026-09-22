@@ -218,6 +218,12 @@ export default async function ClientsPage({ searchParams }: Props) {
           >
             Follow-up queue
           </DashboardAppLink>
+          <DashboardAppLink
+            href={`/dashboard/help?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&help_topic=follow-up-with-customers`}
+            className={ui.btnSecondarySm}
+          >
+            Help
+          </DashboardAppLink>
           <ExportFormatLinks
             baseHref={`/api/reports/business/export?${new URLSearchParams({
               kind: "customers",

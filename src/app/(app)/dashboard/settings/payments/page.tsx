@@ -49,10 +49,17 @@ export default async function DashboardPaymentSettingsPage({ searchParams }: Pro
         <DashboardAppLink href="/dashboard/settings" className={`${ui.btnSecondarySm} mb-3`}>
           ← Settings
         </DashboardAppLink>
-        <h1 className={ui.h1}>Payment settings</h1>
-        <p className={`mt-1 ${ui.muted}`}>
-          Configure {studio.name}&apos;s independent HitPay merchant account.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className={ui.h1}>Payment settings</h1>
+            <p className={`mt-1 ${ui.muted}`}>
+              Configure {studio.name}&apos;s independent HitPay merchant account.
+            </p>
+          </div>
+          <DashboardAppLink href={`/dashboard/help?studio_id=${studioId}&help_topic=configure-hitpay-checkout`} className={ui.btnSecondarySm}>
+            Help
+          </DashboardAppLink>
+        </div>
       </div>
 
       <section className={ui.card}>

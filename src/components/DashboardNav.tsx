@@ -21,6 +21,7 @@ import {
   BarChart2,
   Mail,
   Settings,
+  CircleHelp,
   Wallet,
   MoreHorizontal,
   ChevronDown,
@@ -54,6 +55,7 @@ const links: NavLink[] = [
   { href: "/dashboard/payroll/me", label: "My pay",     icon: Wallet },
   { href: "/dashboard/reports",    label: "Reports",    icon: BarChart2 },
   { href: "/dashboard/settings",   label: "Settings",   icon: Settings },
+  { href: "/dashboard/help",       label: "Help",       icon: CircleHelp },
 ];
 
 const roleLinkAllowList: Record<"owner" | "manager" | "frontdesk" | "instructor", string[]> = {
@@ -99,7 +101,7 @@ function useVisibleLinks(
 ) {
   const allowed = new Set(roleLinkAllowList[role]);
   return superAdminNoStudioMode
-    ? links.filter((l) => l.href === "/dashboard/settings")
+    ? links.filter((l) => l.href === "/dashboard/settings" || l.href === "/dashboard/help")
     : links.filter((l) => allowed.has(l.href));
 }
 

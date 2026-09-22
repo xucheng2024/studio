@@ -58,7 +58,10 @@ export default async function PayrollPage({ searchParams }: Props) {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className={ui.h1}>Payroll</h1>
-          <DashboardAppLink href="/dashboard/payroll/reports" className={ui.btnSecondarySm}>Reports</DashboardAppLink>
+          <div className="flex flex-wrap gap-2">
+            <DashboardAppLink href="/dashboard/payroll/reports" className={ui.btnSecondarySm}>Reports</DashboardAppLink>
+            <DashboardAppLink href={`/dashboard/help?studio_id=${studioId}&help_topic=run-payroll-and-issue-payslips`} className={ui.btnSecondarySm}>Help</DashboardAppLink>
+          </div>
         </div>
         <p className={`mt-1 ${ui.muted}`}>Monthly Owner run: Draft, review, Finalise, then Paid or Void.</p>
       </div>

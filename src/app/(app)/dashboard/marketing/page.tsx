@@ -46,7 +46,7 @@ export default async function MarketingPage({ searchParams }: Props) {
   const scopeHref = { studioId, locationId: effectiveLocationId };
   const activeTab = sp.tab === "campaigns" ? "campaigns" : "compose";
   return <div className="space-y-6">
-    <div><h1 className={ui.h1}>Marketing</h1><p className={ui.muted}>Build consent-safe Email campaigns, send now or schedule in Singapore time, and review delivery results.</p></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className={ui.h1}>Marketing</h1><p className={ui.muted}>Build consent-safe Email campaigns, send now or schedule in Singapore time, and review delivery results.</p></div><Link href={`/dashboard/help?studio_id=${studioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}&help_topic=send-a-consent-safe-email-campaign`} className={ui.btnSecondarySm}>Help</Link></div>
     <DashboardLocationFilter selectedStudioId={studioId} selectedLocationId={effectiveLocationId} locations={(locations ?? []).filter((location) => accessibleLocationIds.includes(location.id))} allowAll={hasStudioWideAccess} />
     <DashboardTabNav
       ariaLabel="Marketing sections"

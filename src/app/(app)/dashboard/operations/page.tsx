@@ -256,9 +256,17 @@ export default async function OperationsPage({ searchParams }: Props) {
           </p>
         </div>
       ) : null}
-      <div>
-        <h1 className={ui.h1}>Front desk</h1>
-        <p className={ui.muted}>Daily front desk walk-ins, booking, attendance, and exception handling for classes and events.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className={ui.h1}>Front desk</h1>
+          <p className={ui.muted}>Daily front desk walk-ins, booking, attendance, and exception handling for classes and events.</p>
+        </div>
+        <DashboardAppLink
+          href={`/dashboard/help?studio_id=${activeStudioId}${selectedLocationId ? `&location_id=${selectedLocationId}` : ""}&help_topic=run-the-front-desk`}
+          className={ui.btnSecondarySm}
+        >
+          Help
+        </DashboardAppLink>
       </div>
       <div className={`${ui.card} flex flex-wrap gap-3`}>
         <DashboardLocationFilter
