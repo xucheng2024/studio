@@ -28,10 +28,8 @@ test("processor catalog uses live HitPay and Resend flags", () => {
 });
 
 test("public privacy page is hidden", () => {
-  const page = read("src/app/[studioSlug]/privacy/page.tsx");
   const home = read("src/app/[studioSlug]/page.tsx");
-  assert.equal(page.includes("notFound()"), true);
-  assert.equal(page.includes("What we collect"), false);
+  assert.equal(fs.existsSync("src/app/[studioSlug]/privacy/page.tsx"), false);
   assert.equal(home.includes("studioPrivacyPath"), false);
   assert.equal(home.includes("Privacy notice"), false);
 });
