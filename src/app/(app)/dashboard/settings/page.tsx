@@ -122,13 +122,6 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
         />
         <SettingCard
           as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/booking", selectedStudioId, locationId)}
-          icon={CalendarDays}
-          title="Booking settings"
-          desc="Connect Cal.com, save the event URL, and control booking on your public page"
-        />
-        <SettingCard
-          as={DashboardAppLink}
           href={scopedHref("/dashboard/settings/custom-domain", selectedStudioId, locationId)}
           icon={Globe}
           title="Custom domain"

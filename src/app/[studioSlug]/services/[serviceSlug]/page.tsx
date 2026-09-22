@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreditCard, MessageCircle } from "lucide-react";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
@@ -107,11 +108,11 @@ export default async function PublicServicePage({ params }: Props) {
         ) : null}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <a href={`/${studio.public_slug ?? rawStudio}/appointments?service_id=${encodeURIComponent(service.id)}`} className={`${ui.btnSecondary} w-full sm:w-auto`}>
-            Book appointment
-          </a>
+          <Link href={`/${studio.public_slug ?? rawStudio}/appointments?service_id=${encodeURIComponent(service.id)}`} className={`${ui.btnPrimary} w-full sm:w-auto`}>
+            Book this service
+          </Link>
           {paymentEnabled ? (
-            <a href="#service-payment" className={`${ui.btnPrimary} w-full sm:w-auto`}>
+            <a href="#service-payment" className={`${ui.btnSecondary} w-full sm:w-auto`}>
               <CreditCard size={16} />
               {service.price != null && Number(service.price) > 0 ? `Pay ${STUDIO_CURRENCY} ${Number(service.price).toFixed(2)}` : "Pay now"}
             </a>

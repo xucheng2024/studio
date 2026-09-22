@@ -25,7 +25,7 @@
 - 现有预约创建依赖名额数量，不能检查员工或资源的时间冲突。
 - 现有客户不能自行取消课程预约；Salon Appointment 需要按权限支持客户和员工操作。
 - `sendClassReminder` 已存在，但没有完整的自动提醒任务、重试和发送记录。
-- 当前 Cal.com 只是外部链接，不作为 Salon Appointment 的核心数据来源或过审证明。
+- 自有预约页面是 Salon Appointment 的唯一客户预约入口和核心数据来源。
 
 因此，应新建 Appointment 数据模型和页面，只复用已有基础设施，不能直接扩展或改造 `class_sessions` 来假装 Salon Appointment。
 

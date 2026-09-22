@@ -169,11 +169,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
     .slice(0, 2)
     .map((part: string) => part[0]?.toUpperCase() ?? "")
     .join("") || "S";
-  const calcomEmbedUrl =
-    (studio as { calcom_booking_enabled?: boolean }).calcom_booking_enabled &&
-    (studio as { calcom_embed_url?: string | null }).calcom_embed_url?.trim()
-      ? (studio as { calcom_embed_url: string }).calcom_embed_url.trim()
-      : null;
   const homePath = studioHomePath(studio.public_slug);
   const canonicalUrl = await getCanonicalUrlForStudioPath(
     homePath,
@@ -225,7 +220,6 @@ export default async function StudioPublicLandingPage({ params }: Props) {
       />
 
       <section id="studio-intro" className="scroll-mt-20">
-        {calcomEmbedUrl ? <span id="booking" className="block scroll-mt-20" aria-hidden="true" /> : null}
         <StudioIntroSection
           studioName={publicBrandName}
           studioMediaCover={studioMediaCover}
@@ -239,7 +233,7 @@ export default async function StudioPublicLandingPage({ params }: Props) {
           youtubeUrl={(studio as { public_youtube_url?: string | null }).public_youtube_url ?? null}
           xUrl={(studio as { public_x_url?: string | null }).public_x_url ?? null}
           contactEmail={(studio as { public_contact_email?: string | null }).public_contact_email ?? null}
-          bookingCalLink={calcomEmbedUrl}
+          bookingHref={`/${studio.public_slug}/appointments`}
           bookingButtonClassName={ui.btnPrimary}
         />
       </section>

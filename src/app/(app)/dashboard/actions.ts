@@ -6,7 +6,6 @@ export {
   toggleLocationActive,
   updateLocation,
   updateStudioBasics,
-  updateStudioBookingSettings,
   updateStudioContractSettings,
   updateStudioCustomDomain,
   updateStudioHitpaySettings,
@@ -17,7 +16,7 @@ export {
   updateStudioRetentionSettingsAction,
   markAppointmentRetentionReviewedAction,
 } from "./_actions/studio-settings";
-export type { BookingSettingsResult, CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult } from "./_actions/studio-settings";
+export type { CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult } from "./_actions/studio-settings";
 
 export {
   copyServiceBookingSetupAction,

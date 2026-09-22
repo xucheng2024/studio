@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { CalBookingButton } from "@/components/CalBookingButton";
+import Link from "next/link";
 import { PublicVideoCover } from "@/components/PublicVideoCover";
 
 function InstagramIcon() {
@@ -92,7 +92,7 @@ type Props = {
   youtubeUrl: string | null;
   xUrl: string | null;
   contactEmail: string | null;
-  bookingCalLink?: string | null;
+  bookingHref: string;
   bookingButtonClassName?: string;
 };
 
@@ -165,7 +165,7 @@ export function StudioIntroSection({
   youtubeUrl,
   xUrl,
   contactEmail,
-  bookingCalLink,
+  bookingHref,
   bookingButtonClassName,
 }: Props) {
   const emailHref = useMemo(() => {
@@ -266,17 +266,19 @@ export function StudioIntroSection({
               ) : null}
             </>
           )}
-          {bookingCalLink ? (
-            <div className="mt-5 hidden w-full sm:flex sm:mt-6">
-              <CalBookingButton calLink={bookingCalLink} className={bookingButtonClassName} />
+          <div className="mt-5 hidden w-full sm:flex sm:mt-6">
+            <div className="flex flex-col items-start gap-1.5">
+              <Link href={bookingHref} className={bookingButtonClassName}>Book now</Link>
+              <p className="text-xs text-stone-500 dark:text-stone-400">Sign in to choose a service, location, and time.</p>
             </div>
-          ) : null}
-        </div>
-        {bookingCalLink ? (
-          <div className="order-3 flex w-full sm:hidden">
-            <CalBookingButton calLink={bookingCalLink} className={bookingButtonClassName} />
           </div>
-        ) : null}
+        </div>
+        <div className="order-3 flex w-full sm:hidden">
+          <div className="flex flex-col items-start gap-1.5">
+            <Link href={bookingHref} className={bookingButtonClassName}>Book now</Link>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Sign in to choose a service, location, and time.</p>
+          </div>
+        </div>
       </div>
     </div>
   );
