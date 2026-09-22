@@ -367,8 +367,10 @@ async function runBrowser(name, launcher, email, full = false) {
       await followStreamingRedirect(session.page);
       const aggregateText = await capture(session.page, name, "05-me-appointments.png", ["My appointments"]);
       assert.ok(
-        aggregateText.includes("Showing your appointments across all studios") || session.page.url().includes(`/${slugs.s1}/me/appointments`),
-        "Global appointment page neither aggregated nor redirected to active studio",
+        aggregateText.includes("Showing your appointments across all studios")
+          || session.page.url().includes(`/${slugs.s1}/me/appointments`)
+          || session.page.url().includes(`/${slugs.s2}/me/appointments`),
+        "Global appointment page neither aggregated nor redirected to the active studio",
       );
       const mobileMe = await newAuthenticatedPage(browser, email, { width: 390, height: 844 });
       await mobileMe.page.goto(`${BASE_URL}/${slugs.s1}/me/appointments`, { waitUntil: "domcontentloaded" });

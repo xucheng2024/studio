@@ -33,6 +33,7 @@ try {
   }));
   const instructorPage = await instructorContext.newPage();
   await instructorPage.goto(`${baseUrl}/dashboard/settings/privacy?studio_id=${studioId}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await instructorPage.getByText(/do not have access/i).waitFor({ state: "visible", timeout: 30_000 });
   assert.match(await instructorPage.locator("body").innerText(), /do not have access/i, "instructor is denied privacy settings");
   await instructorContext.close();
 
