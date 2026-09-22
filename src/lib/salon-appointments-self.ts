@@ -1,5 +1,6 @@
 import "server-only";
 
+import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import { completeIdempotencyKey, hashIdempotencyRequest, claimIdempotencyKey, failIdempotencyKey, type IdempotencyClaimResult } from "@/lib/idempotency";
 import { createHitpayPaymentRequest } from "@/lib/hitpay";
 import { localISODate, parseDatetimeLocalAsSgt } from "@/lib/date";
@@ -330,6 +331,47 @@ export async function resolveSelfSalonCustomer(params: { studioId: string; userI
   if (!row?.id) return { ok: false as const, reason: "not_found" as const };
   if ((row.status ?? "active") !== "active") return { ok: false as const, reason: "inactive" as const };
   return { ok: true as const, salonCustomerId: row.id };
+}
+
+/** Login is enough to book. Link an existing guest by email, or create an online profile. */
+export async function ensureSelfSalonCustomer(params: { studioId: string; userId: string }) {
+  const existing = await resolveSelfSalonCustomer(params);
+  if (existing.ok || existing.reason === "inactive") return existing;
+
+  const admin = createAdminClient();
+  const [profileRes, userRes] = await Promise.all([
+    admin
+      .from("user_profiles")
+      .select("email, full_name, phone")
+      .eq("id", params.userId)
+      .maybeSingle<{ email: string | null; full_name: string | null; phone: string | null }>(),
+    admin.from("users").select("email").eq("id", params.userId).maybeSingle<{ email: string | null }>(),
+  ]);
+  if (profileRes.error) throw profileRes.error;
+  if (userRes.error) throw userRes.error;
+
+  const email = (profileRes.data?.email ?? userRes.data?.email ?? "").trim().toLowerCase() || null;
+  if (email) {
+    await mergeGuestRecordsForUser(params.userId, email);
+    const linked = await resolveSelfSalonCustomer(params);
+    if (linked.ok || linked.reason === "inactive") return linked;
+  }
+
+  const fullName =
+    profileRes.data?.full_name?.trim()
+    || (email ? email.split("@")[0] : "")
+    || "Member";
+  const { error: insertError } = await admin.from("salon_customers").insert({
+    studio_id: params.studioId,
+    user_id: params.userId,
+    full_name: fullName.slice(0, 200),
+    email,
+    phone: profileRes.data?.phone?.trim() || null,
+    source: "online",
+    status: "active",
+  });
+  if (insertError && !/duplicate key|unique constraint/i.test(insertError.message)) throw insertError;
+  return resolveSelfSalonCustomer(params);
 }
 
 export async function listSelfBookableCatalog(params: { studioId: string }) {

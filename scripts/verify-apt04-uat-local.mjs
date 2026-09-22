@@ -362,7 +362,7 @@ async function runBrowser(name, launcher, email, full = false) {
 
     if (full) {
       await session.page.goto(`${BASE_URL}/${slugs.s2}/appointments`, { waitUntil: "domcontentloaded" });
-      await capture(session.page, name, "08-cross-studio-unlinked.png", ["not yet linked to a salon customer profile"]);
+      await capture(session.page, name, "08-cross-studio-bookable.png", ["Choose a service, location, and real-time slot"]);
       await session.page.goto(`${BASE_URL}/me/appointments`, { waitUntil: "domcontentloaded" });
       await followStreamingRedirect(session.page);
       const aggregateText = await capture(session.page, name, "05-me-appointments.png", ["My appointments"]);

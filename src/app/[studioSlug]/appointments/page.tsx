@@ -5,11 +5,11 @@ import Link from "next/link";
 import { formatLocalDate, formatLocalTime, localISODate, shiftLocalIsoDate } from "@/lib/date";
 import {
   createSelfAppointment,
+  ensureSelfSalonCustomer,
   getLatestSalonTermsVersion,
   listSelfBookableCatalog,
   listSelfBookableSlots,
   listSelfEligiblePackageCredits,
-  resolveSelfSalonCustomer,
   summarizeTermsSnapshot,
 } from "@/lib/salon-appointments-self";
 import { getLatestPrivacyNotice, recordSelfPrivacyNoticeConsent } from "@/lib/studio-privacy";
@@ -80,7 +80,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     .maybeSingle<{ id: string; name: string; public_slug: string }>();
   if (!studio?.id) redirect("/");
 
-  const selfCustomer = await resolveSelfSalonCustomer({ studioId: studio.id, userId: user.id });
+  const selfCustomer = await ensureSelfSalonCustomer({ studioId: studio.id, userId: user.id });
   const studioId = studio.id;
   const catalog = await listSelfBookableCatalog({ studioId: studio.id });
   const selectedLocationId = String(sp.location_id ?? "").trim() || (catalog.locations.length === 1 ? catalog.locations[0].id : "");
@@ -178,7 +178,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
       redirect(`${backTo}${query.toString() ? "&" : "?"}error=privacy_version_stale`);
     }
 
-    const linkedCustomer = await resolveSelfSalonCustomer({ studioId, userId: actionUser.id });
+    const linkedCustomer = await ensureSelfSalonCustomer({ studioId, userId: actionUser.id });
     if (!linkedCustomer.ok) {
       redirect(`${backTo}${query.toString() ? "&" : "?"}error=forbidden`);
     }
