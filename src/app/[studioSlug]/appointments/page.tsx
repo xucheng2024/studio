@@ -85,7 +85,9 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const catalog = await listSelfBookableCatalog({ studioId: studio.id });
   const selectedLocationId = String(sp.location_id ?? "").trim() || (catalog.locations.length === 1 ? catalog.locations[0].id : "");
   const selectedServiceId = String(sp.service_id ?? "").trim() || (catalog.services.length === 1 ? catalog.services[0].id : "");
-  const selectedDate = String(sp.date ?? localISODate()).trim();
+  const today = localISODate();
+  const requestedDate = String(sp.date ?? today).trim();
+  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && requestedDate >= today ? requestedDate : today;
 
   const selectedService = catalog.services.find((service) => service.id === selectedServiceId) ?? null;
   const selectedLocation = catalog.locations.find((location) => location.id === selectedLocationId) ?? null;
@@ -220,14 +222,17 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
 
   return (
     <main className={ui.page}>
-      <div className="mx-auto max-w-4xl space-y-8">
+      <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <h1 className={ui.h1}>Book appointment</h1>
           <p className={`mt-1 ${ui.muted}`}>Choose a service, location, and real-time slot at {studio.name}.</p>
         </div>
 
         {notice ? (
-          <div className={`${ui.card} ${notice.tone === "ok" ? "border-teal-300" : "border-rose-300"}`}>
+          <div
+            role={notice.tone === "ok" ? "status" : "alert"}
+            className={`${ui.card} ${notice.tone === "ok" ? "border-teal-300" : "border-rose-300"}`}
+          >
             <p className={notice.tone === "ok" ? "text-teal-700 dark:text-teal-300" : "text-rose-700 dark:text-rose-300"}>{notice.text}</p>
           </div>
         ) : null}
@@ -238,11 +243,19 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
           </section>
         ) : (
           <>
-            <form method="get" className={`${ui.card} grid gap-3 sm:grid-cols-4`}>
+            <form method="get" className={`${ui.card} grid gap-4 sm:grid-cols-2`} aria-labelledby="booking-search-heading">
               <input type="hidden" name="_" value="slots" />
+              <div className="flex items-start gap-3 sm:col-span-2">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-sm font-semibold text-white">1</span>
+                <div>
+                  <h2 id="booking-search-heading" className={ui.h3}>Choose your appointment</h2>
+                  <p className={`mt-0.5 ${ui.muted}`}>Select a location, service, and preferred date.</p>
+                </div>
+              </div>
+
               <div className="sm:col-span-1">
-                <label className={ui.label}>Location</label>
-                <select name="location_id" className={ui.input} defaultValue={selectedLocationId} required>
+                <label htmlFor="booking-location" className={`${ui.label} mb-1.5 block`}>Location</label>
+                <select id="booking-location" name="location_id" className={ui.input} defaultValue={selectedLocationId} required>
                   <option value="">Select location</option>
                   {catalog.locations.map((location) => (
                     <option key={location.id} value={location.id}>{location.name}</option>
@@ -251,8 +264,8 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
               </div>
 
               <div className="sm:col-span-1">
-                <label className={ui.label}>Service</label>
-                <select name="service_id" className={ui.input} defaultValue={selectedServiceId} required>
+                <label htmlFor="booking-service" className={`${ui.label} mb-1.5 block`}>Service</label>
+                <select id="booking-service" name="service_id" className={ui.input} defaultValue={selectedServiceId} required>
                   <option value="">Select service</option>
                   {catalog.services.map((service) => (
                     <option key={service.id} value={service.id}>{service.name}</option>
@@ -261,28 +274,71 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
               </div>
 
               <div className="sm:col-span-1">
-                <label className={ui.label}>Date (SGT)</label>
-                <div className="flex items-center gap-1">
-                  <Link href={bookingQuery(shiftLocalIsoDate(selectedDate, -1))} className={ui.btnGhost}>Prev</Link>
-                  <input type="date" name="date" className={ui.input} defaultValue={selectedDate} required />
-                  <Link href={bookingQuery(shiftLocalIsoDate(selectedDate, 1))} className={ui.btnGhost}>Next</Link>
+                <label htmlFor="booking-date" className={`${ui.label} mb-1.5 block`}>Date (SGT)</label>
+                <div className="flex min-w-0 items-center gap-1">
+                  {selectedDate > today ? (
+                    <Link
+                      href={bookingQuery(shiftLocalIsoDate(selectedDate, -1))}
+                      className={ui.btnGhost}
+                      aria-label="Previous day"
+                    >
+                      <span aria-hidden="true">←</span>
+                      <span className="sr-only sm:not-sr-only">Prev</span>
+                    </Link>
+                  ) : (
+                    <span className={`${ui.btnGhost} cursor-not-allowed opacity-40`} aria-disabled="true">
+                      <span aria-hidden="true">←</span>
+                      <span className="sr-only sm:not-sr-only">Prev</span>
+                    </span>
+                  )}
+                  <input
+                    id="booking-date"
+                    type="date"
+                    name="date"
+                    className={`${ui.input} min-w-0 flex-1`}
+                    defaultValue={selectedDate}
+                    min={today}
+                    required
+                  />
+                  <Link
+                    href={bookingQuery(shiftLocalIsoDate(selectedDate, 1))}
+                    className={ui.btnGhost}
+                    aria-label="Next day"
+                  >
+                    <span className="sr-only sm:not-sr-only">Next</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
                 </div>
               </div>
 
               <div className="sm:col-span-1 flex items-end">
-                <button type="submit" className={`${ui.btnPrimary} w-full`}>Find slots</button>
+                <button type="submit" className={`${ui.btnPrimary} w-full`}>Show available times</button>
               </div>
             </form>
 
             <section className={ui.card}>
-              <h2 className={ui.h3}>Available slots</h2>
-              <p className={`mt-1 text-sm ${ui.muted}`}>Pick a time. Availability is checked again when you book.</p>
+              <div className="flex items-start gap-3">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-sm font-semibold text-white">2</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 className={ui.h3}>Available slots</h2>
+                    {canResolveSlots && slotResult?.ok ? (
+                      <span className={ui.badgeNeutral}>{availableSlots.length} available</span>
+                    ) : null}
+                  </div>
+                  <p className={`mt-0.5 text-sm ${ui.muted}`}>
+                    {selectedService && selectedLocation
+                      ? `${selectedService.name} · ${selectedService.defaultDurationMinutes} min · ${selectedLocation.name}`
+                      : "Available times will appear after you complete step 1."}
+                  </p>
+                </div>
+              </div>
 
               {termsVersion?.id ? (
-                <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900/40">
-                  <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
+                <details className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-700 dark:bg-stone-900/40">
+                  <summary className="cursor-pointer text-sm font-medium text-stone-700 dark:text-stone-200">
                     Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}
-                  </p>
+                  </summary>
                   {termsSummary ? (
                     <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-stone-700 dark:text-stone-300">
                       {termsSummary}
@@ -290,77 +346,101 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                   ) : (
                     <p className={`mt-2 text-xs ${ui.muted}`}>No content snapshot is available for this version.</p>
                   )}
-                </div>
+                </details>
               ) : null}
 
               {!canResolveSlots ? (
-                <p className={`mt-4 text-sm ${ui.muted}`}>Select a valid location and service to load slots.</p>
+                <p className={`mt-4 text-sm ${ui.muted}`}>
+                  {selectedService && selectedLocation
+                    ? "This service is not offered at the selected location. Choose another service or location."
+                    : "Complete step 1 to see available times."}
+                </p>
               ) : !slotResult?.ok ? (
                 <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">{slotResult?.message ?? "Could not load slots."}</p>
               ) : availableSlots.length === 0 ? (
-                <p className={`mt-4 text-sm ${ui.muted}`}>No available slots on {selectedDate}. Try another date.</p>
+                <div className={`${ui.emptyState} mt-4 px-4`}>
+                  <p className="text-sm font-medium text-stone-800 dark:text-stone-100">No times available on this date</p>
+                  <p className={ui.muted}>Try another day to see more availability.</p>
+                  <Link href={bookingQuery(shiftLocalIsoDate(selectedDate, 1))} className={ui.btnSecondarySm}>
+                    Check next day <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
               ) : !termsVersion?.id ? (
                 <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">Terms & Conditions version is missing. Please contact front desk.</p>
               ) : !privacyNotice?.id ? (
                 <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">Privacy notice version is missing. Please contact front desk.</p>
               ) : (
-                <ul className="mt-4 space-y-2">
-                  {availableSlots.map((slot) => (
-                    <li key={`${slot.startsAtIso}:${slot.employeeId}`} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
-                      <form action={bookAppointmentAction} className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                        <input type="hidden" name="slot_starts_at" value={slot.startsAtIso} />
-                        <input type="hidden" name="slot_employee_id" value={slot.employeeId} />
-                        <input type="hidden" name="resource_ids" value={slot.resourceIds.join(",")} />
-                        <input type="hidden" name="service_id" value={selectedServiceId} />
-                        <input type="hidden" name="location_id" value={selectedLocationId} />
-                        <input type="hidden" name="date" value={selectedDate} />
-                        <input
-                          type="hidden"
-                          name="idempotency_key"
-                          value={`apt04-self-create:${crypto.randomUUID()}`}
-                        />
-                        <input type="hidden" name="terms_version_id" value={termsVersion.id} />
-                        <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
+                <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {availableSlots.map((slot, index) => (
+                    <li key={`${slot.startsAtIso}:${slot.employeeId}`}>
+                      <details
+                        open={index === 0}
+                        className="group rounded-xl border border-stone-200 bg-white open:border-teal-300 open:shadow-sm dark:border-stone-700 dark:bg-stone-950 dark:open:border-teal-700"
+                      >
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-3 [&::-webkit-details-marker]:hidden">
+                          <span>
+                            <span className="block font-semibold text-stone-900 dark:text-stone-100">
+                              {formatLocalTime(slot.startsAtIso)}
+                            </span>
+                            <span className={`block text-xs ${ui.muted}`}>
+                              {slot.employeeName} · {formatLocalDate(slot.startsAtIso, { weekday: "short", month: "short", day: "2-digit" })}
+                            </span>
+                          </span>
+                          <span className="text-sm font-medium text-teal-700 group-open:hidden dark:text-teal-300">Choose</span>
+                          <span className="hidden text-sm font-medium text-teal-700 group-open:inline dark:text-teal-300">Close</span>
+                        </summary>
 
-                        <div>
-                          <p className="font-medium text-stone-900 dark:text-stone-100">
-                            {formatLocalTime(slot.startsAtIso)} · {slot.employeeName}
-                          </p>
-                          <p className={`text-xs ${ui.muted}`}>
-                            {formatLocalDate(slot.startsAtIso, { weekday: "short", month: "short", day: "2-digit" })}
-                          </p>
-                        </div>
-                        <select name="payment_option" className={ui.select} defaultValue={defaultPayment} required>
-                          <option value="free">No prepayment</option>
-                          <option value="package_credit" disabled={!packageCredits?.ok || !packageCredits.payload.packages.length}>
-                            Use package credits {!packageCredits?.ok || !packageCredits.payload.packages.length ? "(not eligible)" : ""}
-                          </option>
-                          <option value="online_deposit">Online deposit (30%)</option>
-                          <option value="online_full">Online full payment</option>
-                        </select>
-                        {packageCredits?.ok && packageCredits.payload.packages.length ? (
-                          <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
-                            Eligible package credits: {packageCredits.payload.packages.map((pkg) => `${pkg.packageName} (${pkg.creditsLeft})`).join(", ")}
-                          </p>
-                        ) : (
-                          <p className={`sm:col-span-2 text-xs ${ui.muted}`}>
-                            Package rule (conservative): same studio + location scope + active package + unexpired + credits &gt; 0.
-                          </p>
-                        )}
-                        <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
-                          <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
-                          <span>
-                            I accept Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}.
-                          </span>
-                        </label>
-                        <label className="sm:col-span-2 inline-flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
-                          <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
-                          <span>
-                            {studio.name} may use my name, contact details, and appointment details to book and run this visit.
-                          </span>
-                        </label>
-                        <button type="submit" className={`${ui.btnPrimarySm} sm:col-span-2`}>Book this slot</button>
-                      </form>
+                        <form action={bookAppointmentAction} className="grid gap-3 border-t border-stone-100 p-3 dark:border-stone-800">
+                          <input type="hidden" name="slot_starts_at" value={slot.startsAtIso} />
+                          <input type="hidden" name="slot_employee_id" value={slot.employeeId} />
+                          <input type="hidden" name="resource_ids" value={slot.resourceIds.join(",")} />
+                          <input type="hidden" name="service_id" value={selectedServiceId} />
+                          <input type="hidden" name="location_id" value={selectedLocationId} />
+                          <input type="hidden" name="date" value={selectedDate} />
+                          <input
+                            type="hidden"
+                            name="idempotency_key"
+                            value={`apt04-self-create:${crypto.randomUUID()}`}
+                          />
+                          <input type="hidden" name="terms_version_id" value={termsVersion.id} />
+                          <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
+
+                          <label>
+                            <span className={`${ui.label} mb-1.5 block`}>Payment</span>
+                            <select name="payment_option" className={ui.select} defaultValue={defaultPayment} required>
+                              <option value="free">Pay at appointment</option>
+                              <option value="package_credit" disabled={!packageCredits?.ok || !packageCredits.payload.packages.length}>
+                                Use package credits {!packageCredits?.ok || !packageCredits.payload.packages.length ? "(not eligible)" : ""}
+                              </option>
+                              <option value="online_deposit">Online deposit (30%)</option>
+                              <option value="online_full">Online full payment</option>
+                            </select>
+                          </label>
+                          {packageCredits?.ok && packageCredits.payload.packages.length ? (
+                            <p className={`text-xs ${ui.muted}`}>
+                              Eligible package credits: {packageCredits.payload.packages.map((pkg) => `${pkg.packageName} (${pkg.creditsLeft})`).join(", ")}
+                            </p>
+                          ) : (
+                            <p className={`text-xs ${ui.muted}`} data-eligibility-policy="conservative">
+                              Package credits require an active, unexpired package valid at this location.
+                            </p>
+                          )}
+                          <label className="inline-flex items-start gap-2 text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+                            <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
+                            <span>
+                              I accept Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}.
+                            </span>
+                          </label>
+                          <label className="inline-flex items-start gap-2 text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+                            <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
+                            <span>
+                              {studio.name} may use my name, contact details, and appointment details to book and run this visit.
+                            </span>
+                          </label>
+                          <button type="submit" className={ui.btnPrimarySm}>Book this slot</button>
+                          <p className={`text-center text-xs ${ui.muted}`}>Availability is checked again when you book.</p>
+                        </form>
+                      </details>
                     </li>
                   ))}
                 </ul>
