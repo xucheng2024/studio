@@ -106,7 +106,7 @@ export function revalidatePublicSectionPaths(
 function dashboardContentPaths(section: DashboardContentSection) {
   switch (section) {
     case "services":
-      return ["/dashboard/services"];
+      return ["/dashboard/services", "/dashboard/settings/booking"];
     case "classes":
       return ["/dashboard/classes", "/dashboard/schedule"];
     case "memberships":
@@ -137,15 +137,15 @@ function dashboardSettingsPaths(section: DashboardSettingsSection) {
     case "email":
       return ["/dashboard/settings/email"];
     case "locations":
-      return ["/dashboard/settings", "/dashboard/settings/locations", "/dashboard/schedule", "/dashboard/frontdesk", "/dashboard/operations"];
+      return ["/dashboard/settings", "/dashboard/settings/locations", "/dashboard/settings/booking", "/dashboard/schedule", "/dashboard/frontdesk", "/dashboard/operations"];
     case "staff-invites":
       return ["/dashboard/settings/staff-invites"];
     case "staff-availability":
-      return ["/dashboard/settings/staff-availability"];
+      return ["/dashboard/settings/booking"];
     case "resources":
-      return ["/dashboard/settings/resources"];
+      return ["/dashboard/settings/booking"];
     case "privacy":
-      return ["/dashboard/settings", "/dashboard/settings/privacy"];
+      return ["/dashboard/settings", "/dashboard/settings/privacy", "/dashboard/settings/booking"];
   }
 }
 

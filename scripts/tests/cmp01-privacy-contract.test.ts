@@ -59,5 +59,9 @@ test("settings privacy page lists processors and retention", () => {
   assert.equal(page.includes("customer_retention_days"), true);
   assert.equal(page.includes("Due for review"), true);
   assert.equal(page.includes("Open public page"), false);
-  assert.equal(page.includes("Save consent version"), true);
+  assert.equal(page.includes("publishStudioPrivacyNoticeAction"), false);
+  assert.equal(page.includes("/dashboard/settings/booking?tab=rules"), true);
+  const rules = read("src/app/(app)/dashboard/settings/booking/_sections/RulesSection.tsx");
+  assert.equal(rules.includes("publishStudioPrivacyNoticeAction"), true);
+  assert.equal(rules.includes("Save consent version"), true);
 });

@@ -7,7 +7,11 @@ import { localISODate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SLOT_STEP_MINUTES = 15;
-export const SELF_BOOKING_MIN_LEAD_MINUTES = 60;
+export const DEFAULT_SELF_BOOKING_RULES = {
+  minNoticeMinutes: 60,
+  maxAdvanceDays: 60,
+  changeCutoffHours: 0,
+} as const;
 const ONLINE_DEPOSIT_RATE = 0.3;
 const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "checked_in", "in_progress"];
 const TIMEZONE = "Asia/Singapore";
@@ -32,6 +36,9 @@ type AppointmentConflictCode =
   | "insufficient_credits"
   | "package_not_eligible"
   | "payment_option_unavailable"
+  | "not_online_bookable"
+  | "outside_booking_window"
+  | "change_cutoff_passed"
   | "unknown";
 
 type AppointmentMutationResult<TPayload> =
@@ -71,6 +78,7 @@ export type SelfBookableService = {
   name: string;
   price: number;
   currency: string;
+  onlineBookable: boolean;
   locationIds: string[];
   defaultDurationMinutes: number;
   defaultPrepMinutes: number;
@@ -385,9 +393,10 @@ export async function listSelfBookableCatalog(params: { studioId: string }) {
     admin.from("locations").select("id, name").eq("studio_id", params.studioId).eq("is_active", true).order("name"),
     admin
       .from("studio_services")
-      .select("id, title, price, currency, is_active, default_duration_minutes, default_prep_minutes, default_buffer_minutes")
+      .select("id, title, price, currency, is_active, online_bookable, default_duration_minutes, default_prep_minutes, default_buffer_minutes")
       .eq("studio_id", params.studioId)
       .eq("is_active", true)
+      .eq("online_bookable", true)
       .order("sort_order")
       .order("title"),
     admin
@@ -415,6 +424,7 @@ export async function listSelfBookableCatalog(params: { studioId: string }) {
       name: service.title,
       price: Math.round(Math.max(Number(service.price ?? 0), 0) * 100) / 100,
       currency: String(service.currency || "SGD").toUpperCase(),
+      onlineBookable: service.online_bookable !== false,
       locationIds: Array.from(new Set(serviceToLocations.get(service.id) ?? [])),
       defaultDurationMinutes: Number(service.default_duration_minutes ?? 60),
       defaultPrepMinutes: Number(service.default_prep_minutes ?? 0),
@@ -812,22 +822,77 @@ export async function getSelfOnlinePaymentOptions(params: { studioId: string; pr
   return { onlineFull: amounts.full, onlineDeposit: amounts.deposit };
 }
 
-async function assertSelfSettlementOptionAvailable(params: {
+export type SelfBookingRules = {
+  minNoticeMinutes: number;
+  maxAdvanceDays: number;
+  changeCutoffHours: number;
+};
+
+export async function getSelfBookingRules(params: { studioId: string }): Promise<SelfBookingRules> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("studios")
+    .select("appointment_min_notice_minutes, appointment_max_advance_days, appointment_change_cutoff_hours")
+    .eq("id", params.studioId)
+    .maybeSingle<{
+      appointment_min_notice_minutes: number | null;
+      appointment_max_advance_days: number | null;
+      appointment_change_cutoff_hours: number | null;
+    }>();
+  if (error) throw error;
+  return {
+    minNoticeMinutes: Number(data?.appointment_min_notice_minutes ?? DEFAULT_SELF_BOOKING_RULES.minNoticeMinutes),
+    maxAdvanceDays: Number(data?.appointment_max_advance_days ?? DEFAULT_SELF_BOOKING_RULES.maxAdvanceDays),
+    changeCutoffHours: Number(data?.appointment_change_cutoff_hours ?? DEFAULT_SELF_BOOKING_RULES.changeCutoffHours),
+  };
+}
+
+/** Last bookable SGT date (inclusive) under the studio's max-advance rule. */
+export function lastSelfBookableDate(rules: SelfBookingRules, today = localISODate()) {
+  const date = new Date(`${today}T12:00:00+08:00`);
+  date.setUTCDate(date.getUTCDate() + Math.max(rules.maxAdvanceDays, 0));
+  return localISODate(date);
+}
+
+export function isWithinSelfBookingWindow(rules: SelfBookingRules, startsAtIso: string, nowMs = Date.now()) {
+  const startsAtMs = new Date(startsAtIso).getTime();
+  if (!Number.isFinite(startsAtMs)) return false;
+  if (startsAtMs < nowMs + rules.minNoticeMinutes * 60_000) return false;
+  return localISODate(new Date(startsAtMs)) <= lastSelfBookableDate(rules, localISODate(new Date(nowMs)));
+}
+
+/** Customers may change or cancel until `changeCutoffHours` before the start; 0 means no limit. */
+export function canCustomerChangeAppointment(rules: SelfBookingRules, startsAtIso: string, nowMs = Date.now()) {
+  if (rules.changeCutoffHours <= 0) return true;
+  return new Date(startsAtIso).getTime() - nowMs >= rules.changeCutoffHours * 3_600_000;
+}
+
+async function assertSelfBookingAllowed(params: {
   studioId: string;
   serviceId: string;
+  startsAtIso: string;
   settlementOption: SelfSettlementOption;
 }): Promise<AppointmentMutationResult<null>> {
+  const admin = createAdminClient();
+  const [{ data, error }, rules] = await Promise.all([
+    admin
+      .from("studio_services")
+      .select("price, online_bookable")
+      .eq("id", params.serviceId)
+      .eq("studio_id", params.studioId)
+      .maybeSingle<{ price: number | null; online_bookable: boolean | null }>(),
+    getSelfBookingRules({ studioId: params.studioId }),
+  ]);
+  if (error) throw error;
+  if (!data || data.online_bookable === false) {
+    return { ok: false, code: "not_online_bookable", message: "This service cannot be booked online." };
+  }
+  if (!isWithinSelfBookingWindow(rules, params.startsAtIso)) {
+    return { ok: false, code: "outside_booking_window", message: "This time is outside the studio's online booking window." };
+  }
   if (params.settlementOption !== "online_deposit" && params.settlementOption !== "online_full") {
     return { ok: true, payload: null };
   }
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("studio_services")
-    .select("price")
-    .eq("id", params.serviceId)
-    .eq("studio_id", params.studioId)
-    .maybeSingle<{ price: number | null }>();
-  if (error) throw error;
   const options = await getSelfOnlinePaymentOptions({ studioId: params.studioId, price: Number(data?.price ?? 0) });
   const available = params.settlementOption === "online_full" ? options.onlineFull : options.onlineDeposit;
   if (available == null) {
@@ -1056,9 +1121,10 @@ export async function createSelfAppointment(params: {
     return { ok: false, code: "forbidden", message: "Customer account is not linked to this studio." };
   }
 
-  const settlementCheck = await assertSelfSettlementOptionAvailable({
+  const settlementCheck = await assertSelfBookingAllowed({
     studioId: params.studioId,
     serviceId: params.serviceId,
+    startsAtIso: params.startsAtIso,
     settlementOption: params.settlementOption,
   });
   if (!settlementCheck.ok) return settlementCheck;
@@ -1264,13 +1330,21 @@ export async function rescheduleSelfAppointment(params: {
   const admin = createAdminClient();
   const { data: appointment, error: appointmentError } = await admin
     .from("salon_appointments")
-    .select("id, salon_customer_id")
+    .select("id, salon_customer_id, starts_at")
     .eq("id", params.appointmentId)
     .eq("studio_id", params.studioId)
-    .maybeSingle<{ id: string; salon_customer_id: string }>();
+    .maybeSingle<{ id: string; salon_customer_id: string; starts_at: string }>();
   if (appointmentError) throw appointmentError;
   if (!appointment?.id || appointment.salon_customer_id !== customer.salonCustomerId) {
     return { ok: false, code: "forbidden", message: "Appointment is outside your account scope." };
+  }
+
+  const rules = await getSelfBookingRules({ studioId: params.studioId });
+  if (!canCustomerChangeAppointment(rules, appointment.starts_at)) {
+    return { ok: false, code: "change_cutoff_passed", message: "Online changes are closed for this appointment." };
+  }
+  if (!isWithinSelfBookingWindow(rules, params.newStartsAtIso)) {
+    return { ok: false, code: "outside_booking_window", message: "This time is outside the studio's online booking window." };
   }
 
   const { data: activeResources, error: resourceError } = await admin
@@ -1331,13 +1405,18 @@ export async function cancelSelfAppointment(params: {
   const admin = createAdminClient();
   const { data: appointment, error: appointmentError } = await admin
     .from("salon_appointments")
-    .select("id, salon_customer_id")
+    .select("id, salon_customer_id, starts_at")
     .eq("id", params.appointmentId)
     .eq("studio_id", params.studioId)
-    .maybeSingle<{ id: string; salon_customer_id: string }>();
+    .maybeSingle<{ id: string; salon_customer_id: string; starts_at: string }>();
   if (appointmentError) throw appointmentError;
   if (!appointment?.id || appointment.salon_customer_id !== customer.salonCustomerId) {
     return { ok: false, code: "forbidden", message: "Appointment is outside your account scope." };
+  }
+
+  const rules = await getSelfBookingRules({ studioId: params.studioId });
+  if (!canCustomerChangeAppointment(rules, appointment.starts_at)) {
+    return { ok: false, code: "change_cutoff_passed", message: "Online changes are closed for this appointment." };
   }
 
   return withSelfAppointmentIdempotency({

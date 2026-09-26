@@ -19,6 +19,13 @@ export {
 export type { CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult } from "./_actions/studio-settings";
 
 export {
+  applyRecommendedBookingSetupAction,
+  publishSalonTermsAction,
+  setServiceOnlineBookableAction,
+  updateBookingRulesAction,
+} from "./_actions/booking-setup";
+
+export {
   copyServiceBookingSetupAction,
   setServiceEligibleEmployeesAction,
   setServicePublishScopeAction,

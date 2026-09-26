@@ -789,7 +789,7 @@ export default async function AppointmentCalendarPage({ searchParams }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className={ui.h2}>Calendar</h2>
           <DashboardAppLink
-            href={`/dashboard/settings/resources?studio_id=${activeStudioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}`}
+            href={`/dashboard/settings/booking?tab=resources&studio_id=${activeStudioId}${effectiveLocationId ? `&location_id=${effectiveLocationId}` : ""}`}
             className="text-xs font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-300"
           >
             Manage rooms &amp; equipment

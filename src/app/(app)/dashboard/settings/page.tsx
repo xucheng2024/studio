@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Building2, CreditCard, Mail, Users, MapPin, ShieldCheck, HelpCircle, Globe, CalendarDays, BriefcaseBusiness,
+  Building2, CreditCard, Mail, Users, MapPin, ShieldCheck, HelpCircle, Globe, CalendarCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -115,6 +115,14 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
       <div className="grid gap-3 sm:grid-cols-2">
         <SettingCard
           as={DashboardAppLink}
+          href={scopedHref("/dashboard/settings/booking", selectedStudioId, locationId)}
+          icon={CalendarCheck}
+          title="Online booking"
+          desc="Check what customers need to book online and fill gaps in one click"
+          className="sm:col-span-2"
+        />
+        <SettingCard
+          as={DashboardAppLink}
           href={scopedHref("/dashboard/settings/public-profile", selectedStudioId, locationId)}
           icon={Building2}
           title="Studio profile"
@@ -150,20 +158,6 @@ export default async function DashboardSettingsPage({ searchParams }: Props) {
             desc="Create invite links, assign roles, and manage access"
           />
         ) : null}
-        <SettingCard
-          as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/staff-availability", selectedStudioId, locationId)}
-          icon={CalendarDays}
-          title="Staff availability"
-          desc="Set employee working hours and one-off availability exceptions"
-        />
-        <SettingCard
-          as={DashboardAppLink}
-          href={scopedHref("/dashboard/settings/resources", selectedStudioId, locationId)}
-          icon={BriefcaseBusiness}
-          title="Resources"
-          desc="Manage rooms, beds, and equipment for each location"
-        />
         {canManageStudio ? (
           <SettingCard
             as={DashboardAppLink}

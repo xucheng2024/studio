@@ -98,8 +98,26 @@ await upsert("user_profiles", Object.values(users).map((user) => ({
   role: "member",
 })), { onConflict: "id" });
 await upsert("studios", [
-  { id: ids.studio1, name: "APT04 UAT Studio S1", public_slug: slugs.s1, owner_id: users.a.id, contract_status: "active" },
-  { id: ids.studio2, name: "APT04 UAT Studio S2", public_slug: slugs.s2, owner_id: users.b.id, contract_status: "active" },
+  {
+    id: ids.studio1,
+    name: "APT04 UAT Studio S1",
+    public_slug: slugs.s1,
+    owner_id: users.a.id,
+    contract_status: "active",
+    appointment_min_notice_minutes: 60,
+    appointment_max_advance_days: 60,
+    appointment_change_cutoff_hours: 0,
+  },
+  {
+    id: ids.studio2,
+    name: "APT04 UAT Studio S2",
+    public_slug: slugs.s2,
+    owner_id: users.b.id,
+    contract_status: "active",
+    appointment_min_notice_minutes: 60,
+    appointment_max_advance_days: 60,
+    appointment_change_cutoff_hours: 0,
+  },
 ], { onConflict: "id" });
 await upsert("locations", [
   { id: ids.location1, studio_id: ids.studio1, name: "APT04 S1 Main", is_active: true },
@@ -366,6 +384,20 @@ async function runBrowser(name, launcher, email, full = false) {
     const bookedAt = await bookFirstAvailable(session.page);
     await capture(session.page, name, "04-booking-success.png", ["Appointment booked", "APT04 UAT Signature Service"]);
     await assertBookedAppointmentConfirmed(bookedAt);
+
+    if (full) {
+      const setCutoff = async (hours) => {
+        const { error } = await admin.from("studios").update({ appointment_change_cutoff_hours: hours }).eq("id", ids.studio1);
+        if (error) throw error;
+      };
+      await setCutoff(168);
+      await session.page.reload({ waitUntil: "domcontentloaded" });
+      await capture(session.page, name, "05b-change-cutoff.png", ["Online changes close 168 h"]);
+      assert.equal(await session.page.getByRole("link", { name: "Change time" }).count(), 0, "Change time must be hidden inside the cutoff");
+      assert.equal(await session.page.getByRole("button", { name: "Cancel" }).count(), 0, "Cancel must be hidden inside the cutoff");
+      await setCutoff(0);
+      await session.page.reload({ waitUntil: "domcontentloaded" });
+    }
 
     if (full) {
       await session.page.getByRole("link", { name: "Change time" }).first().click();

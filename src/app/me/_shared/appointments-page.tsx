@@ -5,6 +5,8 @@ import { studioCheckoutPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import {
   cancelSelfAppointment,
+  canCustomerChangeAppointment,
+  getSelfBookingRules,
   listSelfAppointments,
 } from "@/lib/salon-appointments-self";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -50,6 +52,8 @@ function getFeedbackMessage(feedback?: FeedbackParams) {
     idempotency_conflict: "Duplicate request payload mismatch detected.",
     idempotency_in_progress: "Request is in progress. Please retry shortly.",
     not_found: "Appointment not found.",
+    change_cutoff_passed: "Online changes are closed for this appointment. Please contact the studio.",
+    outside_booking_window: "That time is outside the studio's online booking window.",
   };
   return { tone: "error" as const, text: map[error] ?? `Operation failed (${error}).` };
 }
@@ -187,7 +191,10 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
     );
   }
 
-  const result = await listSelfAppointments({ studioId, userId: user.id });
+  const [result, bookingRules] = await Promise.all([
+    listSelfAppointments({ studioId, userId: user.id }),
+    getSelfBookingRules({ studioId }),
+  ]);
   if (!result.ok) {
     return (
       <main className={ui.page}>
@@ -304,8 +311,10 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
         ) : (
           <ul className="space-y-3">
             {result.payload.appointments.map((appointment) => {
-              const canReschedule = ["pending", "confirmed"].includes(appointment.status);
-              const canCancel = ["pending", "confirmed", "checked_in"].includes(appointment.status);
+              const withinChangeWindow = canCustomerChangeAppointment(bookingRules, appointment.starts_at);
+              const isActive = ["pending", "confirmed", "checked_in"].includes(appointment.status);
+              const canReschedule = withinChangeWindow && ["pending", "confirmed"].includes(appointment.status);
+              const canCancel = withinChangeWindow && isActive;
               const settlement = settlementByAppointmentId.get(appointment.id);
               const payment = settlement?.payment_id ? paymentById.get(settlement.payment_id) : null;
               const isPendingOnlinePayment = Boolean(
@@ -360,17 +369,17 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
                   ) : null}
 
                   {canCancel ? (
-                    <form action={cancelAction} className="mt-2 grid gap-2 sm:grid-cols-4">
+                    <form action={cancelAction} className="mt-2">
                       <input type="hidden" name="appointment_id" value={appointment.id} />
-                      <input
-                        type="text"
-                        name="reason"
-                        className={`${ui.input} sm:col-span-3`}
-                        defaultValue="customer_cancelled"
-                        required
-                      />
-                      <button type="submit" className={`${ui.btnGhost} sm:col-span-1`}>Cancel</button>
+                      <input type="hidden" name="reason" value="customer_cancelled" />
+                      <button type="submit" className={ui.btnGhost}>Cancel</button>
                     </form>
+                  ) : null}
+
+                  {isActive && !withinChangeWindow ? (
+                    <p className={`mt-3 text-xs ${ui.muted}`}>
+                      Online changes close {bookingRules.changeCutoffHours} h before your appointment. Please contact the studio to change or cancel.
+                    </p>
                   ) : null}
                 </li>
               );

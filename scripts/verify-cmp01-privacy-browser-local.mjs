@@ -54,6 +54,9 @@ try {
   assert.match(settingsBody, /Resend/);
   assert.match(settingsBody, /Retention/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "cmp01 mobile overflow");
+  await page.getByRole("link", { name: /Open booking rules & terms/i }).click();
+  await page.waitForURL((url) => url.pathname === "/dashboard/settings/booking" && url.searchParams.get("tab") === "rules", { timeout: 30000 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "booking rules mobile overflow");
   await page.getByRole("button", { name: /Save (consent version|privacy-v1\.0)/i }).click();
   await page.getByText(/Consent version saved/i).first().waitFor({ state: "visible", timeout: 30000 });
   assert.match(await page.locator("body").innerText(), /Not shown on the public studio page/i);

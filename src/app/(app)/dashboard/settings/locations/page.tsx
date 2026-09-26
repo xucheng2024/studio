@@ -1,17 +1,14 @@
 import {
   createLocation,
-  setLocationOperatingHoursWeekAction,
   toggleLocationActive,
   updateLocation,
 } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
-import { DashboardLocationFilter } from "@/components/DashboardLocationFilter";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FormPhoneField } from "@/components/ui/FormPhoneField";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
-import { listLocationOperatingHours, type LocationOperatingHours } from "@/lib/staff-availability";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 
@@ -22,32 +19,11 @@ type Props = {
   }>;
 };
 
-const WEEKDAYS = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-] as const;
-
 function scopedHref(path: string, selectedStudioId: string | null) {
   const p = new URLSearchParams();
   if (selectedStudioId) p.set("studio_id", selectedStudioId);
   const q = p.toString();
   return q ? `${path}?${q}` : path;
-}
-
-function formatOperatingIntervals(hours: LocationOperatingHours[], weekday: number): string {
-  return hours
-    .filter((row) => row.weekday === weekday && !row.is_closed && row.opens_at && row.closes_at)
-    .map((row) => `${String(row.opens_at).slice(0, 5)}-${String(row.closes_at).slice(0, 5)}`)
-    .join(", ");
-}
-
-function isClosedWeekday(hours: LocationOperatingHours[], weekday: number): boolean {
-  return hours.some((row) => row.weekday === weekday && row.is_closed);
 }
 
 export default async function SettingsLocationsPage({ searchParams }: Props) {
@@ -58,7 +34,7 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { ctx, studioIds, selectedStudioId, selectedLocationId, accessibleLocationIds } = await getDashboardScopeForRoles(
+  const { ctx, studioIds, selectedStudioId, accessibleLocationIds } = await getDashboardScopeForRoles(
     {
       userId: user.id,
       email: user.email,
@@ -96,25 +72,12 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
   const visibleLocations = (locations ?? []).filter(
     (location) => canViewAllLocations || accessibleLocationIds.includes(location.id),
   );
-  const targetLocationId = selectedLocationId ?? visibleLocations[0]?.id ?? null;
-  const targetLocation = visibleLocations.find((location) => location.id === targetLocationId) ?? null;
-
-  const hoursResult = targetLocationId
-    ? await listLocationOperatingHours({
-        userId: user.id,
-        email: user.email,
-        studioId: studio.id,
-        locationId: targetLocationId,
-      })
-    : null;
-  const operatingHours = hoursResult?.ok ? hoursResult.hours : [];
-
   return (
     <div className="flex max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className={ui.h1}>Locations</h1>
-          <p className={ui.muted}>Manage branches/venues for {studio.name} and configure operating hours.</p>
+          <p className={ui.muted}>Manage branches/venues for {studio.name}. Opening hours are set under Online booking.</p>
         </div>
         <DashboardAppLink href={scopedHref("/dashboard/settings", selectedStudioId)} className={`${ui.btnSecondarySm} w-full sm:w-auto`}>
           Back to settings
@@ -143,16 +106,6 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
           </div>
         </ServerActionToastForm>
       ) : null}
-
-      <div className={`${ui.card} flex flex-wrap gap-3`}>
-        <DashboardLocationFilter
-          locations={locations ?? []}
-          selectedStudioId={studio.id}
-          selectedLocationId={selectedLocationId}
-          allowAll={false}
-          accessibleLocationIds={canViewAllLocations ? (locations ?? []).map((location) => location.id) : accessibleLocationIds}
-        />
-      </div>
 
       <div className={ui.card}>
         <p className={`mb-3 text-xs ${ui.muted}`}>Locations are used for schedule/frontdesk/operations filters and scoped staff access.</p>
@@ -206,45 +159,14 @@ export default async function SettingsLocationsPage({ searchParams }: Props) {
         )}
       </div>
 
-      <div className={ui.card}>
-        <h2 className={ui.h2}>Operating hours</h2>
-        {!targetLocation ? (
-          <p className={`mt-2 text-sm ${ui.muted}`}>Select a location above to manage operating hours.</p>
-        ) : (
-          <>
-            <p className={`mt-1 text-sm ${ui.muted}`}>
-              Set weekly operating hours for {targetLocation.name}. Format each day as <code>09:00-13:00, 14:00-18:00</code>.
-            </p>
-            <ServerActionToastForm action={setLocationOperatingHoursWeekAction} className="mt-3 grid gap-3">
-              <input type="hidden" name="studio_id" value={studio.id} />
-              <input type="hidden" name="location_id" value={targetLocation.id} />
-              {WEEKDAYS.map((weekday) => (
-                <div key={weekday.value} className="grid gap-2 sm:grid-cols-[140px_1fr_auto] sm:items-center">
-                  <span className="text-sm font-medium text-stone-900 dark:text-stone-100">{weekday.label}</span>
-                  <input
-                    name={`weekday_${weekday.value}`}
-                    defaultValue={formatOperatingIntervals(operatingHours, weekday.value)}
-                    className={ui.input}
-                    placeholder="09:00-13:00, 14:00-18:00"
-                  />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      name={`closed_${weekday.value}`}
-                      defaultChecked={isClosedWeekday(operatingHours, weekday.value)}
-                    />
-                    Closed
-                  </label>
-                </div>
-              ))}
-              <div>
-                <SubmitButton className={`${ui.btnPrimarySm} w-full sm:w-fit`} pendingText="Saving...">
-                  Save operating hours
-                </SubmitButton>
-              </div>
-            </ServerActionToastForm>
-          </>
-        )}
+      <div className={`${ui.card} flex flex-wrap items-center justify-between gap-3`}>
+        <div>
+          <h2 className={ui.h2}>Opening hours</h2>
+          <p className={`mt-1 text-sm ${ui.muted}`}>Set weekly opening hours with the rest of the booking setup.</p>
+        </div>
+        <DashboardAppLink href={`/dashboard/settings/booking?tab=hours${selectedStudioId ? `&studio_id=${selectedStudioId}` : ""}`} className={ui.btnSecondarySm}>
+          Open opening hours
+        </DashboardAppLink>
       </div>
     </div>
   );

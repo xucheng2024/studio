@@ -6,15 +6,17 @@ import { formatLocalDate, formatLocalTime, localISODate, shiftLocalIsoDate } fro
 import {
   createSelfAppointment,
   ensureSelfSalonCustomer,
+  canCustomerChangeAppointment,
   getLatestSalonTermsVersion,
+  getSelfBookingRules,
   getSelfOnlinePaymentOptions,
   groupSlotsByStartTime,
+  lastSelfBookableDate,
   listSelfAppointments,
   listSelfBookableCatalog,
   listSelfBookableSlots,
   listSelfEligiblePackageCredits,
   rescheduleSelfAppointment,
-  SELF_BOOKING_MIN_LEAD_MINUTES,
   summarizeTermsSnapshot,
   type SelfBookableSlot,
 } from "@/lib/salon-appointments-self";
@@ -76,6 +78,9 @@ function messageFromStatus(ok: string | undefined, error: string | undefined) {
     payment_create_failed: "Could not create online payment request. Please try again.",
     payment_config_missing: "Studio online payment is not configured.",
     not_reschedulable: "This appointment can no longer be rescheduled online. Please contact the studio.",
+    not_online_bookable: "This service can no longer be booked online. Please contact the studio.",
+    outside_booking_window: "That time is outside the studio's online booking window. Please choose another.",
+    change_cutoff_passed: "Online changes are closed for this appointment. Please contact the studio.",
   };
   return { tone: "error" as const, text: map[error] ?? `Booking failed (${error}).` };
 }
@@ -112,6 +117,7 @@ async function resolveSlot(params: {
   serviceId: string;
   startsAtIso: string;
   employeeId: string;
+  minNoticeMinutes: number;
   ignoreAppointmentId?: string;
 }): Promise<SelfBookableSlot | null> {
   const startsAt = new Date(params.startsAtIso);
@@ -123,7 +129,7 @@ async function resolveSlot(params: {
       serviceId: params.serviceId,
       dateYmd: localISODate(startsAt),
       ignoreAppointmentId: params.ignoreAppointmentId,
-      minLeadMinutes: SELF_BOOKING_MIN_LEAD_MINUTES,
+      minLeadMinutes: params.minNoticeMinutes,
       alignToClock: true,
     });
     if (!result.ok) return null;
@@ -166,7 +172,10 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const selfCustomer = await ensureSelfSalonCustomer({ studioId: studio.id, userId: user.id });
   const studioId = studio.id;
   const myAppointmentsPath = `/${studioSlug}/me/appointments`;
-  const catalog = await listSelfBookableCatalog({ studioId: studio.id });
+  const [catalog, rules] = await Promise.all([
+    listSelfBookableCatalog({ studioId: studio.id }),
+    getSelfBookingRules({ studioId: studio.id }),
+  ]);
 
   const rescheduleId = String(sp.reschedule ?? "").trim();
   const rescheduleAppointment = rescheduleId && selfCustomer.ok
@@ -176,6 +185,9 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
     : null;
   if (rescheduleId && (!rescheduleAppointment || !["pending", "confirmed"].includes(rescheduleAppointment.status))) {
     redirect(`${myAppointmentsPath}?error=not_found`);
+  }
+  if (rescheduleAppointment && !canCustomerChangeAppointment(rules, rescheduleAppointment.starts_at)) {
+    redirect(`${myAppointmentsPath}?error=change_cutoff_passed`);
   }
   const isReschedule = Boolean(rescheduleAppointment);
 
@@ -191,9 +203,12 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const selectedEmployeeId = rescheduleAppointment?.employee_id ?? String(sp.employee_id ?? "").trim();
 
   const today = localISODate();
+  const lastDate = lastSelfBookableDate(rules, today);
   const defaultDate = rescheduleAppointment ? localISODate(new Date(rescheduleAppointment.starts_at)) : today;
   const requestedDate = String(sp.date ?? defaultDate).trim();
-  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && requestedDate >= today ? requestedDate : today;
+  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && requestedDate >= today
+    ? (requestedDate > lastDate ? lastDate : requestedDate)
+    : today;
 
   const state: BookingState = {
     locationId: rescheduleAppointment ? "" : selectedLocationId,
@@ -213,7 +228,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
         serviceId: selectedServiceId,
         dateYmd: selectedDate,
         ignoreAppointmentId: rescheduleAppointment?.id,
-        minLeadMinutes: SELF_BOOKING_MIN_LEAD_MINUTES,
+        minLeadMinutes: rules.minNoticeMinutes,
         alignToClock: true,
       })
     : null;
@@ -250,7 +265,10 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const notice = messageFromStatus(sp.ok, sp.error);
 
   const stripStart = selectedDate <= shiftLocalIsoDate(today, 6) ? today : selectedDate;
-  const stripDays = Array.from({ length: 7 }, (_, index) => shiftLocalIsoDate(stripStart, index));
+  const stripDays = Array.from({ length: 7 }, (_, index) => shiftLocalIsoDate(stripStart, index))
+    .filter((day) => day <= lastDate);
+  const nextStripStart = shiftLocalIsoDate(stripStart, 7) <= lastDate ? shiftLocalIsoDate(stripStart, 7) : null;
+  const nextDay = shiftLocalIsoDate(selectedDate, 1) <= lastDate ? shiftLocalIsoDate(selectedDate, 1) : null;
   const prevStripStart = stripStart > today
     ? (shiftLocalIsoDate(stripStart, -7) < today ? today : shiftLocalIsoDate(stripStart, -7))
     : null;
@@ -323,6 +341,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
       serviceId,
       startsAtIso: slotStartsAtIso,
       employeeId: slotEmployeeId,
+      minNoticeMinutes: (await getSelfBookingRules({ studioId })).minNoticeMinutes,
     });
     if (!slot) {
       redirect(withError(backToTimes, "slot_conflict"));
@@ -398,6 +417,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
       serviceId: appointment.service_id,
       startsAtIso: slotStartsAtIso,
       employeeId: appointment.employee_id,
+      minNoticeMinutes: (await getSelfBookingRules({ studioId })).minNoticeMinutes,
       ignoreAppointmentId: appointment.id,
     });
     if (!slot) {
@@ -554,9 +574,11 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                         </Link>
                       );
                     })}
-                    <Link href={href({ date: shiftLocalIsoDate(stripStart, 7), startsAt: "" })} className={ui.btnGhost} aria-label="Next week">
-                      <span aria-hidden="true">→</span>
-                    </Link>
+                    {nextStripStart ? (
+                      <Link href={href({ date: nextStripStart, startsAt: "" })} className={ui.btnGhost} aria-label="Next week">
+                        <span aria-hidden="true">→</span>
+                      </Link>
+                    ) : null}
                   </nav>
 
                   {!isReschedule && (staffOnDay.length > 1 || selectedEmployeeId) ? (
@@ -594,9 +616,13 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
                           ? "Choose “Any available” or try another day."
                           : "Try another day to see more availability."}
                       </p>
-                      <Link href={href({ date: shiftLocalIsoDate(selectedDate, 1), startsAt: "" })} className={ui.btnSecondarySm}>
-                        Check next day <span aria-hidden="true">→</span>
-                      </Link>
+                      {nextDay ? (
+                        <Link href={href({ date: nextDay, startsAt: "" })} className={ui.btnSecondarySm}>
+                          Check next day <span aria-hidden="true">→</span>
+                        </Link>
+                      ) : (
+                        <p className={`text-xs ${ui.muted}`}>Online booking opens up to {rules.maxAdvanceDays} days ahead.</p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">

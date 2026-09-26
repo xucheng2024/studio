@@ -62,8 +62,8 @@ async function assertDenied(identity, pathSuffix) {
 try {
   const owner = await login(APT_LOCAL_IDENTITIES.owner);
 
-  await owner.page.goto(`${baseUrl}/dashboard/services${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "services mobile overflow");
+  await owner.page.goto(`${baseUrl}/dashboard/settings/booking${query}&tab=services`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "booking services mobile overflow");
   await owner.page.getByRole("heading", { name: "APT-01 local service" }).click();
   await owner.page.getByLabel("Duration (mins)").fill("45");
   await owner.page.getByRole("button", { name: "Save appointment defaults" }).click();
@@ -76,7 +76,8 @@ try {
   assert.equal(service.default_duration_minutes, 45);
 
   await owner.page.goto(`${baseUrl}/dashboard/settings/resources${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "resources mobile overflow");
+  await owner.page.waitForURL((url) => url.pathname === "/dashboard/settings/booking" && url.searchParams.get("tab") === "resources", { timeout: 30_000 });
+  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "booking resources mobile overflow");
   await owner.page.getByLabel("Name").fill("APT-01 Bed");
   await owner.page.getByRole("button", { name: "Add resource" }).click();
   await waitForToast(owner.page, "Resource created.");
@@ -87,7 +88,8 @@ try {
   }, (row) => row?.name === "APT-01 Bed", "resource created");
 
   await owner.page.goto(`${baseUrl}/dashboard/settings/staff-availability${query}&employee_id=${employeeId}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "staff availability mobile overflow");
+  await owner.page.waitForURL((url) => url.pathname === "/dashboard/settings/booking" && url.searchParams.get("tab") === "staff", { timeout: 30_000 });
+  assert.equal(await owner.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "booking staff mobile overflow");
   await fillTimeInput(owner.page, "Monday start", "09:00");
   await fillTimeInput(owner.page, "Monday end", "18:00");
   await owner.page.getByRole("button", { name: "Save working hours" }).click();
@@ -109,6 +111,7 @@ try {
     await assertDenied(identity, "/dashboard/services");
     await assertDenied(identity, "/dashboard/settings/resources");
     await assertDenied(identity, "/dashboard/settings/staff-availability");
+    await assertDenied(identity, "/dashboard/settings/booking");
   }
 
   fs.mkdirSync(evidenceDir, { recursive: true });

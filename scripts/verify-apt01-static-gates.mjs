@@ -67,6 +67,7 @@ const serviceActions = read("src/app/(app)/dashboard/_actions/service-availabili
 const staffActions = read("src/app/(app)/dashboard/_actions/staff-availability.ts");
 const resourceActions = read("src/app/(app)/dashboard/_actions/salon-resources.ts");
 const servicesPage = read("src/app/(app)/dashboard/services/page.tsx");
+const bookingServicesSection = read("src/app/(app)/dashboard/settings/booking/_sections/ServicesSection.tsx");
 const serverActionToastFormComponent = read("src/components/dashboard/ServerActionToastForm.tsx");
 const toastConfirmFormComponent = read("src/components/ToastConfirmForm.tsx");
 
@@ -125,6 +126,11 @@ assertNoNestedTags(
   servicesPage,
   ["ServerActionToastForm", "ToastConfirmForm"],
   "services page form-components",
+);
+assertNoNestedTags(
+  bookingServicesSection,
+  ["ServerActionToastForm", "ToastConfirmForm"],
+  "booking services section form-components",
 );
 
 // 7) Form components themselves should not render nested <form>.

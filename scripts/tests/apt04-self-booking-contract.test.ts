@@ -88,7 +88,7 @@ test("self booking page renders terms content and acceptance evidence fields", (
 test("self-booking uses the production studio_services title contract", () => {
   const service = read("src/lib/salon-appointments-self.ts");
 
-  assert.equal(service.includes('.select("id, title, price, currency, is_active, default_duration_minutes'), true);
+  assert.equal(service.includes('.select("id, title, price, currency, is_active, online_bookable, default_duration_minutes'), true);
   assert.equal(service.includes('.order("title")'), true);
   assert.equal(service.includes("name: service.title"), true);
   assert.equal(service.includes('.select("id, name, is_active, default_duration_minutes'), false);
@@ -174,7 +174,7 @@ test("online settlement options are validated server-side before booking", () =>
   const bookingPage = read("src/app/[studioSlug]/appointments/page.tsx");
 
   assert.equal(service.includes("full > 0 && deposit < full ? deposit : null"), true);
-  assert.equal(service.includes("const settlementCheck = await assertSelfSettlementOptionAvailable({"), true);
+  assert.equal(service.includes("const settlementCheck = await assertSelfBookingAllowed({"), true);
   assert.equal(service.includes('code: "payment_option_unavailable"'), true);
   assert.equal(bookingPage.includes("getSelfOnlinePaymentOptions"), true);
   assert.equal(bookingPage.includes("payment_option_unavailable"), true);
@@ -201,4 +201,29 @@ test("customers reschedule by picking an available slot", () => {
   assert.equal(myAppointmentsPage.includes('type="datetime-local"'), false);
   assert.equal(bookingPage.includes("newResourceIds: slot.resourceIds"), true);
   assert.equal(bookingPage.includes("ignoreAppointmentId: appointment.id"), true);
+});
+
+test("studio booking rules gate customer self-service", () => {
+  const service = read("src/lib/salon-appointments-self.ts");
+  const bookingPage = read("src/app/[studioSlug]/appointments/page.tsx");
+  const myAppointmentsPage = read("src/app/me/_shared/appointments-page.tsx");
+  const migration = read("supabase/migrations/20260926120000_booking_rules_and_online_toggle.sql");
+
+  assert.equal(migration.includes("appointment_min_notice_minutes integer not null default 60"), true);
+  assert.equal(migration.includes("appointment_max_advance_days integer not null default 60"), true);
+  assert.equal(migration.includes("appointment_change_cutoff_hours integer not null default 0"), true);
+  assert.equal(migration.includes("online_bookable boolean not null default true"), true);
+
+  assert.equal(service.includes('.eq("online_bookable", true)'), true);
+  assert.equal(service.includes('code: "not_online_bookable"'), true);
+  assert.equal((service.match(/code: "outside_booking_window"/g) ?? []).length >= 2, true);
+  assert.equal((service.match(/code: "change_cutoff_passed"/g) ?? []).length >= 2, true);
+  assert.equal(service.includes("SELF_BOOKING_MIN_LEAD_MINUTES"), false);
+
+  assert.equal(bookingPage.includes("minLeadMinutes: rules.minNoticeMinutes"), true);
+  assert.equal(bookingPage.includes("lastSelfBookableDate(rules, today)"), true);
+  assert.equal(bookingPage.includes("canCustomerChangeAppointment(rules, rescheduleAppointment.starts_at)"), true);
+  assert.equal(myAppointmentsPage.includes("canCustomerChangeAppointment(bookingRules, appointment.starts_at)"), true);
+  assert.equal(myAppointmentsPage.includes("Online changes close"), true);
+  assert.equal(myAppointmentsPage.includes('defaultValue="customer_cancelled"'), false);
 });

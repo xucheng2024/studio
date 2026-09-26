@@ -5,7 +5,6 @@ import { LocalDate } from "@/components/ui/LocalDate";
 import {
   anonymizeSalonCustomerAction,
   markAppointmentRetentionReviewedAction,
-  publishStudioPrivacyNoticeAction,
   updateStudioRetentionSettingsAction,
 } from "@/app/(app)/dashboard/actions";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
@@ -73,18 +72,16 @@ export default async function DashboardPrivacySettingsPage({ searchParams }: Pro
         </p>
       </div>
 
-      <section className={ui.card}>
-        <h2 className={ui.h2}>Booking consent version</h2>
-        <p className={`mt-1 text-sm ${ui.muted}`}>
-          {notice?.version_label ? `Current version ${notice.version_label}` : "No consent version saved yet."}
-          {" "}Not shown on the public studio page.
-        </p>
-        <ServerActionToastForm action={publishStudioPrivacyNoticeAction} className="mt-3">
-          <input type="hidden" name="studio_id" value={studioId} />
-          <button type="submit" className={ui.btnPrimarySm}>
-            {notice?.version_label ? "Save consent version" : "Save privacy-v1.0"}
-          </button>
-        </ServerActionToastForm>
+      <section className={`${ui.card} flex flex-wrap items-center justify-between gap-3`}>
+        <div>
+          <h2 className={ui.h2}>Booking consent version</h2>
+          <p className={`mt-1 text-sm ${ui.muted}`}>
+            {notice?.version_label ? `Current version ${notice.version_label}.` : "No consent version saved yet."} Managed with booking terms.
+          </p>
+        </div>
+        <DashboardAppLink href={`/dashboard/settings/booking?tab=rules&studio_id=${studioId}`} className={ui.btnSecondarySm}>
+          Open booking rules &amp; terms
+        </DashboardAppLink>
       </section>
 
       <section className={ui.card}>
