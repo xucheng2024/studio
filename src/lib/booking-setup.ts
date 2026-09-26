@@ -25,7 +25,15 @@ export const DEFAULT_SALON_TERMS_BODY = [
 export type BookingSetupIssue = { label: string; href: string };
 
 export type BookingReadinessItem = {
-  key: "location_hours" | "staff_locations" | "staff_hours" | "service_locations" | "service_staff" | "terms" | "privacy";
+  key:
+    | "staff_bookable"
+    | "location_hours"
+    | "staff_locations"
+    | "staff_hours"
+    | "service_locations"
+    | "service_staff"
+    | "terms"
+    | "privacy";
   label: string;
   done: boolean;
   issues: BookingSetupIssue[];
@@ -69,7 +77,12 @@ async function loadSetupSnapshot(studioId: string): Promise<SetupSnapshot> {
   ] = await Promise.all([
     admin.from("locations").select("id, name").eq("studio_id", studioId).eq("is_active", true).order("name"),
     admin.from("location_operating_hours").select("location_id, weekday, is_closed, opens_at, closes_at").eq("studio_id", studioId),
-    admin.from("employees").select("id, display_name, employment_status").eq("studio_id", studioId).order("display_name"),
+    admin
+      .from("employees")
+      .select("id, display_name, employment_status")
+      .eq("studio_id", studioId)
+      .eq("takes_appointments", true)
+      .order("display_name"),
     admin.from("employee_locations").select("employee_id, location_id").eq("studio_id", studioId).eq("is_active", true),
     admin.from("employee_working_hours").select("employee_id, location_id").eq("studio_id", studioId).eq("is_active", true),
     admin.from("studio_services").select("id, title, online_bookable").eq("studio_id", studioId).eq("is_active", true).order("sort_order").order("title"),
@@ -171,6 +184,13 @@ export async function getBookingReadiness(params: { studioId: string }) {
 
   const items: BookingReadinessItem[] = [
     {
+      key: "staff_bookable",
+      label: "At least one staff member takes appointments",
+      href: "/dashboard/settings/booking?tab=staff",
+      issues: snapshot.employees.length ? [] : [{ label: "Nobody takes appointments yet", href: "/dashboard/settings/booking?tab=staff" }],
+      done: false,
+    },
+    {
       key: "location_hours",
       label: "Locations have opening hours",
       href: "/dashboard/settings/booking?tab=hours",
@@ -182,10 +202,10 @@ export async function getBookingReadiness(params: { studioId: string }) {
     {
       key: "staff_locations",
       label: "Staff are assigned to a location",
-      href: "/dashboard/staff",
+      href: "/dashboard/settings/booking?tab=staff",
       issues: snapshot.employees
         .filter((employee) => !snapshot.employeeLocations.get(employee.id)?.size)
-        .map((employee) => ({ label: employee.display_name, href: "/dashboard/staff" })),
+        .map((employee) => ({ label: employee.display_name, href: "/dashboard/settings/booking?tab=staff" })),
       done: false,
     },
     {
@@ -508,6 +528,71 @@ export async function setServiceOnlineBookable(params: {
     .from("studio_services")
     .update({ online_bookable: params.onlineBookable })
     .eq("id", params.serviceId)
+    .eq("studio_id", params.studioId);
+  if (error) return { ok: false, reason: "invalid_request", message: error.message };
+  return { ok: true };
+}
+
+export type StudioEmployeeBookingRow = {
+  id: string;
+  displayName: string;
+  takesAppointments: boolean;
+  roles: string[];
+  locationIds: string[];
+};
+
+/** All active employees with their dashboard roles, for the "Who takes appointments" list. */
+export async function listStudioEmployeesForBooking(params: { studioId: string }): Promise<StudioEmployeeBookingRow[]> {
+  const admin = createAdminClient();
+  const [employeeRes, membershipRes, studioRes, employeeLocationRes] = await Promise.all([
+    admin
+      .from("employees")
+      .select("id, user_id, display_name, employment_status, takes_appointments")
+      .eq("studio_id", params.studioId)
+      .eq("employment_status", "active")
+      .order("display_name"),
+    admin.from("staff_memberships").select("user_id, role").eq("studio_id", params.studioId).eq("is_active", true),
+    admin.from("studios").select("owner_id").eq("id", params.studioId).maybeSingle<{ owner_id: string | null }>(),
+    admin.from("employee_locations").select("employee_id, location_id").eq("studio_id", params.studioId).eq("is_active", true),
+  ]);
+  if (employeeRes.error) throw employeeRes.error;
+  if (employeeLocationRes.error) throw employeeLocationRes.error;
+  const locationsByEmployee = new Map<string, string[]>();
+  for (const row of employeeLocationRes.data ?? []) {
+    locationsByEmployee.set(row.employee_id, [...(locationsByEmployee.get(row.employee_id) ?? []), row.location_id]);
+  }
+  if (membershipRes.error) throw membershipRes.error;
+  if (studioRes.error) throw studioRes.error;
+
+  const rolesByUser = new Map<string, Set<string>>();
+  for (const row of membershipRes.data ?? []) pushTo(rolesByUser, row.user_id, row.role);
+  if (studioRes.data?.owner_id) pushTo(rolesByUser, studioRes.data.owner_id, "owner");
+
+  return (employeeRes.data ?? []).map((row) => ({
+    id: row.id,
+    displayName: row.display_name,
+    takesAppointments: row.takes_appointments !== false,
+    roles: row.user_id ? [...(rolesByUser.get(row.user_id) ?? [])] : [],
+    locationIds: locationsByEmployee.get(row.id) ?? [],
+  }));
+}
+
+export async function setEmployeeTakesAppointments(params: {
+  userId: string;
+  studioId: string;
+  employeeId: string;
+  takesAppointments: boolean;
+}): Promise<{ ok: true } | SetupFailure> {
+  const scope = await requireGlobalStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    roles: ["owner", "manager"],
+  });
+  if (!scope.ok) return scope;
+  const { error } = await createAdminClient()
+    .from("employees")
+    .update({ takes_appointments: params.takesAppointments })
+    .eq("id", params.employeeId)
     .eq("studio_id", params.studioId);
   if (error) return { ok: false, reason: "invalid_request", message: error.message };
   return { ok: true };

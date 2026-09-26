@@ -40,7 +40,7 @@ export async function OverviewSection({ ctx }: { ctx: BookingSettingsContext }) 
         {!readiness.hasLocations || !readiness.hasEmployees ? (
           <p className="text-sm text-amber-700 dark:text-amber-300">
             {!readiness.hasLocations ? "Add a location first. " : ""}
-            {!readiness.hasEmployees ? "Add at least one staff member so customers have someone to book with." : ""}
+            {!readiness.hasEmployees ? "Nobody takes appointments yet. Turn it on for at least one person under Staff schedules." : ""}
           </p>
         ) : null}
 

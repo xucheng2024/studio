@@ -109,3 +109,41 @@ test("booking rules are validated and saved by owner or manager", () => {
   assert.equal(lib.includes("changeCutoffHours > 168"), true);
   assert.equal(lib.includes("export async function setServiceOnlineBookable"), true);
 });
+
+test("everyone with studio access gets an employee record and opts in to appointments", () => {
+  const migration = read("supabase/migrations/20260926140000_employees_auto_create_and_takes_appointments.sql");
+  const postAuth = read("src/app/(app)/post-auth/page.tsx");
+  const studioSettings = read("src/app/(app)/dashboard/_actions/studio-settings.ts");
+  const bookingPage = read("src/app/(app)/dashboard/settings/booking/page.tsx");
+
+  assert.equal(migration.includes("add column if not exists takes_appointments boolean not null default true"), true);
+  assert.equal(migration.includes("create or replace function public.ensure_studio_employee("), true);
+  assert.equal(migration.includes("create or replace function public.sync_studio_employees(p_studio_id uuid)"), true);
+  assert.equal(migration.includes("bool_or(sm.role = 'instructor')"), true);
+  assert.equal(migration.includes("perform public.ensure_studio_employee(s.id, s.owner_id, false)"), true);
+  assert.equal(/create trigger/i.test(migration), false, "no trigger: fixtures seed employees explicitly");
+  assert.equal(migration.includes("to service_role"), true);
+
+  assert.equal(postAuth.includes('admin.rpc("sync_studio_employees", { p_studio_id: invite.studio_id })'), true);
+  assert.equal(studioSettings.includes('admin.rpc("sync_studio_employees", { p_studio_id: createdStudio.id })'), true);
+  assert.equal(bookingPage.includes('rpc("sync_studio_employees", { p_studio_id: studioId })'), true);
+});
+
+test("only staff who take appointments can be scheduled, assigned or booked", () => {
+  const selfBooking = read("src/lib/salon-appointments-self.ts");
+  const setup = read("src/lib/booking-setup.ts");
+  const services = read("src/app/(app)/dashboard/settings/booking/_sections/ServicesSection.tsx");
+  const staff = read("src/app/(app)/dashboard/settings/booking/_sections/StaffSection.tsx");
+  const availability = read("src/lib/service-availability.ts");
+
+  assert.equal(selfBooking.includes('.eq("takes_appointments", true)'), true);
+  assert.equal(setup.includes('.eq("takes_appointments", true)'), true);
+  assert.equal(setup.includes('key: "staff_bookable"'), true);
+  assert.equal(setup.includes("export async function setEmployeeTakesAppointments"), true);
+  assert.equal(services.includes('.eq("takes_appointments", true)'), true);
+  assert.equal(services.includes('.eq("is_active", true)\n      .in("employment_status"'), false);
+  assert.equal(staff.includes("setEmployeeTakesAppointmentsAction"), true);
+  assert.equal(staff.includes("setEmployeeBookingLocationsAction"), true);
+  assert.equal(staff.includes("employee.takes_appointments !== false"), true);
+  assert.equal(availability.includes('.select("id, is_active, employment_status")'), false);
+});

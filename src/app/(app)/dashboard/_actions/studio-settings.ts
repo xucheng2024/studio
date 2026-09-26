@@ -120,6 +120,11 @@ export async function createStudio(
     if (locationError) {
       console.error(`createStudio default location: ${locationError.message}`);
     }
+    // The owner gets an employee record so they can opt in to taking appointments.
+    const { error: employeeSyncError } = await admin.rpc("sync_studio_employees", { p_studio_id: createdStudio.id });
+    if (employeeSyncError) {
+      console.error(`createStudio employee sync: ${employeeSyncError.message}`);
+    }
   }
 
   revalidateDashboardCoreViews();

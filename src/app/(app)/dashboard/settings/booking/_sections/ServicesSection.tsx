@@ -32,8 +32,8 @@ export async function ServicesSection({ ctx }: { ctx: BookingSettingsContext }) 
       .from("employees")
       .select("id, display_name, employment_status")
       .eq("studio_id", ctx.studioId)
-      .eq("is_active", true)
-      .in("employment_status", ["active", "probation"])
+      .eq("employment_status", "active")
+      .eq("takes_appointments", true)
       .order("display_name"),
     admin
       .from("service_employees")
@@ -215,7 +215,7 @@ export async function ServicesSection({ ctx }: { ctx: BookingSettingsContext }) 
               <input type="hidden" name="candidate_employee_ids" value={candidateEmployeeIds} />
               <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Eligible staff</p>
               {(employees ?? []).length === 0 ? (
-                <p className={`mt-2 text-xs ${ui.muted}`}>No active employees available yet.</p>
+                <p className={`mt-2 text-xs ${ui.muted}`}>No staff take appointments yet. Turn it on under Staff schedules.</p>
               ) : (
                 <div className="mt-2">
                   <EligibleStaffPicker

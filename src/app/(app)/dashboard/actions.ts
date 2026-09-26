@@ -21,6 +21,8 @@ export type { CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult 
 export {
   applyRecommendedBookingSetupAction,
   publishSalonTermsAction,
+  setEmployeeBookingLocationsAction,
+  setEmployeeTakesAppointmentsAction,
   setServiceOnlineBookableAction,
   updateBookingRulesAction,
 } from "./_actions/booking-setup";

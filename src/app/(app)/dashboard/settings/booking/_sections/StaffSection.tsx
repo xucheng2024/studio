@@ -1,12 +1,15 @@
 import {
   createAvailabilityExceptionAction,
   deleteAvailabilityExceptionAction,
+  setEmployeeBookingLocationsAction,
+  setEmployeeTakesAppointmentsAction,
 } from "@/app/(app)/dashboard/actions";
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { StaffWorkingHoursSetup } from "@/components/dashboard/StaffWorkingHoursSetup";
 import { ServerActionToastForm } from "@/components/dashboard/ServerActionToastForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ToastConfirmForm } from "@/components/ToastConfirmForm";
+import { listStudioEmployeesForBooking } from "@/lib/booking-setup";
 import { formatLocalDateTime } from "@/lib/date";
 import {
   listEmployeeAvailabilityExceptions,
@@ -34,7 +37,7 @@ export async function StaffSection({ ctx }: { ctx: BookingSettingsContext }) {
   const [{ data: employeeLocationRows }, { data: hourRows }, hoursResult] = await Promise.all([
     admin
       .from("employee_locations")
-      .select("employee_id, employees(id, display_name, employment_status)")
+      .select("employee_id, employees(id, display_name, employment_status, takes_appointments)")
       .eq("studio_id", ctx.studioId)
       .eq("location_id", locationId)
       .eq("is_active", true),
@@ -63,9 +66,9 @@ export async function StaffSection({ ctx }: { ctx: BookingSettingsContext }) {
   const employees: EmployeeOption[] = (employeeLocationRows ?? [])
     .map((row) => {
       const employee = (Array.isArray(row.employees) ? row.employees[0] : row.employees) as
-        | { id: string; display_name: string; employment_status: string }
+        | { id: string; display_name: string; employment_status: string; takes_appointments: boolean | null }
         | null;
-      return employee && employee.employment_status === "active"
+      return employee && employee.employment_status === "active" && employee.takes_appointments !== false
         ? {
             id: employee.id,
             display_name: employee.display_name,
@@ -82,10 +85,11 @@ export async function StaffSection({ ctx }: { ctx: BookingSettingsContext }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <TakesAppointmentsCard ctx={ctx} />
       <LocationBar ctx={ctx} />
 
       {employees.length === 0 ? (
-        <p className={ui.muted}>No employees are assigned to this location yet.</p>
+        <p className={ui.muted}>Nobody who takes appointments is assigned to this location yet.</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
           <div className={ui.card}>
@@ -267,5 +271,68 @@ async function EmployeeAvailabilityPanel(props: {
         </details>
       </details>
     </div>
+  );
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  manager: "Manager",
+  frontdesk: "Front desk",
+  instructor: "Service staff",
+};
+
+async function TakesAppointmentsCard({ ctx }: { ctx: BookingSettingsContext }) {
+  const people = await listStudioEmployeesForBooking({ studioId: ctx.studioId });
+  const showLocations = ctx.locations.length > 1;
+
+  return (
+    <details className={`chevron ${ui.card}`} open={!people.some((person) => person.takesAppointments)}>
+      <summary className="cursor-pointer text-base font-semibold text-stone-900 dark:text-stone-100">
+        Who takes appointments ({people.filter((person) => person.takesAppointments).length} of {people.length})
+      </summary>
+      <p className={`mt-1 text-xs ${ui.muted}`}>
+        Only people switched on here can be booked. Turn it on for owners or managers who also provide services.
+      </p>
+      {people.length === 0 ? (
+        <p className={`mt-3 text-sm ${ui.muted}`}>No staff yet. Invite staff from Settings → Staff &amp; roles.</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-stone-100 dark:divide-stone-800">
+          {people.map((person) => (
+            <li key={person.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{person.displayName}</span>
+                  {person.roles.map((role) => (
+                    <span key={role} className={ui.badgeNeutral}>{ROLE_LABELS[role] ?? role}</span>
+                  ))}
+                </div>
+                <ServerActionToastForm action={setEmployeeTakesAppointmentsAction}>
+                  <input type="hidden" name="studio_id" value={ctx.studioId} />
+                  <input type="hidden" name="employee_id" value={person.id} />
+                  <input type="hidden" name="takes_appointments" value={person.takesAppointments ? "false" : "true"} />
+                  <SubmitButton className={person.takesAppointments ? ui.btnGhost : ui.btnSecondarySm} pendingText="Saving...">
+                    {person.takesAppointments ? "Takes appointments · turn off" : "Turn on appointments"}
+                  </SubmitButton>
+                </ServerActionToastForm>
+              </div>
+              {showLocations && person.takesAppointments ? (
+                <ServerActionToastForm action={setEmployeeBookingLocationsAction} className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="studio_id" value={ctx.studioId} />
+                  <input type="hidden" name="employee_id" value={person.id} />
+                  <span className={`text-xs ${ui.muted}`}>Works at</span>
+                  {ctx.locations.map((location) => (
+                    <label key={location.id} className="flex items-center gap-1.5 text-sm">
+                      <input type="checkbox" name="location_ids" value={location.id} defaultChecked={person.locationIds.includes(location.id)} />
+                      {location.name}
+                    </label>
+                  ))}
+                  <SubmitButton className={ui.btnSecondarySm} pendingText="Saving...">Save locations</SubmitButton>
+                </ServerActionToastForm>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
   );
 }

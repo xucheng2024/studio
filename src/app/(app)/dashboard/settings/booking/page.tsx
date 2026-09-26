@@ -1,6 +1,7 @@
 import { DashboardAppLink } from "@/components/DashboardAppLink";
 import { getDashboardScopeForRoles } from "@/lib/dashboard";
 import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
 import { BOOKING_TABS, bookingHref, parseBookingTab, type BookingSettingsContext } from "./_sections/context";
@@ -35,6 +36,11 @@ export default async function DashboardBookingSettingsPage({ searchParams }: Pro
 
   const studioId = selectedStudioId ?? studioIds[0];
   const canViewAllLocations = hasStudioGlobalLocationAccess(accessCtx, studioId);
+  if (canViewAllLocations) {
+    // Self-heal: anyone with studio access who is missing an employee record gets one.
+    const { error: employeeSyncError } = await createAdminClient().rpc("sync_studio_employees", { p_studio_id: studioId });
+    if (employeeSyncError) console.error(`booking settings employee sync: ${employeeSyncError.message}`);
+  }
   const { data: locationRows } = await supabase
     .from("locations")
     .select("id, name, studio_id")

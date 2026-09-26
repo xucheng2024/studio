@@ -54,6 +54,10 @@ async function acceptInviteIfNeeded(userId: string, email: string | null | undef
     });
   }
 
+  // New staff need an employee record to be scheduled or booked.
+  const { error: employeeSyncError } = await admin.rpc("sync_studio_employees", { p_studio_id: invite.studio_id });
+  if (employeeSyncError) console.error(`post-auth employee sync: ${employeeSyncError.message}`);
+
   await admin
     .from("staff_invites")
     .update({

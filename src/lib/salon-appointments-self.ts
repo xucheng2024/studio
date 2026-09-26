@@ -552,8 +552,9 @@ export async function listSelfBookableSlots(params: {
       .eq("is_active", true),
     admin
       .from("employees")
-      .select("id, display_name, employment_status")
-      .eq("studio_id", params.studioId),
+      .select("id, display_name, employment_status, takes_appointments")
+      .eq("studio_id", params.studioId)
+      .eq("takes_appointments", true),
     admin
       .from("employee_working_hours")
       .select("employee_id, starts_at, ends_at, effective_from, effective_until")

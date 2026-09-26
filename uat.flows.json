@@ -159,6 +159,7 @@
         "scripts/tests/booking-setup-contract.test.ts",
         "src/app/me/_shared/appointments-page.tsx",
         "supabase/migrations/20260926120000_booking_rules_and_online_toggle.sql",
+        "supabase/migrations/20260926140000_employees_auto_create_and_takes_appointments.sql",
         "scripts/run-local-uat.mjs",
         "scripts/manage-cloud-vm-uat-environment.mjs",
         "scripts/lib/local-supabase-uat.mjs",

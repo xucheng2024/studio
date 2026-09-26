@@ -3,9 +3,11 @@
 import {
   applyRecommendedBookingSetup,
   publishSalonTermsVersion,
+  setEmployeeTakesAppointments,
   setServiceOnlineBookable,
   updateBookingRules,
 } from "@/lib/booking-setup";
+import { setEmployeeWorkingLocations } from "@/lib/employees";
 import {
   revalidateDashboardContent,
   revalidateDashboardSettings,
@@ -85,4 +87,41 @@ export async function setServiceOnlineBookableAction(
   if (!result.ok) return err(result.message ?? result.reason);
   await revalidateBookingViews(studioId);
   return ok(onlineBookable ? "Online booking turned on." : "Online booking turned off.");
+}
+
+export async function setEmployeeTakesAppointmentsAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const employeeId = String(formData.get("employee_id") ?? "").trim();
+  if (!studioId || !employeeId) return err("Please fill the required fields.");
+  const takesAppointments = String(formData.get("takes_appointments") ?? "") === "true";
+  const { user } = await requireUser();
+  const result = await setEmployeeTakesAppointments({ userId: user.id, studioId, employeeId, takesAppointments });
+  if (!result.ok) return err(result.message ?? result.reason);
+  await revalidateBookingViews(studioId);
+  return ok(takesAppointments ? "Now takes appointments." : "No longer takes appointments.");
+}
+
+export async function setEmployeeBookingLocationsAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const employeeId = String(formData.get("employee_id") ?? "").trim();
+  const locationIds = [...new Set(formData.getAll("location_ids").map((value) => String(value).trim()).filter(Boolean))];
+  if (!studioId || !employeeId) return err("Please fill the required fields.");
+  if (!locationIds.length) return err("Select at least one location.");
+  const { user } = await requireUser();
+  const result = await setEmployeeWorkingLocations({
+    userId: user.id,
+    studioId,
+    employeeId,
+    locationIds,
+    primaryLocationId: locationIds[0],
+  });
+  if (!result.ok) return err(result.message ?? result.reason);
+  await revalidateBookingViews(studioId);
+  return ok("Locations saved.");
 }

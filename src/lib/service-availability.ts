@@ -603,10 +603,12 @@ export async function getEligibleEmployeesForServiceAtLocation(params: {
   if (allEmployeeIds.size > 0) {
     const { data: employees, error: employeesError } = await admin
       .from("employees")
-      .select("id, is_active, employment_status")
+      // Read the full row: production employees have no is_active column (only
+      // the early APT-02 fixture did), so treat a missing flag as active.
+      .select("*")
       .eq("studio_id", params.studioId)
       .in("id", [...allEmployeeIds])
-      .returns<Array<{ id: string; is_active: boolean; employment_status: string }>>();
+      .returns<Array<{ id: string; is_active?: boolean | null; employment_status: string; takes_appointments?: boolean | null }>>();
     if (employeesError) {
       return {
         ok: false,
@@ -616,7 +618,7 @@ export async function getEligibleEmployeesForServiceAtLocation(params: {
     }
     for (const row of employees ?? []) {
       employeesLookup.set(row.id, {
-        is_active: row.is_active,
+        is_active: row.is_active !== false && row.takes_appointments !== false,
         employment_status: row.employment_status,
       });
     }

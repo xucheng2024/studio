@@ -92,7 +92,7 @@ test("self-booking uses the production studio_services title contract", () => {
   assert.equal(service.includes('.order("title")'), true);
   assert.equal(service.includes("name: service.title"), true);
   assert.equal(service.includes('.select("id, name, is_active, default_duration_minutes'), false);
-  assert.equal(service.includes('.select("id, display_name, employment_status")'), true);
+  assert.equal(service.includes('.select("id, display_name, employment_status, takes_appointments")'), true);
   assert.equal(service.includes('.select("id, display_name, is_active, employment_status")'), false);
 });
 
