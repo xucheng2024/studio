@@ -302,6 +302,7 @@ async function bookFirstAvailable(page) {
   await form.locator('input[name="privacy_accepted"]').check();
   await form.getByRole("button", { name: "Book appointment" }).click();
   await page.waitForURL((url) => url.searchParams.get("ok") === "booked", { timeout: 30_000 });
+  await page.getByText("Appointment booked").first().waitFor({ state: "visible", timeout: 30_000 });
   return startsAt;
 }
 
@@ -409,6 +410,7 @@ async function runBrowser(name, launcher, email, full = false) {
       await capture(session.page, name, "06-reschedule-confirm.png", ["Change appointment time", "Confirm new time"]);
       await session.page.getByRole("button", { name: "Confirm new time" }).click();
       await session.page.waitForURL((url) => url.searchParams.get("ok") === "rescheduled", { timeout: 30_000 });
+      await session.page.getByText("Appointment rescheduled").first().waitFor({ state: "visible", timeout: 30_000 });
       await capture(session.page, name, "06-reschedule-success.png", ["Appointment rescheduled"]);
     }
 
