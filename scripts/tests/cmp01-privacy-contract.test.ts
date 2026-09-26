@@ -39,7 +39,7 @@ test("booking requires published privacy notice version", () => {
   assert.equal(bookingPage.includes("name=\"privacy_accepted\""), true);
   assert.equal(bookingPage.includes("name=\"privacy_notice_version_id\""), true);
   assert.equal(bookingPage.includes("recordSelfPrivacyNoticeConsent"), true);
-  assert.equal(bookingPage.includes("error=privacy_version_stale"), true);
+  assert.equal(bookingPage.includes('redirect(withError(backTo, "privacy_version_stale"))'), true);
   assert.equal(bookingPage.includes("may use my name, contact details, and appointment details"), true);
   assert.equal(bookingPage.includes("studioPrivacyPath"), false);
 });
