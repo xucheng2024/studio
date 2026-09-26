@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { formatLocalDateTime, toLocalDateTimeInputValue } from "@/lib/date";
+import { formatLocalDateTime } from "@/lib/date";
 import { studioCheckoutPath } from "@/lib/public-paths";
 import { normalizeStudioSlug } from "@/lib/slug";
 import {
   cancelSelfAppointment,
   listSelfAppointments,
-  parseRescheduleDatetime,
-  rescheduleSelfAppointment,
 } from "@/lib/salon-appointments-self";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -39,13 +37,12 @@ function getScopedPath(studioSlug: string | null, section: string) {
 function getFeedbackMessage(feedback?: FeedbackParams) {
   const ok = String(feedback?.ok ?? "").trim();
   const error = String(feedback?.error ?? "").trim();
-  if (ok === "booked") return { tone: "ok" as const, text: "Appointment submitted successfully." };
+  if (ok === "booked") return { tone: "ok" as const, text: "Appointment booked. Your staff member and status are shown below." };
   if (ok === "rescheduled") return { tone: "ok" as const, text: "Appointment rescheduled." };
   if (ok === "cancelled") return { tone: "ok" as const, text: "Appointment cancelled." };
   if (!error) return null;
   const map: Record<string, string> = {
     missing_appointment: "Appointment id is missing.",
-    invalid_datetime: "Please select a valid date and time.",
     forbidden: "You can only operate your own appointments.",
     slot_conflict: "Selected slot conflicts with another booking.",
     resource_conflict: "Required room/resource is unavailable.",
@@ -270,49 +267,6 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
     redirect(`${myAppointmentsPath}?ok=cancelled`);
   }
 
-  async function rescheduleAction(formData: FormData) {
-    "use server";
-    const actionSupabase = await createClient();
-    const {
-      data: { user: actionUser },
-    } = await actionSupabase.auth.getUser();
-    if (!actionUser) {
-      if (studioSlug) {
-        redirect(`/${studioSlug}/auth?next=${encodeURIComponent(`/${studioSlug}/me/appointments`)}`);
-      }
-      redirect("/login");
-    }
-
-    const appointmentId = String(formData.get("appointment_id") ?? "").trim();
-    const datetimeLocal = String(formData.get("new_starts_at") ?? "").trim();
-    const reason = String(formData.get("reason") ?? "customer_rescheduled").trim() || "customer_rescheduled";
-
-    const parsed = parseRescheduleDatetime(datetimeLocal);
-    if (!appointmentId || !parsed) {
-      redirect(`${myAppointmentsPath}?error=invalid_datetime`);
-    }
-
-    const idempotencyKey =
-      String(formData.get("idempotency_key") ?? "").trim()
-      || `apt04-reschedule:${appointmentId}:${parsed.toISOString()}`;
-
-    const operation = await rescheduleSelfAppointment({
-      userId: actionUser.id,
-      studioId,
-      appointmentId,
-      newStartsAtIso: parsed.toISOString(),
-      reason,
-      idempotencyKey,
-    });
-
-    if (!operation.ok) {
-      redirect(`${myAppointmentsPath}?error=${encodeURIComponent(operation.code)}`);
-    }
-
-    revalidatePath(myAppointmentsPath);
-    redirect(`${myAppointmentsPath}?ok=rescheduled`);
-  }
-
   const studioLookup = new Map<string, { public_slug: string | null }>();
   {
     const { data } = await admin
@@ -394,24 +348,15 @@ export async function renderAppointmentsPage(scope?: MePageScope, feedback?: Fee
                     </p>
                   ) : null}
 
-                  {canReschedule ? (
-                    <form action={rescheduleAction} className="mt-3 grid gap-2 sm:grid-cols-4">
-                      <input type="hidden" name="appointment_id" value={appointment.id} />
-                      <input
-                        type="datetime-local"
-                        name="new_starts_at"
-                        className={`${ui.input} sm:col-span-2`}
-                        defaultValue={toLocalDateTimeInputValue(appointment.starts_at)}
-                        required
-                      />
-                      <input
-                        type="text"
-                        name="reason"
-                        className={`${ui.input} sm:col-span-1`}
-                        defaultValue="customer_rescheduled"
-                      />
-                      <button type="submit" className={`${ui.btnSecondarySm} sm:col-span-1`}>Reschedule</button>
-                    </form>
+                  {canReschedule && studioSlug ? (
+                    <div className="mt-3">
+                      <a
+                        href={`/${studioSlug}/appointments?reschedule=${encodeURIComponent(appointment.id)}`}
+                        className={ui.btnSecondarySm}
+                      >
+                        Change time
+                      </a>
+                    </div>
                   ) : null}
 
                   {canCancel ? (

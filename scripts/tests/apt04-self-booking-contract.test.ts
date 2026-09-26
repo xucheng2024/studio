@@ -28,7 +28,8 @@ test("idempotency failure path releases claim and reschedule key includes new ti
   assert.equal(service.includes("await failIdempotencyKey({"), true);
   assert.equal(service.includes("retryable: true"), true);
 
-  assert.equal(myAppointmentsPage.includes("apt04-reschedule:${appointmentId}:${parsed.toISOString()}"), true);
+  assert.equal(bookingPage.includes("apt04-reschedule:${appointmentId}:${slot.startsAtIso}"), true);
+  assert.equal(myAppointmentsPage.includes("apt04-reschedule:"), false);
   assert.equal(bookingPage.includes("apt04-self-create:${crypto.randomUUID()}"), true);
   assert.equal(bookingPage.includes("apt04-self-create:${selfCustomer.salonCustomerId}"), false);
 });
@@ -36,7 +37,9 @@ test("idempotency failure path releases claim and reschedule key includes new ti
 test("slot generation includes prep and buffer in location boundary checks", () => {
   const service = read("src/lib/salon-appointments-self.ts");
 
-  assert.equal(service.includes("const earliestStartSecond = interval.startSecond + timing.prepMinutes * 60;"), true);
+  assert.equal(service.includes("const rawEarliestStartSecond = interval.startSecond + timing.prepMinutes * 60;"), true);
+  assert.equal(service.includes("Math.ceil(rawEarliestStartSecond / stepSeconds) * stepSeconds"), true);
+  assert.equal(service.includes("+ Math.max(params.minLeadMinutes ?? 0, 0) * 60_000"), true);
   assert.equal(
     service.includes("const latestStartSecond = interval.endSecond - (timing.durationMinutes + timing.bufferMinutes) * 60;"),
     true,
@@ -79,13 +82,13 @@ test("self booking page renders terms content and acceptance evidence fields", (
   assert.equal(bookingPage.includes("name=\"privacy_notice_version_id\""), true);
   assert.equal(bookingPage.includes("const latestTermsVersion = await getLatestSalonTermsVersion({ studioId });"), true);
   assert.equal(bookingPage.includes("latestTermsVersion.id !== termsVersionId"), true);
-  assert.equal(bookingPage.includes("error=terms_version_stale"), true);
+  assert.equal(bookingPage.includes('redirect(withError(backTo, "terms_version_stale"))'), true);
 });
 
 test("self-booking uses the production studio_services title contract", () => {
   const service = read("src/lib/salon-appointments-self.ts");
 
-  assert.equal(service.includes('.select("id, title, is_active, default_duration_minutes'), true);
+  assert.equal(service.includes('.select("id, title, price, currency, is_active, default_duration_minutes'), true);
   assert.equal(service.includes('.order("title")'), true);
   assert.equal(service.includes("name: service.title"), true);
   assert.equal(service.includes('.select("id, name, is_active, default_duration_minutes'), false);
@@ -153,4 +156,49 @@ test("APT-04 local UAT seeds privacy notice and accepts it before booking", () =
   assert.equal(appointmentsUat.includes('input[name="privacy_accepted"]'), true);
   assert.equal(settlementSql.includes("insert into public.salon_privacy_notice_versions"), true);
   assert.equal(settlementBrowser.includes('input[name="privacy_accepted"]'), true);
+});
+
+test("pay-at-store self bookings are confirmed instead of left to expire", () => {
+  const service = read("src/lib/salon-appointments-self.ts");
+  const migration = read("supabase/migrations/20260926100000_apt04_confirm_pay_at_store.sql");
+
+  assert.equal(service.includes('admin.rpc("apt04_confirm_free_settlement"'), true);
+  assert.equal(migration.includes("create or replace function public.apt04_confirm_free_settlement"), true);
+  assert.equal(migration.includes("expires_at = null"), true);
+  assert.equal(migration.includes("'pay_at_store_confirmed'"), true);
+  assert.equal(migration.includes("to service_role"), true);
+});
+
+test("online settlement options are validated server-side before booking", () => {
+  const service = read("src/lib/salon-appointments-self.ts");
+  const bookingPage = read("src/app/[studioSlug]/appointments/page.tsx");
+
+  assert.equal(service.includes("full > 0 && deposit < full ? deposit : null"), true);
+  assert.equal(service.includes("const settlementCheck = await assertSelfSettlementOptionAvailable({"), true);
+  assert.equal(service.includes('code: "payment_option_unavailable"'), true);
+  assert.equal(bookingPage.includes("getSelfOnlinePaymentOptions"), true);
+  assert.equal(bookingPage.includes("payment_option_unavailable"), true);
+});
+
+test("self booking resolves staff server-side and redirects to the studio-scoped appointments page", () => {
+  const bookingPage = read("src/app/[studioSlug]/appointments/page.tsx");
+
+  assert.equal(bookingPage.includes("const slot = await resolveSlot({"), true);
+  assert.equal(bookingPage.includes("employeeId: slot.employeeId"), true);
+  assert.equal(bookingPage.includes('"Any available staff"'), true);
+  assert.equal(bookingPage.includes("const myAppointmentsPath = `/${studioSlug}/me/appointments`;"), true);
+  assert.equal(bookingPage.includes("redirect(`${myAppointmentsPath}?ok=booked`)"), true);
+  assert.equal(bookingPage.includes("groupSlotsByStartTime"), true);
+  assert.equal(bookingPage.includes("Book this slot"), false);
+});
+
+test("customers reschedule by picking an available slot", () => {
+  const bookingPage = read("src/app/[studioSlug]/appointments/page.tsx");
+  const myAppointmentsPage = read("src/app/me/_shared/appointments-page.tsx");
+
+  assert.equal(myAppointmentsPage.includes("Change time"), true);
+  assert.equal(myAppointmentsPage.includes("?reschedule=${encodeURIComponent(appointment.id)}"), true);
+  assert.equal(myAppointmentsPage.includes('type="datetime-local"'), false);
+  assert.equal(bookingPage.includes("newResourceIds: slot.resourceIds"), true);
+  assert.equal(bookingPage.includes("ignoreAppointmentId: appointment.id"), true);
 });

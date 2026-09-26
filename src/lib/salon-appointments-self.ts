@@ -3,10 +3,12 @@ import "server-only";
 import { mergeGuestRecordsForUser } from "@/lib/guestMerge";
 import { completeIdempotencyKey, hashIdempotencyRequest, claimIdempotencyKey, failIdempotencyKey, type IdempotencyClaimResult } from "@/lib/idempotency";
 import { createHitpayPaymentRequest } from "@/lib/hitpay";
-import { localISODate, parseDatetimeLocalAsSgt } from "@/lib/date";
+import { localISODate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SLOT_STEP_MINUTES = 15;
+export const SELF_BOOKING_MIN_LEAD_MINUTES = 60;
+const ONLINE_DEPOSIT_RATE = 0.3;
 const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "checked_in", "in_progress"];
 const TIMEZONE = "Asia/Singapore";
 
@@ -29,6 +31,7 @@ type AppointmentConflictCode =
   | "payment_source_invalid"
   | "insufficient_credits"
   | "package_not_eligible"
+  | "payment_option_unavailable"
   | "unknown";
 
 type AppointmentMutationResult<TPayload> =
@@ -66,6 +69,8 @@ export type SelfBookableLocation = { id: string; name: string };
 export type SelfBookableService = {
   id: string;
   name: string;
+  price: number;
+  currency: string;
   locationIds: string[];
   defaultDurationMinutes: number;
   defaultPrepMinutes: number;
@@ -380,7 +385,7 @@ export async function listSelfBookableCatalog(params: { studioId: string }) {
     admin.from("locations").select("id, name").eq("studio_id", params.studioId).eq("is_active", true).order("name"),
     admin
       .from("studio_services")
-      .select("id, title, is_active, default_duration_minutes, default_prep_minutes, default_buffer_minutes")
+      .select("id, title, price, currency, is_active, default_duration_minutes, default_prep_minutes, default_buffer_minutes")
       .eq("studio_id", params.studioId)
       .eq("is_active", true)
       .order("sort_order")
@@ -408,6 +413,8 @@ export async function listSelfBookableCatalog(params: { studioId: string }) {
     .map((service) => ({
       id: service.id,
       name: service.title,
+      price: Math.round(Math.max(Number(service.price ?? 0), 0) * 100) / 100,
+      currency: String(service.currency || "SGD").toUpperCase(),
       locationIds: Array.from(new Set(serviceToLocations.get(service.id) ?? [])),
       defaultDurationMinutes: Number(service.default_duration_minutes ?? 60),
       defaultPrepMinutes: Number(service.default_prep_minutes ?? 0),
@@ -483,6 +490,10 @@ export async function listSelfBookableSlots(params: {
   dateYmd?: string;
   nowIso?: string;
   ignoreAppointmentId?: string;
+  /** Customer-facing: skip slots starting sooner than this. */
+  minLeadMinutes?: number;
+  /** Customer-facing: start slots on :00/:15/:30/:45 instead of opening time + prep. */
+  alignToClock?: boolean;
 }): Promise<AppointmentMutationResult<{ dateYmd: string; slots: SelfBookableSlot[] }>> {
   const dateYmd = String(params.dateYmd ?? localISODate()).trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) {
@@ -663,18 +674,23 @@ export async function listSelfBookableSlots(params: {
     busyByResource.set(row.resource_id, existing);
   }
 
-  const nowMs = params.nowIso ? new Date(params.nowIso).getTime() : Date.now();
+  const nowMs = (params.nowIso ? new Date(params.nowIso).getTime() : Date.now())
+    + Math.max(params.minLeadMinutes ?? 0, 0) * 60_000;
   const slots: SelfBookableSlot[] = [];
+  const stepSeconds = SLOT_STEP_MINUTES * 60;
 
   for (const interval of locationIntervals) {
-    const earliestStartSecond = interval.startSecond + timing.prepMinutes * 60;
+    const rawEarliestStartSecond = interval.startSecond + timing.prepMinutes * 60;
+    const earliestStartSecond = params.alignToClock
+      ? Math.ceil(rawEarliestStartSecond / stepSeconds) * stepSeconds
+      : rawEarliestStartSecond;
     const latestStartSecond = interval.endSecond - (timing.durationMinutes + timing.bufferMinutes) * 60;
     if (latestStartSecond < earliestStartSecond) continue;
 
     for (
       let slotStartSecond = earliestStartSecond;
       slotStartSecond <= latestStartSecond;
-      slotStartSecond += SLOT_STEP_MINUTES * 60
+      slotStartSecond += stepSeconds
     ) {
       const startHour = Math.floor(slotStartSecond / 3600);
       const startMinute = Math.floor((slotStartSecond % 3600) / 60);
@@ -737,6 +753,87 @@ export async function listSelfBookableSlots(params: {
   });
 
   return { ok: true, payload: { dateYmd, slots } };
+}
+
+export type SelfBookableTime = {
+  startsAtIso: string;
+  endsAtIso: string;
+  options: SelfBookableSlot[];
+};
+
+/** One entry per start time; options keep the per-staff slots in staff-name order. */
+export function groupSlotsByStartTime(slots: SelfBookableSlot[]): SelfBookableTime[] {
+  const byStart = new Map<string, SelfBookableTime>();
+  for (const slot of slots) {
+    const existing = byStart.get(slot.startsAtIso);
+    if (existing) {
+      existing.options.push(slot);
+    } else {
+      byStart.set(slot.startsAtIso, { startsAtIso: slot.startsAtIso, endsAtIso: slot.endsAtIso, options: [slot] });
+    }
+  }
+  return Array.from(byStart.values());
+}
+
+function roundMoney(value: number) {
+  return Math.round(Math.max(Number.isFinite(value) ? value : 0, 0) * 100) / 100;
+}
+
+/**
+ * Mirrors apt04_prepare_online_settlement: deposit = max(1, 30%). A deposit that
+ * would not be smaller than the full price is not offered.
+ */
+export function computeSelfOnlineAmounts(price: number) {
+  const full = roundMoney(price);
+  const deposit = Math.max(1, roundMoney(full * ONLINE_DEPOSIT_RATE));
+  return {
+    full: full > 0 ? full : null,
+    deposit: full > 0 && deposit < full ? deposit : null,
+  };
+}
+
+export async function isSelfOnlinePaymentConfigured(params: { studioId: string }) {
+  if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) return false;
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("studio_payment_secrets")
+    .select("hitpay_api_key")
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ hitpay_api_key: string | null }>();
+  if (error) throw error;
+  return Boolean(data?.hitpay_api_key?.trim());
+}
+
+export async function getSelfOnlinePaymentOptions(params: { studioId: string; price: number }) {
+  const amounts = computeSelfOnlineAmounts(params.price);
+  if (!amounts.full || !(await isSelfOnlinePaymentConfigured({ studioId: params.studioId }))) {
+    return { onlineFull: null, onlineDeposit: null };
+  }
+  return { onlineFull: amounts.full, onlineDeposit: amounts.deposit };
+}
+
+async function assertSelfSettlementOptionAvailable(params: {
+  studioId: string;
+  serviceId: string;
+  settlementOption: SelfSettlementOption;
+}): Promise<AppointmentMutationResult<null>> {
+  if (params.settlementOption !== "online_deposit" && params.settlementOption !== "online_full") {
+    return { ok: true, payload: null };
+  }
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("studio_services")
+    .select("price")
+    .eq("id", params.serviceId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ price: number | null }>();
+  if (error) throw error;
+  const options = await getSelfOnlinePaymentOptions({ studioId: params.studioId, price: Number(data?.price ?? 0) });
+  const available = params.settlementOption === "online_full" ? options.onlineFull : options.onlineDeposit;
+  if (available == null) {
+    return { ok: false, code: "payment_option_unavailable", message: "This payment option is not available for this service." };
+  }
+  return { ok: true, payload: null };
 }
 
 export async function listSelfAppointments(params: {
@@ -959,6 +1056,13 @@ export async function createSelfAppointment(params: {
     return { ok: false, code: "forbidden", message: "Customer account is not linked to this studio." };
   }
 
+  const settlementCheck = await assertSelfSettlementOptionAvailable({
+    studioId: params.studioId,
+    serviceId: params.serviceId,
+    settlementOption: params.settlementOption,
+  });
+  if (!settlementCheck.ok) return settlementCheck;
+
   return withSelfAppointmentIdempotency<{
     appointmentId: string;
     status: string;
@@ -1088,11 +1192,21 @@ export async function createSelfAppointment(params: {
           throw settlement.error;
         }
 
+        const confirmed = await admin.rpc("apt04_confirm_free_settlement", {
+          p_studio_id: params.studioId,
+          p_appointment_id: payload.appointment_id,
+          p_actor_id: params.userId,
+        });
+        if (confirmed.error) {
+          throw confirmed.error;
+        }
+        const confirmedPayload = (confirmed.data ?? {}) as { appointment_status?: string };
+
         return {
           ok: true,
           payload: {
             appointmentId: payload.appointment_id,
-            status: payload.status,
+            status: confirmedPayload.appointment_status ?? "confirmed",
             startsAt: payload.starts_at,
             endsAt: payload.ends_at,
             settlementStatus: "no_payment_required",
@@ -1137,6 +1251,8 @@ export async function rescheduleSelfAppointment(params: {
   studioId: string;
   appointmentId: string;
   newStartsAtIso: string;
+  /** Resources picked by the slot engine for the new time; defaults to the current ones. */
+  newResourceIds?: string[];
   reason: string;
   idempotencyKey: string;
 }): Promise<AppointmentMutationResult<{ appointmentId: string; status: string; startsAt: string; endsAt: string }>> {
@@ -1176,7 +1292,7 @@ export async function rescheduleSelfAppointment(params: {
         p_studio_id: params.studioId,
         p_appointment_id: params.appointmentId,
         p_new_starts_at: params.newStartsAtIso,
-        p_new_resource_ids: (activeResources ?? []).map((row) => row.resource_id),
+        p_new_resource_ids: params.newResourceIds ?? (activeResources ?? []).map((row) => row.resource_id),
         p_reason: params.reason,
         p_idempotency_key_id: idempotencyRecordId,
         p_idempotency_claim_token: claimToken,
@@ -1299,10 +1415,6 @@ export function summarizeTermsSnapshot(snapshot: unknown) {
   } catch {
     return "";
   }
-}
-
-export function parseRescheduleDatetime(raw: string) {
-  return parseDatetimeLocalAsSgt(raw);
 }
 
 export function isSameSgtDate(iso: string, dateYmd: string) {

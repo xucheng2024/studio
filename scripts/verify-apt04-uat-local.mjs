@@ -267,16 +267,37 @@ function bookingUrl(date = dates.primary) {
   return `${BASE_URL}/${slugs.s1}/appointments?${query}`;
 }
 
+async function openFirstTime(page) {
+  const timeLinks = page.locator('a[href*="starts_at="]');
+  await timeLinks.first().waitFor({ state: "visible", timeout: 30_000 });
+  await timeLinks.first().click();
+  await page.waitForURL((url) => url.searchParams.has("starts_at"), { timeout: 30_000 });
+  const form = page.locator('form:has(input[name="slot_starts_at"])').first();
+  await form.waitFor({ state: "visible", timeout: 30_000 });
+  return form;
+}
+
 async function bookFirstAvailable(page) {
-  const forms = page.locator('form:has(input[name="slot_starts_at"])');
-  await forms.first().waitFor({ state: "visible", timeout: 30_000 });
-  const form = forms.first();
+  const form = await openFirstTime(page);
   const startsAt = await form.locator('input[name="slot_starts_at"]').inputValue();
   await form.locator('input[name="terms_accepted"]').check();
   await form.locator('input[name="privacy_accepted"]').check();
-  await form.getByRole("button", { name: "Book this slot" }).click();
+  await form.getByRole("button", { name: "Book appointment" }).click();
   await page.waitForURL((url) => url.searchParams.get("ok") === "booked", { timeout: 30_000 });
   return startsAt;
+}
+
+async function assertBookedAppointmentConfirmed(startsAt) {
+  const { data, error } = await admin
+    .from("salon_appointments")
+    .select("id,status,expires_at")
+    .eq("studio_id", ids.studio1)
+    .eq("starts_at", startsAt)
+    .in("status", ["pending", "confirmed"]);
+  if (error) throw error;
+  assert.equal(data?.length, 1, `Expected one active appointment at ${startsAt}`);
+  assert.equal(data[0].status, "confirmed", "Pay-at-store/package booking must be confirmed immediately");
+  assert.equal(data[0].expires_at, null, "Confirmed booking must not keep a pending expiry");
 }
 
 const browserResults = [];
@@ -305,24 +326,22 @@ async function runBrowser(name, launcher, email, full = false) {
     }
     await session.page.goto(bookingUrl(full ? dates.primary : dates.tertiary), { waitUntil: "domcontentloaded", timeout: 120_000 });
     assert.ok(
-      await session.page.locator("option", { hasText: "APT04 UAT Signature Service" }).count() > 0,
-      `${name}: service option missing`,
+      await session.page.getByRole("link", { name: /APT04 UAT Signature Service/ }).count() > 0,
+      `${name}: service card missing`,
     );
-    assert.ok((await session.page.locator("pre").first().innerText()).trim().length > 0, `${name}: terms snapshot missing`);
-    await capture(session.page, name, "02-slots-and-terms.png", [
-      "Book appointment",
-      "Terms & Conditions",
-      "Available slots",
-    ]);
+    await capture(session.page, name, "02-slots.png", ["Book appointment", "Choose a time"]);
 
     if (full) {
       const mobile = await newAuthenticatedPage(browser, email, { width: 390, height: 844 });
       await mobile.page.goto(bookingUrl(dates.primary), { waitUntil: "domcontentloaded", timeout: 120_000 });
-      await capture(mobile.page, name, "11-booking-390.png", ["Book appointment", "Available slots"]);
+      await openFirstTime(mobile.page);
+      await capture(mobile.page, name, "11-booking-390.png", ["Choose a time", "Confirm booking"]);
       assert.equal(await mobile.page.locator("body").evaluate((body) => body.scrollWidth <= 390), true, "390px booking overflows");
       await mobile.context.close();
 
-      const staleForm = session.page.locator('form:has(input[name="slot_starts_at"])').first();
+      const staleForm = await openFirstTime(session.page);
+      assert.ok(((await staleForm.locator("pre").first().textContent()) ?? "").trim().length > 0, `${name}: terms snapshot missing`);
+      await capture(session.page, name, "03-confirm-and-terms.png", ["Confirm booking", "Terms & Conditions", "Pay at the studio"]);
       await staleForm.locator('input[name="terms_accepted"]').check();
       await staleForm.locator('input[name="privacy_accepted"]').check();
       const termsV2Id = crypto.randomUUID();
@@ -336,7 +355,7 @@ async function runBrowser(name, launcher, email, full = false) {
         published_at: new Date(Date.now() + 2_000).toISOString(),
       });
       if (termsError) throw termsError;
-      await staleForm.getByRole("button", { name: "Book this slot" }).click();
+      await staleForm.getByRole("button", { name: "Book appointment" }).click();
       await session.page.waitForURL((url) => url.searchParams.get("error") === "terms_version_stale", {
         timeout: 30_000,
       });
@@ -345,12 +364,18 @@ async function runBrowser(name, launcher, email, full = false) {
     }
 
     const bookedAt = await bookFirstAvailable(session.page);
-    await capture(session.page, name, "04-booking-success.png", ["Appointment submitted successfully", "APT04 UAT Signature Service"]);
+    await capture(session.page, name, "04-booking-success.png", ["Appointment booked", "APT04 UAT Signature Service"]);
+    await assertBookedAppointmentConfirmed(bookedAt);
 
     if (full) {
-      const rescheduleForm = session.page.locator('form:has(button:text("Reschedule"))').first();
-      await rescheduleForm.locator('input[name="new_starts_at"]').fill(`${dates.secondary}T11:00`);
-      await rescheduleForm.getByRole("button", { name: "Reschedule" }).click();
+      await session.page.getByRole("link", { name: "Change time" }).first().click();
+      await session.page.waitForURL((url) => url.searchParams.has("reschedule"), { timeout: 30_000 });
+      const rescheduleUrl = new URL(session.page.url());
+      rescheduleUrl.searchParams.set("date", dates.secondary);
+      await session.page.goto(rescheduleUrl.toString(), { waitUntil: "domcontentloaded" });
+      await openFirstTime(session.page);
+      await capture(session.page, name, "06-reschedule-confirm.png", ["Change appointment time", "Confirm new time"]);
+      await session.page.getByRole("button", { name: "Confirm new time" }).click();
       await session.page.waitForURL((url) => url.searchParams.get("ok") === "rescheduled", { timeout: 30_000 });
       await capture(session.page, name, "06-reschedule-success.png", ["Appointment rescheduled"]);
     }
@@ -362,7 +387,7 @@ async function runBrowser(name, launcher, email, full = false) {
 
     if (full) {
       await session.page.goto(`${BASE_URL}/${slugs.s2}/appointments`, { waitUntil: "domcontentloaded" });
-      await capture(session.page, name, "08-cross-studio-bookable.png", ["Choose a service, location, and real-time slot"]);
+      await capture(session.page, name, "08-cross-studio-bookable.png", ["Choose a service and a time at"]);
       await session.page.goto(`${BASE_URL}/me/appointments`, { waitUntil: "domcontentloaded" });
       await followStreamingRedirect(session.page);
       const aggregateText = await capture(session.page, name, "05-me-appointments.png", ["My appointments"]);

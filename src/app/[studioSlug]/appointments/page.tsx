@@ -7,10 +7,16 @@ import {
   createSelfAppointment,
   ensureSelfSalonCustomer,
   getLatestSalonTermsVersion,
+  getSelfOnlinePaymentOptions,
+  groupSlotsByStartTime,
+  listSelfAppointments,
   listSelfBookableCatalog,
   listSelfBookableSlots,
   listSelfEligiblePackageCredits,
+  rescheduleSelfAppointment,
+  SELF_BOOKING_MIN_LEAD_MINUTES,
   summarizeTermsSnapshot,
+  type SelfBookableSlot,
 } from "@/lib/salon-appointments-self";
 import { getLatestPrivacyNotice, recordSelfPrivacyNoticeConsent } from "@/lib/studio-privacy";
 import { normalizeStudioSlug } from "@/lib/slug";
@@ -22,37 +28,113 @@ type Props = {
   searchParams: Promise<{
     service_id?: string;
     location_id?: string;
+    employee_id?: string;
     date?: string;
+    starts_at?: string;
+    reschedule?: string;
     error?: string;
     ok?: string;
   }>;
 };
 
+type BookingState = {
+  locationId: string;
+  serviceId: string;
+  employeeId: string;
+  date: string;
+  startsAt: string;
+  reschedule: string;
+};
+
+const chipBase = "inline-flex min-h-10 items-center justify-center rounded-full border px-3.5 text-sm font-medium transition";
+const chipIdle = `${chipBase} border-stone-200 bg-white text-stone-700 hover:border-teal-400 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200`;
+const chipActive = `${chipBase} border-teal-600 bg-teal-600 text-white`;
+const stepBadge = "flex size-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-sm font-semibold text-white";
+
 function messageFromStatus(ok: string | undefined, error: string | undefined) {
   if (ok === "booked") {
-    return { tone: "ok" as const, text: "Appointment request submitted successfully." };
+    return { tone: "ok" as const, text: "Appointment booked." };
   }
   if (!error) return null;
   const map: Record<string, string> = {
-    missing_fields: "Please select location, service and slot.",
+    missing_fields: "Please select a service and a time.",
     terms_required: "Please accept the Terms & Conditions before booking.",
     terms_version_stale: "Terms & Conditions have been updated. Please review the latest version and submit again.",
     privacy_required: "Please accept the privacy notice before booking.",
     privacy_version_stale: "The privacy notice has been updated. Please review the latest version and submit again.",
     privacy_consent_failed: "Could not record privacy notice consent. Please try again.",
-    invalid_slot: "The selected slot is invalid.",
+    invalid_slot: "The selected time is invalid.",
     forbidden: "Your account is not linked to this studio customer profile.",
-    slot_conflict: "This slot was just taken. Please choose another one.",
-    resource_conflict: "Required room/resource is unavailable for this slot.",
+    slot_conflict: "This time was just taken. Please choose another one.",
+    resource_conflict: "Required room/resource is unavailable for this time.",
     invalid_request: "Request is invalid. Please refresh and retry.",
     idempotency_in_progress: "A similar request is processing. Try again shortly.",
     idempotency_conflict: "Duplicate request mismatch detected. Please retry.",
     insufficient_credits: "No eligible package credits are available for this location.",
     package_not_eligible: "Package credits are not eligible for this appointment.",
+    payment_option_unavailable: "That payment option is not available for this service. Please choose another.",
     payment_create_failed: "Could not create online payment request. Please try again.",
     payment_config_missing: "Studio online payment is not configured.",
+    not_reschedulable: "This appointment can no longer be rescheduled online. Please contact the studio.",
   };
   return { tone: "error" as const, text: map[error] ?? `Booking failed (${error}).` };
+}
+
+function bookingHref(studioSlug: string, state: BookingState, patch: Partial<BookingState>) {
+  const next = { ...state, ...patch };
+  const query = new URLSearchParams();
+  if (next.reschedule) query.set("reschedule", next.reschedule);
+  if (next.locationId) query.set("location_id", next.locationId);
+  if (next.serviceId) query.set("service_id", next.serviceId);
+  if (next.employeeId) query.set("employee_id", next.employeeId);
+  if (next.date) query.set("date", next.date);
+  if (next.startsAt) query.set("starts_at", next.startsAt);
+  const qs = query.toString();
+  return `/${studioSlug}/appointments${qs ? `?${qs}` : ""}`;
+}
+
+function withError(href: string, code: string) {
+  return `${href}${href.includes("?") ? "&" : "?"}error=${encodeURIComponent(code)}`;
+}
+
+function sgtHour(iso: string) {
+  return (new Date(iso).getUTCHours() + 8) % 24;
+}
+
+function formatMoney(amount: number, currency: string) {
+  return `${currency} ${amount.toFixed(2)}`;
+}
+
+/** Re-resolve a bookable slot on the server; "any staff" picks the first available option. */
+async function resolveSlot(params: {
+  studioId: string;
+  locationId: string;
+  serviceId: string;
+  startsAtIso: string;
+  employeeId: string;
+  ignoreAppointmentId?: string;
+}): Promise<SelfBookableSlot | null> {
+  const startsAt = new Date(params.startsAtIso);
+  if (Number.isNaN(startsAt.getTime())) return null;
+  try {
+    const result = await listSelfBookableSlots({
+      studioId: params.studioId,
+      locationId: params.locationId,
+      serviceId: params.serviceId,
+      dateYmd: localISODate(startsAt),
+      ignoreAppointmentId: params.ignoreAppointmentId,
+      minLeadMinutes: SELF_BOOKING_MIN_LEAD_MINUTES,
+      alignToClock: true,
+    });
+    if (!result.ok) return null;
+    const startsAtMs = startsAt.getTime();
+    return result.payload.slots.find(
+      (slot) => new Date(slot.startsAtIso).getTime() === startsAtMs
+        && (!params.employeeId || slot.employeeId === params.employeeId),
+    ) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export default async function StudioAppointmentsBookingPage({ params, searchParams }: Props) {
@@ -61,6 +143,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
   const studioSlug = normalizeStudioSlug(rawStudioSlug);
 
   if (!studioSlug) redirect("/");
+  const slug: string = studioSlug;
 
   const supabase = await createClient();
   const {
@@ -82,46 +165,95 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
 
   const selfCustomer = await ensureSelfSalonCustomer({ studioId: studio.id, userId: user.id });
   const studioId = studio.id;
+  const myAppointmentsPath = `/${studioSlug}/me/appointments`;
   const catalog = await listSelfBookableCatalog({ studioId: studio.id });
-  const selectedLocationId = String(sp.location_id ?? "").trim() || (catalog.locations.length === 1 ? catalog.locations[0].id : "");
-  const selectedServiceId = String(sp.service_id ?? "").trim() || (catalog.services.length === 1 ? catalog.services[0].id : "");
+
+  const rescheduleId = String(sp.reschedule ?? "").trim();
+  const rescheduleAppointment = rescheduleId && selfCustomer.ok
+    ? await listSelfAppointments({ studioId, userId: user.id }).then((result) =>
+        result.ok ? result.payload.appointments.find((row) => row.id === rescheduleId) ?? null : null,
+      )
+    : null;
+  if (rescheduleId && (!rescheduleAppointment || !["pending", "confirmed"].includes(rescheduleAppointment.status))) {
+    redirect(`${myAppointmentsPath}?error=not_found`);
+  }
+  const isReschedule = Boolean(rescheduleAppointment);
+
+  const selectedLocationId = rescheduleAppointment?.location_id
+    ?? (String(sp.location_id ?? "").trim() || (catalog.locations.length === 1 ? catalog.locations[0].id : ""));
+  const selectedLocation = catalog.locations.find((location) => location.id === selectedLocationId) ?? null;
+  const servicesAtLocation = selectedLocation
+    ? catalog.services.filter((service) => service.locationIds.includes(selectedLocation.id))
+    : [];
+  const selectedServiceId = rescheduleAppointment?.service_id
+    ?? (String(sp.service_id ?? "").trim() || (servicesAtLocation.length === 1 ? servicesAtLocation[0].id : ""));
+  const selectedService = servicesAtLocation.find((service) => service.id === selectedServiceId) ?? null;
+  const selectedEmployeeId = rescheduleAppointment?.employee_id ?? String(sp.employee_id ?? "").trim();
+
   const today = localISODate();
-  const requestedDate = String(sp.date ?? today).trim();
+  const defaultDate = rescheduleAppointment ? localISODate(new Date(rescheduleAppointment.starts_at)) : today;
+  const requestedDate = String(sp.date ?? defaultDate).trim();
   const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && requestedDate >= today ? requestedDate : today;
 
-  const selectedService = catalog.services.find((service) => service.id === selectedServiceId) ?? null;
-  const selectedLocation = catalog.locations.find((location) => location.id === selectedLocationId) ?? null;
-  const canResolveSlots = Boolean(selectedService && selectedLocation && selectedService.locationIds.includes(selectedLocation.id));
+  const state: BookingState = {
+    locationId: rescheduleAppointment ? "" : selectedLocationId,
+    serviceId: rescheduleAppointment ? "" : selectedServiceId,
+    employeeId: rescheduleAppointment ? "" : selectedEmployeeId,
+    date: selectedDate,
+    startsAt: String(sp.starts_at ?? "").trim(),
+    reschedule: rescheduleAppointment?.id ?? "",
+  };
+  const href = (patch: Partial<BookingState>) => bookingHref(slug, state, patch);
+
+  const canResolveSlots = Boolean(selectedService && selectedLocation);
   const slotResult = canResolveSlots
     ? await listSelfBookableSlots({
         studioId: studio.id,
         locationId: selectedLocationId,
         serviceId: selectedServiceId,
         dateYmd: selectedDate,
+        ignoreAppointmentId: rescheduleAppointment?.id,
+        minLeadMinutes: SELF_BOOKING_MIN_LEAD_MINUTES,
+        alignToClock: true,
       })
     : null;
+  const daySlots = slotResult?.ok ? slotResult.payload.slots : [];
+  const staffOnDay = Array.from(new Map(daySlots.map((slot) => [slot.employeeId, slot.employeeName])).entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const selectedEmployeeName = rescheduleAppointment?.employee_name_snapshot
+    ?? staffOnDay.find((staff) => staff.id === selectedEmployeeId)?.name
+    ?? null;
+  const times = groupSlotsByStartTime(
+    selectedEmployeeId ? daySlots.filter((slot) => slot.employeeId === selectedEmployeeId) : daySlots,
+  );
+  const timeGroups = [
+    { label: "Morning", times: times.filter((time) => sgtHour(time.startsAtIso) < 12) },
+    { label: "Afternoon", times: times.filter((time) => sgtHour(time.startsAtIso) >= 12 && sgtHour(time.startsAtIso) < 17) },
+    { label: "Evening", times: times.filter((time) => sgtHour(time.startsAtIso) >= 17) },
+  ].filter((group) => group.times.length > 0);
+  const selectedTime = state.startsAt ? times.find((time) => time.startsAtIso === state.startsAt) ?? null : null;
 
-  const termsVersion = await getLatestSalonTermsVersion({ studioId: studio.id });
-  const privacyNotice = await getLatestPrivacyNotice({ studioId: studio.id });
-  const packageCredits =
-    selfCustomer.ok && selectedLocationId
-      ? await listSelfEligiblePackageCredits({
-          studioId,
-          userId: user.id,
-          locationId: selectedLocationId,
-        })
-      : null;
-  const notice = messageFromStatus(sp.ok, sp.error);
-  const availableSlots = slotResult?.ok ? slotResult.payload.slots : [];
+  const needsConfirmData = Boolean(selectedTime && selectedService && !isReschedule);
+  const [termsVersion, privacyNotice, packageCredits, onlineOptions] = await Promise.all([
+    needsConfirmData ? getLatestSalonTermsVersion({ studioId }) : Promise.resolve(null),
+    needsConfirmData ? getLatestPrivacyNotice({ studioId }) : Promise.resolve(null),
+    needsConfirmData && selfCustomer.ok
+      ? listSelfEligiblePackageCredits({ studioId, userId: user.id, locationId: selectedLocationId })
+      : Promise.resolve(null),
+    needsConfirmData && selectedService
+      ? getSelfOnlinePaymentOptions({ studioId, price: selectedService.price })
+      : Promise.resolve({ onlineFull: null, onlineDeposit: null }),
+  ]);
+  const eligiblePackages = packageCredits?.ok ? packageCredits.payload.packages : [];
   const termsSummary = summarizeTermsSnapshot(termsVersion?.content_snapshot ?? null);
-  const defaultPayment = packageCredits?.ok && packageCredits.payload.packages.length > 0 ? "package_credit" : "free";
-  const bookingQuery = (date: string) => {
-    const query = new URLSearchParams();
-    if (selectedLocationId) query.set("location_id", selectedLocationId);
-    if (selectedServiceId) query.set("service_id", selectedServiceId);
-    query.set("date", date);
-    return `/${studioSlug}/appointments?${query.toString()}`;
-  };
+  const notice = messageFromStatus(sp.ok, sp.error);
+
+  const stripStart = selectedDate <= shiftLocalIsoDate(today, 6) ? today : selectedDate;
+  const stripDays = Array.from({ length: 7 }, (_, index) => shiftLocalIsoDate(stripStart, index));
+  const prevStripStart = stripStart > today
+    ? (shiftLocalIsoDate(stripStart, -7) < today ? today : shiftLocalIsoDate(stripStart, -7))
+    : null;
 
   async function bookAppointmentAction(formData: FormData) {
     "use server";
@@ -149,41 +281,53 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
       || paymentOptionRaw === "online_full"
       ? paymentOptionRaw
       : "free";
-    const resourceIdsRaw = String(formData.get("resource_ids") ?? "").trim();
-    const resourceIds = resourceIdsRaw
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean);
 
-    const query = new URLSearchParams();
-    if (serviceId) query.set("service_id", serviceId);
-    if (locationId) query.set("location_id", locationId);
-    if (date) query.set("date", date);
-    const backTo = `/${studioSlug}/appointments${query.toString() ? `?${query.toString()}` : ""}`;
+    const backState: BookingState = {
+      locationId,
+      serviceId,
+      employeeId: slotEmployeeId,
+      date,
+      startsAt: slotStartsAtIso,
+      reschedule: "",
+    };
+    const backTo = bookingHref(slug, backState, {});
+    const backToTimes = bookingHref(slug, backState, { startsAt: "" });
 
-    if (!slotStartsAtIso || !slotEmployeeId || !serviceId || !locationId) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=missing_fields`);
+    if (!slotStartsAtIso || !serviceId || !locationId) {
+      redirect(withError(backToTimes, "missing_fields"));
     }
     if (!accepted || !termsVersionId) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=terms_required`);
+      redirect(withError(backTo, "terms_required"));
     }
     if (!privacyAccepted || !privacyNoticeVersionId) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=privacy_required`);
+      redirect(withError(backTo, "privacy_required"));
     }
 
     const latestTermsVersion = await getLatestSalonTermsVersion({ studioId });
     if (!latestTermsVersion?.id || latestTermsVersion.id !== termsVersionId) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=terms_version_stale`);
+      redirect(withError(backTo, "terms_version_stale"));
     }
     const latestPrivacyNotice = await getLatestPrivacyNotice({ studioId });
     if (!latestPrivacyNotice?.id || latestPrivacyNotice.id !== privacyNoticeVersionId) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=privacy_version_stale`);
+      redirect(withError(backTo, "privacy_version_stale"));
     }
 
     const linkedCustomer = await ensureSelfSalonCustomer({ studioId, userId: actionUser.id });
     if (!linkedCustomer.ok) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=forbidden`);
+      redirect(withError(backTo, "forbidden"));
     }
+
+    const slot = await resolveSlot({
+      studioId,
+      locationId,
+      serviceId,
+      startsAtIso: slotStartsAtIso,
+      employeeId: slotEmployeeId,
+    });
+    if (!slot) {
+      redirect(withError(backToTimes, "slot_conflict"));
+    }
+
     const privacyConsent = await recordSelfPrivacyNoticeConsent({
       userId: actionUser.id,
       studioId,
@@ -192,7 +336,7 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
       noticeVersionId: latestPrivacyNotice.id,
     });
     if (!privacyConsent.ok) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=privacy_consent_failed`);
+      redirect(withError(backTo, "privacy_consent_failed"));
     }
 
     const actionResult = await createSelfAppointment({
@@ -201,31 +345,92 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
       studioId,
       locationId,
       serviceId,
-      employeeId: slotEmployeeId,
-      startsAtIso: slotStartsAtIso,
-      resourceIds,
+      employeeId: slot.employeeId,
+      startsAtIso: slot.startsAtIso,
+      resourceIds: slot.resourceIds,
       termsVersionId,
       settlementOption: paymentOption,
       idempotencyKey,
     });
 
     if (!actionResult.ok) {
-      redirect(`${backTo}${query.toString() ? "&" : "?"}error=${encodeURIComponent(actionResult.code)}`);
+      const lostSlot = actionResult.code === "slot_conflict" || actionResult.code === "resource_conflict";
+      redirect(withError(lostSlot ? backToTimes : backTo, actionResult.code));
     }
 
-    revalidatePath(`/${studioSlug}/me/appointments`);
+    revalidatePath(myAppointmentsPath);
     if (actionResult.payload.paymentId) {
       redirect(`/${studioSlug}/checkout/${actionResult.payload.paymentId}`);
     }
-    redirect(`/${studioSlug}/me/appointments?ok=booked`);
+    redirect(`${myAppointmentsPath}?ok=booked`);
+  }
+
+  async function rescheduleAppointmentAction(formData: FormData) {
+    "use server";
+    const actionSupabase = await createClient();
+    const {
+      data: { user: actionUser },
+    } = await actionSupabase.auth.getUser();
+    if (!actionUser) {
+      redirect(`/${studioSlug}/auth?next=${encodeURIComponent(myAppointmentsPath)}`);
+    }
+
+    const appointmentId = String(formData.get("appointment_id") ?? "").trim();
+    const slotStartsAtIso = String(formData.get("slot_starts_at") ?? "").trim();
+    const backToTimes = bookingHref(slug, {
+      locationId: "",
+      serviceId: "",
+      employeeId: "",
+      date: slotStartsAtIso ? localISODate(new Date(slotStartsAtIso)) : "",
+      startsAt: "",
+      reschedule: appointmentId,
+    }, {});
+
+    const owned = await listSelfAppointments({ studioId, userId: actionUser.id });
+    const appointment = owned.ok ? owned.payload.appointments.find((row) => row.id === appointmentId) : null;
+    if (!appointment) {
+      redirect(`${myAppointmentsPath}?error=not_found`);
+    }
+
+    const slot = await resolveSlot({
+      studioId,
+      locationId: appointment.location_id,
+      serviceId: appointment.service_id,
+      startsAtIso: slotStartsAtIso,
+      employeeId: appointment.employee_id,
+      ignoreAppointmentId: appointment.id,
+    });
+    if (!slot) {
+      redirect(withError(backToTimes, "slot_conflict"));
+    }
+
+    const operation = await rescheduleSelfAppointment({
+      userId: actionUser.id,
+      studioId,
+      appointmentId,
+      newStartsAtIso: slot.startsAtIso,
+      newResourceIds: slot.resourceIds,
+      reason: "customer_rescheduled",
+      idempotencyKey: `apt04-reschedule:${appointmentId}:${slot.startsAtIso}`,
+    });
+    if (!operation.ok) {
+      redirect(withError(backToTimes, operation.code));
+    }
+
+    revalidatePath(myAppointmentsPath);
+    redirect(`${myAppointmentsPath}?ok=rescheduled`);
   }
 
   return (
     <main className={ui.page}>
       <div className="mx-auto max-w-4xl space-y-6">
         <div>
-          <h1 className={ui.h1}>Book appointment</h1>
-          <p className={`mt-1 ${ui.muted}`}>Choose a service, location, and real-time slot at {studio.name}.</p>
+          <h1 className={ui.h1}>{isReschedule ? "Change appointment time" : "Book appointment"}</h1>
+          <p className={`mt-1 ${ui.muted}`}>
+            {isReschedule && rescheduleAppointment
+              ? `${rescheduleAppointment.service_title_snapshot} with ${rescheduleAppointment.employee_name_snapshot} · currently ${formatLocalDate(rescheduleAppointment.starts_at, { weekday: "short", month: "short", day: "numeric" })} ${formatLocalTime(rescheduleAppointment.starts_at)}`
+              : `Choose a service and a time at ${studio.name}. Times are in Singapore time.`}
+          </p>
         </div>
 
         {notice ? (
@@ -243,209 +448,322 @@ export default async function StudioAppointmentsBookingPage({ params, searchPara
           </section>
         ) : (
           <>
-            <form method="get" className={`${ui.card} grid gap-4 sm:grid-cols-2`} aria-labelledby="booking-search-heading">
-              <input type="hidden" name="_" value="slots" />
-              <div className="flex items-start gap-3 sm:col-span-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-sm font-semibold text-white">1</span>
-                <div>
-                  <h2 id="booking-search-heading" className={ui.h3}>Choose your appointment</h2>
-                  <p className={`mt-0.5 ${ui.muted}`}>Select a location, service, and preferred date.</p>
-                </div>
-              </div>
-
-              <div className="sm:col-span-1">
-                <label htmlFor="booking-location" className={`${ui.label} mb-1.5 block`}>Location</label>
-                <select id="booking-location" name="location_id" className={ui.input} defaultValue={selectedLocationId} required>
-                  <option value="">Select location</option>
-                  {catalog.locations.map((location) => (
-                    <option key={location.id} value={location.id}>{location.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-1">
-                <label htmlFor="booking-service" className={`${ui.label} mb-1.5 block`}>Service</label>
-                <select id="booking-service" name="service_id" className={ui.input} defaultValue={selectedServiceId} required>
-                  <option value="">Select service</option>
-                  {catalog.services.map((service) => (
-                    <option key={service.id} value={service.id}>{service.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-1">
-                <label htmlFor="booking-date" className={`${ui.label} mb-1.5 block`}>Date (SGT)</label>
-                <div className="flex min-w-0 items-center gap-1">
-                  {selectedDate > today ? (
-                    <Link
-                      href={bookingQuery(shiftLocalIsoDate(selectedDate, -1))}
-                      className={ui.btnGhost}
-                      aria-label="Previous day"
-                    >
-                      <span aria-hidden="true">←</span>
-                      <span className="sr-only sm:not-sr-only">Prev</span>
-                    </Link>
-                  ) : (
-                    <span className={`${ui.btnGhost} cursor-not-allowed opacity-40`} aria-disabled="true">
-                      <span aria-hidden="true">←</span>
-                      <span className="sr-only sm:not-sr-only">Prev</span>
-                    </span>
-                  )}
-                  <input
-                    id="booking-date"
-                    type="date"
-                    name="date"
-                    className={`${ui.input} min-w-0 flex-1`}
-                    defaultValue={selectedDate}
-                    min={today}
-                    required
-                  />
-                  <Link
-                    href={bookingQuery(shiftLocalIsoDate(selectedDate, 1))}
-                    className={ui.btnGhost}
-                    aria-label="Next day"
-                  >
-                    <span className="sr-only sm:not-sr-only">Next</span>
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              </div>
-
-              <div className="sm:col-span-1 flex items-end">
-                <button type="submit" className={`${ui.btnPrimary} w-full`}>Show available times</button>
-              </div>
-            </form>
-
-            <section className={ui.card}>
-              <div className="flex items-start gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-sm font-semibold text-white">2</span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className={ui.h3}>Available slots</h2>
-                    {canResolveSlots && slotResult?.ok ? (
-                      <span className={ui.badgeNeutral}>{availableSlots.length} available</span>
+            {!isReschedule ? (
+              <section className={`${ui.card} space-y-4`} aria-labelledby="booking-service-heading">
+                <div className="flex items-start gap-3">
+                  <span className={stepBadge}>1</span>
+                  <div>
+                    <h2 id="booking-service-heading" className={ui.h3}>Choose a service</h2>
+                    {catalog.locations.length > 1 ? (
+                      <p className={`mt-0.5 ${ui.muted}`}>Pick a location first.</p>
                     ) : null}
                   </div>
-                  <p className={`mt-0.5 text-sm ${ui.muted}`}>
+                </div>
+
+                {catalog.locations.length > 1 ? (
+                  <nav aria-label="Location" className="flex flex-wrap gap-2">
+                    {catalog.locations.map((location) => (
+                      <Link
+                        key={location.id}
+                        href={href({ locationId: location.id, serviceId: "", employeeId: "", startsAt: "" })}
+                        className={location.id === selectedLocationId ? chipActive : chipIdle}
+                        aria-current={location.id === selectedLocationId ? "true" : undefined}
+                      >
+                        {location.name}
+                      </Link>
+                    ))}
+                  </nav>
+                ) : null}
+
+                {selectedLocation ? (
+                  servicesAtLocation.length ? (
+                    <ul className="grid gap-2 sm:grid-cols-2">
+                      {servicesAtLocation.map((service) => {
+                        const active = service.id === selectedServiceId;
+                        return (
+                          <li key={service.id}>
+                            <Link
+                              href={href({ serviceId: service.id, employeeId: "", startsAt: "" })}
+                              aria-current={active ? "true" : undefined}
+                              className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition ${
+                                active
+                                  ? "border-teal-500 bg-teal-50 dark:border-teal-600 dark:bg-teal-950/40"
+                                  : "border-stone-200 bg-white hover:border-teal-300 dark:border-stone-700 dark:bg-stone-950"
+                              }`}
+                            >
+                              <span className="min-w-0">
+                                <span className="block font-medium text-stone-900 dark:text-stone-100">{service.name}</span>
+                                <span className={`block text-xs ${ui.muted}`}>{service.defaultDurationMinutes} min</span>
+                              </span>
+                              {service.price > 0 ? (
+                                <span className="shrink-0 text-sm font-semibold text-stone-800 dark:text-stone-100">
+                                  {formatMoney(service.price, service.currency)}
+                                </span>
+                              ) : null}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className={ui.muted}>No services can be booked online at this location yet.</p>
+                  )
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className={`${ui.card} space-y-4`} aria-labelledby="booking-time-heading">
+              <div className="flex items-start gap-3">
+                <span className={stepBadge}>{isReschedule ? 1 : 2}</span>
+                <div className="min-w-0 flex-1">
+                  <h2 id="booking-time-heading" className={ui.h3}>Choose a time</h2>
+                  <p className={`mt-0.5 ${ui.muted}`}>
                     {selectedService && selectedLocation
                       ? `${selectedService.name} · ${selectedService.defaultDurationMinutes} min · ${selectedLocation.name}`
-                      : "Available times will appear after you complete step 1."}
+                      : isReschedule
+                        ? "This service is no longer bookable online. Please contact the studio to change your time."
+                        : "Choose a service to see available times."}
                   </p>
                 </div>
               </div>
 
-              {termsVersion?.id ? (
-                <details className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-700 dark:bg-stone-900/40">
-                  <summary className="cursor-pointer text-sm font-medium text-stone-700 dark:text-stone-200">
-                    Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}
-                  </summary>
-                  {termsSummary ? (
-                    <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-stone-700 dark:text-stone-300">
-                      {termsSummary}
-                    </pre>
-                  ) : (
-                    <p className={`mt-2 text-xs ${ui.muted}`}>No content snapshot is available for this version.</p>
-                  )}
-                </details>
-              ) : null}
+              {canResolveSlots ? (
+                <>
+                  <nav aria-label="Date" className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    {prevStripStart ? (
+                      <Link href={href({ date: prevStripStart, startsAt: "" })} className={ui.btnGhost} aria-label="Previous week">
+                        <span aria-hidden="true">←</span>
+                      </Link>
+                    ) : null}
+                    {stripDays.map((day) => {
+                      const active = day === selectedDate;
+                      const noon = `${day}T12:00:00+08:00`;
+                      return (
+                        <Link
+                          key={day}
+                          href={href({ date: day, startsAt: "" })}
+                          aria-current={active ? "date" : undefined}
+                          className={`flex min-w-12 shrink-0 flex-col items-center rounded-xl border px-2 py-1.5 text-xs transition ${
+                            active
+                              ? "border-teal-600 bg-teal-600 text-white"
+                              : "border-stone-200 bg-white text-stone-700 hover:border-teal-400 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200"
+                          }`}
+                        >
+                          <span>{day === today ? "Today" : formatLocalDate(noon, { weekday: "short" })}</span>
+                          <span className="text-base font-semibold">{formatLocalDate(noon, { day: "numeric" })}</span>
+                        </Link>
+                      );
+                    })}
+                    <Link href={href({ date: shiftLocalIsoDate(stripStart, 7), startsAt: "" })} className={ui.btnGhost} aria-label="Next week">
+                      <span aria-hidden="true">→</span>
+                    </Link>
+                  </nav>
 
-              {!canResolveSlots ? (
-                <p className={`mt-4 text-sm ${ui.muted}`}>
-                  {selectedService && selectedLocation
-                    ? "This service is not offered at the selected location. Choose another service or location."
-                    : "Complete step 1 to see available times."}
-                </p>
-              ) : !slotResult?.ok ? (
-                <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">{slotResult?.message ?? "Could not load slots."}</p>
-              ) : availableSlots.length === 0 ? (
-                <div className={`${ui.emptyState} mt-4 px-4`}>
-                  <p className="text-sm font-medium text-stone-800 dark:text-stone-100">No times available on this date</p>
-                  <p className={ui.muted}>Try another day to see more availability.</p>
-                  <Link href={bookingQuery(shiftLocalIsoDate(selectedDate, 1))} className={ui.btnSecondarySm}>
-                    Check next day <span aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              ) : !termsVersion?.id ? (
-                <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">Terms & Conditions version is missing. Please contact front desk.</p>
-              ) : !privacyNotice?.id ? (
-                <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">Privacy notice version is missing. Please contact front desk.</p>
-              ) : (
-                <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {availableSlots.map((slot, index) => (
-                    <li key={`${slot.startsAtIso}:${slot.employeeId}`}>
-                      <details
-                        open={index === 0}
-                        className="group rounded-xl border border-stone-200 bg-white open:border-teal-300 open:shadow-sm dark:border-stone-700 dark:bg-stone-950 dark:open:border-teal-700"
+                  {!isReschedule && (staffOnDay.length > 1 || selectedEmployeeId) ? (
+                    <nav aria-label="Staff" className="flex flex-wrap items-center gap-2">
+                      <span className={`${ui.label} mr-1`}>Staff</span>
+                      <Link
+                        href={href({ employeeId: "", startsAt: "" })}
+                        className={!selectedEmployeeId ? chipActive : chipIdle}
                       >
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-3 [&::-webkit-details-marker]:hidden">
+                        Any available
+                      </Link>
+                      {staffOnDay.map((staff) => (
+                        <Link
+                          key={staff.id}
+                          href={href({ employeeId: staff.id, startsAt: "" })}
+                          className={staff.id === selectedEmployeeId ? chipActive : chipIdle}
+                        >
+                          {staff.name}
+                        </Link>
+                      ))}
+                    </nav>
+                  ) : null}
+
+                  {!slotResult?.ok ? (
+                    <p className="text-sm text-rose-700 dark:text-rose-300">{slotResult?.message ?? "Could not load times."}</p>
+                  ) : times.length === 0 ? (
+                    <div className={`${ui.emptyState} px-4`}>
+                      <p className="text-sm font-medium text-stone-800 dark:text-stone-100">
+                        {selectedEmployeeId && !isReschedule && staffOnDay.length > 0
+                          ? "Your chosen staff member has no times on this date"
+                          : "No times available on this date"}
+                      </p>
+                      <p className={ui.muted}>
+                        {selectedEmployeeId && !isReschedule && staffOnDay.length > 0
+                          ? "Choose “Any available” or try another day."
+                          : "Try another day to see more availability."}
+                      </p>
+                      <Link href={href({ date: shiftLocalIsoDate(selectedDate, 1), startsAt: "" })} className={ui.btnSecondarySm}>
+                        Check next day <span aria-hidden="true">→</span>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {state.startsAt && !selectedTime ? (
+                        <p className="text-sm text-rose-700 dark:text-rose-300">That time is no longer available. Please choose another.</p>
+                      ) : null}
+                      {timeGroups.map((group) => (
+                        <div key={group.label}>
+                          <p className={`mb-1.5 text-xs font-medium uppercase tracking-wide ${ui.muted}`}>{group.label}</p>
+                          <ul className="flex flex-wrap gap-2">
+                            {group.times.map((time) => {
+                              const active = time.startsAtIso === selectedTime?.startsAtIso;
+                              return (
+                                <li key={time.startsAtIso}>
+                                  <Link
+                                    href={`${href({ startsAt: time.startsAtIso })}#booking-confirm`}
+                                    aria-current={active ? "true" : undefined}
+                                    className={`${active ? chipActive : chipIdle} min-w-18 tabular-nums`}
+                                  >
+                                    {formatLocalTime(time.startsAtIso)}
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </section>
+
+            {selectedTime && selectedService && selectedLocation ? (
+              <section id="booking-confirm" className={`${ui.card} space-y-4 border-teal-300 dark:border-teal-800`} aria-labelledby="booking-confirm-heading">
+                <div className="flex items-start gap-3">
+                  <span className={stepBadge}>{isReschedule ? 2 : 3}</span>
+                  <h2 id="booking-confirm-heading" className={ui.h3}>{isReschedule ? "Confirm new time" : "Confirm booking"}</h2>
+                </div>
+
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                  <dt className={ui.muted}>Service</dt>
+                  <dd className="text-stone-900 dark:text-stone-100">{selectedService.name} · {selectedService.defaultDurationMinutes} min</dd>
+                  {isReschedule && rescheduleAppointment ? (
+                    <>
+                      <dt className={ui.muted}>Current</dt>
+                      <dd className="text-stone-500 line-through dark:text-stone-400">
+                        {formatLocalDate(rescheduleAppointment.starts_at, { weekday: "short", month: "short", day: "numeric" })} · {formatLocalTime(rescheduleAppointment.starts_at)}
+                      </dd>
+                    </>
+                  ) : null}
+                  <dt className={ui.muted}>{isReschedule ? "New time" : "When"}</dt>
+                  <dd className="font-medium text-stone-900 dark:text-stone-100">
+                    {formatLocalDate(selectedTime.startsAtIso, { weekday: "short", month: "short", day: "numeric" })} · {formatLocalTime(selectedTime.startsAtIso)}–{formatLocalTime(selectedTime.endsAtIso)}
+                  </dd>
+                  <dt className={ui.muted}>Staff</dt>
+                  <dd className="text-stone-900 dark:text-stone-100">{selectedEmployeeName ?? "Any available staff"}</dd>
+                  <dt className={ui.muted}>Location</dt>
+                  <dd className="text-stone-900 dark:text-stone-100">{selectedLocation.name}</dd>
+                  {!isReschedule && selectedService.price > 0 ? (
+                    <>
+                      <dt className={ui.muted}>Price</dt>
+                      <dd className="text-stone-900 dark:text-stone-100">{formatMoney(selectedService.price, selectedService.currency)}</dd>
+                    </>
+                  ) : null}
+                </dl>
+
+                {isReschedule && rescheduleAppointment ? (
+                  <form action={rescheduleAppointmentAction} className="grid gap-2">
+                    <input type="hidden" name="appointment_id" value={rescheduleAppointment.id} />
+                    <input type="hidden" name="slot_starts_at" value={selectedTime.startsAtIso} />
+                    <button type="submit" className={ui.btnPrimary}>Confirm new time</button>
+                    <Link href={myAppointmentsPath} className={`${ui.btnGhost} justify-center`}>Keep current time</Link>
+                  </form>
+                ) : !termsVersion?.id ? (
+                  <p className="text-sm text-rose-700 dark:text-rose-300">Terms & Conditions version is missing. Please contact front desk.</p>
+                ) : !privacyNotice?.id ? (
+                  <p className="text-sm text-rose-700 dark:text-rose-300">Privacy notice version is missing. Please contact front desk.</p>
+                ) : (
+                  <form action={bookAppointmentAction} className="grid gap-4">
+                    <input type="hidden" name="slot_starts_at" value={selectedTime.startsAtIso} />
+                    <input type="hidden" name="slot_employee_id" value={selectedEmployeeId} />
+                    <input type="hidden" name="service_id" value={selectedServiceId} />
+                    <input type="hidden" name="location_id" value={selectedLocationId} />
+                    <input type="hidden" name="date" value={selectedDate} />
+                    <input
+                      type="hidden"
+                      name="idempotency_key"
+                      value={`apt04-self-create:${crypto.randomUUID()}`}
+                    />
+                    <input type="hidden" name="terms_version_id" value={termsVersion.id} />
+                    <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
+
+                    <fieldset className="grid gap-2">
+                      <legend className={`${ui.label} mb-1.5`}>Payment</legend>
+                      {eligiblePackages.length ? (
+                        <label className="flex items-start gap-2 rounded-xl border border-stone-200 p-3 text-sm dark:border-stone-700">
+                          <input type="radio" name="payment_option" value="package_credit" defaultChecked className="mt-0.5" />
                           <span>
-                            <span className="block font-semibold text-stone-900 dark:text-stone-100">
-                              {formatLocalTime(slot.startsAtIso)}
-                            </span>
+                            <span className="block font-medium text-stone-900 dark:text-stone-100">Use package credits</span>
                             <span className={`block text-xs ${ui.muted}`}>
-                              {slot.employeeName} · {formatLocalDate(slot.startsAtIso, { weekday: "short", month: "short", day: "2-digit" })}
+                              {eligiblePackages.map((pkg) => `${pkg.packageName} (${pkg.creditsLeft} left)`).join(", ")}
                             </span>
                           </span>
-                          <span className="text-sm font-medium text-teal-700 group-open:hidden dark:text-teal-300">Choose</span>
-                          <span className="hidden text-sm font-medium text-teal-700 group-open:inline dark:text-teal-300">Close</span>
-                        </summary>
+                        </label>
+                      ) : null}
+                      <label className="flex items-start gap-2 rounded-xl border border-stone-200 p-3 text-sm dark:border-stone-700">
+                        <input type="radio" name="payment_option" value="free" defaultChecked={!eligiblePackages.length} className="mt-0.5" />
+                        <span className="font-medium text-stone-900 dark:text-stone-100">Pay at the studio</span>
+                      </label>
+                      {onlineOptions.onlineFull != null ? (
+                        <label className="flex items-start gap-2 rounded-xl border border-stone-200 p-3 text-sm dark:border-stone-700">
+                          <input type="radio" name="payment_option" value="online_full" className="mt-0.5" />
+                          <span className="font-medium text-stone-900 dark:text-stone-100">
+                            Online full payment · {formatMoney(onlineOptions.onlineFull, selectedService.currency)}
+                          </span>
+                        </label>
+                      ) : null}
+                      {onlineOptions.onlineDeposit != null ? (
+                        <label className="flex items-start gap-2 rounded-xl border border-stone-200 p-3 text-sm dark:border-stone-700">
+                          <input type="radio" name="payment_option" value="online_deposit" className="mt-0.5" />
+                          <span className="font-medium text-stone-900 dark:text-stone-100">
+                            Online deposit (30%) · {formatMoney(onlineOptions.onlineDeposit, selectedService.currency)}
+                          </span>
+                        </label>
+                      ) : null}
+                      {!eligiblePackages.length ? (
+                        <p className={`text-xs ${ui.muted}`} data-eligibility-policy="conservative">
+                          Package credits require an active, unexpired package valid at this location.
+                        </p>
+                      ) : null}
+                    </fieldset>
 
-                        <form action={bookAppointmentAction} className="grid gap-3 border-t border-stone-100 p-3 dark:border-stone-800">
-                          <input type="hidden" name="slot_starts_at" value={slot.startsAtIso} />
-                          <input type="hidden" name="slot_employee_id" value={slot.employeeId} />
-                          <input type="hidden" name="resource_ids" value={slot.resourceIds.join(",")} />
-                          <input type="hidden" name="service_id" value={selectedServiceId} />
-                          <input type="hidden" name="location_id" value={selectedLocationId} />
-                          <input type="hidden" name="date" value={selectedDate} />
-                          <input
-                            type="hidden"
-                            name="idempotency_key"
-                            value={`apt04-self-create:${crypto.randomUUID()}`}
-                          />
-                          <input type="hidden" name="terms_version_id" value={termsVersion.id} />
-                          <input type="hidden" name="privacy_notice_version_id" value={privacyNotice.id} />
+                    <details className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-700 dark:bg-stone-900/40">
+                      <summary className="cursor-pointer text-sm font-medium text-stone-700 dark:text-stone-200">
+                        Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}
+                      </summary>
+                      {termsSummary ? (
+                        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-stone-700 dark:text-stone-300">
+                          {termsSummary}
+                        </pre>
+                      ) : (
+                        <p className={`mt-2 text-xs ${ui.muted}`}>No content snapshot is available for this version.</p>
+                      )}
+                    </details>
 
-                          <label>
-                            <span className={`${ui.label} mb-1.5 block`}>Payment</span>
-                            <select name="payment_option" className={ui.select} defaultValue={defaultPayment} required>
-                              <option value="free">Pay at appointment</option>
-                              <option value="package_credit" disabled={!packageCredits?.ok || !packageCredits.payload.packages.length}>
-                                Use package credits {!packageCredits?.ok || !packageCredits.payload.packages.length ? "(not eligible)" : ""}
-                              </option>
-                              <option value="online_deposit">Online deposit (30%)</option>
-                              <option value="online_full">Online full payment</option>
-                            </select>
-                          </label>
-                          {packageCredits?.ok && packageCredits.payload.packages.length ? (
-                            <p className={`text-xs ${ui.muted}`}>
-                              Eligible package credits: {packageCredits.payload.packages.map((pkg) => `${pkg.packageName} (${pkg.creditsLeft})`).join(", ")}
-                            </p>
-                          ) : (
-                            <p className={`text-xs ${ui.muted}`} data-eligibility-policy="conservative">
-                              Package credits require an active, unexpired package valid at this location.
-                            </p>
-                          )}
-                          <label className="inline-flex items-start gap-2 text-xs leading-relaxed text-stone-600 dark:text-stone-300">
-                            <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
-                            <span>
-                              I accept Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}.
-                            </span>
-                          </label>
-                          <label className="inline-flex items-start gap-2 text-xs leading-relaxed text-stone-600 dark:text-stone-300">
-                            <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
-                            <span>
-                              {studio.name} may use my name, contact details, and appointment details to book and run this visit.
-                            </span>
-                          </label>
-                          <button type="submit" className={ui.btnPrimarySm}>Book this slot</button>
-                          <p className={`text-center text-xs ${ui.muted}`}>Availability is checked again when you book.</p>
-                        </form>
-                      </details>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                    <div className="grid gap-2">
+                      <label className="inline-flex items-start gap-2 text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+                        <input type="checkbox" name="terms_accepted" required className="mt-0.5" />
+                        <span>
+                          I accept Terms & Conditions {termsVersion.version_label ? `(${termsVersion.version_label})` : ""}.
+                        </span>
+                      </label>
+                      <label className="inline-flex items-start gap-2 text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+                        <input type="checkbox" name="privacy_accepted" required className="mt-0.5" />
+                        <span>
+                          {studio.name} may use my name, contact details, and appointment details to book and run this visit.
+                        </span>
+                      </label>
+                    </div>
+
+                    <button type="submit" className={ui.btnPrimary}>Book appointment</button>
+                    <p className={`text-center text-xs ${ui.muted}`}>Availability is checked again when you book.</p>
+                  </form>
+                )}
+              </section>
+            ) : null}
           </>
         )}
       </div>

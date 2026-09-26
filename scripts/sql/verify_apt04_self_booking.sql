@@ -107,6 +107,29 @@ begin
     raise exception 'expected self create success, got: %', v_create_self;
   end if;
 
+  -- pay-at-store settlement confirms the booking instead of leaving it to expire
+  perform public.apt04_upsert_appointment_settlement(
+    p_actor_id := v_customer_user,
+    p_studio_id := v_studio,
+    p_appointment_id := (v_create_self ->> 'appointment_id')::uuid,
+    p_settlement_mode := 'free',
+    p_required_amount := 0,
+    p_currency := 'SGD'
+  );
+  perform public.apt04_confirm_free_settlement(
+    p_studio_id := v_studio,
+    p_appointment_id := (v_create_self ->> 'appointment_id')::uuid,
+    p_actor_id := v_customer_user
+  );
+  if not exists (
+    select 1 from public.salon_appointments
+    where id = (v_create_self ->> 'appointment_id')::uuid
+      and status = 'confirmed'
+      and expires_at is null
+  ) then
+    raise exception 'expected pay-at-store self booking to be confirmed without expiry';
+  end if;
+
   -- self create with another customer's id: must fail
   insert into public.business_idempotency_keys (studio_id, operation_scope, idempotency_key, request_hash)
   values (v_studio, 'salon_appointment:create', 'apt04-create-other', 'h2')

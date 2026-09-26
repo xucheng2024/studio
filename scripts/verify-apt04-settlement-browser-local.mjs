@@ -100,19 +100,19 @@ async function openBooking(page, studioSlug, offsetDays) {
 }
 
 async function bookFirstSlot(page, paymentOption) {
+  const timeLinks = page.locator('a[href*="starts_at="]');
+  await timeLinks.first().waitFor({ state: "visible", timeout: 30_000 });
+  await timeLinks.first().click();
+  await page.waitForURL((url) => url.searchParams.has("starts_at"), { timeout: 30_000 });
   const form = page.locator('form:has(input[name="slot_starts_at"])').first();
   await form.waitFor({ state: "visible", timeout: 30_000 });
-  const paymentSelect = form.locator('select[name="payment_option"]');
-  if (paymentOption === "package_credit") {
-    const packageOption = paymentSelect.locator('option[value="package_credit"]');
-    await packageOption.waitFor({ state: "attached", timeout: 15_000 });
-    assert.equal(await packageOption.getAttribute("disabled"), null, "package credit option should be eligible");
-  }
-  await paymentSelect.selectOption(paymentOption);
+  const paymentRadio = form.locator(`input[name="payment_option"][value="${paymentOption}"]`);
+  await paymentRadio.waitFor({ state: "attached", timeout: 15_000 });
+  await paymentRadio.check();
   await form.locator('input[name="terms_accepted"]').check();
   await form.locator('input[name="privacy_accepted"]').check();
   console.log("[apt04-settlement-uat] submitting slot", { paymentOption });
-  await form.getByRole("button", { name: "Book this slot" }).click();
+  await form.getByRole("button", { name: "Book appointment" }).click();
   await followStreamingRedirect(page);
   await page.waitForURL(
     (url) => url.searchParams.get("ok") === "booked"
@@ -147,7 +147,7 @@ try {
 
   await bookFirstSlot(customer.page, "package_credit");
   assert.match(customer.page.url(), /ok=booked/);
-  await customer.page.getByText("Appointment submitted successfully.").waitFor({ state: "visible", timeout: 15_000 });
+  await customer.page.getByText("Appointment booked.").waitFor({ state: "visible", timeout: 15_000 });
 
   const packageAppointment = await waitForLocalDatabaseState(async () => {
     const { data, error } = await admin
