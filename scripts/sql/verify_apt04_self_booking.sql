@@ -130,6 +130,34 @@ begin
     raise exception 'expected pay-at-store self booking to be confirmed without expiry';
   end if;
 
+  -- a scheduled class taught by the same employee blocks an overlapping appointment
+  insert into public.instructors (id, studio_id, name)
+  values ('10000000-0000-0000-0000-000000000401', v_studio, 'APT04 Instructor');
+  update public.employees set instructor_id = '10000000-0000-0000-0000-000000000401' where id = v_employee;
+  insert into public.classes (id, studio_id, title, instructor_id, capacity)
+  values ('10000000-0000-0000-0000-000000000411', v_studio, 'APT04 Class', '10000000-0000-0000-0000-000000000401', 8);
+  insert into public.class_sessions (id, class_id, start_time, end_time, status)
+  values
+    ('10000000-0000-0000-0000-000000000421', '10000000-0000-0000-0000-000000000411',
+     '2026-08-17T14:00:00+08:00', '2026-08-17T15:00:00+08:00', 'scheduled'),
+    ('10000000-0000-0000-0000-000000000422', '10000000-0000-0000-0000-000000000411',
+     '2026-08-17T16:00:00+08:00', '2026-08-17T17:00:00+08:00', 'cancelled');
+
+  begin
+    perform public.assert_employee_available_for_appointment(
+      v_studio, v_location, v_service, v_employee,
+      '2026-08-17T14:30:00+08:00'::timestamptz, '2026-08-17T15:30:00+08:00'::timestamptz
+    );
+    raise exception 'expected appointment overlapping a scheduled class to fail';
+  exception
+    when exclusion_violation then null;
+  end;
+
+  perform public.assert_employee_available_for_appointment(
+    v_studio, v_location, v_service, v_employee,
+    '2026-08-17T16:00:00+08:00'::timestamptz, '2026-08-17T17:00:00+08:00'::timestamptz
+  );
+
   -- self create with another customer's id: must fail
   insert into public.business_idempotency_keys (studio_id, operation_scope, idempotency_key, request_hash)
   values (v_studio, 'salon_appointment:create', 'apt04-create-other', 'h2')

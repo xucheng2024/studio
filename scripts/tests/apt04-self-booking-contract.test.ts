@@ -92,7 +92,7 @@ test("self-booking uses the production studio_services title contract", () => {
   assert.equal(service.includes('.order("title")'), true);
   assert.equal(service.includes("name: service.title"), true);
   assert.equal(service.includes('.select("id, name, is_active, default_duration_minutes'), false);
-  assert.equal(service.includes('.select("id, display_name, employment_status, takes_appointments")'), true);
+  assert.equal(service.includes('.select("id, display_name, employment_status, takes_appointments, instructor_id")'), true);
   assert.equal(service.includes('.select("id, display_name, is_active, employment_status")'), false);
 });
 
@@ -226,4 +226,26 @@ test("studio booking rules gate customer self-service", () => {
   assert.equal(myAppointmentsPage.includes("canCustomerChangeAppointment(bookingRules, appointment.starts_at)"), true);
   assert.equal(myAppointmentsPage.includes("Online changes close"), true);
   assert.equal(myAppointmentsPage.includes('defaultValue="customer_cancelled"'), false);
+});
+
+test("appointments cannot overlap a class the employee teaches", () => {
+  const service = read("src/lib/salon-appointments-self.ts");
+  const migration = read("supabase/migrations/20260926160000_block_appointments_during_classes.sql");
+  const dbScript = read("scripts/verify-apt04-db.sh");
+  const sqlVerify = read("scripts/sql/verify_apt04_self_booking.sql");
+
+  assert.equal(service.includes('.from("class_sessions")'), true);
+  assert.equal(service.includes('.eq("status", "scheduled")'), true);
+  assert.equal(service.includes("classBusyByEmployee"), true);
+  assert.equal(service.includes("...(classBusyByEmployee.get(employee.id) ?? [])"), true);
+
+  assert.equal(migration.includes("create or replace function public.assert_employee_available_for_appointment("), true);
+  assert.equal(migration.includes("join public.class_sessions cs on cs.class_id = c.id"), true);
+  assert.equal(migration.includes("cs.status = 'scheduled'"), true);
+  assert.equal(migration.includes("errcode = '23P01'"), true);
+  assert.equal(migration.includes("to service_role"), true);
+
+  assert.equal(dbScript.includes("20260926100000_apt04_confirm_pay_at_store.sql"), true);
+  assert.equal(dbScript.includes("20260926160000_block_appointments_during_classes.sql"), true);
+  assert.equal(sqlVerify.includes("expected appointment overlapping a scheduled class to fail"), true);
 });

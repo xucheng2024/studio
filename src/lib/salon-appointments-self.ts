@@ -531,6 +531,7 @@ export async function listSelfBookableSlots(params: {
     requirementsRes,
     resourcesRes,
     busyResourceRes,
+    classSessionRes,
   ] = await Promise.all([
     admin
       .from("location_operating_hours")
@@ -552,7 +553,7 @@ export async function listSelfBookableSlots(params: {
       .eq("is_active", true),
     admin
       .from("employees")
-      .select("id, display_name, employment_status, takes_appointments")
+      .select("id, display_name, employment_status, takes_appointments, instructor_id")
       .eq("studio_id", params.studioId)
       .eq("takes_appointments", true),
     admin
@@ -596,6 +597,14 @@ export async function listSelfBookableSlots(params: {
       .eq("is_active", true)
       .lte("occupied_from", dayEndIso)
       .gte("occupied_until", dayStartIso),
+    // Scheduled classes make their instructor busy at every location.
+    admin
+      .from("class_sessions")
+      .select("start_time, end_time, classes!inner(instructor_id, studio_id)")
+      .eq("classes.studio_id", params.studioId)
+      .eq("status", "scheduled")
+      .lte("start_time", dayEndIso)
+      .gte("end_time", dayStartIso),
   ]);
 
   const queryError = [
@@ -609,6 +618,7 @@ export async function listSelfBookableSlots(params: {
     requirementsRes.error,
     resourcesRes.error,
     busyResourceRes.error,
+    classSessionRes.error,
   ].find(Boolean);
   if (queryError) throw queryError;
 
@@ -658,6 +668,23 @@ export async function listSelfBookableSlots(params: {
     const existing = appointmentBusyByEmployee.get(row.employee_id) ?? [];
     existing.push({ startMs, endMs });
     appointmentBusyByEmployee.set(row.employee_id, existing);
+  }
+
+  const employeeIdsByInstructor = new Map<string, string[]>();
+  for (const employee of employeeRows) {
+    if (!employee.instructor_id) continue;
+    employeeIdsByInstructor.set(employee.instructor_id, [...(employeeIdsByInstructor.get(employee.instructor_id) ?? []), employee.id]);
+  }
+  const classBusyByEmployee = new Map<string, Array<{ startMs: number; endMs: number }>>();
+  for (const row of classSessionRes.data ?? []) {
+    const classRow = (Array.isArray(row.classes) ? row.classes[0] : row.classes) as { instructor_id: string | null } | null;
+    if (!classRow?.instructor_id) continue;
+    const startMs = new Date(row.start_time).getTime();
+    const endMs = new Date(row.end_time).getTime();
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
+    for (const employeeId of employeeIdsByInstructor.get(classRow.instructor_id) ?? []) {
+      classBusyByEmployee.set(employeeId, [...(classBusyByEmployee.get(employeeId) ?? []), { startMs, endMs }]);
+    }
   }
 
   const requirements = (requirementsRes.data ?? []).map((row) => ({
@@ -723,7 +750,10 @@ export async function listSelfBookableSlots(params: {
         if (intersectsUnavailable(exception.unavailable, occupiedFromMs, occupiedUntilMs)) continue;
         if (!withinWorking && !availableByException) continue;
 
-        const employeeBusy = appointmentBusyByEmployee.get(employee.id) ?? [];
+        const employeeBusy = [
+          ...(appointmentBusyByEmployee.get(employee.id) ?? []),
+          ...(classBusyByEmployee.get(employee.id) ?? []),
+        ];
         if (employeeBusy.some((busy) => intervalOverlaps(busy.startMs, busy.endMs, occupiedFromMs, occupiedUntilMs))) {
           continue;
         }

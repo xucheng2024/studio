@@ -55,6 +55,31 @@ create table if not exists public.employees (
   updated_at timestamptz not null default now()
 );
 
+-- Minimal class model: appointments must not overlap a class the employee teaches.
+create table if not exists public.instructors (
+  id uuid primary key default gen_random_uuid(),
+  studio_id uuid not null references public.studios(id) on delete cascade,
+  name text not null default 'Instructor'
+);
+
+alter table public.employees add column if not exists instructor_id uuid references public.instructors(id) on delete set null;
+
+create table if not exists public.classes (
+  id uuid primary key default gen_random_uuid(),
+  studio_id uuid not null references public.studios(id) on delete cascade,
+  title text not null default 'Class',
+  instructor_id uuid references public.instructors(id) on delete set null,
+  capacity integer not null default 1
+);
+
+create table if not exists public.class_sessions (
+  id uuid primary key default gen_random_uuid(),
+  class_id uuid not null references public.classes(id) on delete cascade,
+  start_time timestamptz not null,
+  end_time timestamptz not null,
+  status text not null default 'scheduled'
+);
+
 create table if not exists public.employee_locations (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references public.employees(id) on delete cascade,

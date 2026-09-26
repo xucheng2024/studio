@@ -41,6 +41,9 @@ const ids = {
   customerFirefox: "a4040000-0000-4000-8000-000000000044",
   customerWebkit: "a4040000-0000-4000-8000-000000000045",
   resource1: "a4040000-0000-4000-8000-000000000051",
+  instructor1: "a4040000-0000-4000-8000-000000000061",
+  class1: "a4040000-0000-4000-8000-000000000071",
+  classSession1: "a4040000-0000-4000-8000-000000000081",
 };
 const slugSuffix = RUN_ID.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(-32);
 const slugs = { s1: `apt04-uat-s1-${slugSuffix}`, s2: `apt04-uat-s2-${slugSuffix}` };
@@ -144,11 +147,39 @@ await upsert("service_locations", [{
   duration_override_minutes: null,
   buffer_override_minutes: null,
 }], { onConflict: "service_id,location_id" });
+await upsert("instructors", [{
+  id: ids.instructor1,
+  studio_id: ids.studio1,
+  name: "APT04 UAT Therapist",
+  is_active: true,
+}], { onConflict: "id" });
 await upsert("employees", [{
   id: ids.employee1,
   studio_id: ids.studio1,
+  instructor_id: ids.instructor1,
   display_name: "APT04 UAT Therapist",
   employment_status: "active",
+}], { onConflict: "id" });
+// The therapist teaches a class 09:00–10:00 on the tertiary date; appointments must avoid it.
+await upsert("classes", [{
+  id: ids.class1,
+  studio_id: ids.studio1,
+  title: "APT04 UAT Group Class",
+  instructor_id: ids.instructor1,
+  capacity: 8,
+  duration_min: 60,
+  location_id: ids.location1,
+  is_active: true,
+}], { onConflict: "id" });
+await upsert("class_sessions", [{
+  id: ids.classSession1,
+  class_id: ids.class1,
+  location_id: ids.location1,
+  start_time: `${dates.tertiary}T09:00:00+08:00`,
+  end_time: `${dates.tertiary}T10:00:00+08:00`,
+  capacity: 8,
+  spots_left: 8,
+  status: "scheduled",
 }], { onConflict: "id" });
 await upsert("employee_locations", [{
   employee_id: ids.employee1,
@@ -349,6 +380,18 @@ async function runBrowser(name, launcher, email, full = false) {
       `${name}: service card missing`,
     );
     await capture(session.page, name, "02-slots.png", ["Book appointment", "Choose a time"]);
+
+    if (full) {
+      await session.page.goto(bookingUrl(dates.tertiary), { waitUntil: "domcontentloaded", timeout: 120_000 });
+      const firstHref = await session.page.locator('a[href*="starts_at="]').first().getAttribute("href");
+      const firstStartsAt = new URL(firstHref ?? "", BASE_URL).searchParams.get("starts_at");
+      assert.equal(
+        firstStartsAt,
+        new Date(`${dates.tertiary}T10:15:00+08:00`).toISOString(),
+        `${name}: first slot must skip the therapist's 09:00-10:00 class (15 min prep)`,
+      );
+      await session.page.goto(bookingUrl(dates.primary), { waitUntil: "domcontentloaded", timeout: 120_000 });
+    }
 
     if (full) {
       const mobile = await newAuthenticatedPage(browser, email, { width: 390, height: 844 });
