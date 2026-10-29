@@ -8,6 +8,8 @@ import { ui } from "@/lib/ui";
 import { AutoRecommendedSetup } from "./AutoRecommendedSetup";
 import { bookingHref, type BookingSettingsContext } from "./context";
 
+const LOCATION_ITEM_KEYS = new Set(["staff_locations", "service_locations"]);
+
 export async function OverviewSection({ ctx }: { ctx: BookingSettingsContext }) {
   const [readiness, studioRes] = await Promise.all([
     getBookingReadiness({ studioId: ctx.studioId }),
@@ -71,7 +73,10 @@ export async function OverviewSection({ ctx }: { ctx: BookingSettingsContext }) 
       <section className={ui.card}>
         <h2 className={ui.h2}>Checklist</h2>
         <ul className="mt-3 flex flex-col divide-y divide-stone-100 dark:divide-stone-800">
-          {readiness.items.map((item) => (
+          {readiness.items
+            // With one location, location assignment is automatic; only show it if something is missing.
+            .filter((item) => ctx.locations.length > 1 || !item.done || !LOCATION_ITEM_KEYS.has(item.key))
+            .map((item) => (
             <li key={item.key} className="flex items-start justify-between gap-3 py-2.5">
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-sm font-medium text-stone-900 dark:text-stone-100">

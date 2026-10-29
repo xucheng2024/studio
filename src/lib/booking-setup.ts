@@ -143,6 +143,18 @@ async function loadSetupSnapshot(studioId: string): Promise<SetupSnapshot> {
   };
 }
 
+/** A location's opening hours as staff working-hour days; null when it is closed all week. */
+function workingDaysFromOpeningHours(snapshot: SetupSnapshot, locationId: string) {
+  const hours = snapshot.locationHours.get(locationId) ?? [];
+  const days = WEEKDAYS.map((weekday) => ({
+    weekday,
+    intervals: hours
+      .filter((row) => row.weekday === weekday && !row.is_closed && row.opens_at && row.closes_at)
+      .map((row) => ({ starts_at: String(row.opens_at).slice(0, 5), ends_at: String(row.closes_at).slice(0, 5) })),
+  }));
+  return days.some((day) => day.intervals.length) ? days : null;
+}
+
 function hasOpenHours(snapshot: SetupSnapshot, locationId: string) {
   return (snapshot.locationHours.get(locationId) ?? []).some((row) => !row.is_closed && row.opens_at && row.closes_at);
 }
@@ -338,14 +350,8 @@ export async function applyRecommendedBookingSetup(params: {
   for (const employee of snapshot.employees) {
     for (const locationId of snapshot.employeeLocations.get(employee.id) ?? []) {
       if (snapshot.employeeHourKeys.has(`${employee.id}:${locationId}`)) continue;
-      const hours = snapshot.locationHours.get(locationId) ?? [];
-      const days = WEEKDAYS.map((weekday) => ({
-        weekday,
-        intervals: hours
-          .filter((row) => row.weekday === weekday && !row.is_closed && row.opens_at && row.closes_at)
-          .map((row) => ({ starts_at: String(row.opens_at).slice(0, 5), ends_at: String(row.closes_at).slice(0, 5) })),
-      }));
-      if (!days.some((day) => day.intervals.length)) continue;
+      const days = workingDaysFromOpeningHours(snapshot, locationId);
+      if (!days) continue;
       const result = await setEmployeeWorkingHoursForWeek({
         userId: params.userId,
         studioId: params.studioId,
@@ -410,6 +416,108 @@ export async function applyRecommendedBookingSetup(params: {
     if (!result.ok) return fail("Privacy consent", result);
     changes.push(`Saved privacy consent version ${result.versionLabel}`);
   }
+
+  return { ok: true, changes };
+}
+
+/**
+ * A new service is offered at every location and by everyone who takes
+ * appointments, unless that was already set. Restrict it later in Services.
+ */
+export async function applyNewServiceBookingDefaults(params: {
+  userId: string;
+  studioId: string;
+  serviceId: string;
+}): Promise<{ ok: true; changes: string[] } | SetupFailure> {
+  const snapshot = await loadSetupSnapshot(params.studioId);
+  const changes: string[] = [];
+
+  if (snapshot.locations.length && !snapshot.serviceLocations.get(params.serviceId)?.size) {
+    const result = await setServicePublishScope({
+      userId: params.userId,
+      studioId: params.studioId,
+      serviceId: params.serviceId,
+      scope: "all_locations",
+    });
+    if (!result.ok) return fail("Service locations", result);
+    if (snapshot.locations.length > 1) changes.push("offered at all locations");
+  }
+
+  if (snapshot.employees.length && !snapshot.serviceEmployees.get(params.serviceId)?.size) {
+    const result = await setServiceEmployeeEligibilities({
+      userId: params.userId,
+      studioId: params.studioId,
+      serviceId: params.serviceId,
+      employeeIds: snapshot.employees.map((row) => row.id),
+    });
+    if (!result.ok) return fail("Service staff", result);
+    changes.push("everyone who takes appointments can do it");
+  }
+
+  return { ok: true, changes };
+}
+
+/**
+ * Someone who starts taking appointments works at every location during
+ * opening hours and joins every service that all other bookable staff can do.
+ * Only gaps are filled: existing locations, schedules and restricted services
+ * (e.g. Massage only for Ben) are left alone.
+ */
+export async function applyBookableEmployeeDefaults(params: {
+  userId: string;
+  studioId: string;
+  employeeId: string;
+}): Promise<{ ok: true; changes: string[] } | SetupFailure> {
+  const snapshot = await loadSetupSnapshot(params.studioId);
+  const changes: string[] = [];
+  const allLocationIds = snapshot.locations.map((row) => row.id);
+
+  if (allLocationIds.length && !snapshot.employeeLocations.get(params.employeeId)?.size) {
+    const result = await setEmployeeWorkingLocations({
+      userId: params.userId,
+      studioId: params.studioId,
+      employeeId: params.employeeId,
+      locationIds: allLocationIds,
+      primaryLocationId: allLocationIds[0],
+    });
+    if (!result.ok) return fail("Staff locations", result);
+    snapshot.employeeLocations.set(params.employeeId, new Set(allLocationIds));
+    if (allLocationIds.length > 1) changes.push("assigned to all locations");
+  }
+
+  let schedulesCreated = 0;
+  for (const locationId of snapshot.employeeLocations.get(params.employeeId) ?? []) {
+    if (snapshot.employeeHourKeys.has(`${params.employeeId}:${locationId}`)) continue;
+    const days = workingDaysFromOpeningHours(snapshot, locationId);
+    if (!days) continue;
+    const result = await setEmployeeWorkingHoursForWeek({
+      userId: params.userId,
+      studioId: params.studioId,
+      employeeId: params.employeeId,
+      locationId,
+      days,
+    });
+    if (!result.ok) return fail("Staff working hours", result);
+    schedulesCreated += 1;
+  }
+  if (schedulesCreated) changes.push("works during opening hours");
+
+  const otherEmployeeIds = snapshot.employees.map((row) => row.id).filter((id) => id !== params.employeeId);
+  let servicesJoined = 0;
+  for (const service of snapshot.services) {
+    const eligible = snapshot.serviceEmployees.get(service.id) ?? new Set<string>();
+    if (eligible.has(params.employeeId)) continue;
+    if (!otherEmployeeIds.every((id) => eligible.has(id))) continue;
+    const result = await setServiceEmployeeEligibilities({
+      userId: params.userId,
+      studioId: params.studioId,
+      serviceId: service.id,
+      employeeIds: [...eligible, params.employeeId],
+    });
+    if (!result.ok) return fail(`Staff for ${service.title}`, result);
+    servicesJoined += 1;
+  }
+  if (servicesJoined) changes.push(`can do ${servicesJoined} service(s)`);
 
   return { ok: true, changes };
 }
@@ -628,7 +736,7 @@ export async function setEmployeeTakesAppointments(params: {
   studioId: string;
   employeeId: string;
   takesAppointments: boolean;
-}): Promise<{ ok: true } | SetupFailure> {
+}): Promise<{ ok: true; changes: string[] } | SetupFailure> {
   const scope = await requireGlobalStaffScope({
     userId: params.userId,
     studioId: params.studioId,
@@ -641,5 +749,12 @@ export async function setEmployeeTakesAppointments(params: {
     .eq("id", params.employeeId)
     .eq("studio_id", params.studioId);
   if (error) return { ok: false, reason: "invalid_request", message: error.message };
-  return { ok: true };
+  if (!params.takesAppointments) return { ok: true, changes: [] };
+  // The switch is saved either way; missing defaults can still be filled from Overview.
+  const defaults = await applyBookableEmployeeDefaults(params);
+  if (!defaults.ok) {
+    console.error(`applyBookableEmployeeDefaults: ${defaults.message ?? defaults.reason}`);
+    return { ok: true, changes: [] };
+  }
+  return defaults;
 }

@@ -112,7 +112,8 @@ export async function setEmployeeTakesAppointmentsAction(
   const result = await setEmployeeTakesAppointments({ userId: user.id, studioId, employeeId, takesAppointments });
   if (!result.ok) return err(result.message ?? result.reason);
   await revalidateBookingViews(studioId);
-  return ok(takesAppointments ? "Now takes appointments." : "No longer takes appointments.");
+  if (!takesAppointments) return ok("No longer takes appointments.");
+  return ok(result.changes.length ? `Now takes appointments: ${result.changes.join(", ")}.` : "Now takes appointments.");
 }
 
 export async function setEmployeeBookingLocationsAction(

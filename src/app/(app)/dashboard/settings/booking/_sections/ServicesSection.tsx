@@ -76,6 +76,8 @@ export async function ServicesSection({ ctx }: { ctx: BookingSettingsContext }) 
     enabledLocationMap.set(row.service_id, existing);
   }
   const locationList = locations ?? [];
+  // With one location there is nothing to choose; location columns and forms stay hidden.
+  const showLocations = locationList.length > 1;
   const locationNameById = new Map(locationList.map((location) => [location.id, location.name]));
   const candidateEmployeeIds = (employees ?? []).map((employee) => employee.id).join(",");
 
@@ -103,7 +105,7 @@ export async function ServicesSection({ ctx }: { ctx: BookingSettingsContext }) 
               <th className="py-1.5 pr-3 font-medium">Online</th>
               <th className="py-1.5 pr-3 font-medium">Duration</th>
               <th className="py-1.5 pr-3 font-medium">Staff</th>
-              <th className="py-1.5 font-medium">Locations</th>
+              {showLocations ? <th className="py-1.5 font-medium">Locations</th> : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
@@ -118,9 +120,11 @@ export async function ServicesSection({ ctx }: { ctx: BookingSettingsContext }) 
                   <td className="py-2 pr-3">{svc.online_bookable === false ? <span className={ui.badgeAmber}>Off</span> : <span className={ui.badge}>On</span>}</td>
                   <td className="py-2 pr-3 tabular-nums">{Number(svc.default_duration_minutes ?? 60)} min</td>
                   <td className={`py-2 pr-3 ${staffCount ? "" : "text-amber-700 dark:text-amber-300"}`}>{staffCount || "None"}</td>
-                  <td className={`py-2 ${locationNames.length ? "" : "text-amber-700 dark:text-amber-300"}`}>
-                    {locationNames.length === locationList.length && locationList.length > 1 ? "All" : locationNames.join(", ") || "None"}
-                  </td>
+                  {showLocations ? (
+                    <td className={`py-2 ${locationNames.length ? "" : "text-amber-700 dark:text-amber-300"}`}>
+                      {locationNames.length === locationList.length ? "All" : locationNames.join(", ") || "None"}
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}
@@ -231,7 +235,7 @@ export async function ServicesSection({ ctx }: { ctx: BookingSettingsContext }) 
               </div>
             </ServerActionToastForm>
 
-            {locationList.length > 1 ? (
+            {showLocations ? (
               <ServerActionToastForm action={setServicePublishScopeAction} className="rounded-xl border border-stone-200/80 p-3 dark:border-stone-800/80">
                 <input type="hidden" name="studio_id" value={ctx.studioId} />
                 <input type="hidden" name="service_id" value={svc.id} />

@@ -1,6 +1,8 @@
 "use server";
+import { applyNewServiceBookingDefaults } from "@/lib/booking-setup";
 import {
   revalidateDashboardContent,
+  revalidateDashboardSettings,
   revalidatePublicSectionPaths,
 } from "@/lib/revalidatePublic";
 import { parsePublicTagsInput } from "@/lib/publicTags";
@@ -25,7 +27,7 @@ export async function createStudioService(
   formData: FormData,
 ): Promise<DashboardFormResult> {
   const studioId = String(formData.get("studio_id") ?? "");
-  const { supabase, studio, ctx } = await requireStudio(studioId || undefined);
+  const { supabase, user, studio, ctx } = await requireStudio(studioId || undefined);
   if (!studio) return err("Studio not found.");
   const activeStudio = studio!;
   if (!hasStudioGlobalRole(ctx, activeStudio.id, ["owner", "manager"])) return err("You do not have permission to save services.");
@@ -49,7 +51,7 @@ export async function createStudioService(
   const share_slug = await generateUniqueShareSlug(supabase, "studio_services", activeStudio.id);
   if (!share_slug) return err("Could not create service.");
 
-  const { error } = await supabase.from("studio_services").insert({
+  const { data: created, error } = await supabase.from("studio_services").insert({
     studio_id: activeStudio.id,
     title,
     summary,
@@ -64,11 +66,16 @@ export async function createStudioService(
     share_slug,
     is_active: true,
     sort_order: Number.isFinite(sort_order) ? Math.floor(sort_order) : 100,
-  });
-  if (error) {
-    console.error(error.message);
+  }).select("id").single<{ id: string }>();
+  if (error || !created) {
+    console.error(error?.message ?? "createStudioService: no id returned");
     return err("Could not create service.");
   }
+
+  // New services are bookable right away: every location, everyone who takes appointments.
+  const defaults = await applyNewServiceBookingDefaults({ userId: user.id, studioId: activeStudio.id, serviceId: created.id });
+  if (!defaults.ok) console.error(`createStudioService booking defaults: ${defaults.message ?? defaults.reason}`);
+  revalidateDashboardSettings("booking");
 
   revalidateDashboardContent("services");
   if (activeStudio.public_slug) revalidatePublicSectionPaths(activeStudio.public_slug, "services", share_slug);

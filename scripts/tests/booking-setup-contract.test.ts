@@ -183,3 +183,51 @@ test("advanced booking tabs sit under More unless open", () => {
   assert.equal(page.includes("!isAdvancedBookingTab(item.key) || item.key === tab"), true);
   assert.equal(page.includes("More ▾"), true);
 });
+
+test("new services and newly bookable staff get booking defaults", () => {
+  const lib = read("src/lib/booking-setup.ts");
+  const commerce = read("src/app/(app)/dashboard/_actions/commerce.ts");
+  const actions = read("src/app/(app)/dashboard/_actions/booking-setup.ts");
+
+  const serviceStart = lib.indexOf("export async function applyNewServiceBookingDefaults(");
+  const employeeStart = lib.indexOf("export async function applyBookableEmployeeDefaults(");
+  assert.ok(serviceStart >= 0 && employeeStart > serviceStart);
+  const serviceFn = lib.slice(serviceStart, employeeStart);
+  const employeeFn = lib.slice(employeeStart, lib.indexOf("export async function autoApplyRecommendedBookingSetup("));
+
+  // Only gaps are filled.
+  assert.equal(serviceFn.includes("!snapshot.serviceLocations.get(params.serviceId)?.size"), true);
+  assert.equal(serviceFn.includes("!snapshot.serviceEmployees.get(params.serviceId)?.size"), true);
+  assert.equal(employeeFn.includes("!snapshot.employeeLocations.get(params.employeeId)?.size"), true);
+  assert.equal(employeeFn.includes("if (snapshot.employeeHourKeys.has(`${params.employeeId}:${locationId}`)) continue;"), true);
+  // Restricted services (not everyone can do them) are left alone.
+  assert.equal(employeeFn.includes("if (!otherEmployeeIds.every((id) => eligible.has(id))) continue;"), true);
+  assert.equal(employeeFn.includes("employeeIds: [...eligible, params.employeeId],"), true);
+
+  const createStart = commerce.indexOf("export async function createStudioService(");
+  const createFn = commerce.slice(createStart, commerce.indexOf("export async function updateStudioService("));
+  assert.equal(createFn.includes('.select("id").single<{ id: string }>()'), true);
+  assert.equal(createFn.includes("await applyNewServiceBookingDefaults({ userId: user.id, studioId: activeStudio.id, serviceId: created.id });"), true);
+
+  const toggleStart = lib.indexOf("export async function setEmployeeTakesAppointments(");
+  const toggleFn = lib.slice(toggleStart);
+  assert.equal(toggleFn.includes("if (!params.takesAppointments) return { ok: true, changes: [] };"), true);
+  assert.equal(toggleFn.includes("const defaults = await applyBookableEmployeeDefaults(params);"), true);
+  assert.equal(actions.includes("`Now takes appointments: ${result.changes.join(\", \")}.`"), true);
+});
+
+test("single-location studios do not see location choices", () => {
+  const dir = "src/app/(app)/dashboard/settings/booking/_sections";
+  const services = read(`${dir}/ServicesSection.tsx`);
+  const overview = read(`${dir}/OverviewSection.tsx`);
+  const staff = read(`${dir}/StaffSection.tsx`);
+  const bar = read(`${dir}/LocationBar.tsx`);
+  const bookingPage = read("src/app/[studioSlug]/appointments/page.tsx");
+
+  assert.equal(services.includes("const showLocations = locationList.length > 1;"), true);
+  assert.equal(services.includes("{showLocations ? (\n              <ServerActionToastForm action={setServicePublishScopeAction}"), true);
+  assert.equal(overview.includes('const LOCATION_ITEM_KEYS = new Set(["staff_locations", "service_locations"]);'), true);
+  assert.equal(staff.includes("const showLocations = ctx.locations.length > 1;"), true);
+  assert.equal(bar.includes("if (ctx.locations.length <= 1) return null;"), true);
+  assert.equal(bookingPage.includes("(catalog.locations.length === 1 ? catalog.locations[0].id : \"\")"), true);
+});
