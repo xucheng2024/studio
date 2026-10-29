@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeStudioSlug } from "@/lib/slug";
 import { ACTIVE_MEMBER_STUDIO_COOKIE } from "@/lib/member-studio-shared";
+import { ensureSelfSalonCustomer } from "@/lib/salon-appointments-self";
 
 export async function getActiveMemberStudioSlugFromCookie() {
   const c = await cookies();
@@ -26,6 +27,12 @@ export async function upsertMemberStudioMembership(
       },
       { onConflict: "user_id,studio_id" },
     );
+  // The dashboard Clients list reads salon_customers, so every member needs one.
+  try {
+    await ensureSelfSalonCustomer({ studioId: params.studioId, userId: params.userId });
+  } catch (error) {
+    console.error(`upsertMemberStudioMembership salon customer: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export async function verifyMemberStudioAccess(
