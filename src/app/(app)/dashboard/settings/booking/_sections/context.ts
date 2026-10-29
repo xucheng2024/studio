@@ -3,9 +3,14 @@ export const BOOKING_TABS = [
   { key: "hours", label: "Opening hours" },
   { key: "staff", label: "Staff schedules" },
   { key: "services", label: "Services" },
-  { key: "resources", label: "Resources" },
-  { key: "rules", label: "Rules & terms" },
+  // Advanced tabs sit under "More" unless open; the recommended setup covers them.
+  { key: "resources", label: "Resources", advanced: true },
+  { key: "rules", label: "Rules & terms", advanced: true },
 ] as const;
+
+export function isAdvancedBookingTab(key: string) {
+  return BOOKING_TABS.some((tab) => tab.key === key && "advanced" in tab);
+}
 
 export type BookingTab = (typeof BOOKING_TABS)[number]["key"];
 

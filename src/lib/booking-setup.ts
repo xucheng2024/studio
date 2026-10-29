@@ -414,6 +414,52 @@ export async function applyRecommendedBookingSetup(params: {
   return { ok: true, changes };
 }
 
+/**
+ * Runs applyRecommendedBookingSetup once per studio, as soon as there is a
+ * location, someone who takes appointments and an active service. The marker
+ * is claimed first so concurrent visits cannot both run it, and released on
+ * failure so a later visit retries.
+ */
+export async function autoApplyRecommendedBookingSetup(params: {
+  userId: string;
+  studioId: string;
+}): Promise<{ ran: false } | { ran: true; changes: string[] }> {
+  const admin = createAdminClient();
+  const { data: studio } = await admin
+    .from("studios")
+    .select("booking_setup_auto_applied_at")
+    .eq("id", params.studioId)
+    .maybeSingle<{ booking_setup_auto_applied_at: string | null }>();
+  if (!studio || studio.booking_setup_auto_applied_at) return { ran: false };
+
+  const snapshot = await loadSetupSnapshot(params.studioId);
+  if (!snapshot.locations.length || !snapshot.employees.length || !snapshot.services.length) return { ran: false };
+
+  const scope = await requireGlobalStaffScope({
+    userId: params.userId,
+    studioId: params.studioId,
+    roles: ["owner", "manager"],
+  });
+  if (!scope.ok) return { ran: false };
+
+  const { data: claimed } = await admin
+    .from("studios")
+    .update({ booking_setup_auto_applied_at: new Date().toISOString() })
+    .eq("id", params.studioId)
+    .is("booking_setup_auto_applied_at", null)
+    .select("id")
+    .maybeSingle();
+  if (!claimed) return { ran: false };
+
+  const result = await applyRecommendedBookingSetup(params);
+  if (!result.ok) {
+    await admin.from("studios").update({ booking_setup_auto_applied_at: null }).eq("id", params.studioId);
+    console.error(`autoApplyRecommendedBookingSetup: ${result.message ?? result.reason}`);
+    return { ran: false };
+  }
+  return { ran: true, changes: result.changes };
+}
+
 export async function getCurrentSalonTermsText(params: { studioId: string }) {
   const latest = await getLatestSalonTermsVersion({ studioId: params.studioId });
   return {

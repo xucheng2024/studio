@@ -5,21 +5,32 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { getBookingReadiness } from "@/lib/booking-setup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ui } from "@/lib/ui";
+import { AutoRecommendedSetup } from "./AutoRecommendedSetup";
 import { bookingHref, type BookingSettingsContext } from "./context";
 
 export async function OverviewSection({ ctx }: { ctx: BookingSettingsContext }) {
   const [readiness, studioRes] = await Promise.all([
     getBookingReadiness({ studioId: ctx.studioId }),
-    createAdminClient().from("studios").select("public_slug").eq("id", ctx.studioId).maybeSingle<{ public_slug: string | null }>(),
+    createAdminClient()
+      .from("studios")
+      .select("public_slug, booking_setup_auto_applied_at")
+      .eq("id", ctx.studioId)
+      .maybeSingle<{ public_slug: string | null; booking_setup_auto_applied_at: string | null }>(),
   ]);
   const publicSlug = studioRes.data?.public_slug ?? null;
   const bookableCount = readiness.services.filter((service) => service.bookable).length;
   const blockedServices = readiness.services.filter((service) => !service.bookable);
   const hasGaps = readiness.items.some((item) => !item.done);
+  const canAutoApply = hasGaps
+    && !studioRes.data?.booking_setup_auto_applied_at
+    && readiness.hasLocations
+    && readiness.hasEmployees
+    && readiness.hasServices;
   const linkFor = (href: string) => bookingHref({ selectedStudioId: ctx.selectedStudioId, locationId: null }, {}, href);
 
   return (
     <div className="flex flex-col gap-4">
+      {canAutoApply ? <AutoRecommendedSetup studioId={ctx.studioId} /> : null}
       <section className={`${ui.card} flex flex-col gap-3`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

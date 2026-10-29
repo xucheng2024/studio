@@ -14,6 +14,7 @@ import {
   type AppointmentConflictCode,
 } from "@/lib/salon-appointments";
 import { listSelfBookableSlots } from "@/lib/salon-appointments-self";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { err, ok, requireUser, type DashboardFormResult } from "./shared";
 
 export type StaffBookableSlot = {
@@ -421,6 +422,75 @@ export async function transitionSalonAppointmentStatusAction(
   return ok(`Appointment moved to ${result.payload.toStatus.replaceAll("_", " ")}.`);
 }
 
+// Statuses the state machine requires on the way to completed; staff skip them with one click.
+const STEPS_TO_COMPLETED = {
+  confirmed: ["checked_in", "in_progress", "completed"],
+  checked_in: ["in_progress", "completed"],
+  in_progress: ["completed"],
+} as const;
+
+async function completeAppointmentFromCurrentStatus(params: {
+  userId: string;
+  studioId: string;
+  appointmentId: string;
+  reason: string | null;
+  idempotencyKey: string;
+}): Promise<{ ok: true } | { ok: false; code: AppointmentConflictCode; message: string }> {
+  const { data: current } = await createAdminClient()
+    .from("salon_appointments")
+    .select("status")
+    .eq("id", params.appointmentId)
+    .eq("studio_id", params.studioId)
+    .maybeSingle<{ status: string }>();
+  const steps = current?.status && current.status in STEPS_TO_COMPLETED
+    ? STEPS_TO_COMPLETED[current.status as keyof typeof STEPS_TO_COMPLETED]
+    : (["completed"] as const);
+
+  for (const step of steps) {
+    const isFinal = step === "completed";
+    const result = await transitionAppointmentStatus({
+      userId: params.userId,
+      studioId: params.studioId,
+      appointmentId: params.appointmentId,
+      toStatus: step,
+      reason: isFinal ? params.reason : "staff_quick_complete",
+      // The final step keeps the caller's key so retries of the old single-step flow stay idempotent.
+      idempotencyKey: isFinal ? params.idempotencyKey : `apt-quick-complete-${step}:${params.appointmentId}:${params.idempotencyKey}`,
+    });
+    if (!result.ok) {
+      console.log("completeAppointmentFromCurrentStatus failed", { step, code: result.code, message: result.message, appointmentId: params.appointmentId });
+      return { ok: false, code: result.code, message: result.message };
+    }
+  }
+  return { ok: true };
+}
+
+export async function completeSalonAppointmentAction(
+  _prevState: DashboardFormResult | null,
+  formData: FormData,
+): Promise<DashboardFormResult> {
+  const studioId = String(formData.get("studio_id") ?? "").trim();
+  const appointmentId = String(formData.get("appointment_id") ?? "").trim();
+  if (!studioId || !appointmentId) {
+    return err("Missing required status transition fields.");
+  }
+
+  const { user } = await requireUser();
+  const complete = await completeAppointmentFromCurrentStatus({
+    userId: user.id,
+    studioId,
+    appointmentId,
+    reason: String(formData.get("reason") ?? "").trim() || null,
+    idempotencyKey: getIdempotencyKey(formData),
+  });
+  if (!complete.ok) {
+    return err(mapAppointmentError(complete.code, complete.message || "Could not complete appointment."));
+  }
+
+  revalidatePath("/dashboard/appointments");
+  return ok("Appointment completed.");
+}
+
 function readAppointmentChargeFields(formData: FormData) {
   return {
     studioId: String(formData.get("studio_id") ?? "").trim(),
@@ -533,20 +603,14 @@ export async function completeAndChargeSalonAppointmentAction(
   }
 
   const { user } = await requireUser();
-  const complete = await transitionAppointmentStatus({
+  const complete = await completeAppointmentFromCurrentStatus({
     userId: user.id,
     studioId: fields.studioId,
     appointmentId: fields.appointmentId,
-    toStatus: "completed",
     reason: String(formData.get("reason") ?? "").trim() || null,
     idempotencyKey: getIdempotencyKey(formData),
   });
   if (!complete.ok) {
-    console.log("completeAndChargeSalonAppointmentAction complete failed", {
-      code: complete.code,
-      message: complete.message,
-      appointmentId: fields.appointmentId,
-    });
     return err(mapAppointmentError(complete.code, complete.message || "Could not complete appointment."));
   }
 

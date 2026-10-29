@@ -20,6 +20,7 @@ export type { CustomDomainFormResult, EmailSettingsResult, HitpaySettingsResult 
 
 export {
   applyRecommendedBookingSetupAction,
+  autoApplyRecommendedBookingSetupAction,
   publishSalonTermsAction,
   setEmployeeBookingLocationsAction,
   setEmployeeTakesAppointmentsAction,
@@ -64,6 +65,7 @@ export {
   cancelSalonAppointmentAction,
   chargeSalonAppointmentAction,
   completeAndChargeSalonAppointmentAction,
+  completeSalonAppointmentAction,
   createSalonAppointmentAction,
   listStaffBookableSlotsAction,
   rescheduleSalonAppointmentAction,

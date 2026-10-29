@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import {
   aggregateCalendarRowsByLocationScope,
@@ -210,4 +211,20 @@ test("Date: cross-year week window is correct", () => {
     "2027-01-02",
     "2027-01-03",
   ]);
+});
+
+test("managers can complete a confirmed appointment in one click", () => {
+  const actions = fs.readFileSync("src/app/(app)/dashboard/_actions/appointments.ts", "utf8");
+  const page = fs.readFileSync("src/app/(app)/dashboard/appointments/page.tsx", "utf8");
+
+  assert.equal(actions.includes('confirmed: ["checked_in", "in_progress", "completed"],'), true);
+  assert.equal(actions.includes("export async function completeSalonAppointmentAction("), true);
+  const chargeStart = actions.indexOf("export async function completeAndChargeSalonAppointmentAction(");
+  assert.ok(chargeStart >= 0);
+  assert.equal(actions.slice(chargeStart).includes("await completeAppointmentFromCurrentStatus({"), true);
+  // Every step still goes through the guarded state machine.
+  assert.equal(actions.includes("const result = await transitionAppointmentStatus({"), true);
+
+  assert.equal(page.includes('props.canManage && (status === "confirmed" || status === "in_progress")'), true);
+  assert.equal(page.includes("<ServerActionToastForm action={completeSalonAppointmentAction} refreshOnSuccess={false}>"), true);
 });

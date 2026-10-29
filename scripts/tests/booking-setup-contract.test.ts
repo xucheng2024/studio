@@ -147,3 +147,39 @@ test("only staff who take appointments can be scheduled, assigned or booked", ()
   assert.equal(staff.includes("employee.takes_appointments !== false"), true);
   assert.equal(availability.includes('.select("id, is_active, employment_status")'), false);
 });
+
+test("recommended setup auto-applies once when the studio is ready", () => {
+  const lib = read("src/lib/booking-setup.ts");
+  const actions = read("src/app/(app)/dashboard/_actions/booking-setup.ts");
+  const overview = read("src/app/(app)/dashboard/settings/booking/_sections/OverviewSection.tsx");
+  const auto = read("src/app/(app)/dashboard/settings/booking/_sections/AutoRecommendedSetup.tsx");
+  const migration = read("supabase/migrations/20260929120000_booking_setup_auto_apply_marker.sql");
+
+  const start = lib.indexOf("export async function autoApplyRecommendedBookingSetup(");
+  assert.ok(start >= 0);
+  const fn = lib.slice(start, lib.indexOf("export async function getCurrentSalonTermsText("));
+  assert.equal(fn.includes("if (!studio || studio.booking_setup_auto_applied_at) return { ran: false };"), true);
+  assert.equal(fn.includes("if (!snapshot.locations.length || !snapshot.employees.length || !snapshot.services.length) return { ran: false };"), true);
+  assert.equal(fn.includes("requireGlobalStaffScope({"), true);
+  assert.equal(fn.includes('.is("booking_setup_auto_applied_at", null)'), true);
+  assert.ok(fn.indexOf('.is("booking_setup_auto_applied_at", null)') < fn.indexOf("await applyRecommendedBookingSetup(params)"), "claim before applying");
+  assert.equal(fn.includes("update({ booking_setup_auto_applied_at: null })"), true);
+
+  assert.equal(actions.includes("export async function autoApplyRecommendedBookingSetupAction(studioId: string)"), true);
+  assert.equal(overview.includes("!studioRes.data?.booking_setup_auto_applied_at"), true);
+  assert.equal(overview.includes("<AutoRecommendedSetup studioId={ctx.studioId} />"), true);
+  assert.equal(auto.includes("startedRef.current = true;"), true);
+  assert.equal(migration.includes("add column if not exists booking_setup_auto_applied_at timestamptz"), true);
+  assert.equal(migration.includes("from public.location_operating_hours h where h.studio_id = s.id"), true);
+});
+
+test("advanced booking tabs sit under More unless open", () => {
+  const dir = "src/app/(app)/dashboard/settings/booking";
+  const page = read(`${dir}/page.tsx`);
+  const context = read(`${dir}/_sections/context.ts`);
+
+  assert.equal(context.includes('{ key: "resources", label: "Resources", advanced: true }'), true);
+  assert.equal(context.includes('{ key: "rules", label: "Rules & terms", advanced: true }'), true);
+  assert.equal(page.includes("!isAdvancedBookingTab(item.key) || item.key === tab"), true);
+  assert.equal(page.includes("More ▾"), true);
+});

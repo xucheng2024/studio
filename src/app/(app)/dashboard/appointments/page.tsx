@@ -12,6 +12,7 @@ import {
   cancelSalonAppointmentAction,
   chargeSalonAppointmentAction,
   completeAndChargeSalonAppointmentAction,
+  completeSalonAppointmentAction,
   createSalonAppointmentAction,
   rescheduleSalonAppointmentAction,
   transitionSalonAppointmentStatusAction,
@@ -227,7 +228,8 @@ function AppointmentCard(props: {
   const transitionSet = new Set<string>(transitions as readonly string[]);
   const canReschedule = props.canManage && ["pending", "confirmed"].includes(status);
   const showArrive = (props.canManage || props.isInstructorOnly) && status === "confirmed";
-  const showCompleteAndCharge = props.canManage && status === "in_progress";
+  // Managers can finish straight from confirmed; check-in and start are recorded on the way.
+  const showCompleteAndCharge = props.canManage && (status === "confirmed" || status === "in_progress");
   const primaryTargets = transitions.filter((target) => {
     if (target === "cancelled" || target === "no_show") return false;
     if (showArrive && target === "checked_in") return false;
@@ -296,10 +298,9 @@ function AppointmentCard(props: {
             </ServerActionToastForm>
           ) : null}
           {showCompleteAndCharge ? (
-            <ServerActionToastForm action={transitionSalonAppointmentStatusAction} refreshOnSuccess={false}>
+            <ServerActionToastForm action={completeSalonAppointmentAction} refreshOnSuccess={false}>
               <input type="hidden" name="studio_id" value={props.studioId} />
               <input type="hidden" name="appointment_id" value={appointment.id} />
-              <input type="hidden" name="to_status" value="completed" />
               <input type="hidden" name="idempotency_key" value={buildTransitionKey(appointment, "completed")} />
               <button type="submit" className={ui.btnSecondarySm}>Complete</button>
             </ServerActionToastForm>

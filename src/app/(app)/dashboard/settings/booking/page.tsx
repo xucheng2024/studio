@@ -4,7 +4,7 @@ import { hasStudioGlobalLocationAccess } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ui } from "@/lib/ui";
-import { BOOKING_TABS, bookingHref, parseBookingTab, type BookingSettingsContext } from "./_sections/context";
+import { BOOKING_TABS, bookingHref, isAdvancedBookingTab, parseBookingTab, type BookingSettingsContext } from "./_sections/context";
 import { HoursSection } from "./_sections/HoursSection";
 import { OverviewSection } from "./_sections/OverviewSection";
 import { ResourcesSection } from "./_sections/ResourcesSection";
@@ -62,6 +62,14 @@ export default async function DashboardBookingSettingsPage({ searchParams }: Pro
     employeeId: sp.employee_id ?? null,
   };
   const tab = parseBookingTab(sp.tab);
+  const tabClass = (active: boolean) =>
+    `shrink-0 border-b-2 px-3 py-2 text-sm font-medium ${
+      active
+        ? "border-teal-600 text-teal-700 dark:text-teal-300"
+        : "border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-100"
+    }`;
+  const visibleTabs = BOOKING_TABS.filter((item) => !isAdvancedBookingTab(item.key) || item.key === tab);
+  const moreTabs = BOOKING_TABS.filter((item) => isAdvancedBookingTab(item.key) && item.key !== tab);
 
   return (
     <div className="flex max-w-4xl flex-col gap-6">
@@ -75,25 +83,39 @@ export default async function DashboardBookingSettingsPage({ searchParams }: Pro
         </p>
       </div>
 
-      <nav aria-label="Booking settings" className="-mb-2 flex gap-1 overflow-x-auto border-b border-stone-200 dark:border-stone-800">
-        {BOOKING_TABS.map((item) => {
-          const active = item.key === tab;
-          return (
-            <DashboardAppLink
-              key={item.key}
-              href={bookingHref(ctx, { tab: item.key === "overview" ? null : item.key, employee_id: null })}
-              aria-current={active ? "page" : undefined}
-              className={`shrink-0 border-b-2 px-3 py-2 text-sm font-medium ${
-                active
-                  ? "border-teal-600 text-teal-700 dark:text-teal-300"
-                  : "border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-100"
-              }`}
-            >
-              {item.label}
-            </DashboardAppLink>
-          );
-        })}
-      </nav>
+      <div className="-mb-2 flex items-end gap-1 border-b border-stone-200 dark:border-stone-800">
+        <nav aria-label="Booking settings" className="flex min-w-0 gap-1 overflow-x-auto">
+          {visibleTabs.map((item) => {
+            const active = item.key === tab;
+            return (
+              <DashboardAppLink
+                key={item.key}
+                href={bookingHref(ctx, { tab: item.key === "overview" ? null : item.key, employee_id: null })}
+                aria-current={active ? "page" : undefined}
+                className={tabClass(active)}
+              >
+                {item.label}
+              </DashboardAppLink>
+            );
+          })}
+        </nav>
+        {moreTabs.length ? (
+          <details className="relative shrink-0">
+            <summary className={`${tabClass(false)} cursor-pointer list-none`}>More ▾</summary>
+            <div className="absolute right-0 z-10 mt-1 flex min-w-40 flex-col rounded-xl border border-stone-200 bg-white p-1 shadow-lg dark:border-stone-800 dark:bg-stone-900">
+              {moreTabs.map((item) => (
+                <DashboardAppLink
+                  key={item.key}
+                  href={bookingHref(ctx, { tab: item.key, employee_id: null })}
+                  className="rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+                >
+                  {item.label}
+                </DashboardAppLink>
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </div>
 
       {tab === "overview" ? <OverviewSection ctx={ctx} /> : null}
       {tab === "hours" ? <HoursSection ctx={ctx} /> : null}

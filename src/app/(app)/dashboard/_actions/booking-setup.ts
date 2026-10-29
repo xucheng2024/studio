@@ -2,6 +2,7 @@
 
 import {
   applyRecommendedBookingSetup,
+  autoApplyRecommendedBookingSetup,
   publishSalonTermsVersion,
   setEmployeeTakesAppointments,
   setServiceOnlineBookable,
@@ -36,6 +37,16 @@ export async function applyRecommendedBookingSetupAction(
   if (!result.ok) return err(result.message ?? result.reason);
   await revalidateBookingViews(studioId);
   return ok(result.changes.length ? result.changes.join(". ") + "." : "Nothing to fill — setup was already complete.");
+}
+
+/** Called once by the booking settings page; does nothing after the first run. */
+export async function autoApplyRecommendedBookingSetupAction(studioId: string): Promise<{ changes: string[] }> {
+  if (!studioId) return { changes: [] };
+  const { user } = await requireUser();
+  const result = await autoApplyRecommendedBookingSetup({ userId: user.id, studioId });
+  if (!result.ran) return { changes: [] };
+  await revalidateBookingViews(studioId);
+  return { changes: result.changes };
 }
 
 export async function publishSalonTermsAction(
