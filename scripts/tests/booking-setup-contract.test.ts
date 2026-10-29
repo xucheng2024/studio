@@ -231,3 +231,13 @@ test("single-location studios do not see location choices", () => {
   assert.equal(bar.includes("if (ctx.locations.length <= 1) return null;"), true);
   assert.equal(bookingPage.includes("(catalog.locations.length === 1 ? catalog.locations[0].id : \"\")"), true);
 });
+
+test("staff list shows the services each bookable person can do", () => {
+  const lib = read("src/lib/booking-setup.ts");
+  const staff = read("src/app/(app)/dashboard/settings/booking/_sections/StaffSection.tsx");
+
+  assert.equal(lib.includes("serviceNames: string[];"), true);
+  assert.equal(lib.includes('admin.from("service_employees").select("service_id, employee_id").eq("studio_id", params.studioId).eq("is_active", true),'), true);
+  assert.equal(staff.includes("{person.serviceNames.join(\", \")}"), true);
+  assert.equal(staff.includes('bookingHref(ctx, { tab: "services", employee_id: null })'), true);
+});

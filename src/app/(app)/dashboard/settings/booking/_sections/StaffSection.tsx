@@ -315,6 +315,19 @@ async function TakesAppointmentsCard({ ctx }: { ctx: BookingSettingsContext }) {
                   </SubmitButton>
                 </ServerActionToastForm>
               </div>
+              {person.takesAppointments ? (
+                <p className="flex flex-wrap items-center gap-x-2 text-xs">
+                  <span className={ui.muted}>Does</span>
+                  {person.serviceNames.length ? (
+                    <span className="text-stone-800 dark:text-stone-200">{person.serviceNames.join(", ")}</span>
+                  ) : (
+                    <span className="text-amber-700 dark:text-amber-300">No services yet</span>
+                  )}
+                  <DashboardAppLink href={bookingHref(ctx, { tab: "services", employee_id: null })} className={ui.linkMuted}>
+                    Edit
+                  </DashboardAppLink>
+                </p>
+              ) : null}
               {showLocations && person.takesAppointments ? (
                 <ServerActionToastForm action={setEmployeeBookingLocationsAction} className="flex flex-wrap items-center gap-3">
                   <input type="hidden" name="studio_id" value={ctx.studioId} />

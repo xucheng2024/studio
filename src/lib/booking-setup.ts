@@ -693,12 +693,14 @@ export type StudioEmployeeBookingRow = {
   takesAppointments: boolean;
   roles: string[];
   locationIds: string[];
+  /** Active services this person is eligible for, in service sort order. */
+  serviceNames: string[];
 };
 
 /** All active employees with their dashboard roles, for the "Who takes appointments" list. */
 export async function listStudioEmployeesForBooking(params: { studioId: string }): Promise<StudioEmployeeBookingRow[]> {
   const admin = createAdminClient();
-  const [employeeRes, membershipRes, studioRes, employeeLocationRes] = await Promise.all([
+  const [employeeRes, membershipRes, studioRes, employeeLocationRes, serviceRes, serviceEmployeeRes] = await Promise.all([
     admin
       .from("employees")
       .select("id, user_id, display_name, employment_status, takes_appointments")
@@ -708,8 +710,14 @@ export async function listStudioEmployeesForBooking(params: { studioId: string }
     admin.from("staff_memberships").select("user_id, role").eq("studio_id", params.studioId).eq("is_active", true),
     admin.from("studios").select("owner_id").eq("id", params.studioId).maybeSingle<{ owner_id: string | null }>(),
     admin.from("employee_locations").select("employee_id, location_id").eq("studio_id", params.studioId).eq("is_active", true),
+    admin.from("studio_services").select("id, title").eq("studio_id", params.studioId).eq("is_active", true).order("sort_order").order("title"),
+    admin.from("service_employees").select("service_id, employee_id").eq("studio_id", params.studioId).eq("is_active", true),
   ]);
   if (employeeRes.error) throw employeeRes.error;
+  if (serviceRes.error) throw serviceRes.error;
+  if (serviceEmployeeRes.error) throw serviceEmployeeRes.error;
+  const serviceIdsByEmployee = new Map<string, Set<string>>();
+  for (const row of serviceEmployeeRes.data ?? []) pushTo(serviceIdsByEmployee, row.employee_id, row.service_id);
   if (employeeLocationRes.error) throw employeeLocationRes.error;
   const locationsByEmployee = new Map<string, string[]>();
   for (const row of employeeLocationRes.data ?? []) {
@@ -728,6 +736,9 @@ export async function listStudioEmployeesForBooking(params: { studioId: string }
     takesAppointments: row.takes_appointments !== false,
     roles: row.user_id ? [...(rolesByUser.get(row.user_id) ?? [])] : [],
     locationIds: locationsByEmployee.get(row.id) ?? [],
+    serviceNames: (serviceRes.data ?? [])
+      .filter((service) => serviceIdsByEmployee.get(row.id)?.has(service.id))
+      .map((service) => service.title),
   }));
 }
 
